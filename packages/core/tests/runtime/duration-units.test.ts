@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { deserializeValue } from '@rcrsr/rill';
+import { run } from '../helpers/runtime.js';
+import { expectHalt, expectHaltSync } from '../helpers/halt.js';
 import {
   DURATION_UNITS,
   decomposeDuration,
@@ -55,9 +58,9 @@ describe('parseDurationText', () => {
     expect(parseDurationText('9007199254740992ms')).toBeUndefined();
   });
 
-  it('rejects a non-finite total', () => {
+  it('rejects a total beyond the safe range', () => {
     const big = `${Number.MAX_SAFE_INTEGER}`;
-    expect(parseDurationText(`${big}d${big}h`)).toBeDefined();
+    expect(parseDurationText(`${big}d${big}h`)).toBeUndefined();
     expect(parseDurationText('9'.repeat(400) + 'ms')).toBeUndefined();
   });
 });
@@ -177,5 +180,37 @@ describe('duration text round trip', () => {
       expect(text).not.toMatch(/e/);
       expect(parseDurationText(text)).toEqual({ months: 0, ms });
     }
+  });
+});
+
+describe('duration range', () => {
+  it('parseDurationText rejects out-of-range totals', () => {
+    expect(parseDurationText('9007199254740991ms')).toEqual({
+      months: 0,
+      ms: 9007199254740991,
+    });
+    expect(parseDurationText('9007199254740992ms')).toBeUndefined();
+    expect(parseDurationText('104249992d')).toBeUndefined();
+    expect(parseDurationText('1d9007199254740991ms')).toBeUndefined();
+    expect(parseDurationText('9007199254740992mo')).toBeUndefined();
+  });
+
+  it('datetime .diff halts INVALID_INPUT past the range', async () => {
+    await expectHalt(
+      () =>
+        run(
+          'datetime("-271821-04-20T00:00:00Z") -> .diff(datetime("+275760-09-13T00:00:00Z"))'
+        ),
+      { code: 'INVALID_INPUT' }
+    );
+  });
+
+  it('deserialize halts INVALID_INPUT on out-of-range components', () => {
+    expectHaltSync(() => deserializeValue(9007199254740992, 'duration'), {
+      code: 'INVALID_INPUT',
+    });
+    expectHaltSync(() => deserializeValue({ months: 1, ms: -1 }, 'duration'), {
+      code: 'INVALID_INPUT',
+    });
   });
 });

@@ -5,7 +5,10 @@
  * comparison sites to halt on operands that can never be equal.
  *
  * Import constraints:
- * - Imports from ./operations.js, ./structures.js, ./halt.js, ./registrations.js
+ * - Imports from ./operations.js, ./structures.js, ./halt.js, ./registrations.js,
+ *   ./guards.js, ./dict-keys.js
+ * - carriedListElement serves only the list membership gates; element reads
+ *   of an undeclared collection carry no type
  */
 
 import {
@@ -154,6 +157,21 @@ export function carriedStructure(
     if (!(e instanceof RuntimeHaltSignal)) throw e;
     return { kind: inferType(value) };
   }
+}
+
+/**
+ * Element type of the list a value carries (declared, else inferred from its
+ * contents); undefined when the value carries no list type or its element is
+ * `any`. Membership gates only: ordinary element reads carry nothing.
+ */
+export function carriedListElement(
+  value: RillValue,
+  declared: TypeStructure | undefined
+): TypeStructure | undefined {
+  const s = carriedStructure(value, declared);
+  if (!isStructureKind(s, 'list')) return undefined;
+  const element = s.element;
+  return element === undefined || element.kind === 'any' ? undefined : element;
 }
 
 /** Halt `#TYPE_MISMATCH` (catchable) when the operands' types cannot overlap. */

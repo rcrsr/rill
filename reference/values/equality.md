@@ -65,6 +65,15 @@ r[equality.methods] .eq, .ne, .has, .has_any, and .has_all follow the operators
 `.eq`, `.ne`, `.has`, `.has_any`, and `.has_all` MUST compare as `==` does, including its
 halts.
 
+r[equality.membership] Membership judges the sought value against the element type
+`.has`, `.has_any`, and `.has_all` on a list MUST judge overlap between each sought value and the
+list's element type, carried or inferred, not each element's own type.
+
+```rill
+list[1, "a"] -> .has("a")
+# Result: true
+```
+
 ## Interactions
 
 A carried type decides whether a comparison halts, never its result (`carried-type.equality`).

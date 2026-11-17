@@ -2202,9 +2202,9 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Idle inactivity timeout exceeded',
     messageTemplate: 'timeout<idle:> exceeded: no activity for {durationMs}ms',
     cause:
-      'The timeout<idle: duration> block body produced no output chunk within the idle bound.',
+      'no stream chunk arrived and no host call returned within the idle bound.',
     resolution:
-      'Recover via guard { timeout<idle: d> { body } } ?? fallback. Reduce idle duration or ensure body emits chunks.',
+      'Recover via guard { timeout<idle: d> { body } } ?? fallback. Increase the idle duration, or make the body read stream chunks or call the host more often.',
     examples: [
       {
         description: 'Idle timeout with guard recovery',

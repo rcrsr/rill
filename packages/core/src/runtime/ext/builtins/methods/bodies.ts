@@ -25,8 +25,11 @@ import {
   typedKeyCount,
 } from '../../../core/types/dict-keys.js';
 import { isEmpty } from '../../../core/values.js';
-import { iterationElement } from '../../../core/types/declared.js';
-import { requireOverlap, type Carried } from '../../../core/types/overlap.js';
+import {
+  carriedListElement,
+  requireOverlap,
+  type Carried,
+} from '../../../core/types/overlap.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import {
   throwCatchableHostHalt,
@@ -618,7 +621,7 @@ function requireElementOverlap(
   location: SourceLocation | undefined,
   fn: string
 ): void {
-  const element = iterationElement(receiverDeclared, receiver);
+  const element = carriedListElement(receiver, receiverDeclared);
   if (element === undefined) return;
   requireOverlap(
     { value: null, declared: element },
@@ -683,7 +686,7 @@ function requireCandidatesOverlap(
   location: SourceLocation | undefined,
   fn: string
 ): void {
-  const element = iterationElement(carried?.[1], candidates);
+  const element = carriedListElement(candidates, carried?.[1]);
   if (element === undefined) return;
   requireElementOverlap(
     receiver,

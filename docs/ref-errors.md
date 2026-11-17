@@ -1961,9 +1961,9 @@ guard { timeout<total: duration("500ms")> { $app.slow() } } ?? "fallback"
 
 **Description:** Idle inactivity timeout exceeded
 
-**Cause:** The timeout<idle: duration> block body produced no output chunk within the idle bound.
+**Cause:** no stream chunk arrived and no host call returned within the idle bound.
 
-**Resolution:** Recover via guard { timeout<idle: d> { body } } ?? fallback. Reduce idle duration or ensure body emits chunks.
+**Resolution:** Recover via guard { timeout<idle: d> { body } } ?? fallback. Increase the idle duration, or make the body read stream chunks or call the host more often.
 
 **Example:**
 

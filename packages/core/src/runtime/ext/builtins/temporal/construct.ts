@@ -1,5 +1,6 @@
 import type { SourceLocation } from '../../../../types.js';
 import { throwTypeHalt } from '../../../core/types/halt.js';
+import { requireDurationInRange } from '../../../core/types/duration-limit.js';
 import type { RillValue } from '../../../core/types/structures.js';
 import {
   DURATION_UNITS,
@@ -489,6 +490,12 @@ export function constructDuration(
         'runtime'
       );
     }
+    requireDurationInRange(
+      parsed.months,
+      parsed.ms,
+      { location, fn: 'duration' },
+      'duration()'
+    );
     return { __rill_duration: true, months: parsed.months, ms: parsed.ms };
   }
 
@@ -503,6 +510,12 @@ export function constructDuration(
     }
   }
 
+  requireDurationInRange(
+    totals.months,
+    totals.ms,
+    { location, fn: 'duration' },
+    'duration()'
+  );
   return {
     __rill_duration: true,
     months: totals.months,

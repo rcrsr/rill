@@ -6,7 +6,8 @@
  * duration has a months part. A duration with only a milliseconds part works.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { anyTypeValue } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
 
@@ -64,5 +65,56 @@ describe('time-domain operators reject a months part', () => {
       'list[1, 2, 3] -> batch(2, dict[idle_flush: duration("1s")]) -> seq({ $ }) -> .len'
     );
     expect(result).toBe(2);
+  });
+});
+
+describe('timeout limits reject delays above the timer ceiling', () => {
+  const CEILING = 2147483647;
+  const spyFns = () => {
+    const spy = vi.fn(() => 'ran');
+    return {
+      spy,
+      functions: {
+        probe: { returnType: anyTypeValue, params: [], fn: spy },
+      },
+    };
+  };
+
+  it('accepts the ceiling and runs the body', async () => {
+    const { spy, functions } = spyFns();
+    const result = await run(
+      `timeout<total: duration("${CEILING}ms")> { probe() }`,
+      { functions }
+    );
+    expect(result).toBe('ran');
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['total', 'idle'])(
+    'halts %s above the ceiling before the body runs',
+    async (limit) => {
+      const { spy, functions } = spyFns();
+      await expectHalt(
+        () =>
+          run(`timeout<${limit}: duration("${CEILING + 1}ms")> { probe() }`, {
+            functions,
+          }),
+        { code: 'INVALID_INPUT', messagePattern: new RegExp(limit) }
+      );
+      expect(spy).not.toHaveBeenCalled();
+    }
+  );
+
+  it('lets guard catch the halt', async () => {
+    const result = await run(
+      `guard { timeout<total: duration("${CEILING + 1}ms")> { 1 } } => $r
+$r.!code -> .eq(#INVALID_INPUT)`
+    );
+    expect(result).toBe(true);
+  });
+
+  it('still accepts a 25-day debounce', async () => {
+    const result = await run('range(0, 3) -> debounce(duration("25d"))');
+    expect(Array.isArray(result)).toBe(true);
   });
 });

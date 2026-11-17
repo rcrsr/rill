@@ -40,7 +40,7 @@ import { quoteRillString } from './format-string.js';
 import { typedKeyEntries, setDictField } from './dict-keys.js';
 import { formatUnion } from './error-code.js';
 // oxlint-disable-next-line import/no-cycle -- unions.ts imports this file; the edge is used only at call time, never at module init
-import { normalizeUnion } from './unions.js';
+import { reduceUnionMembers } from './unions.js';
 
 /** isCallable guard widened to narrow to full RillCallable (not just CallableMarker); a CallableMarker implies RillCallable by construction. */
 function isCallable(value: RillValue): value is RillCallable {
@@ -746,6 +746,25 @@ function paramToFieldDef(
   return field;
 }
 
+/** True when a list's element chain ends in an unspecified or `any` element. */
+function endsInAny(ts: TypeStructure): boolean {
+  let current: TypeStructure = ts;
+  while (isStructureKind(current, 'list')) {
+    if (current.element === undefined || current.element.kind === 'any') {
+      return true;
+    }
+    current = current.element;
+  }
+  return false;
+}
+
+/** Insert `slot` into an ascending slot list. */
+function insertSlot(slots: number[], slot: number): void {
+  const at = slots.findIndex((existing) => existing > slot);
+  if (at === -1) slots.push(slot);
+  else slots.splice(at, 0, slot);
+}
+
 /**
  * Infer the element type of a list. Never halts on mixed elements.
  * Empty arrays return { kind: 'any' }. The result is the set of maximal
@@ -753,79 +772,170 @@ function paramToFieldDef(
  * sibling, and members with no common type (dicts, ordereds, or tuples with
  * different fields) stay separate union members. The result does not depend
  * on element order or duplicates.
+ *
+ * Two structures merge without being equal only when both are lists and one
+ * list's element chain ends in `any`. An exact repeat resolves through a
+ * lookup keyed by the printed type; only list members that can merge are
+ * scanned with `commonType`, so a list of distinct records costs linear time.
  */
 function inferElementType(elements: RillValue[]): TypeStructure {
   const members: TypeStructure[] = [];
+  const slotKeys: string[] = [];
+  const keySlots = new Map<string, number[]>();
+  const listSlots: number[] = [];
+  let anyListSlots: number[] = [];
+
+  const track = (slot: number, key: string): void => {
+    const slots = keySlots.get(key);
+    if (slots === undefined) keySlots.set(key, [slot]);
+    else insertSlot(slots, slot);
+  };
+
   for (const elem of elements) {
     if (elem === undefined) continue;
     const elemType = inferStructure(elem);
-    let merged = false;
-    for (const [slot, existing] of members.entries()) {
-      const common = commonType(existing, elemType);
-      if (common === null) continue;
-      members[slot] = common;
-      merged = true;
-      break;
+    const key = formatStructure(elemType);
+
+    let exact = -1;
+    for (const slot of keySlots.get(key) ?? []) {
+      const existing = members[slot];
+      if (existing !== undefined && structureEquals(existing, elemType)) {
+        exact = slot;
+        break;
+      }
     }
-    if (!merged) members.push(elemType);
+
+    let handled = exact !== -1;
+    if (isStructureKind(elemType, 'list')) {
+      const pool = endsInAny(elemType) ? listSlots : anyListSlots;
+      for (const slot of pool) {
+        if (exact !== -1 && slot >= exact) break;
+        const existing = members[slot];
+        if (existing === undefined) continue;
+        const common = commonType(existing, elemType);
+        if (common === null) continue;
+        handled = true;
+        if (!structureEquals(common, existing)) {
+          const oldKey = slotKeys[slot] ?? '';
+          const oldSlots = keySlots.get(oldKey);
+          if (oldSlots !== undefined) {
+            oldSlots.splice(oldSlots.indexOf(slot), 1);
+          }
+          const newKey = formatStructure(common);
+          members[slot] = common;
+          slotKeys[slot] = newKey;
+          track(slot, newKey);
+          anyListSlots = listSlots.filter((s) => {
+            const member = members[s];
+            return member !== undefined && endsInAny(member);
+          });
+        }
+        break;
+      }
+    }
+    if (handled) continue;
+
+    const slot = members.length;
+    members.push(elemType);
+    slotKeys.push(key);
+    track(slot, key);
+    if (isStructureKind(elemType, 'list')) {
+      listSlots.push(slot);
+      if (endsInAny(elemType)) anyListSlots.push(slot);
+    }
   }
   const only = members[0];
   if (only === undefined) return { kind: 'any' };
   if (members.length === 1) return only;
-  const normalized = normalizeUnion(members);
-  if ('rejection' in normalized) {
-    return throwTypeHalt(
-      { fn: 'inferElementType' },
-      'INVALID_INPUT',
-      normalized.rejection,
-      'runtime',
-      undefined,
-      'host'
-    );
+  const reduced = reduceUnionMembers(members);
+  if (isStructureKind(reduced, 'union')) {
+    Object.freeze(reduced.members);
+    Object.freeze(reduced);
   }
-  return normalized.structure;
+  return reduced;
 }
 
-/** Infer the structural type descriptor for any Rill value. */
+const inferredStructures = new WeakMap<object, TypeStructure>();
+
+/** Run `build` once per container identity; a build that halts stores nothing. */
+function memoizedStructure(
+  value: object,
+  build: () => TypeStructure
+): TypeStructure {
+  const cached = inferredStructures.get(value);
+  if (cached !== undefined) return cached;
+  const built = build();
+  inferredStructures.set(value, built);
+  return built;
+}
+
+const STRING_STRUCTURE: TypeStructure = Object.freeze({ kind: 'string' });
+const NUMBER_STRUCTURE: TypeStructure = Object.freeze({ kind: 'number' });
+const BOOL_STRUCTURE: TypeStructure = Object.freeze({ kind: 'bool' });
+const TYPE_STRUCTURE: TypeStructure = Object.freeze({ kind: 'type' });
+const VECTOR_STRUCTURE: TypeStructure = Object.freeze({ kind: 'vector' });
+const DATETIME_STRUCTURE: TypeStructure = Object.freeze({ kind: 'datetime' });
+const DURATION_STRUCTURE: TypeStructure = Object.freeze({ kind: 'duration' });
+const ATOM_STRUCTURE: TypeStructure = Object.freeze({ kind: 'atom' });
+const ITERATOR_STRUCTURE: TypeStructure = Object.freeze({ kind: 'iterator' });
+
+/**
+ * Infer the structural type descriptor for any Rill value. Results for
+ * arrays, tuples, ordereds, and plain dicts are memoized per container
+ * identity and frozen; callers must not mutate them.
+ */
 export function inferStructure(value: RillValue): TypeStructure {
   if (value === null || typeof value === 'string') {
-    return { kind: 'string' };
+    return STRING_STRUCTURE;
   }
   if (typeof value === 'number') {
-    return { kind: 'number' };
+    return NUMBER_STRUCTURE;
   }
   if (typeof value === 'boolean') {
-    return { kind: 'bool' };
+    return BOOL_STRUCTURE;
   }
   if (isTypeValue(value)) {
-    return { kind: 'type' };
+    return TYPE_STRUCTURE;
   }
   if (Array.isArray(value)) {
-    return { kind: 'list', element: inferElementType(value) };
+    return memoizedStructure(value, () =>
+      Object.freeze({ kind: 'list', element: inferElementType(value) })
+    );
   }
   // An empty tuple, ordered, or dict infers the unspecified type, as an
   // empty list does, so its printed type parses back to itself.
   if (isTuple(value)) {
-    if (value.entries.length === 0) return { kind: 'tuple' };
-    return {
-      kind: 'tuple',
-      elements: value.entries.map((e): RillFieldDef => ({
-        type: inferStructure(e),
-      })),
-    };
+    const tuple = value;
+    return memoizedStructure(tuple, () => {
+      if (tuple.entries.length === 0) return Object.freeze({ kind: 'tuple' });
+      return Object.freeze({
+        kind: 'tuple',
+        elements: Object.freeze(
+          tuple.entries.map((e): RillFieldDef =>
+            Object.freeze({ type: inferStructure(e) })
+          )
+        ),
+      });
+    });
   }
   if (isOrdered(value)) {
-    if (value.entries.length === 0) return { kind: 'ordered' };
-    return {
-      kind: 'ordered',
-      fields: value.entries.map(([k, v]): RillFieldDef => ({
-        name: k,
-        type: inferStructure(v),
-      })),
-    };
+    const ordered = value;
+    return memoizedStructure(ordered, () => {
+      if (ordered.entries.length === 0) {
+        return Object.freeze({ kind: 'ordered' });
+      }
+      return Object.freeze({
+        kind: 'ordered',
+        fields: Object.freeze(
+          ordered.entries.map(([k, v]): RillFieldDef =>
+            Object.freeze({ name: k, type: inferStructure(v) })
+          )
+        ),
+      });
+    });
   }
   if (isVector(value)) {
-    return { kind: 'vector' };
+    return VECTOR_STRUCTURE;
   }
   if (isStream(value)) {
     const chunk = getStreamTypeSidecar(value, 'chunk');
@@ -839,46 +949,59 @@ export function inferStructure(value: RillValue): TypeStructure {
     };
     if (chunk !== undefined) result.chunk = chunk;
     if (ret !== undefined) result.ret = ret;
-    return result;
+    return Object.freeze(result);
   }
   if (isCallable(value) && value.returnType !== undefined) {
     const params = declaredParams(value).map((p) =>
-      paramToFieldDef(
-        p.name,
-        p.type ?? { kind: 'any' },
-        p.defaultValue,
-        p.annotations
+      Object.freeze(
+        paramToFieldDef(
+          p.name,
+          p.type ?? { kind: 'any' },
+          p.defaultValue,
+          p.annotations
+        )
       )
     );
     const ret: TypeStructure = value.returnType.structure;
-    return { kind: 'closure', params, ret };
+    return Object.freeze({
+      kind: 'closure',
+      params: Object.freeze(params),
+      ret,
+    });
   }
   if (isDatetime(value)) {
-    return { kind: 'datetime' };
+    return DATETIME_STRUCTURE;
   }
   if (isDuration(value)) {
-    return { kind: 'duration' };
+    return DURATION_STRUCTURE;
   }
   if (isAtom(value)) {
-    return { kind: 'atom' };
+    return ATOM_STRUCTURE;
   }
   // Iterators are structurally dicts (done/next/value), so this must
   // precede the generic dict fallback below.
   if (isIterator(value)) {
-    return { kind: 'iterator' };
+    return ITERATOR_STRUCTURE;
   }
   if (isDict(value)) {
     const dict = value;
-    const fields: Record<string, RillFieldDef> = {};
-    for (const [k, v] of Object.entries(dict)) {
-      setDictField(fields, k, { type: inferStructure(v) });
-    }
-    // Number/boolean keys contribute fields under their string form.
-    for (const { key, value: v } of typedKeyEntries(dict)) {
-      setDictField(fields, String(key), { type: inferStructure(v) });
-    }
-    if (Object.keys(fields).length === 0) return { kind: 'dict' };
-    return { kind: 'dict', fields };
+    return memoizedStructure(dict, () => {
+      const fields: Record<string, RillFieldDef> = {};
+      for (const [k, v] of Object.entries(dict)) {
+        setDictField(fields, k, Object.freeze({ type: inferStructure(v) }));
+      }
+      // Number/boolean keys contribute fields under their string form.
+      for (const { key, value: v } of typedKeyEntries(dict)) {
+        setDictField(
+          fields,
+          String(key),
+          Object.freeze({ type: inferStructure(v) })
+        );
+      }
+      if (Object.keys(fields).length === 0)
+        return Object.freeze({ kind: 'dict' });
+      return Object.freeze({ kind: 'dict', fields: Object.freeze(fields) });
+    });
   }
   return throwTypeHalt(
     { fn: 'inferStructure' },
@@ -923,7 +1046,9 @@ export function commonType(
       a.element ?? ANY_STRUCTURE,
       b.element ?? ANY_STRUCTURE
     );
-    return inner === null ? null : { kind: 'list', element: inner };
+    return inner === null
+      ? null
+      : Object.freeze({ kind: 'list', element: inner });
   }
   return null;
 }

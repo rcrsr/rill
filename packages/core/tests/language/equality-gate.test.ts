@@ -86,13 +86,23 @@ describe('Rill Language: equality gate', () => {
     }
   );
 
-  rule('carried-type.collection-element').it(
-    'compares each element of a mixed list without halting',
+  rule('carried-type.own-element', 'equality.no-overlap').it(
+    'halts when an element of an undeclared mixed list is compared by its own type',
     async () => {
-      expect(await run('list[1, "a"] -> seq({ $ == "a" })')).toEqual([
-        false,
-        true,
-      ]);
+      await expectHalt(() => run('list[1, "a"] -> seq({ $ == "a" })'), {
+        code: 'TYPE_MISMATCH',
+      });
+    }
+  );
+
+  rule('carried-type.element').it(
+    'compares each element of a declared mixed list against the union element type',
+    async () => {
+      expect(
+        await run(
+          'list[1, "a"] -> :list(union(number, string)) -> seq({ $ == "a" })'
+        )
+      ).toEqual([false, true]);
     }
   );
 

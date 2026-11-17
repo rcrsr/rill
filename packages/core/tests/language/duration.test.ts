@@ -524,6 +524,48 @@ describe('Rill Language: Duration Type', () => {
       });
     });
 
+    const range = rule('duration.range').it;
+
+    range('round-trips the largest whole-day duration', async () => {
+      const result = await run(
+        'duration(...dict[days: 104249991]) => $d\nduration("{$d}") == $d'
+      );
+      expect(result).toBe(true);
+    });
+
+    range('halts INVALID_INPUT one day past the range', async () => {
+      await expectHalt(() => run('duration(...dict[days: 104249992])'), {
+        code: 'INVALID_INPUT',
+      });
+      await expectHalt(() => run('duration("104249992d")'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    range('round-trips the largest millisecond count', async () => {
+      const result = await run(
+        'duration(...dict[ms: 9007199254740991]) => $d\nduration("{$d}") == $d'
+      );
+      expect(result).toBe(true);
+    });
+
+    range('halts INVALID_INPUT when .add overflows', async () => {
+      await expectHalt(
+        () =>
+          run(
+            'duration(...dict[ms: 9007199254740991]) -> .add(duration("1ms"))'
+          ),
+        { code: 'INVALID_INPUT' }
+      );
+    });
+
+    range('halts INVALID_INPUT when .multiply overflows', async () => {
+      await expectHalt(
+        () => run('duration(...dict[ms: 9007199254740991]) -> .multiply(2)'),
+        { code: 'INVALID_INPUT' }
+      );
+    });
+
     roundTrip('round-trips printed text through interpolation', async () => {
       for (const text of ['0ms', '1s', '2h30m', '1y2mo3d4h5m6s7ms', '500ms']) {
         const result = await run(

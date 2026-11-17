@@ -67,6 +67,12 @@ The zero duration MUST print as `0ms`.
 r[duration.round-trip] A printed duration parses back
 For every duration `$d`, `duration("{$d}")` MUST equal `$d`.
 
+r[duration.range] A duration component is at most 2^53-1
+The month count and the millisecond count of a duration MUST each be a finite, non-negative
+number no larger than 9007199254740991. A construction, a string argument, a deserialization,
+or a method result that would exceed that MUST halt with `#INVALID_INPUT`. `duration("104249992d")`
+halts, and `duration("104249991d")` is the largest whole-day duration.
+
 r[duration.equality] Two durations are equal when both components are equal
 `==` between two durations MUST yield true exactly when their month counts and their
 millisecond counts are equal. `48h == 2d` ⇒ `true`. One month is not equal to 30 days.
@@ -100,6 +106,7 @@ A duration MUST satisfy `:duration`. A value of any other type MUST halt `:durat
 | A spread key names no parameter | RILL-R001 | Yes |
 | A positional number argument | RILL-R001 | Yes |
 | A string argument is not in the printed form | `#INVALID_INPUT` | Yes |
+| A component total exceeds 9007199254740991 | `#INVALID_INPUT` | Yes |
 | Durations disagree on months and milliseconds when ordered | RILL-R002 | Yes |
 | A duration is ordered against a non-duration or used in arithmetic | RILL-R002 | Yes |
 | A non-duration is asserted as `:duration` | `#TYPE_MISMATCH` | Yes |

@@ -316,11 +316,12 @@ const CASES: readonly RecoverableCase[] = [
     message: 'duration.multiply() requires non-negative number',
   },
   {
-    name: 'duration.multiply with a non-finite result',
+    name: 'duration.multiply with an out-of-range result',
     source:
       '|x| ($x * $x) => $sq\n10 -> $sq -> $sq -> $sq -> $sq -> $sq -> $sq -> $sq -> $sq => $big\nduration("1d") -> .multiply($big) -> .multiply($big)',
     code: '#INVALID_INPUT',
-    message: 'duration.multiply() would produce a non-finite result',
+    message:
+      'duration.multiply(): duration out of range (months 0, ms 8.640000000000005e+263); each component must be a non-negative integer no larger than 9007199254740991',
   },
   {
     name: 'duration.multiply with a fractional month result',

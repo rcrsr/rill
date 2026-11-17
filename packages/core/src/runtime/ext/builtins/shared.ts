@@ -379,9 +379,9 @@ export function makeGenericIterator(
  * Bind one collection element into a per-element body context and build the
  * body's call args. The element's declared type is the declared list's
  * element type when the collection argument (`list`, position 0 of the
- * marshalled `record`) is a declared list, else the element type inferred from
- * a list's contents; every other collection, and every stream or iterator,
- * carries nothing. `extra` args (a fold accumulator)
+ * marshalled `record`) is a declared list; every other collection, and every
+ * stream or iterator, carries nothing and each element is judged by its own
+ * type. `extra` args (a fold accumulator)
  * follow the element and carry nothing.
  *
  * @internal
@@ -392,10 +392,7 @@ export function bindElement(
   record: Readonly<Record<string, RillValue>>,
   extra: readonly RillValue[] = []
 ): RillValue[] {
-  const declared = iterationElement(
-    recordArgDeclared(record, 0),
-    record['list'] ?? null
-  );
+  const declared = iterationElement(recordArgDeclared(record, 0));
   setPipe(childCtx, element, declared);
   const callArgs: RillValue[] = [element, ...extra];
   if (declared !== undefined) {

@@ -64,6 +64,10 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
     Wrong: $n == "5"                       # halts: #TYPE_MISMATCH, types do not overlap
     Right: $n == 5
 
+    Wrong: list[1, "a"] -> seq({ $ == "a" })   # halts on 1: elements carry their own type
+    Right: list[1, "a"] => $l:list(union(number, string))
+           $l -> seq({ $ == "a" })             # list[false, true]
+
 ## Loops
 
     Wrong: for item in list { ... }

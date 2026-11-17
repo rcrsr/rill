@@ -853,9 +853,9 @@ A computed result takes its own type. Binary and unary operators, method calls, 
 A collection without a declaration carries none, so its elements report their own types:
 
 ```rill
-list[1, 2] => $xs
-$xs[0].^type.signature
-# Result: "number"
+list[1, "a"] => $xs
+tuple[$xs[0].^type.signature, $xs[1].^type.signature]
+# Result: tuple["number", "string"]
 ```
 
 A variable's declared type is its lock, so a later capture does not change it:

@@ -48,7 +48,10 @@ import type { Carried } from '../../types/declared.js';
 import { STATUS_CODE_STRUCTURE } from '../../types/error-code.js';
 import { RuntimeHaltSignal, formatAccessSite } from './access.js';
 import { isDuration } from '../../types/guards.js';
-import { requireFixedDuration } from '../../types/duration-limit.js';
+import {
+  requireFixedDuration,
+  requireTimerDelay,
+} from '../../types/duration-limit.js';
 import { inferType } from '../../types/registrations.js';
 import {
   getHostShape,
@@ -371,7 +374,15 @@ export async function evaluateTimeoutBlock(
         `timeout<${limit}:> duration must be a duration value, got ${inferType(value)}`
       );
     }
-    limits.set(limit, requireFixedDuration(value, `timeout<${limit}:>`, site));
+    const optionName = `timeout<${limit}:>`;
+    limits.set(
+      limit,
+      requireTimerDelay(
+        requireFixedDuration(value, optionName, site),
+        optionName,
+        site
+      )
+    );
   }
 
   // Build a fresh controller for this timeout scope; chain it to the
@@ -515,7 +526,8 @@ function isAbortHalt(e: unknown): boolean {
  *    prevent the callback from firing after the fact.
  *
  * @param args.ctx       RuntimeContext supplying `signal` and optionally `scheduler`.
- * @param args.idleMs    Idle window in milliseconds.
+ * @param args.idleMs    Idle window in milliseconds. Must already pass
+ *                       `requireTimerDelay`; a larger delay would fire at once.
  * @param args.onIdle    Callback invoked once when the idle window expires.
  * @returns `{ reset, cancel }` control handle.
  */

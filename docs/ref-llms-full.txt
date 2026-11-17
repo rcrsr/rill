@@ -257,6 +257,10 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
     Wrong: $n == "5"                       # halts: #TYPE_MISMATCH, types do not overlap
     Right: $n == 5
 
+    Wrong: list[1, "a"] -> seq({ $ == "a" })   # halts on 1: elements carry their own type
+    Right: list[1, "a"] => $l:list(union(number, string))
+           $l -> seq({ $ == "a" })             # list[false, true]
+
 ## Loops
 
     Wrong: for item in list { ... }
@@ -971,7 +975,7 @@ Constructed with function-call syntax.
     datetime("2024-01-15T00:00:00Z") -> .year         # 2024
     datetime(...dict[year: 2024, month: 1, day: 15])  # named components via spread
     now()                                              # current datetime
-    duration("25h") -> .days                          # 1.04
+    duration("25h") -> .days                          # 1
     duration("1y") -> .months                         # 12
 
 ## Type inspection `^type`
@@ -984,7 +988,7 @@ Returns a type value for runtime inspection.
     list[1, 2].^type.signature      # "list(number)"
     list[1, "a"].^type.signature    # "list(union(number, string))"
 
-A mixed list is legal and infers `list(union(...))` over the element types whatever their order. A declared element type such as `:list(number)` rejects it with `#TYPE_MISMATCH`.
+A mixed list is legal and infers `list(union(...))` over the element types whatever their order. A declared element type such as `:list(number)` rejects it with `#TYPE_MISMATCH`. An element read from an undeclared list carries its own type, so declare `:list(union(number, string))` to compare elements across types.
 
 Read what a type holds with `.inner` and what a function or stream yields with `.outer`:
 

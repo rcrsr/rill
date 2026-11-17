@@ -329,7 +329,7 @@ export function selectByBracketKey(
   if (located === undefined) return { value: null, declared: undefined };
   return {
     value: located.value,
-    declared: projectLocated(receiverDeclared, receiver, located),
+    declared: projectLocated(receiverDeclared, located),
   };
 }
 

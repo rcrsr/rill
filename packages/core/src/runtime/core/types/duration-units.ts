@@ -170,6 +170,25 @@ export function formatDurationText(d: {
 }
 
 // ============================================================
+// RANGE
+// ============================================================
+
+/**
+ * True when both components are finite, non-negative, and at most
+ * `Number.MAX_SAFE_INTEGER`. Every constructible duration satisfies this.
+ */
+export function isDurationInRange(months: number, ms: number): boolean {
+  return (
+    Number.isFinite(months) &&
+    Number.isFinite(ms) &&
+    months >= 0 &&
+    ms >= 0 &&
+    months <= Number.MAX_SAFE_INTEGER &&
+    ms <= Number.MAX_SAFE_INTEGER
+  );
+}
+
+// ============================================================
 // PARSE
 // ============================================================
 
@@ -207,7 +226,6 @@ export function parseDurationText(
       hasFraction = true;
     }
     const count = Number(text.slice(start, pos));
-    if (!(count <= Number.MAX_SAFE_INTEGER)) return undefined;
     const rest = text.slice(pos);
     const unit = SUFFIXES_LONGEST_FIRST.find((u) => rest.startsWith(u.suffix));
     if (unit === undefined) return undefined;
@@ -218,8 +236,6 @@ export function parseDurationText(
     pos += unit.suffix.length;
     totals[unit.field] += count * unit.factor;
   }
-  if (!Number.isFinite(totals.months) || !Number.isFinite(totals.ms)) {
-    return undefined;
-  }
+  if (!isDurationInRange(totals.months, totals.ms)) return undefined;
   return totals;
 }

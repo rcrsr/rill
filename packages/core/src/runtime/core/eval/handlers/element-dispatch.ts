@@ -135,7 +135,7 @@ export async function selectElement(
   }
   return {
     value: found.value,
-    declared: projectLocated(declared, collection, found),
+    declared: projectLocated(declared, found),
   };
 }
 

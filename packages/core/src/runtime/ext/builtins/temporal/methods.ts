@@ -12,6 +12,7 @@ import type {
   RillValue,
 } from '../../../core/types/structures.js';
 import { isDatetime, isDuration } from '../../../core/types/guards.js';
+import { requireDurationInRange } from '../../../core/types/duration-limit.js';
 import {
   requireDatetime,
   requireDuration,
@@ -301,6 +302,12 @@ export const mDtDiff: RillMethod = (receiver, args, ctx, location) => {
   }
   const otherDt = other;
   const diffMs = Math.abs(dt.unix - otherDt.unix);
+  requireDurationInRange(
+    0,
+    diffMs,
+    { location, sourceId: ctx.sourceId, fn: 'diff', preserveHostShape: true },
+    'datetime.diff()'
+  );
   // Always non-negative, months = 0
   return {
     __rill_duration: true,
@@ -401,10 +408,18 @@ export const mDurAdd: RillMethod = (receiver, args, ctx, location) => {
     );
   }
   const otherDur = other;
+  const months = dur.months + otherDur.months;
+  const ms = dur.ms + otherDur.ms;
+  requireDurationInRange(
+    months,
+    ms,
+    { location, sourceId: ctx.sourceId, fn: 'add', preserveHostShape: true },
+    'duration.add()'
+  );
   return {
     __rill_duration: true,
-    months: dur.months + otherDur.months,
-    ms: dur.ms + otherDur.ms,
+    months,
+    ms,
   };
 };
 
@@ -500,6 +515,17 @@ export const mDurMultiply: RillMethod = (receiver, args, ctx, location) => {
       'duration.multiply() would produce a fractional month value'
     );
   }
+  requireDurationInRange(
+    months,
+    ms,
+    {
+      location,
+      sourceId: ctx.sourceId,
+      fn: 'multiply',
+      preserveHostShape: true,
+    },
+    'duration.multiply()'
+  );
   return {
     __rill_duration: true,
     months,

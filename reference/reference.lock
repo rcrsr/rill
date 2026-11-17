@@ -99,13 +99,13 @@ carried-type dc4793bb5965 conversion.union@415487b22deb type-lock.asserted@3541f
 carried-type.carriage 619f46dafff7
 carried-type.carriage-declared 795306d1c9dd
 carried-type.carriage-param 06dc230524de
-carried-type.collection-element 2fcc1e0df4d9
 carried-type.computed 4ced6eaf503b
 carried-type.declared-probe 7724a69ee0f5
 carried-type.effective-probe da1ca7bbf1a7
 carried-type.element 708e75eb72f7
 carried-type.equality e57cad672ddc
 carried-type.fallback 9a18ebc2b806
+carried-type.own-element 1613e0cd4bce equality.no-overlap@39f213f599cf inference.literal-union@4b9f058d4366
 carried-type.replace 92d0ac2c5056 assertion.any@c486fea6b8eb
 carried-type.reserved-key 482d6a7d0ebf
 carried-type.type-probe eaad72137ace
@@ -258,7 +258,7 @@ dispatch.ordered 3922f001c122
 dispatch.path 5a324e95d596
 dispatch.select b43bf6dece5b
 dispatch.tuple 2908349a89b3
-duration cfa83b8b16bf equality.no-overlap@39f213f599cf
+duration 2f01284c7dc7 equality.no-overlap@39f213f599cf
 duration.construct c247666dc907
 duration.equality b3b087dac628
 duration.fractional-months 62a7bc1432aa
@@ -272,6 +272,7 @@ duration.ordering ad0a26752d18
 duration.ordering-disagree 2e306e152793
 duration.print 73df419fc205
 duration.print-zero 87563ecd9b31
+duration.range 77dbb4626cfe
 duration.round-trip d5c97a172e42
 duration.string-malformed 8b2174fd7ba0
 duration.unknown-key 69aa6a35ba5d
@@ -283,6 +284,7 @@ equality.content 654a7056b375
 equality.function 780a229ffda3
 equality.keyed d85d782acb49
 equality.kind 65342655309f equality.no-overlap@39f213f599cf
+equality.membership 1c4703573aa1
 equality.methods de4fddba65e2
 equality.nested 25b9a608b7d8
 equality.no-overlap 39f213f599cf

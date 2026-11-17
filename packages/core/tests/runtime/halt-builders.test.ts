@@ -1860,7 +1860,7 @@ describe('host-error shape (file)', () => {
 
     it('before expiry the original fatal error propagates unchanged', async () => {
       const err = await captureError(
-        'guard { timeout<total: duration("30d")> { boom() } } => $r\n$r',
+        'guard { timeout<total: duration("1d")> { boom() } } => $r\n$r',
         {
           functions: {
             boom: makeClassBoom({

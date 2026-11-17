@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { tokenize } from '@rcrsr/rill';
+import { tokenize, toNative, type RillValue } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { scalingRatio } from '../helpers/scaling.js';
 
@@ -184,4 +184,66 @@ describe('Rill Runtime: Performance Regression', () => {
     expect(mismatches).toBe(0);
     expect(ratio).toBeLessThan(MAX_SCALING_RATIO);
   }, 60000);
+
+  describe('untyped-container inference scales linearly with record count', () => {
+    // Every record has an id, one key unique to that record, and a
+    // mixed-type list field (a nested union), so each record is a distinct
+    // dict shape. Each timed call builds a fresh list
+    // because inference is memoized per list identity.
+    const buildRecords = (n: number): RillValue[] =>
+      Array.from({ length: n }, (_, i) => ({
+        id: i,
+        [`k${i}`]: i,
+        tags: ['a', 1],
+      }));
+    const scriptRun = (script: string) => (items: RillValue[]) =>
+      Promise.resolve(run(script, { variables: { items } }));
+
+    it.each([
+      [
+        'list type name',
+        scriptRun('$items.^type.name'),
+        (result: unknown): boolean => result === 'list',
+      ],
+      [
+        'toNative',
+        (items: RillValue[]) => Promise.resolve(toNative(items)),
+        (result: unknown): boolean =>
+          (result as { rillTypeName: string }).rillTypeName === 'list',
+      ],
+      [
+        'seq',
+        scriptRun('$items -> seq({ 1 })'),
+        (result: unknown): boolean => Array.isArray(result),
+      ],
+      [
+        'filter',
+        scriptRun('$items -> filter({ $.id == 5 })'),
+        (result: unknown): boolean =>
+          Array.isArray(result) && result.length === 1,
+      ],
+    ])(
+      'scales linearly for %s',
+      async (_name, exec, isExpected) => {
+        for (let i = 0; i < 5; i++) {
+          await exec(buildRecords(1000));
+          await exec(buildRecords(4000));
+        }
+
+        let mismatches = 0;
+        const ratio = await scalingRatio(
+          async (n) => {
+            if (!isExpected(await exec(buildRecords(n)))) mismatches++;
+          },
+          1000,
+          4000,
+          11
+        );
+
+        expect(mismatches).toBe(0);
+        expect(ratio).toBeLessThan(MAX_SCALING_RATIO);
+      },
+      60000
+    );
+  });
 });

@@ -280,7 +280,7 @@ All comparisons are by value, not reference:
 "hello" == "hello"                     # true
 ```
 
-`==` and `!=` halt with `#TYPE_MISMATCH` when the operand types cannot overlap. Values of overlapping types that differ in kind compare unequal. An empty list overlaps a list of numbers, so the comparison runs:
+`==` and `!=` halt with `#TYPE_MISMATCH` when the operand types cannot overlap. Values of overlapping types that differ in kind compare unequal. An element read from an undeclared list carries its own type, so `list[1, "a"] -> filter({ $ == "a" })` halts on `1`. Declare the list as `list(union(number, string))` to compare across its types. An empty list overlaps a list of numbers, so the comparison runs:
 
 ```rill
 list[] == list[1]

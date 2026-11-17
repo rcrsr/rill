@@ -4,6 +4,7 @@
  * TypeDefinition for the 'duration' built-in type.
  * Allowed imports: ../structures.js, ../guards.js, ./shared.js,
  * ../operations.js, ../callable.js, ../halt.js, ../duration-units.js,
+ * ../duration-limit.js,
  * ../../../types.js
  *
  * MUST NOT import from ../registrations.js or sibling protocols/*.
@@ -14,6 +15,7 @@ import type { TypeDefinition } from './types.js';
 import { isDuration } from '../guards.js';
 import { throwTypeHalt, throwCatchableHostHalt } from '../halt.js';
 import { formatDurationText } from '../duration-units.js';
+import { requireDurationInRange } from '../duration-limit.js';
 import { requireDuration } from './shared.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
@@ -94,6 +96,12 @@ function serializeDuration(v: RillValue): unknown {
  */
 function deserializeDuration(data: unknown): RillValue {
   if (typeof data === 'number') {
+    requireDurationInRange(
+      0,
+      data,
+      { fn: 'deserialize-duration' },
+      'Cannot deserialize duration'
+    );
     return {
       __rill_duration: true,
       months: 0,
@@ -115,6 +123,12 @@ function deserializeDuration(data: unknown): RillValue {
         'runtime'
       );
     }
+    requireDurationInRange(
+      obj.months,
+      obj.ms,
+      { fn: 'deserialize-duration' },
+      'Cannot deserialize duration'
+    );
     return {
       __rill_duration: true,
       months: obj.months,
