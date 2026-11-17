@@ -10,32 +10,8 @@
 import type { ASTNode, SourceLocation, TypeAssertionNode } from '@rcrsr/rill';
 import type { Diagnostic, DiagnosticFix, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
+import { literalKind } from './literal-shape.js';
 import { registeredRules } from './rules-registry.js';
-
-// ============================================================
-// LITERAL TYPE RESOLUTION
-// ============================================================
-
-function getLiteralType(
-  node: ASTNode
-): 'string' | 'number' | 'bool' | 'list' | 'tuple' | 'dict' | null {
-  switch (node.type) {
-    case 'NumberLiteral':
-      return 'number';
-    case 'StringLiteral':
-      return 'string';
-    case 'BoolLiteral':
-      return 'bool';
-    case 'ListLiteral':
-      return 'list';
-    case 'TupleLiteral':
-      return 'tuple';
-    case 'Dict':
-      return 'dict';
-    default:
-      return null;
-  }
-}
 
 // ============================================================
 // FIX CONSTRUCTION
@@ -148,8 +124,12 @@ export const unnecessaryAssertion: Rule = {
       return [];
     }
 
-    const literalType = getLiteralType(operand.primary);
-    if (literalType === null) {
+    const literalType = literalKind(operand.primary);
+    if (
+      literalType === null ||
+      literalType === 'atom' ||
+      literalType === 'ordered'
+    ) {
       return [];
     }
 

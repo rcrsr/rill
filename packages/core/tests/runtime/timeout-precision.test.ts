@@ -75,7 +75,7 @@ describe('timeout<total:> scheduling', () => {
       let settled = false;
 
       const pending = run(
-        `guard { timeout<total: duration(0, 0, 0, 0, 0, 0, ${ms})> { precision_body() } } => $r\n($r.!code == #RILL_R082)`,
+        `guard { timeout<total: duration("${ms}ms")> { precision_body() } } => $r\n($r.!code == #RILL_R082)`,
         {
           functions: {
             precision_body: makeAbortAwareBody(() => markStarted()),

@@ -32,6 +32,7 @@ import type {
 import { inferType } from '../../types/registrations.js';
 import { isObjectRecord, isStream } from '../../types/guards.js';
 import { structureMatches, formatStructure } from '../../types/operations.js';
+import { isInternalFn, notifyActivity } from '../../activity.js';
 import { ControlSignal, YieldSignal } from '../../signals.js';
 import type { EvalState } from '../state.js';
 import { haltSlowPath } from './access.js';
@@ -585,6 +586,7 @@ async function invokeFnCallable(
     s.ctx.trackInflight(dispatchPromise);
     result = await dispatchPromise;
     validateHostResult(result, functionName, callLocation);
+    if (!isInternalFn(callable.fn)) notifyActivity(s.ctx.activityListeners);
   } catch (e) {
     // Enrichment site 1: extension-dispatch boundary.
     return reshapeHostThrow(e, callLocation, s.ctx.sourceId, functionName);

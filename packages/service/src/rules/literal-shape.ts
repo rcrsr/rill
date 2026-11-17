@@ -14,6 +14,16 @@ import type { ASTNode, DictEntryNode } from '@rcrsr/rill';
 // CONSTANTS
 // ============================================================
 
+export type LiteralKind =
+  | 'number'
+  | 'string'
+  | 'bool'
+  | 'atom'
+  | 'list'
+  | 'tuple'
+  | 'ordered'
+  | 'dict';
+
 const EMPTY_SHAPE = 'EMPTY';
 
 const COMPOUND_PREFIXES: readonly string[] = [
@@ -53,6 +63,35 @@ export function unwrapBareLiteral(node: ASTNode): ASTNode {
 }
 
 // ============================================================
+// KINDS
+// ============================================================
+
+/** Rill kind name of a literal primary node, or null when it is not a literal. */
+export function literalKind(node: ASTNode): LiteralKind | null {
+  switch (node.type) {
+    case 'NumberLiteral':
+      return 'number';
+    case 'StringLiteral':
+      return 'string';
+    case 'BoolLiteral':
+      return 'bool';
+    case 'AtomLiteral':
+      return 'atom';
+    case 'ListLiteral':
+      return 'list';
+    case 'TupleLiteral':
+      return 'tuple';
+    case 'OrderedLiteral':
+      return 'ordered';
+    case 'Dict':
+    case 'DictLiteral':
+      return 'dict';
+    default:
+      return null;
+  }
+}
+
+// ============================================================
 // SHAPES
 // ============================================================
 
@@ -88,15 +127,16 @@ function sequenceShapes(elements: readonly ASTNode[]): string[] | null {
 /** Shape of a literal expression: a kind string, `'EMPTY'`, or null. */
 export function literalShape(expr: ASTNode): string | null {
   const node = unwrapBareLiteral(expr);
+  const kind = literalKind(node);
+  if (
+    kind === 'number' ||
+    kind === 'string' ||
+    kind === 'bool' ||
+    kind === 'atom'
+  ) {
+    return kind;
+  }
   switch (node.type) {
-    case 'NumberLiteral':
-      return 'number';
-    case 'StringLiteral':
-      return 'string';
-    case 'BoolLiteral':
-      return 'bool';
-    case 'AtomLiteral':
-      return 'atom';
     case 'ListLiteral': {
       if (node.elements.length === 0) return EMPTY_SHAPE;
       const shapes = sequenceShapes(node.elements);

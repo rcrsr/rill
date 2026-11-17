@@ -20,6 +20,8 @@
 import type { ASTNode, BodyNode, ExpressionNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
+import { literalKind } from './literal-shape.js';
+import type { LiteralKind } from './literal-shape.js';
 import { registeredRules } from './rules-registry.js';
 
 // ============================================================
@@ -27,24 +29,14 @@ import { registeredRules } from './rules-registry.js';
 // ============================================================
 
 /**
- * Primary node types that unambiguously produce a non-bool value, mapped to
- * the rill type name of the literal. The diagnostic message names this type;
- * it is not guaranteed to match the runtime halt's own wording.
- *
- * `DictLiteralNode` is not in this set: the parser always produces
- * `type: 'Dict'` for `dict[...]` literals (already listed below); no parse
- * path emits a `DictLiteral`-typed node, so including it would be
- * unreachable dead code.
+ * Literal kinds that unambiguously produce a non-bool value. The diagnostic
+ * message names the kind; it is not guaranteed to match the runtime halt's
+ * own wording. A bool literal is a valid condition and never fires.
  */
-const NON_BOOL_PRIMARY_TYPES: ReadonlyMap<string, string> = new Map([
-  ['StringLiteral', 'string'],
-  ['NumberLiteral', 'number'],
-  ['ListLiteral', 'list'],
-  ['TupleLiteral', 'tuple'],
-  ['OrderedLiteral', 'ordered'],
-  ['Dict', 'dict'],
-  ['AtomLiteral', 'atom'],
-]);
+function nonBoolKind(node: ASTNode): LiteralKind | null {
+  const kind = literalKind(node);
+  return kind === 'bool' ? null : kind;
+}
 
 // ============================================================
 // UNWRAP
@@ -143,8 +135,8 @@ export const conditionType: Rule = {
     const primary = unwrapCondition(condition);
     if (primary === null) return [];
 
-    const typeName = NON_BOOL_PRIMARY_TYPES.get(primary.type);
-    if (typeName === undefined) return [];
+    const typeName = nonBoolKind(primary);
+    if (typeName === null) return [];
 
     return [
       {

@@ -180,6 +180,18 @@ use<db:templates> => $t
 
 ---
 
+## Halts inside a module
+
+A halt raised while a module loaded by `use<>` runs passes through `use<>`, `guard`, and `retry`. Wrapping `use<>` in `guard` catches only resolution failures. A source that does not parse halts with `RILL-R056`, which is catchable.
+
+```text
+guard { use<module:greetings> } => $g
+```
+
+If `module:greetings` divides by zero while loading, the halt propagates out of the `guard`. If the resolver throws or the source is unparseable, `guard` catches `RILL-R056`.
+
+---
+
 ## Circular Resolution
 
 The runtime tracks in-flight resolution keys. If module A loads module B which loads module A, the runtime throws `RILL-R055` before infinite recursion occurs.
@@ -196,15 +208,18 @@ See [Error Reference](ref-errors.md) for full error details on RILL-R055 and rel
 
 ## Error Reference
 
-| Code | Trigger |
-|------|---------|
-| `RILL-R050` | Module ID not in `moduleResolver` config |
-| `RILL-R051` | File path in config cannot be read |
-| `RILL-R054` | Scheme name not registered in `resolvers` |
-| `RILL-R055` | Circular resolution: key already in flight |
-| `RILL-P020` | Missing `:` after scheme in `use<>` |
-| `RILL-P021` | Missing resource identifier after `:` |
-| `RILL-P022` | Missing `>` to close `use<>` |
+| Code | Trigger | Catchable |
+|------|---------|-----------|
+| `RILL-R050` | Module ID not in `moduleResolver` config; `use<>` surfaces it as `RILL-R056` | Yes |
+| `RILL-R051` | File path in config cannot be read; `use<>` surfaces it as `RILL-R056` | Yes |
+| `RILL-R054` | Scheme name not registered in `resolvers` | Yes |
+| `RILL-R055` | Circular resolution: key already in flight | No |
+| `RILL-R056` | Resolver threw, returned a malformed result, or the source failed to parse | Yes |
+| `RILL-R057` | Variable or computed `use<>` identifier is not a string | Yes |
+| `RILL-R058` | Computed `use<>` identifier lacks `:` | Yes |
+| `RILL-P020` | Missing `:` after scheme in `use<>` | No (parse error) |
+| `RILL-P021` | Missing resource identifier after `:` | No (parse error) |
+| `RILL-P022` | Missing `>` to close `use<>` | No (parse error) |
 
 ---
 

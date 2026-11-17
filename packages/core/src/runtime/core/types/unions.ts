@@ -226,8 +226,172 @@ function normalizeUnion(
     }
   }
 
+  return { structure: reduceUnionMembers(written) };
+}
+
+/** Kinds whose structure may carry parameters; a bare one accepts every value of its kind. */
+const PARAMETERIZED_KINDS: ReadonlySet<string> = new Set([
+  'list',
+  'dict',
+  'tuple',
+  'ordered',
+  'stream',
+  'closure',
+]);
+
+/** What a member contributes to the absorb pass. */
+interface MemberScan {
+  /** A literal at any depth or a default appears; the fast pass does not apply. */
+  complex: boolean;
+  /** An any, bare compound, or nested union appears; the member may accept others. */
+  loose: boolean;
+}
+
+/** Walk a structure once, flagging literals, unions, defaults, any, and bare compounds. */
+function scanMember(ts: TypeStructure, scan: MemberScan): void {
+  if (scan.complex) return;
+  if (ts.kind === 'literal') {
+    scan.complex = true;
+    return;
+  }
+  if (isStructureKind(ts, 'union')) {
+    scan.loose = true;
+    for (const member of ts.members) scanMember(member, scan);
+    return;
+  }
+  if (ts.kind === 'any') {
+    scan.loose = true;
+    return;
+  }
+  if (PARAMETERIZED_KINDS.has(ts.kind) && isBareStructure(ts)) {
+    scan.loose = true;
+  }
+  const fieldLists: (readonly RillFieldDef[])[] = [];
+  const children: TypeStructure[] = [];
+  if (isStructureKind(ts, 'list') && ts.element !== undefined) {
+    children.push(ts.element);
+  }
+  if (isStructureKind(ts, 'dict')) {
+    if (ts.fields !== undefined) fieldLists.push(Object.values(ts.fields));
+    if (ts.valueType !== undefined) children.push(ts.valueType);
+  }
+  if (isStructureKind(ts, 'ordered')) {
+    if (ts.fields !== undefined) fieldLists.push(ts.fields);
+    if (ts.valueType !== undefined) children.push(ts.valueType);
+  }
+  if (isStructureKind(ts, 'tuple') && ts.elements !== undefined) {
+    fieldLists.push(ts.elements);
+  }
+  if (isStructureKind(ts, 'closure')) {
+    if (ts.params !== undefined) fieldLists.push(ts.params);
+    if (ts.ret !== undefined) children.push(ts.ret);
+  }
+  if (isStructureKind(ts, 'stream')) {
+    if (ts.chunk !== undefined) children.push(ts.chunk);
+    if (ts.ret !== undefined) children.push(ts.ret);
+  }
+  for (const fields of fieldLists) {
+    for (const field of fields) {
+      if (field.defaultValue !== undefined) scan.complex = true;
+      children.push(field.type);
+    }
+  }
+  for (const child of children) scanMember(child, scan);
+}
+
+/** Bucket key of a member that may absorb others: its kind, plus its key set for a named dict. */
+function absorberKey(ts: TypeStructure): string {
+  if (isStructureKind(ts, 'dict') && ts.fields !== undefined) {
+    return `dict:${JSON.stringify(Object.keys(ts.fields).sort())}`;
+  }
+  return ts.kind;
+}
+
+/** Push `index` onto the list stored under `key`. */
+function addToBucket(
+  buckets: Map<string, number[]>,
+  key: string,
+  index: number
+): void {
+  const bucket = buckets.get(key);
+  if (bucket === undefined) buckets.set(key, [index]);
+  else bucket.push(index);
+}
+
+/**
+ * Drop every member another member absorbs, keeping the survivors in order.
+ * A member is absorbed only by a member that accepts it. When no member
+ * carries a literal at any depth or a default, an accepting member is an equal
+ * member, an `any`, a bare compound of the same kind, or (for dicts) a
+ * member with exactly the same key set. A member with none of `any`, a bare
+ * compound, a union, or a literal at any depth accepts only an equal
+ * member, so only equal members and the "loose" members in the candidate's
+ * bucket need the pairwise check. Known limit: many distinct loose members
+ * that share one top-level key set still compare pairwise.
+ */
+function dropAbsorbed(spliced: readonly TypeStructure[]): TypeStructure[] {
+  const firstIndex = new Map<TypeStructure, number>();
+  for (const [i, member] of spliced.entries()) {
+    if (!firstIndex.has(member)) firstIndex.set(member, i);
+  }
+  const absorbs = (j: number, i: number): boolean => {
+    const other = spliced[j];
+    const member = spliced[i];
+    if (other === undefined || member === undefined) return false;
+    if (!structureAccepts(other, member)) return false;
+    if (losesDefault(member, other)) return false;
+    if (!structureAccepts(member, other)) return true;
+    const order = compareUnionMembers(other, member, formatStructure);
+    return (
+      order < 0 ||
+      (order === 0 &&
+        (firstIndex.get(other) ?? 0) < (firstIndex.get(member) ?? 0))
+    );
+  };
+
+  const scans = spliced.map((member): MemberScan => {
+    const scan: MemberScan = {
+      complex: member.kind === 'literal',
+      loose: false,
+    };
+    scanMember(member, scan);
+    return scan;
+  });
+  if (scans.some((scan) => scan.complex)) {
+    return spliced.filter(
+      (_, i) => !spliced.some((_other, j) => j !== i && absorbs(j, i))
+    );
+  }
+
+  const prints = spliced.map((member) => formatStructure(member));
+  const byPrint = new Map<string, number[]>();
+  const loose = new Map<string, number[]>();
+  for (const [i, member] of spliced.entries()) {
+    addToBucket(byPrint, prints[i] ?? '', i);
+    if (scans[i]?.loose === true) addToBucket(loose, absorberKey(member), i);
+  }
+
+  return spliced.filter((member, i) => {
+    const candidates: number[] = [
+      ...(byPrint.get(prints[i] ?? '') ?? []),
+      ...(loose.get('any') ?? []),
+      ...(loose.get(member.kind) ?? []),
+    ];
+    if (isStructureKind(member, 'dict') && member.fields !== undefined) {
+      candidates.push(...(loose.get(absorberKey(member)) ?? []));
+    }
+    return !candidates.some((j) => j !== i && absorbs(j, i));
+  });
+}
+
+/**
+ * Reduce member structures to one: splice nested unions, drop every member
+ * another member accepts, and collapse a single non-literal survivor to that
+ * member. Never rejects; written-union checks live in `normalizeUnion`.
+ */
+function reduceUnionMembers(members: readonly TypeStructure[]): TypeStructure {
   const spliced: TypeStructure[] = [];
-  for (const member of written) {
+  for (const member of members) {
     if (isStructureKind(member, 'union')) {
       spliced.push(...member.members);
     } else {
@@ -235,26 +399,13 @@ function normalizeUnion(
     }
   }
 
-  const kept = spliced.filter(
-    (member, i) =>
-      !spliced.some((other, j) => {
-        if (j === i) return false;
-        if (!structureAccepts(other, member)) return false;
-        if (losesDefault(member, other)) return false;
-        if (!structureAccepts(member, other)) return true;
-        const order = compareUnionMembers(other, member, formatStructure);
-        return (
-          order < 0 ||
-          (order === 0 && spliced.indexOf(other) < spliced.indexOf(member))
-        );
-      })
-  );
+  const kept = spliced.length < 2 ? spliced : dropAbsorbed(spliced);
 
   const only = kept[0];
   if (kept.length === 1 && only !== undefined && only.kind !== 'literal') {
-    return { structure: only };
+    return only;
   }
-  return { structure: { kind: 'union', members: kept } };
+  return { kind: 'union', members: kept };
 }
 
 // ============================================================
@@ -293,4 +444,4 @@ function selectUnionMember(
 // EXPORTS
 // ============================================================
 
-export { normalizeUnion, selectUnionMember };
+export { normalizeUnion, reduceUnionMembers, selectUnionMember };

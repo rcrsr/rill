@@ -47,19 +47,24 @@ const expectEqual =
 
 const CASES: readonly OperatorCase[] = [
   {
+    name: 'indexed read of a mixed list',
+    script: (n) =>
+      `range(0, ${n}) -> seq({ (($ % 2) == 0) ? $ ! "a" }) => $mixed\nrange(0, ${n}) -> seq({ $mixed[$] }) -> .len`,
+    check: expectEqual((n) => n),
+  },
+  {
     name: 'debounce',
-    script: (n) => `range(0, ${n}) -> debounce(duration(0, 0, 0, 0, 0, 0, 50))`,
+    script: (n) => `range(0, ${n}) -> debounce(duration("50ms"))`,
     check: expectEqual((n) => [n - 1]),
   },
   {
     name: 'throttle',
-    script: (n) =>
-      `range(0, ${n}) -> throttle(duration(0, 0, 0, 0, 0, 0, 100))`,
+    script: (n) => `range(0, ${n}) -> throttle(duration("100ms"))`,
     check: expectEqual(() => [0]),
   },
   {
     name: 'sample',
-    script: (n) => `range(0, ${n}) -> sample(duration(0, 0, 0, 0, 0, 0, 100))`,
+    script: (n) => `range(0, ${n}) -> sample(duration("100ms"))`,
     check: expectEqual((n) => [n - 1]),
   },
   {
@@ -78,7 +83,7 @@ const CASES: readonly OperatorCase[] = [
   {
     name: 'batch<idle_flush:>',
     script: (n) =>
-      `range(0, ${n}) -> batch(10, dict[idle_flush: duration(0, 0, 0, 0, 0, 0, 50)])`,
+      `range(0, ${n}) -> batch(10, dict[idle_flush: duration("50ms")])`,
     check: (result, n) =>
       Array.isArray(result) && result.length === n / 10
         ? undefined

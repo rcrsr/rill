@@ -3,7 +3,7 @@ id: atom
 title: Atoms
 status: normative
 since: 0.24.0
-issues: [560, 564]
+issues: [564]
 grammar: [atom-literal]
 errors: [RILL-P024, RILL-R002, RILL-R036, INVALID_INPUT, TYPE_MISMATCH]
 depends: [notation, halt, type-value]
@@ -55,6 +55,8 @@ An atom MUST print as `#` followed by its name. Interpolating an atom inserts th
 
 ## Interactions
 
+Equality against a non-atom value follows `equality.no-overlap`.
+
 r[atom.from-string] A string converts to the atom of its name
 `"wired" -> atom` MUST yield `#wired`.
 
@@ -81,10 +83,6 @@ outside that set MUST halt with `#TYPE_MISMATCH`. With `$kind` asserted as
 `union(#wired, #wireless)`, `$kind == #wirless` MUST halt, and `$kind == #wireless` MUST yield
 a bool.
 
-r[atom.cross-equality] Equality against a non-atom halts {pending #560}
-`==` and `!=` between an atom and an operand whose type does not overlap `atom` MUST halt with
-`#TYPE_MISMATCH`.
-
 r[atom.membership] Only an atom satisfies atom
 An atom MUST satisfy `:atom`. A value of any other type MUST halt `:atom` with
 `#TYPE_MISMATCH`.
@@ -99,7 +97,6 @@ An atom MUST satisfy `:atom`. A value of any other type MUST halt `:atom` with
 | A value that is neither atom nor string is converted to atom | RILL-R036 | Yes |
 | A non-atom is asserted as `:atom` | `#TYPE_MISMATCH` | Yes |
 | A closed-set atom is compared outside its set {pending #564} | `#TYPE_MISMATCH` | Yes |
-| An atom is compared for equality with a non-atom {pending #560} | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 
@@ -126,5 +123,4 @@ $kind == #wirless
 
 ## Notes
 
-Until #560 and #564 land, `==` between an atom and a value outside its type or asserted set
-yields false.
+Until #564 lands, `==` between an atom and a value outside its asserted set yields false.

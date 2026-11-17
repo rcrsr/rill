@@ -1436,7 +1436,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Incompatible convert source/target',
     messageTemplate: 'cannot convert {source} to {target}',
     cause:
-      'The `-> type` form does not support conversion between the given source and target types. -> string has no route from a function, an iterator, or a vector, or from a list, dict, tuple, or ordered that holds one at any depth, and interpolating or joining one halts the same way. -> string has no route from a datetime or a duration, or from a collection that holds one, though interpolation prints them. -> number accepts only string (must be numeric) and bool (produces 0 or 1). Other targets (-> bool, -> list, -> dict, -> tuple, -> ordered) have their own accepted sources.',
+      'The `-> type` form does not support conversion between the given source and target types. -> string has no route from a function, an iterator, or a vector, or from a list, dict, tuple, or ordered that holds one at any depth, and interpolating or joining one halts the same way. -> string has no route from a datetime, or from a collection that holds a datetime or a duration, though interpolation prints them; a duration alone converts to its printed form. -> number accepts only string (must be numeric) and bool (produces 0 or 1). Other targets (-> bool, -> list, -> dict, -> tuple, -> ordered) have their own accepted sources.',
     resolution:
       'Check the target type. A function, an iterator, or a vector, or a collection that holds one, has no string form; read its type with .^type instead. Interpolate a datetime or duration instead of converting it. For -> number, only string and bool sources are accepted. Verify the source type matches the accepted sources for the target type.',
     examples: [
@@ -1676,7 +1676,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'No resolver registered for scheme',
     messageTemplate: "No resolver registered for scheme '{scheme}'",
     cause:
-      'A use<> expression referenced a scheme with no registered resolver.',
+      'A use<> expression referenced a scheme with no registered resolver. The halt is catchable by guard and retry.',
     resolution:
       'Register a resolver for the scheme via RuntimeOptions.resolvers. Example: resolvers: { myScheme: myResolver }.',
     examples: [
@@ -1693,7 +1693,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     messageTemplate:
       'Circular resolution detected: {key} is already being resolved',
     cause:
-      'A use<> resolver returned source that re-entered the same scheme:resource key.',
+      'A use<> resolver returned source that re-entered the same scheme:resource key. The halt is not catchable by guard or retry.',
     resolution:
       'Remove the circular dependency from module sources. Ensure module A does not directly or indirectly use<module:A>.',
     examples: [
@@ -1709,7 +1709,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Resolver threw, or returned a malformed result',
     messageTemplate: "Resolver error for '{scheme}:{resource}': {message}",
     cause:
-      'The registered resolver function for the given scheme either threw an exception, or returned a result that is not a valid resolver result (e.g. missing or unrecognized `kind`, a `value`/`text` field that is absent or the wrong type, or a `value` that is a function, symbol, bigint, or contains such a non-rill value nested in a dict or list).',
+      'The registered resolver function for the given scheme either threw an exception, or returned a result that is not a valid resolver result (e.g. missing or unrecognized `kind`, a `value`/`text` field that is absent or the wrong type, or a `value` that is a function, symbol, bigint, or contains such a non-rill value nested in a dict or list), or the returned source failed to parse. The halt is catchable by guard and retry.',
     resolution:
       'Inspect the original error message in the RILL-R056 detail and fix the resolver implementation.',
     examples: [
@@ -1725,7 +1725,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'use<> identifier must resolve to string',
     messageTemplate: 'use<> identifier must resolve to string, got {type}',
     cause:
-      'Variable or computed form of use<> evaluated to a non-string value.',
+      'Variable or computed form of use<> evaluated to a non-string value. The halt is catchable by guard and retry.',
     resolution:
       'Ensure the variable or expression inside use<> evaluates to a string of the form "scheme:resource".',
     examples: [
@@ -1741,7 +1741,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: "use<> identifier must contain ':' scheme separator",
     messageTemplate: "use<> identifier must contain ':' scheme separator",
     cause:
-      'The dynamic use<> string did not contain a colon separating scheme from resource.',
+      'The dynamic use<> string did not contain a colon separating scheme from resource. The halt is catchable by guard and retry.',
     resolution:
       'Ensure the string has the format "scheme:resource". Example: "module:greetings".',
     examples: [
@@ -2188,11 +2188,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     cause:
       'The timeout<total: duration> block body did not complete within the wall-time bound.',
     resolution:
-      'Recover via guard { timeout<total: d> { body } } or ?? fallback. Increase duration or optimize body.',
+      'Recover via guard { timeout<total: d> { body } } ?? fallback. Increase duration or optimize body.',
     examples: [
       {
         description: 'Total timeout with guard recovery',
-        code: 'guard { timeout<total: 500ms> { $app.slow() } }',
+        code: 'guard { timeout<total: duration("500ms")> { $app.slow() } } ?? "fallback"',
       },
     ],
   },
@@ -2202,13 +2202,13 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Idle inactivity timeout exceeded',
     messageTemplate: 'timeout<idle:> exceeded: no activity for {durationMs}ms',
     cause:
-      'The timeout<idle: duration> block body produced no output chunk within the idle bound.',
+      'The timeout<idle: duration> block saw no stream chunk and no host call return within the idle bound.',
     resolution:
-      'Recover via guard { timeout<idle: d> { body } } or ?? fallback. Reduce idle duration or ensure body emits chunks.',
+      'Recover via guard { timeout<idle: d> { body } } ?? fallback. Increase the idle duration, or make the body read stream chunks or call the host more often.',
     examples: [
       {
         description: 'Idle timeout with guard recovery',
-        code: 'guard { timeout<idle: 200ms> { $stream } }',
+        code: 'guard { timeout<idle: duration("200ms")> { $stream } } ?? "fallback"',
       },
     ],
   },

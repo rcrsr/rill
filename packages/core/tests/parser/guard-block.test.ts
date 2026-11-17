@@ -76,7 +76,7 @@ describe('keyword blocks with an option list and no space before {', () => {
     ['guard<on: #RILL_R005>{ 1 }'],
     ['retry<limit: 2, on: #TIMEOUT>{ 1 }'],
     ['pass<on_error: #IGNORE>{ 1 }'],
-    ['timeout<total: duration(0,0,1)>{ 1 }'],
+    ['timeout<total: duration("1d")>{ 1 }'],
     ['do<limit: 3>{ 1 } while ($ < 0)'],
   ])('parses %j', (src) => {
     expect(() => parse(src)).not.toThrow();

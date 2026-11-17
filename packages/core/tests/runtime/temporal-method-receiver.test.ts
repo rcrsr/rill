@@ -8,9 +8,11 @@ import { BUILTIN_METHODS, createRuntimeContext } from '@rcrsr/rill';
 import { expectHaltSync } from '../helpers/halt.js';
 
 describe('temporal method receivers', () => {
-  // zero and local_offset ignore the receiver. The ordering methods reach
-  // orderedCompare, which halts RILL-R002 on a mismatched operand type.
-  const RECEIVER_INDEPENDENT = new Set(['zero', 'local_offset']);
+  // zero and local_offset ignore the receiver. eq and ne are the shared
+  // equality methods, which compare any receiver by its type. The ordering
+  // methods reach orderedCompare, which halts RILL-R002 on a mismatched
+  // operand type.
+  const RECEIVER_INDEPENDENT = new Set(['zero', 'local_offset', 'eq', 'ne']);
   const ORDERING = new Set(['lt', 'gt', 'le', 'ge']);
 
   describe.each([

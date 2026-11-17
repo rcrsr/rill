@@ -3,9 +3,9 @@ id: duration
 title: Durations
 status: normative
 since: 0.24.0
-issues: [560, 579]
+issues: []
 grammar: []
-errors: [RILL-R001, RILL-R002, INVALID_INPUT, TYPE_MISMATCH]
+errors: [RILL-R001, RILL-R002, RILL-R036, INVALID_INPUT, TYPE_MISMATCH]
 depends: [notation, halt, type-value]
 tests: [duration.test.ts, type-assertions.test.ts]
 ---
@@ -42,28 +42,42 @@ halts.
 r[duration.unknown-key] An unknown component name halts
 A spread key that names no parameter MUST halt with RILL-R001.
 
-r[duration.no-positional] A positional number is not a component {pending #579}
+r[duration.no-positional] A positional number is not a component
 `duration(500)` and every other positional number argument MUST halt with RILL-R001. Components
 are passed by name.
 
-r[duration.from-string] A string argument is parsed in the printed form {pending #579}
-`duration(s)` with a string `s` MUST parse it as one or more non-negative integers, each followed
-by `y`, `mo`, `d`, `h`, `m`, `s`, or `ms`, in that order and each at most once.
+r[duration.from-string] A string argument is parsed in the printed form
+`duration(s)` with a string `s` MUST parse it as one or more non-negative counts, each followed
+by `y`, `mo`, `d`, `h`, `m`, `s`, or `ms`, in that order and each at most once. Every count MUST
+be an integer except the `ms` count, which MAY be a decimal of digits, a point, and digits
+(`0.5ms`, `1s500.5ms`); a leading or trailing point, an exponent, and a sign are malformed.
 `duration("1m30s")` MUST equal `duration(...dict[minutes: 1, seconds: 30])`.
 
-r[duration.string-malformed] A string that does not parse halts {pending #579}
+r[duration.from-pipe] A string piped into duration parses as the argument does
+`s -> duration` with a string `s` MUST yield what `duration(s)` yields (`duration.from-string`) and
+MUST halt as it halts (`duration.string-malformed`). A number or a dict piped into `duration` MUST
+halt with RILL-R036. `("500ms" -> duration) == duration("500ms")` ⇒ `true`.
+
+r[duration.string-malformed] A string that does not parse halts
 A string argument that is not in the printed form MUST halt with `#INVALID_INPUT`.
 
 r[duration.print] A duration prints its non-zero components
 A duration MUST print as its non-zero components in the order years, months, days, hours,
 minutes, seconds, milliseconds, each followed by `y`, `mo`, `d`, `h`, `m`, `s`, or `ms`. A
-duration of 25 hours prints `1d1h`.
+duration of 25 hours prints `1d1h`. A fractional millisecond count prints as a decimal with no
+trailing zeros, so a duration of 1000.3 milliseconds prints `1s0.3ms`.
 
 r[duration.print-zero] The zero duration prints 0ms
 The zero duration MUST print as `0ms`.
 
-r[duration.round-trip] A printed duration parses back {pending #579}
+r[duration.round-trip] A printed duration parses back
 For every duration `$d`, `duration("{$d}")` MUST equal `$d`.
+
+r[duration.range] A duration component is at most 2^53-1
+The month count and the millisecond count of a duration MUST each be a finite, non-negative
+number no larger than 9007199254740991. A construction, a string argument, a deserialization,
+or a method result that would exceed that MUST halt with `#INVALID_INPUT`. `duration("104249992d")`
+halts, and `duration("104249991d")` is the largest whole-day duration.
 
 r[duration.equality] Two durations are equal when both components are equal
 `==` between two durations MUST yield true exactly when their month counts and their
@@ -79,13 +93,11 @@ RILL-R002.
 
 ## Interactions
 
+Equality against a non-duration value follows `equality.no-overlap`.
+
 r[duration.no-arithmetic] A duration is not a number
 An arithmetic operator with a duration operand MUST halt with RILL-R002. Ordering a duration
 against a non-duration MUST halt with RILL-R002.
-
-r[duration.cross-equality] Equality against a non-duration halts {pending #560}
-`==` and `!=` between a duration and an operand whose type does not overlap `duration` MUST
-halt with `#TYPE_MISMATCH`.
 
 r[duration.membership] Only a duration satisfies duration
 A duration MUST satisfy `:duration`. A value of any other type MUST halt `:duration` with
@@ -98,12 +110,13 @@ A duration MUST satisfy `:duration`. A value of any other type MUST halt `:durat
 | A component is negative or `months` is fractional | `#INVALID_INPUT` | Yes |
 | A component is not a finite number | `#TYPE_MISMATCH` | Yes |
 | A spread key names no parameter | RILL-R001 | Yes |
-| A positional number argument {pending #579} | RILL-R001 | Yes |
-| A string argument is not in the printed form {pending #579} | `#INVALID_INPUT` | Yes |
+| A positional number argument | RILL-R001 | Yes |
+| A string argument or a piped string is not in the printed form | `#INVALID_INPUT` | Yes |
+| A number or a dict is piped into `duration` | RILL-R036 | Yes |
+| A component total exceeds 9007199254740991 | `#INVALID_INPUT` | Yes |
 | Durations disagree on months and milliseconds when ordered | RILL-R002 | Yes |
 | A duration is ordered against a non-duration or used in arithmetic | RILL-R002 | Yes |
 | A non-duration is asserted as `:duration` | `#TYPE_MISMATCH` | Yes |
-| A duration is compared for equality with a non-duration {pending #560} | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 
@@ -115,6 +128,26 @@ duration(...dict[hours: 1, minutes: 90]) -> "{$}"
 ```rill
 duration(...dict[hours: 48]) == duration(...dict[days: 2])
 # Result: true
+```
+
+```rill
+duration("1h30m") == duration(...dict[hours: 1, minutes: 30])
+# Result: true
+```
+
+```rill
+("1h30m" -> duration) == duration(...dict[hours: 1, minutes: 30])
+# Result: true
+```
+
+```rill
+duration("1s0.3ms") -> string
+# Result: "1s0.3ms"
+```
+
+```rill
+# Error: units out of order halt with INVALID_INPUT
+duration("30s1m")
 ```
 
 ```rill
@@ -134,5 +167,3 @@ and a string argument halts `#TYPE_MISMATCH`.
 
 The built-in methods, such as `.add`, `.multiply`, and `.total_ms`, belong to the built-in
 methods chapter.
-
-Until #560 lands, `==` between a duration and a non-duration yields false.

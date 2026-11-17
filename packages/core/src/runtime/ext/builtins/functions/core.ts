@@ -1,5 +1,9 @@
 import type { RillFunction } from '../../../core/callable.js';
-import { callable, isCallable, isDict } from '../../../core/callable.js';
+import {
+  internalCallable,
+  isCallable,
+  isDict,
+} from '../../../core/callable.js';
 import {
   throwTypeHalt,
   throwCatchableHostHalt,
@@ -346,7 +350,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
         return {
           value: current,
           done: false,
-          next: callable(async () => {
+          next: internalCallable(async () => {
             stepCount++;
             if (stepCount > DEFAULT_MAX_ITERATIONS) {
               throwFatalHostHalt(

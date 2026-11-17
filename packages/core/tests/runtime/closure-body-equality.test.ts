@@ -127,8 +127,8 @@ const BODY_PAIRS: readonly BodyPair[] = [
   },
   {
     name: 'timeout block',
-    base: 'timeout<total: duration(0,0,0,0,0,0,500)> { $x }',
-    variant: 'timeout<total: duration(0,0,0,0,0,0,600)> { $x }',
+    base: 'timeout<total: duration("500ms")> { $x }',
+    variant: 'timeout<total: duration("600ms")> { $x }',
   },
   { name: 'atom literal', base: '#RILL_R001', variant: '#RILL_R002' },
   { name: 'status probe', base: '$x.!code', variant: '$x.!message' },

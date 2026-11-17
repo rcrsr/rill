@@ -235,7 +235,7 @@ list(number) => $lt
 list[1, 2] -> seq({ $ -> break })
 |q|{ $q -> return } => $rr
 error "boom"
-timeout<total: duration(0,0,0,0,0,0,500)> { 1 }
+timeout<total: duration("500ms")> { 1 }
 $f(...$d)
 `;
 

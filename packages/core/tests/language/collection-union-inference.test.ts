@@ -25,6 +25,16 @@ describe('Rill Language: collection union inference', () => {
   );
 
   describe('list literals', () => {
+    rule('carried-type.own-element').it(
+      'gives each iterated element of an undeclared mixed list its own type',
+      async () => {
+        const result = await run(
+          'list[1, "a"] -> seq({ $.^type -> .signature })'
+        );
+        expect(result).toEqual(['number', 'string']);
+      }
+    );
+
     it('list[1, "a"] runs without halting', async () => {
       expect(await run('list[1, "a"]')).toEqual([1, 'a']);
     });
@@ -144,7 +154,7 @@ describe('Rill Language: collection union inference', () => {
     it('filter keeps the source union element type', async () => {
       expect(
         await run(
-          '(list[1, "a"] -> filter({ $ == "a" }) -> .^type) == list(string)'
+          '(list[1, "a"] -> :list(union(number, string)) -> filter({ $ == "a" }) -> .^type) == list(string)'
         )
       ).toBe(true);
     });

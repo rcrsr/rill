@@ -38,7 +38,9 @@ const GUARDED_CODES = [
   'SPACING_CLOSURE',
   'SPACING_MEMBER',
   'STATUS_PROBE_NO_FIELD',
+  'TEMPORAL_LITERAL',
   'THROWAWAY_CAPTURE',
+  'TIMEOUT_TRIVIAL',
   'UNNECESSARY_ASSERTION',
   'USE_DEFAULT_OPERATOR',
   'USE_DYNAMIC_IDENTIFIER',
@@ -61,6 +63,7 @@ list[1, 2] -> fold(0, { $@ + $ }) => $sum
 0 -> do { $ + 1 } while ($ < 3)
 guard { $app.fetch("u") } => $g
 retry<limit: 2> { $app.fetch("u") } => $t
+timeout<> { $app.fetch("u") } => $to
 $g.! ? "bad" ! "ok"
 #SOME_ATOM
 `;

@@ -1400,6 +1400,55 @@ try {
 
 ---
 
+## structureOverlaps
+
+`structureOverlaps` reports whether some value could satisfy two type structures. It is pure and symmetric, and it never throws. A literal is judged by the kind of its value. A dict key named on one side only must carry a default for the structures to overlap.
+
+```typescript
+function structureOverlaps(a: TypeStructure, b: TypeStructure): boolean;
+```
+
+It implements the strict rule behind the `#TYPE_MISMATCH` halt of `==`, `!=`, `.eq`, `.ne`, `.has`, `.has_any`, and `.has_all`. The runtime relaxes it in one case. When either operand carries a declared type, a dict key on one side only passes. See [Operators](topic-operators.md) for the halt rule.
+
+---
+
+## parseDurationText
+
+`parseDurationText` parses the printed form of a duration, such as `"1h30m"`. It returns the month and millisecond components, or `undefined` when the text is malformed. It is pure and never halts; the script `duration("...")` and `"..." -> duration` halt `#INVALID_INPUT` on the same text.
+
+```typescript
+function parseDurationText(
+  text: string
+): { months: number; ms: number } | undefined;
+```
+
+Units appear in the order `y`, `mo`, `d`, `h`, `m`, `s`, `ms`, each at most once. Only the `ms` count may be a decimal.
+
+---
+
+## parseIsoDatetime
+
+`parseIsoDatetime` parses an ISO 8601 datetime or date string to Unix milliseconds. It returns an `IsoDatetimeFailure` carrying a message instead of halting.
+
+```typescript
+function parseIsoDatetime(input: string): number | IsoDatetimeFailure;
+
+interface IsoDatetimeFailure {
+  readonly message: string;
+  readonly component?: string | undefined;
+}
+```
+
+`component` names the range-checked field that failed, such as `month` or `day`. `IsoDatetimeFailure` is not a named export; read the result's shape with a `typeof` check on `number`.
+
+---
+
+## Host-Supplied Containers
+
+The runtime memoizes the inferred type structure of a host-supplied array or object per container identity. Do not mutate an array or object after you pass it to the runtime, whether as a function result, a variable, or a context value. Build a new container instead.
+
+---
+
 ## Type System API
 
 `TypeStructure`, `TypeDefinition`, `TypeProtocol`, `RillFieldDef`, and related structural type exports are documented in [Host API Types Reference](ref-host-api-types.md).
@@ -1412,5 +1461,5 @@ try {
 - [Extensions](integration-extensions.md): Reusable function packages
 - [Modules](integration-modules.md): Module convention
 - [Host API Types](ref-host-api-types.md): TypeStructure, TypeDefinition, TypeProtocol
-- [Language Service API](ref-language-service.md): Editor-tooling providers and a static checker with 47 rule codes
+- [Language Service API](ref-language-service.md): Editor-tooling providers and a static checker
 

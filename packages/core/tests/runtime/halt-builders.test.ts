@@ -1835,21 +1835,21 @@ describe('host-error shape (file)', () => {
 
     it('after total expiry a guard recovers the timeout halt', async () => {
       const source =
-        'guard { timeout<total: duration(0,0,1)> { boom() } } => $r\n($r.!code == #RILL_R082)';
+        'guard { timeout<total: duration("1d")> { boom() } } => $r\n($r.!code == #RILL_R082)';
       expect(await runValue(source, expiring(true))).toBe(true);
       await drainLateWork();
     });
 
     it('after idle expiry a guard recovers the idle timeout halt', async () => {
       const source =
-        'guard { timeout<idle: duration(0,0,1)> { boom() } } => $r\n($r.!code == #RILL_R083)';
+        'guard { timeout<idle: duration("1d")> { boom() } } => $r\n($r.!code == #RILL_R083)';
       expect(await runValue(source, expiring(true))).toBe(true);
       await drainLateWork();
     });
 
     it('after expiry without guard raises RILL-R082 with durationMs', async () => {
       const err = await captureError(
-        'timeout<total: duration(0,0,1)> { boom() }',
+        'timeout<total: duration("1d")> { boom() }',
         expiring(true)
       );
       expect(err).toBeInstanceOf(RuntimeError);
@@ -1860,7 +1860,7 @@ describe('host-error shape (file)', () => {
 
     it('before expiry the original fatal error propagates unchanged', async () => {
       const err = await captureError(
-        'guard { timeout<total: duration(0,1,0)> { boom() } } => $r\n$r',
+        'guard { timeout<total: duration("1d")> { boom() } } => $r\n$r',
         {
           functions: {
             boom: makeClassBoom({
@@ -1879,7 +1879,7 @@ describe('host-error shape (file)', () => {
 
     it('a fatal halt without a carrier keeps the fatal rethrow after expiry', async () => {
       const err = await captureError(
-        'guard { timeout<total: duration(0,0,1)> { boom() } } => $r\n$r',
+        'guard { timeout<total: duration("1d")> { boom() } } => $r\n$r',
         expiring(false)
       );
       expect(err).toBeInstanceOf(RuntimeError);

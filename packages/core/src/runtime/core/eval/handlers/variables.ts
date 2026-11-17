@@ -676,7 +676,7 @@ export async function evaluateVariableCarried(
           hasParens: false,
           span: node.span,
         };
-        value = await evaluateMethod(s, methodNode, value);
+        value = await evaluateMethod(s, methodNode, value, receiverDeclared);
       } else {
         // Declared type flows from the receiver unless a property-style
         // callable ran or the receiver is a type value.

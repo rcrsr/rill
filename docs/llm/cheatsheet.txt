@@ -58,6 +58,8 @@ All copies are deep. All comparisons are by value. No object identity.
     list[1, 2] => $a
     $a => $b                          # $b is an independent deep copy
 
+`==` and `!=` halt with `#TYPE_MISMATCH` when the operand types cannot overlap, as in `1 == "1"`. Overlapping types of different kinds compare unequal.
+
 ## Syntax quick reference
 
     Variables:    $name (always prefixed with $)

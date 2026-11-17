@@ -3,7 +3,7 @@ id: number
 title: Numbers
 status: normative
 since: 0.24.0
-issues: [560]
+issues: []
 grammar: [number]
 errors: [RILL-L003, RILL-P001, RILL-R002, RILL-R036, RILL-R038, INVALID_INPUT, TYPE_MISMATCH]
 depends: [notation, halt, type-value]
@@ -66,15 +66,14 @@ r[number.ordering] Numbers order by value
 
 ## Interactions
 
+Equality against a non-number value follows `equality.no-overlap`.
+
 r[number.no-coercion] A number never coerces to or from another type
 Ordering a number against a non-number MUST halt with RILL-R002.
 
 r[number.no-equality-coercion] Equality does not coerce
-`==` between a number and a string MUST NOT coerce either operand, so `"1" == 1` ⇒ `false`.
-
-r[number.cross-equality] Equality against a non-number halts {pending #560}
-`==` and `!=` between a number and an operand whose type does not overlap `number` MUST halt
-with `#TYPE_MISMATCH`.
+`==` between a number and a string MUST NOT coerce either operand. The comparison halts per
+`equality.no-overlap`, so `"1" == 1` halts `#TYPE_MISMATCH`.
 
 r[number.from-string] A string in decimal form converts to its number
 `string -> number` MUST yield the number of a string that holds an optional `-`, digits with an
@@ -113,7 +112,6 @@ A number MUST satisfy `:number`. A value of any other type MUST halt `:number` w
 | A string that is not a decimal is converted to number | RILL-R038 | Yes |
 | A string that reads as infinity is converted to number | `#INVALID_INPUT` | Yes |
 | A source with no route is converted to number | RILL-R036 | Yes |
-| A number is compared for equality with a non-number {pending #560} | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 
@@ -146,5 +144,3 @@ A number MUST satisfy `:number`. A value of any other type MUST halt `:number` w
 
 A literal past the double range reads as infinity in the current runtime, which breaks
 `number.finite` (#603). The conversion `"Infinity" -> number` halts RILL-R038.
-
-Until #560 lands, `==` between a number and a non-number yields false.

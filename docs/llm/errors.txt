@@ -6,7 +6,7 @@ Atoms, status sidecars, `guard`, `retry`, vacancy, and recovery patterns.
 
 | Failure | Caused by | Caught by |
 |---|---|---|
-| Runtime error (uncatchable) | `error`, `assert`, parameter type mismatch | nothing — propagates |
+| Runtime error (uncatchable) | `error`, `assert`, parameter type mismatch, any halt inside a source module loaded by `use<>` | nothing — propagates |
 | Access halt (catchable) | Accessing an **invalid value** (status sidecar populated, e.g. failed `:type` assertion, extension `ctx.invalidate`, divide-by-zero (`RILL-R002`), OOB index or missing field (`RILL-R009`), or failed conversion (`RILL-R038`)) | `guard { }`, `retry<limit: N> { }` |
 
 ## Assert and error
@@ -66,16 +66,21 @@ Built-in atom literals. The core error set is every built-in atom except #ok and
                                    #       zero step for range;
                                    #       non-integer index for [], .(n), .at, list dispatch;
                                    #       zero step for slice<>;
+                                   #       string argument to duration() or piped into duration not in printed form,
+                                   #       timeout total/idle or debounce/throttle/sample/idle_flush duration with a months part,
+                                   #       timeout total/idle above 2147483647 ms,
                                    #       negative duration .subtract result, negative .multiply factor,
                                    #       non-finite or fractional-month .multiply result, .total_ms on calendar duration;
                                    #       vector dimension mismatch for .similarity/.dot/.distance
     #PROTOCOL  #DISPOSED
     #TYPE_MISMATCH                 # failed `:type` assertion or typed capture or typed destructure element failing its type;
                                    # also: `sort` key extractor mixed types,
+                                   #       ==, !=, .eq, .ne, .has, .has_any, .has_all between operands whose types cannot overlap,
                                    #       `sort` `key_fn` not callable,
                                    #       tuple comparison length/type mismatch,
                                    #       start_when/stop_when predicate non-bool,
-                                   #       wrong-typed argument to duration()/datetime() or datetime/duration methods,
+                                   #       non-number component in duration(...dict[...]),
+                                   #       wrong-typed argument to datetime() or datetime/duration methods,
                                    #       non-vector argument to .similarity/.dot/.distance,
                                    #       non-dict options for fan/filter,
                                    #       non-number concurrency for fan/filter,
@@ -110,7 +115,7 @@ Filtered form (catches only matching codes):
 
 Every `on:` name must be in the core error set. A name outside it, and `on: list[]`, are parse errors (`RILL-P004`). A bare `guard { ... }` catches every catchable halt.
 
-`guard` does NOT catch halts from `error`, `assert`, or a parameter type mismatch. Those propagate. `guard` DOES catch divide-by-zero (`RILL-R002`), out-of-bounds index or missing field access (`RILL-R009`), failed conversion (`RILL-R038`), and a `filter` predicate that returns an invalid value (`RILL-R001`) — these behave like any other access halt.
+`guard` does NOT catch halts from `error`, `assert`, a parameter type mismatch, or a source module loaded by `use<>`. Those propagate; a guard around `use<>` catches resolution failures (`RILL-R054`, `RILL-R056`, `RILL-R057`, `RILL-R058`) only, never `RILL-R055`. `guard` DOES catch divide-by-zero (`RILL-R002`), out-of-bounds index or missing field access (`RILL-R009`), failed conversion (`RILL-R038`), and a `filter` predicate that returns an invalid value (`RILL-R001`) — these behave like any other access halt.
 
 ## Retry
 
@@ -156,10 +161,14 @@ A value is **vacant** when empty (`""`, `0`, `false`, `list[]`, `dict[]`) or inv
 
 Expiry produces a catchable halt. Wrap `timeout<>` in `guard` to catch it as an invalid value; use `??` for a one-liner fallback. Direct `??` on a bare `timeout<>` expression does NOT intercept expiry halts.
 
-    guard { timeout<total: duration(0,0,0,0,0,0,500)> { $app.fetch($url) } } => $r
+    guard { timeout<total: duration("500ms")> { $app.fetch($url) } } => $r
     $r ?? "cached"
 
     ($r.!code == #RILL_R082) ? "timed out" ! $r
+
+One head takes both limits, in either order; the first to fire halts with its own atom:
+
+    guard { timeout<total: duration("5s"), idle: duration("500ms")> { $app.fetch($url) } } => $r
 
 ## Recovery patterns
 

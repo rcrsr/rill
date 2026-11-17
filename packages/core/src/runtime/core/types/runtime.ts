@@ -278,6 +278,12 @@ export interface ControlFlowContext {
    */
   readonly callsInFlight: { value: number; tripped: boolean };
   /**
+   * Restart callbacks of the active `timeout<idle:>` blocks, shared by
+   * reference with every child context. Notified when a stream chunk arrives
+   * or a host function returns; see `core/activity.ts`.
+   */
+  readonly activityListeners: Set<() => void>;
+  /**
    * Annotation stack for statement annotations.
    * Each entry is a dict of annotation key-value pairs.
    * Annotations do not inherit — each annotated statement carries only its own annotations.

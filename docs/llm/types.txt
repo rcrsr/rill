@@ -131,7 +131,7 @@ Explicit conversion between compatible types. Halts with `RILL-R036` on invalid 
     ⁵ 0 → false, 1 → true; all other values halt with RILL-R036
 
     closure, iterator, and vector have no -> string, nor does a list, dict, tuple, or ordered holding one at any depth; converting, interpolating, or .join-ing one halts RILL-R036
-    datetime and duration interpolate as their printed form, but -> string on one, or on a collection holding one, halts RILL-R036
+    datetime and duration interpolate as their printed form, and duration -> string yields it; -> string on a datetime, or on a collection holding a datetime or duration, halts RILL-R036
 
 ## Default values in type constructors
 
@@ -151,8 +151,12 @@ Constructed with function-call syntax.
     datetime("2024-01-15T00:00:00Z") -> .year         # 2024
     datetime(...dict[year: 2024, month: 1, day: 15])  # named components via spread
     now()                                              # current datetime
-    duration(0, 0, 0, 25) -> .days                     # (years, months, days, hours): 1.04
-    duration(1) -> .months                             # 12
+    duration("25h") -> .days                          # 1
+    duration("1y") -> .months                         # 12
+    "1h30m" -> duration                               # duration("1h30m"); halts INVALID_INPUT if malformed
+    duration("90s") -> string                         # "1m30s", the printed form
+    # printed form: units in order y mo d h m s ms, each at most once; only ms may be decimal
+    # (1s500.5ms); each component at most 2^53-1
 
 ## Type inspection `^type`
 
@@ -164,7 +168,7 @@ Returns a type value for runtime inspection.
     list[1, 2].^type.signature      # "list(number)"
     list[1, "a"].^type.signature    # "list(union(number, string))"
 
-A mixed list is legal and infers `list(union(...))` over the element types whatever their order. A declared element type such as `:list(number)` rejects it with `#TYPE_MISMATCH`.
+A mixed list is legal and infers `list(union(...))` over the element types whatever their order. A declared element type such as `:list(number)` rejects it with `#TYPE_MISMATCH`. An element read from an undeclared list carries its own type, so declare `:list(union(number, string))` to compare elements across types.
 
 Read what a type holds with `.inner` and what a function or stream yields with `.outer`:
 

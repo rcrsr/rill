@@ -3,7 +3,7 @@ id: stream
 title: Stream types
 status: normative
 since: 0.24.0
-issues: [604]
+issues: []
 grammar: []
 errors: [RILL-P006, RILL-R036, TYPE_MISMATCH]
 depends: [type-value, structural-typing]
@@ -44,7 +44,7 @@ parameter type, and as an argument of another type.
 
 ## Evaluation
 
-r[stream.accepts] A stream type accepts by its chunk and resolution types {pending #604}
+r[stream.accepts] A stream type accepts by its chunk and resolution types
 A stream value MUST have `stream(T):R` when `T` accepts its chunk type and `R` accepts its
 resolution type, as `list(T)` accepts by element type. `stream(any)` MUST accept every stream,
 and a stream type with no outer MUST accept any resolution type.
@@ -101,8 +101,7 @@ stream(number).outer == any
 
 ## Notes
 
-Superseded: `stream.membership`, now `stream.accepts`. On 0.23.0 the chunk type must match
-exactly, so `stream(any)` rejects a stream of strings (#604).
+Superseded: `stream.membership` is now `stream.accepts`.
 
 Streams are stateful and single-use, and `$s == $s` halts RILL-R002 on 0.23.0 builds. Those
 facts belong to the stream value, not to its type.

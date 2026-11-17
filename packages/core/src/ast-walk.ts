@@ -80,9 +80,8 @@ function astChildren(node: ASTNode): ASTNode[] {
     case 'Pass':
       return [];
     case 'PassBlock':
-      return [node.options, node.body];
     case 'TimeoutBlock':
-      return [node.duration, node.body];
+      return [node.options, node.body];
     case 'Assert': {
       const children: ASTNode[] = [node.condition];
       if (node.message !== null) children.push(node.message);

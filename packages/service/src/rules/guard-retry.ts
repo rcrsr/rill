@@ -12,6 +12,15 @@ import {
 import { registeredRules } from './rules-registry.js';
 
 // ============================================================
+// Shared message
+// ============================================================
+
+/** Builds the message for a wrapper that changes nothing about its body. */
+function noEffectMessage(wrapper: string, remedy: string): string {
+  return `${wrapper} has no effect; remove the wrapper or ${remedy}.`;
+}
+
+// ============================================================
 // GUARD_BARE
 // ============================================================
 
@@ -69,8 +78,43 @@ export const retryTrivial: Rule = {
         location: retry.span.start,
         severity: 'warning',
         code: 'RETRY_TRIVIAL',
-        message: `retry<limit: ${retry.attempts}> has no effect; remove the wrapper or raise the attempt count.`,
+        message: noEffectMessage(
+          `retry<limit: ${retry.attempts}>`,
+          'raise the attempt count'
+        ),
         context: extractContextLine(retry.span.start.line, context.source),
+        fix: null,
+      },
+    ];
+  },
+};
+
+// ============================================================
+// TIMEOUT_TRIVIAL
+// ============================================================
+
+/**
+ * Flags `timeout<>` with no limit. An empty options dict arms neither the
+ * total nor the idle bound; the block has no effect.
+ */
+export const timeoutTrivial: Rule = {
+  code: 'TIMEOUT_TRIVIAL',
+  nodeTypes: ['TimeoutBlock'],
+  defaultSeverity: 'warning',
+  category: 'errors',
+
+  validate(node: ASTNode, context: RuleContext): Diagnostic[] {
+    if (node.type !== 'TimeoutBlock') return [];
+    const timeout = node;
+    if (timeout.options.entries.length > 0) return [];
+
+    return [
+      {
+        location: timeout.span.start,
+        severity: 'warning',
+        code: 'TIMEOUT_TRIVIAL',
+        message: noEffectMessage('timeout<>', 'add a limit'),
+        context: extractContextLine(timeout.span.start.line, context.source),
         fix: null,
       },
     ];
@@ -120,4 +164,4 @@ export const onListSingle: Rule = {
   },
 };
 
-registeredRules.push(guardBare, retryTrivial, onListSingle);
+registeredRules.push(guardBare, retryTrivial, timeoutTrivial, onListSingle);

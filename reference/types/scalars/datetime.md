@@ -3,7 +3,7 @@ id: datetime
 title: Datetimes
 status: normative
 since: 0.24.0
-issues: [560]
+issues: []
 grammar: []
 errors: [RILL-R001, RILL-R002, INVALID_INPUT, TYPE_MISMATCH]
 depends: [notation, halt, type-value]
@@ -73,13 +73,11 @@ r[datetime.ordering] Datetimes order by instant
 
 ## Interactions
 
+Equality against a non-datetime value follows `equality.no-overlap`.
+
 r[datetime.no-arithmetic] A datetime is not a number
 An arithmetic operator with a datetime operand MUST halt with RILL-R002. Ordering a datetime
 against a non-datetime MUST halt with RILL-R002.
-
-r[datetime.cross-equality] Equality against a non-datetime halts {pending #560}
-`==` and `!=` between a datetime and an operand whose type does not overlap `datetime` MUST
-halt with `#TYPE_MISMATCH`.
 
 r[datetime.membership] Only a datetime satisfies datetime
 A datetime MUST satisfy `:datetime`. A value of any other type MUST halt `:datetime` with
@@ -94,7 +92,6 @@ A datetime MUST satisfy `:datetime`. A value of any other type MUST halt `:datet
 | A spread key names no parameter | RILL-R001 | Yes |
 | A datetime is ordered against a non-datetime or used in arithmetic | RILL-R002 | Yes |
 | A non-datetime is asserted as `:datetime` | `#TYPE_MISMATCH` | Yes |
-| A datetime is compared for equality with a non-datetime {pending #560} | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 
@@ -122,7 +119,5 @@ datetime("2026-03-13") + 1
 
 The component, formatting, and arithmetic methods, such as `.iso`, `.add`, and `.diff`, belong
 to the built-in methods chapter, as does `now()`. That chapter is not yet written.
-
-Until #560 lands, `==` between a datetime and a non-datetime yields false.
 
 The core stores UTC only. IANA timezone names are outside the language.

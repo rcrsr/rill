@@ -1,5 +1,5 @@
 import type { RillFunction } from '../../../core/callable.js';
-import { callable, isCallable } from '../../../core/callable.js';
+import { internalCallable, isCallable } from '../../../core/callable.js';
 import {
   rejectBreakAsHalt,
   throwCatchableHostHalt,
@@ -14,6 +14,7 @@ import {
   isIterator,
   isStream,
 } from '../../../core/types/guards.js';
+import { requireFixedDuration } from '../../../core/types/duration-limit.js';
 import { anyTypeValue } from '../../../core/values.js';
 import { invokeCallable } from '../../../core/eval/index.js';
 import { createChildContext } from '../../../core/context.js';
@@ -275,7 +276,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
         return {
           value,
           done: false,
-          next: callable(() => makeCycleIterator(index + 1)),
+          next: internalCallable(() => makeCycleIterator(index + 1)),
         };
       };
 
@@ -386,6 +387,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
               `batch: idle_flush must be a duration, got ${inferType(idleFlushRaw)}`
             );
           }
+          requireFixedDuration(idleFlushRaw, 'idle_flush', site);
           // idle_flush is validated. With synchronous getIterableElements
           // iteration the idle timer cannot fire mid-collection, so the
           // option has no effect on the current synchronous path.

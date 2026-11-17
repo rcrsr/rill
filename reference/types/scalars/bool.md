@@ -3,7 +3,7 @@ id: bool
 title: Booleans
 status: normative
 since: 0.24.0
-issues: [560]
+issues: []
 grammar: [bool]
 errors: [RILL-R002, RILL-R036, TYPE_MISMATCH]
 depends: [notation, halt, type-value]
@@ -41,15 +41,13 @@ r[bool.unordered] Bools have no order
 
 ## Interactions
 
+Equality against a non-bool value follows `equality.no-overlap`.
+
 r[bool.no-truthiness] No other type stands in for a bool
 A non-bool operand of `!` MUST halt with RILL-R002, and MUST NOT be coerced.
 
 r[bool.condition] A condition must be a bool
 A non-bool condition of `?` MUST halt with RILL-R002, and MUST NOT be coerced.
-
-r[bool.cross-equality] Equality against a non-bool halts {pending #560}
-`==` and `!=` between a bool and an operand whose type does not overlap `bool` MUST halt with
-`#TYPE_MISMATCH`. `true == 1` MUST NOT yield false.
 
 r[bool.from-number] The numbers zero and one convert to bools
 `0 -> bool` MUST yield `false` and `1 -> bool` MUST yield `true`.
@@ -79,7 +77,6 @@ A bool MUST satisfy `:bool`. A value of any other type MUST halt `:bool` with `#
 | `!` or a `?` condition receives a non-bool | RILL-R002 | Yes |
 | A value outside the bool routes is converted to bool | RILL-R036 | Yes |
 | A non-bool is asserted as `:bool` | `#TYPE_MISMATCH` | Yes |
-| A bool is compared for equality with a non-bool {pending #560} | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 
@@ -99,7 +96,5 @@ true != false
 ```
 
 ## Notes
-
-Until #560 lands, `==` between a bool and a non-bool yields false.
 
 The `&&` and `||` operands follow the same no-truthiness rule; the operators chapter states them.

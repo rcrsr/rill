@@ -3,11 +3,11 @@ id: equality
 title: Equality
 status: normative
 since: 0.24.0
-issues: [560]
+issues: []
 grammar: []
 errors: [TYPE_MISMATCH, RILL-R002]
 depends: [value]
-tests: [closure-equality.test.ts]
+tests: [closure-equality.test.ts, equality-gate.test.ts, list-membership.test.ts]
 ---
 
 # Equality
@@ -16,9 +16,15 @@ tests: [closure-equality.test.ts]
 
 ## Static rules
 
-r[equality.no-overlap] Equality halts when the types do not overlap {pending #560}
+r[equality.no-overlap] Equality halts when the types do not overlap
 `a == b` and `a != b` MUST halt with `#TYPE_MISMATCH` when the types the operands carry do not
 overlap (`structural-typing`). Each operand is judged on its carried type (`carried-type`).
+
+r[equality.declared-dict] A declared operand lets a one-sided dict key pass
+When either operand of `==`, `!=`, `.eq`, `.ne`, `.has`, `.has_any`, or `.has_all` carries a type
+from an assertion or a declaration (`carried-type.carriage`), a dict key that only one side names
+MUST NOT halt the comparison, and each key both sides name MUST still overlap. When both operands
+carry only inferred types, a one-sided key MUST halt (`structural-typing.overlap-fields`).
 
 ## Evaluation
 
@@ -46,9 +52,10 @@ equal values, in any order.
 r[equality.nested] Equality is deep
 Equality of collections MUST compare nested elements by these same rules.
 
-r[equality.kind] Values of different kinds are unequal
-A comparison of values of different kinds that completes MUST yield false, as
-`list[1] == tuple[1]` and `ordered[a: 1] == dict[a: 1]` do.
+r[equality.kind] Values of different kinds with overlapping types are unequal
+A comparison of values of different kinds whose types overlap, such as an `any` operand or a
+union, MUST yield false. Kinds whose types do not overlap, as in `list[1] == tuple[1]` and
+`ordered[a: 1] == dict[a: 1]`, halt per `equality.no-overlap`.
 
 r[equality.function] Functions compare by structure
 Two functions MUST be equal when their parameters, bodies, and the values of the variables
@@ -60,8 +67,18 @@ Two type values MUST be equal under `structural-typing`.
 r[equality.stream] Streams are not comparable
 `==` with a stream operand MUST halt with RILL-R002.
 
-r[equality.methods] .eq, .ne, and .has follow the operators
-`.eq`, `.ne`, and `.has` MUST compare as `==` does, including its halts.
+r[equality.methods] .eq, .ne, .has, .has_any, and .has_all follow the operators
+`.eq`, `.ne`, `.has`, `.has_any`, and `.has_all` MUST compare as `==` does, including its
+halts.
+
+r[equality.membership] Membership judges the sought value against the element type
+`.has`, `.has_any`, and `.has_all` on a list MUST judge overlap between each sought value and the
+list's element type, carried or inferred, not each element's own type.
+
+```rill
+list[1, "a"] -> .has("a")
+# Result: true
+```
 
 ## Interactions
 
@@ -71,7 +88,7 @@ A carried type decides whether a comparison halts, never its result (`carried-ty
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
-| The operands' types do not overlap {pending #560} | `#TYPE_MISMATCH` | Yes |
+| The operands' types do not overlap | `#TYPE_MISMATCH` | Yes |
 | An operand is a stream | RILL-R002 | Yes |
 
 ## Examples
@@ -88,9 +105,31 @@ $f == $g
 # Result: true
 ```
 
-```rill pending=560
+```rill
 # Error: #TYPE_MISMATCH
 1 == "1"
+```
+
+```rill
+dict[a: 1, b: 2] => $x:dict(a: number)
+$x == dict[a: 1, b: 2]
+# Result: true
+```
+
+```rill
+# Error: #TYPE_MISMATCH
+dict[a: 1] == dict[a: 1, b: 2]
+```
+
+```rill
+# Error: #TYPE_MISMATCH
+list[dict[a: 1], dict[b: 2]] -> seq({ $ == dict[a: 1] })
+```
+
+```rill
+list[dict[a: 1], dict[b: 2]] => $l:list(dict)
+$l -> seq({ $ == dict[a: 1] })
+# Result: list[true, false]
 ```
 
 ## Notes

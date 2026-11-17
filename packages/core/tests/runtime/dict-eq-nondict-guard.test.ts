@@ -10,34 +10,37 @@
 
 import { describe, it, expect } from 'vitest';
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('Dict eq vs non-dict guard (#281)', () => {
   it('empty dict is not equal to a number', async () => {
-    expect(await run('(dict[] == 5)')).toBe(false);
+    await expectHalt(() => run('(dict[] == 5)'), { code: 'TYPE_MISMATCH' });
   });
 
   it('empty dict is not equal to a string', async () => {
-    expect(await run('(dict[] == "")')).toBe(false);
+    await expectHalt(() => run('(dict[] == "")'), { code: 'TYPE_MISMATCH' });
   });
 
   it('empty dict is not equal to a bool', async () => {
-    expect(await run('(dict[] == true)')).toBe(false);
+    await expectHalt(() => run('(dict[] == true)'), { code: 'TYPE_MISMATCH' });
   });
 
   it('empty dict is not equal to an empty list', async () => {
-    expect(await run('(dict[] == list[])')).toBe(false);
+    await expectHalt(() => run('(dict[] == list[])'), {
+      code: 'TYPE_MISMATCH',
+    });
   });
 
   it('non-dict on the left is not equal to an empty dict (was already false)', async () => {
-    expect(await run('(5 == dict[])')).toBe(false);
+    await expectHalt(() => run('(5 == dict[])'), { code: 'TYPE_MISMATCH' });
   });
 
   it('empty dict is unequal (!=) to a number', async () => {
-    expect(await run('(dict[] != 5)')).toBe(true);
+    await expectHalt(() => run('(dict[] != 5)'), { code: 'TYPE_MISMATCH' });
   });
 
   it('a non-empty dict is not equal to a non-dict', async () => {
-    expect(await run('(dict[a: 1] == 5)')).toBe(false);
+    await expectHalt(() => run('(dict[a: 1] == 5)'), { code: 'TYPE_MISMATCH' });
   });
 
   describe('regression: dict-to-dict equality unchanged', () => {

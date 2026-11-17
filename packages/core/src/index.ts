@@ -107,6 +107,8 @@ export {
   BUILTIN_ATOM_NAMES as BUILTIN_ATOMS,
   ERROR_CODE_NAMES as ERROR_CODES,
 } from './constants.js';
+export { parseDurationText } from './runtime/core/types/duration-units.js';
+export { parseIsoDatetime } from './runtime/ext/builtins/temporal/construct.js';
 export {
   copyValue,
   createOrdered,
@@ -137,6 +139,7 @@ export {
   structureEquals,
   structureMatches,
 } from './runtime/core/types/operations.js';
+export { structureOverlaps } from './runtime/core/types/overlap.js';
 export {
   BUILT_IN_TYPES,
   deepEquals,

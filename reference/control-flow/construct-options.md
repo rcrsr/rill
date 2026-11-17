@@ -3,11 +3,11 @@ id: construct-options
 title: Construct options
 status: normative
 since: 0.24.0
-issues: [578, 580]
+issues: [578]
 grammar: []
 errors: [INVALID_INPUT, RILL-P004, RILL-P025, TYPE_MISMATCH]
 depends: [loop, pass]
-tests: []
+tests: [timeout.test.ts, throttling.test.ts]
 ---
 
 # Construct options
@@ -61,9 +61,27 @@ r[construct-options.space] A space before the parenthesis is legal {pending #578
 r[construct-options.none] No options means no parentheses
 The forms without options, `do { }`, `pass { }`, and `guard { }`, MUST keep their meaning.
 
-r[construct-options.timeout-limits] timeout takes total, idle, both, or neither {pending #580}
+r[construct-options.timeout-limits] timeout takes total, idle, both, or neither
 `timeout` MUST accept `total`, `idle`, both, or neither. With both, the first limit reached MUST
 end the body.
+
+r[construct-options.timeout-idle-activity] idle restarts on activity
+`timeout<idle: D>` MUST restart its timer when a stream chunk arrives in the body or a host
+function call returns. That activity MUST restart the idle limit of every enclosing `timeout`. A
+body doing neither, such as a pure computation, MUST count as idle. Only a host call that returns
+counts; a call that halts does not. Activity in a concurrent sibling branch outside the `timeout`
+body MUST NOT restart the limit.
+
+r[construct-options.timeout-fixed-duration] a time bound needs a fixed length
+A duration with a nonzero months part has no fixed length. A `timeout` limit or a time-domain
+operator option that turns a duration into wall time, such as `debounce`, `throttle`, `sample`, or
+the `idle_flush` option of `batch`, MUST halt `#INVALID_INPUT` naming the option for such a
+duration.
+
+r[construct-options.timeout-ceiling] a timeout limit has a ceiling
+A `timeout` `total` or `idle` limit above 2147483647 milliseconds, about 24.8 days, MUST halt
+`#INVALID_INPUT` naming the option before the body runs. A limit of exactly 2147483647 milliseconds
+MUST be accepted.
 
 ## Errors
 
@@ -73,6 +91,8 @@ end the body.
 | `limit` or `attempts` is not a written positive integer literal | RILL-P004 | No |
 | Options written in angle brackets {pending #578} | RILL-P025 | No |
 | A spread field repeats a written option {pending #578} | `#INVALID_INPUT` | Yes |
+| A time bound's duration has a months part | `#INVALID_INPUT` | Yes |
+| A `timeout` `total` or `idle` limit is above 2147483647 milliseconds | `#INVALID_INPUT` | Yes |
 
 ## Examples
 

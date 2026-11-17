@@ -13,6 +13,7 @@ import type { TypeDefinition } from './types.js';
 import { isValidAtomName, resolveAtom, toAtomValue } from '../atom-registry.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { throwFatalHostHalt, throwTypeHalt } from '../halt.js';
+import { durationFromText } from '../duration-limit.js';
 import { requireReceiver } from './shared.js';
 
 // ============================================================
@@ -154,6 +155,10 @@ const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
     }
     return toAtomValue(resolveAtom(s));
   },
+  duration: (v: RillValue): RillValue =>
+    durationFromText(receiverText(v, 'string-to-duration'), {
+      fn: 'duration',
+    }),
 };
 
 // ============================================================

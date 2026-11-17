@@ -470,10 +470,8 @@ function getChildren(node: ASTNode): ASTNode[] {
     }
 
     case 'PassBlock':
-      return [node.options, node.body];
-
     case 'TimeoutBlock':
-      return [node.duration, node.body];
+      return [node.options, node.body];
 
     case 'PartialExpression':
       // Partial expression node: only the typed children recognized during

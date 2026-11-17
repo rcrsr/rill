@@ -613,7 +613,7 @@ describe('halt migration parity', () => {
         scheduler: 'fast-expiry',
       } as const;
       const source =
-        'guard { timeout<total: duration(0,0,1)> { delay_then_head() } } => $r\n($r.!code == #RILL_R082)';
+        'guard { timeout<total: duration("1d")> { delay_then_head() } } => $r\n($r.!code == #RILL_R082)';
       const result = await runScriptValue(source, options);
       expect(result).toBe(true);
       // Let the late site finish so it cannot leak into a later test.
@@ -744,7 +744,7 @@ describe('halt migration parity', () => {
 
     it('propagates its own error when a site fires inside timeout before expiry', async () => {
       const result = await captureScript(
-        'timeout<total: duration(0,0,1)> { 5 -> .head }',
+        'timeout<total: duration("1d")> { 5 -> .head }',
         { scheduler: 'fast-expiry' }
       );
       expect(result.threw).toBe(true);

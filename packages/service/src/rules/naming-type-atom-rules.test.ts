@@ -5,7 +5,7 @@ import { loopAccumulator, preferDoWhile, useEach } from './loops.js';
 import { unnecessaryAssertion } from './types-assertion.js';
 import { streamPreIteration } from './stream-pre-iteration.js';
 import { useDynamicIdentifier, useUntypedHostRef } from './use-expressions.js';
-import { guardBare, retryTrivial } from './guard-retry.js';
+import { guardBare, retryTrivial, timeoutTrivial } from './guard-retry.js';
 import { statusProbeNoField } from './status-probe-no-field.js';
 import { makeConfig, toParseResult } from './test-support.js';
 
@@ -407,6 +407,36 @@ describe('RETRY_TRIVIAL', () => {
     const parsed = toParseResult(source);
 
     expect(runRules(parsed, source, makeConfig(), [retryTrivial])).toEqual([]);
+  });
+});
+
+describe('TIMEOUT_TRIVIAL', () => {
+  it('fires on timeout<> with no limit', () => {
+    const source = 'timeout<> { fetch_data() }\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [timeoutTrivial]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'TIMEOUT_TRIVIAL',
+      severity: 'warning',
+      message: 'timeout<> has no effect; remove the wrapper or add a limit.',
+      fix: null,
+    });
+  });
+
+  it.each([
+    'timeout<total: duration("1y")> { fetch_data() }',
+    'timeout<idle: duration("1y")> { fetch_data() }',
+    'timeout<total: duration("2y"), idle: duration("1y")> { fetch_data() }',
+  ])('does not fire when a limit is set: %s', (line) => {
+    const source = `${line}\n`;
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [timeoutTrivial])).toEqual(
+      []
+    );
   });
 });
 

@@ -118,7 +118,7 @@ $count  # Still 0
 
 ### 6. Everything Is a Value
 
-No references. All values are immutable. All comparisons are by value. Types lock on first assignment.
+No references. All values are immutable. All comparisons are by value. `==` and `!=` halt with `#TYPE_MISMATCH` when the operand types cannot overlap, as in `1 == "1"`. Types lock on first assignment.
 
 ```rill
 [1, 2, 3] == list[1, 2, 3]    # true — content equality
@@ -247,7 +247,7 @@ $str -> .empty ? "no" ! "yes"
 | `try { } catch { }` | `assert`, conditionals, `error` |
 | `for (i = 0; ...)` | `seq`, `fan`, `filter`, `fold`, `acc` |
 | `count += 1` in loop | `fold(0, { $@ + 1 })` or `$` accumulator |
-| `a === b` (reference) | `==` always compares by value |
+| `a === b` (reference) | `==` compares by value; types that cannot overlap halt |
 | `a = b` (shared ref) | `=>` binds immutable values — no mutation possible |
 
 ---

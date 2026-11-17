@@ -980,14 +980,14 @@ The closure advances the Fibonacci pair at each step; `seq` extracts `$.a` from 
 ### Timeout Recovery via `??`
 ```text
 use<ext:app> => $app
-guard { timeout<total: duration(0,0,0,0,0,0,500)> { $app.fetch("https://api.example.com") } } ?? "cached"
+guard { timeout<total: duration("500ms")> { $app.fetch("https://api.example.com") } } ?? "cached"
 ```
 Expiry emits `#RILL_R082`. `guard` catches the halt; `??` replaces it with the fallback.
 ### Debounce, Throttle, and Sample
 ```text
-$stream -> debounce(duration(0,0,0,0,0,0,200))   # latest chunk after 200ms silence
-$stream -> throttle(duration(0,0,0,0,0,0,100))   # first chunk per 100ms window
-$stream -> sample(duration(0,0,0,0,0,0,250))     # latest chunk at 250ms intervals
+$stream -> debounce(duration("200ms"))   # latest chunk after 200ms silence
+$stream -> throttle(duration("100ms"))   # first chunk per 100ms window
+$stream -> sample(duration("250ms"))     # latest chunk at 250ms intervals
 ```
 All three are stream-only; passing a list halts with `#INVALID_INPUT`. Under synchronous batch execution, debounce and sample return the last element; throttle returns the first.
 

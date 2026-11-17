@@ -88,7 +88,7 @@ describe('child context time-field inheritance', () => {
     };
 
     const result = await run(
-      'list[1] -> seq({ guard { timeout<total: duration(0,0,1)> { slow() } } => $r\n$r.! ? "timed_out" ! "completed" })',
+      'list[1] -> seq({ guard { timeout<total: duration("1d")> { slow() } } => $r\n$r.! ? "timed_out" ! "completed" })',
       {
         scheduler: fakeScheduler,
         functions: { slow },

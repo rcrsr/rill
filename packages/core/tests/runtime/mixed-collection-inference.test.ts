@@ -5,6 +5,8 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  anyTypeValue,
+  callable,
   commonType,
   inferStructure,
   toNative,
@@ -12,7 +14,7 @@ import {
   type TypeStructure,
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
-import { expectHalt } from '../helpers/halt.js';
+import { expectHalt, expectHaltSync } from '../helpers/halt.js';
 
 const NUMBER_STRING = 'list(union(number, string))';
 const mixed = (): RillValue => [1, 'a'];
@@ -251,5 +253,171 @@ describe('Mixed-collection inference: commonType of keyed compounds', () => {
         { kind: 'list', element: num }
       )
     ).toEqual({ kind: 'list', element: num });
+  });
+});
+
+describe('Mixed-collection inference: elements of an undeclared list carry no type', () => {
+  it('gives an iterated element of a mixed list its own type', async () => {
+    const result = await run('list[1, "a"] -> seq({ $.^type -> .signature })');
+    expect(result).toEqual(['number', 'string']);
+  });
+
+  it('gives an indexed element of a mixed list its own type', async () => {
+    const result = await run('list[1, "a"] => $m\n$m[0].^type.signature');
+    expect(result).toBe('number');
+  });
+
+  it('gives an element of a host-injected mixed list its own type', async () => {
+    const result = await run('$m[1].^type.signature', {
+      variables: { m: mixed() },
+    });
+    expect(result).toBe('string');
+  });
+
+  it('locks a destructured capture to its own element type', async () => {
+    await expectHalt(() => run('list[1, "a"] -> destruct<$a, $b>\n"x" => $a'), {
+      code: 'RILL_R001',
+    });
+  });
+
+  it('keeps the list union element type for membership gates', async () => {
+    await expectHalt(() => run('list[1, 2] -> .has("x")'), {
+      code: 'TYPE_MISMATCH',
+    });
+    expect(await run('list[1, "a"] -> .has("a")')).toBe(true);
+  });
+});
+
+describe('Mixed-collection inference: recorded structures', () => {
+  const inferred = async (source: string): Promise<TypeStructure> =>
+    inferStructure(await run(source));
+  const list = (element: TypeStructure): TypeStructure => ({
+    kind: 'list',
+    element,
+  });
+  const dictX = (inner: TypeStructure): TypeStructure => ({
+    kind: 'dict',
+    fields: { x: { type: inner } },
+  });
+
+  it('absorbs a populated dict into an empty dict sibling', async () => {
+    expect(await inferred('list[dict[], dict[a: 1]]')).toEqual(
+      list({ kind: 'dict' })
+    );
+  });
+
+  it('absorbs a nested populated dict into a nested empty dict', async () => {
+    expect(
+      await inferred('list[dict[x: dict[]], dict[x: dict[a: 1]]]')
+    ).toEqual(list(dictX({ kind: 'dict' })));
+  });
+
+  it('keeps the populated list members and drops the empty list', async () => {
+    expect(await inferred('list[list[], list[1], list["a"]]')).toEqual(
+      list(union(list(num), list(str)))
+    );
+  });
+
+  it('merges nested empty-dict lists into one list type', async () => {
+    expect(await inferred('list[list[dict[]], list[dict[a: 1]]]')).toEqual(
+      list(list({ kind: 'dict' }))
+    );
+  });
+
+  it('absorbs a populated tuple into an empty tuple', async () => {
+    expect(await inferred('list[tuple[], tuple[1]]')).toEqual(
+      list({ kind: 'tuple' })
+    );
+  });
+
+  it('absorbs a populated ordered into an empty ordered', async () => {
+    expect(await inferred('list[ordered[], ordered[a: 1]]')).toEqual(
+      list({ kind: 'ordered' })
+    );
+  });
+
+  it('keeps the stored member order of a merged inner union', async () => {
+    expect(await inferred('list[list["a", 1], list["a"]]')).toEqual(
+      list(list(union(str, num)))
+    );
+  });
+});
+
+describe('Mixed-collection inference: memoized per container', () => {
+  const rawCallable = (): RillValue => {
+    return { ...callable(() => 1), returnType: undefined };
+  };
+
+  it('returns the identical structure on a second inference of one list', () => {
+    const items: RillValue = [
+      { id: 1, a: 'x' },
+      { id: 2, b: 'y' },
+    ];
+    expect(inferStructure(items)).toBe(inferStructure(items));
+  });
+
+  it('returns a frozen structure', () => {
+    const items: RillValue = [
+      { id: 1, a: 'x' },
+      { id: 2, b: 'y' },
+    ];
+    const structure = inferStructure(items);
+    expect(Object.isFrozen(structure)).toBe(true);
+    const element = (structure as { element?: TypeStructure }).element;
+    expect(Object.isFrozen(element)).toBe(true);
+  });
+
+  it('freezes the field defs and fields record of a dict element', () => {
+    const structure = inferStructure([{ id: 1, a: 'x' }]);
+    const element = (
+      structure as {
+        element?: { fields?: Record<string, object> };
+      }
+    ).element;
+    expect(Object.isFrozen(element?.fields)).toBe(true);
+    for (const def of Object.values(element?.fields ?? {})) {
+      expect(Object.isFrozen(def)).toBe(true);
+    }
+  });
+
+  it('does not freeze a borrowed closure return structure', () => {
+    const ret: TypeStructure = { kind: 'number' };
+    const typed: RillValue = {
+      ...callable(() => 1),
+      returnType: { ...anyTypeValue, structure: ret },
+    };
+    const structure = inferStructure([typed]);
+    const element = (structure as { element?: { ret?: TypeStructure } })
+      .element;
+    expect(element?.ret).toBe(ret);
+    expect(Object.isFrozen(ret)).toBe(false);
+  });
+
+  it('halts on every inference of a list holding a dict with a raw callable', () => {
+    const items: RillValue = [{ f: rawCallable() }];
+    for (let i = 0; i < 2; i++) {
+      expectHaltSync(() => inferStructure(items), { code: 'INVALID_INPUT' });
+    }
+  });
+
+  it('falls back to the bare kind for == on that list', async () => {
+    const items: RillValue = [{ f: rawCallable() }];
+    expect(await run('$a == $a', { variables: { a: items } })).toBe(true);
+  });
+});
+
+describe('Mixed-collection inference: written union absorption with literals', () => {
+  it('absorbs a dict holding a literal union into a ground dict sibling', async () => {
+    expect(
+      await run(
+        'union(dict(k: string), dict(k: union("a", "b"))) == dict(k: string)'
+      )
+    ).toBe(true);
+  });
+
+  it('absorbs a list of a literal union into a ground list sibling', async () => {
+    expect(
+      await run('union(list(string), list(union("a", "b"))) == list(string)')
+    ).toBe(true);
   });
 });

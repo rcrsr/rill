@@ -19,8 +19,6 @@ import type {
   GroupedExprNode,
   PassBlockNode,
   TimeoutBlockNode,
-  DictNode,
-  DictEntryNode,
   PipeChainNode,
   PipeTargetNode,
   PostfixExprNode,
@@ -55,6 +53,7 @@ import {
 } from './helpers.js';
 import { parseScriptTypeRef } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
+import { parseOptionDict } from './parser-options.js';
 import { runPostfixDispatchLoop } from './parser-pipe-target.js';
 import type { PostfixLoopState } from './parser-primary.js';
 
@@ -964,118 +963,37 @@ Parser.prototype.parsePassBlock = function (this: Parser): PassBlockNode {
   const start = current(this.state).span.start;
   advance(this.state); // consume pass<
 
-  const dictStart = current(this.state).span.start;
-  const entries: DictEntryNode[] = [];
+  const options = parseOptionDict(this, 'pass', ['on_error', 'async']);
 
-  skipNewlines(this.state);
-
-  while (
-    !check(this.state, TOKEN_TYPES.GT) &&
-    !check(this.state, TOKEN_TYPES.EOF)
-  ) {
-    const entryStart = current(this.state).span.start;
-
-    if (!check(this.state, TOKEN_TYPES.IDENTIFIER)) {
-      throw new ParseError(
-        ERROR_IDS.RILL_P004,
-        "Expected option key (identifier) inside 'pass<...>'",
-        current(this.state).span.start
-      );
-    }
-    const keyToken = advance(this.state);
-
-    if (keyToken.value !== 'on_error' && keyToken.value !== 'async') {
-      throw new ParseError(
-        ERROR_IDS.RILL_P004,
-        `Unknown option '${keyToken.value}' inside 'pass<...>'; recognized options are 'on_error' and 'async'`,
-        keyToken.span.start
-      );
-    }
-
-    expect(
-      this.state,
-      TOKEN_TYPES.COLON,
-      "Expected ':' after option key inside 'pass<...>'",
-      ERROR_IDS.RILL_P004
-    );
-    skipNewlines(this.state);
-
-    // Parse only a primary expression (atom literal, string, number, etc.)
-    // so that `>` after the value is not consumed as a comparison operator.
-    // Wrap in PostfixExprNode + PipeChainNode to satisfy ExpressionNode type.
-    const primaryNode = this.parsePrimary();
-
-    if (keyToken.value === 'on_error') {
-      if (primaryNode.type !== 'AtomLiteral' || primaryNode.name !== 'IGNORE') {
-        throw new ParseError(
-          ERROR_IDS.RILL_P004,
-          "'on_error' option requires value '#IGNORE'",
-          primaryNode.span.start
-        );
-      }
-    } else {
-      // async key: requires a boolean literal (true or false)
-      if (primaryNode.type !== 'BoolLiteral') {
-        throw new ParseError(
-          ERROR_IDS.RILL_P004,
-          "'async' option requires a boolean literal ('true' or 'false')",
-          primaryNode.span.start
-        );
-      }
-    }
-
-    const primarySpan = primaryNode.span;
-    const postfixNode: PostfixExprNode = {
-      type: 'PostfixExpr',
-      primary: primaryNode,
-      methods: [],
-      defaultValue: null,
-      span: primarySpan,
-    };
-    const value: PipeChainNode = {
-      type: 'PipeChain',
-      head: postfixNode,
-      pipes: [],
-      terminator: null,
-      span: primarySpan,
-    };
-
-    entries.push({
-      type: 'DictEntry',
-      key: keyToken.value,
-      keyForm: 'identifier',
-      value,
-      span: makeSpan(entryStart, previous(this.state).span.end),
-    } satisfies DictEntryNode);
-
-    skipNewlines(this.state);
-    if (check(this.state, TOKEN_TYPES.COMMA)) {
-      advance(this.state);
-      skipNewlines(this.state);
-    }
-  }
-
-  if (entries.length === 0) {
+  if (options.entries.length === 0) {
     throw new ParseError(
       ERROR_IDS.RILL_P004,
       "'pass<>' requires at least one option (use 'pass { body }' for the no-options form, 'pass<on_error: #IGNORE> { body }' for suppression, or 'pass<async: true> { body }' for async execution)",
-      dictStart
+      options.span.start
     );
   }
 
-  const gt = expect(
-    this.state,
-    TOKEN_TYPES.GT,
-    "Expected '>' to close 'pass<...>'",
-    ERROR_IDS.RILL_P005
-  );
-
-  const options: DictNode = {
-    type: 'Dict',
-    entries,
-    defaultValue: null,
-    span: makeSpan(dictStart, gt.span.end),
-  };
+  for (const entry of options.entries) {
+    const head =
+      entry.value.type === 'PipeChain' ? entry.value.head : undefined;
+    if (head?.type !== 'PostfixExpr') continue;
+    const primary = head.primary;
+    if (entry.key === 'on_error') {
+      if (primary.type !== 'AtomLiteral' || primary.name !== 'IGNORE') {
+        throw new ParseError(
+          ERROR_IDS.RILL_P004,
+          "'on_error' option requires value '#IGNORE'",
+          primary.span.start
+        );
+      }
+    } else if (primary.type !== 'BoolLiteral') {
+      throw new ParseError(
+        ERROR_IDS.RILL_P004,
+        "'async' option requires a boolean literal ('true' or 'false')",
+        primary.span.start
+      );
+    }
+  }
 
   skipNewlines(this.state);
 

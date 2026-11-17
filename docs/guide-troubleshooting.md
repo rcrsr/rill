@@ -391,7 +391,7 @@ guard { $app.fetch("https://api.example.com") } => $result
 $result.!trace -> seq({ log("{$.kind} at {$.site}") })
 ```
 
-Access halts are catchable. Halts from `error "..."` and `assert` are **non-catchable** and propagate through `guard`.
+Access halts are catchable. Halts from non-catchable sources (for example `error "..."` and `assert`) propagate through `guard`.
 
 ## Why Is My Comment a Parse Error?
 
@@ -457,7 +457,7 @@ To convert an atom to its string name:
 
 ## Guard Did Not Catch My Error
 
-`guard` catches **catchable** halts only. Halts from `error "..."` and `assert` are non-catchable.
+`guard` catches **catchable** halts only. Halts from non-catchable sources (for example `error "..."` and `assert`) are not caught.
 
 ```text
 # Non-catchable halt — propagates through guard

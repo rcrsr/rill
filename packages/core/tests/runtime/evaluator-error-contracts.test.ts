@@ -834,9 +834,8 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         }
       });
 
-      it('allows equality comparison between any types', async () => {
-        const result = await run('5 == "string"');
-        expect(result).toBe(false);
+      it('halts equality comparison between non-overlapping types', async () => {
+        await expectHalt(() => run('5 == "string"'), { code: 'TYPE_MISMATCH' });
       });
     });
 

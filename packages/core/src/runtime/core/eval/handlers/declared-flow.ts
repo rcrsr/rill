@@ -189,7 +189,7 @@ async function applyPostfixStepsCarried(
             : undefined;
         const projected =
           located === undefined ? undefined : projectLocated(declared, located);
-        value = await evaluateMethod(s, method, value);
+        value = await evaluateMethod(s, method, value, declared);
         declared = projected;
       }
     } catch (error) {
@@ -401,7 +401,12 @@ export async function evaluateCarryingPipeTarget(
         located === undefined
           ? undefined
           : projectLocated(input.declared, located);
-      const value = await evaluateMethod(s, target, input.value);
+      const value = await evaluateMethod(
+        s,
+        target,
+        input.value,
+        input.declared
+      );
       return { value, declared: projected };
     }
 

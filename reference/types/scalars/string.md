@@ -3,7 +3,7 @@ id: string
 title: Strings
 status: normative
 since: 0.24.0
-issues: [560]
+issues: []
 grammar: [string, char, escape, brace-escape, interpolation]
 errors: [RILL-L001, RILL-L004, RILL-L005, RILL-P004, RILL-R002, RILL-R036, TYPE_MISMATCH]
 depends: [notation, halt, type-value]
@@ -84,15 +84,13 @@ proper prefix orders first.
 
 ## Interactions
 
+Equality against a non-string value follows `equality.no-overlap`.
+
 r[string.no-arithmetic] A string is not an arithmetic operand
 An arithmetic operator with a string operand MUST halt with RILL-R002. `+` MUST NOT concatenate.
 
 r[string.cross-order] Ordering a string against another type halts
 `<`, `>`, `<=`, and `>=` between a string and a non-string MUST halt with RILL-R002.
-
-r[string.cross-equality] Equality against a non-string halts {pending #560}
-`==` and `!=` between a string and an operand whose type does not overlap `string` MUST halt
-with `#TYPE_MISMATCH`.
 
 r[string.from-number] A number converts to its printed form
 `number -> string` MUST yield the string a number prints as. `5 -> string` ⇒ `"5"`.
@@ -105,8 +103,12 @@ A list, dict, tuple, or ordered piped into `string` MUST yield its printed form,
 `conversion.no-string-vector`, and `conversion.no-string-time` state.
 `list[1] -> string` ⇒ `"list[1]"`.
 
-r[string.from-time] A datetime and a duration have no route
-`datetime -> string` and `duration -> string` MUST halt with RILL-R036.
+r[string.from-datetime] A datetime has no route
+`datetime -> string` MUST halt with RILL-R036.
+
+r[string.from-duration] A duration converts to its printed form
+`duration -> string` MUST yield the string the duration prints as (`duration.print`).
+`duration("90s") -> string` ⇒ `"1m30s"`.
 
 r[string.membership] Only a string satisfies string
 A string MUST satisfy `:string`; any other value MUST halt it with `#TYPE_MISMATCH`.
@@ -120,9 +122,8 @@ A string MUST satisfy `:string`; any other value MUST halt it with `#TYPE_MISMAT
 | A backslash escape is undefined, or `"""` appears inside a triple-quoted interpolation | RILL-L005 | No |
 | An interpolation is empty | RILL-P004 | No |
 | An arithmetic operand is a string, or an ordering operator mixes a string with a non-string | RILL-R002 | Yes |
-| A datetime or duration is converted to string | RILL-R036 | Yes |
+| A datetime is converted to string | RILL-R036 | Yes |
 | A non-string is asserted as `:string` | `#TYPE_MISMATCH` | Yes |
-| A string is compared for equality with a non-string {pending #560} | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 
@@ -147,3 +148,5 @@ no \n escape, "quotes" stay, {{braces}} collapse
 ## Notes
 
 The `string` production lists `newline` in `char`, but the lexer rejects it in a `"` string.
+
+Superseded: `string.from-time`, now `string.from-datetime` and `string.from-duration`.

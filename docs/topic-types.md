@@ -894,13 +894,15 @@ A duration represents a span of time. It stores two fields independently: `month
 
 ### Construction
 
-Two families of units construct duration values:
+Three forms construct duration values: named components, the printed form, and a piped string. The first three rows below are named components.
 
 | Form | Example | Notes |
 |------|---------|-------|
 | Fixed units | `duration(...dict[days: 1, hours: 2])` | Collapses to ms; exact arithmetic |
 | Calendar units | `duration(...dict[months: 3, years: 1])` | Collapses years to months; variable-length |
 | Raw milliseconds | `duration(...dict[ms: 86400000])` | Direct ms count |
+| Printed form | `duration("1d2h")` | Units in the order `y`, `mo`, `d`, `h`, `m`, `s`, `ms`, each at most once; only the `ms` count may be a decimal (`"1s500.5ms"`); each component is at most 2^53-1; malformed text halts with `#INVALID_INPUT`; a positional number halts with `RILL-R001` |
+| String pipe | `"1d2h" -> duration` | Parses as `duration("1d2h")` and halts the same way; `duration -> string` returns the printed form; a number or dict piped into `duration` halts with `RILL-R036` |
 
 ```text
 duration(...dict[days: 1, hours: 2]) -> .display
@@ -929,6 +931,8 @@ Fixed-unit durations decompose their `ms` field using remainder arithmetic:
 | `.ms` | number | Remainder milliseconds after seconds |
 | `.months` | number | Calendar months count |
 | `.total_ms` | number | Raw ms field; halts on calendar durations |
+
+Durations also carry `.eq` and `.ne`, which compare as `==` does: months and milliseconds must both match.
 
 ```text
 duration(...dict[hours: 25]) -> .days
@@ -999,10 +1003,18 @@ duration(...dict[months: 1]) == duration(...dict[months: 1])
 # Result: true
 ```
 
+A duration's interpolated text parses back to an equal duration:
+
+```rill
+duration("1d2h") => $d
+duration("{$d}") == $d
+# Result: true
+```
+
 Two durations order when one is greater than or equal to the other in both `months` and `ms`. When the two fields disagree in direction, ordering halts with `RILL-R002`, which `guard` recovers:
 
 ```rill
-duration(1) < duration(2)
+duration("1y") < duration("2y")
 # Result: true
 ```
 
@@ -1051,7 +1063,7 @@ $t -> .diff($t) => $gap
 
 ### Zero Value
 
-`.zero` returns `duration(ms: 0)`.
+`.zero` returns `duration("0ms")`.
 
 ```rill
 now() => $t

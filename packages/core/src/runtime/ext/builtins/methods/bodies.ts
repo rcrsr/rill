@@ -1,5 +1,9 @@
 import { isCallable } from '../../../core/callable.js';
-import type { RillValue, RillVector } from '../../../core/types/structures.js';
+import type {
+  RillValue,
+  RillVector,
+  TypeStructure,
+} from '../../../core/types/structures.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
 import type { SourceLocation } from '../../../../source-location.js';
 import {
@@ -21,6 +25,11 @@ import {
   typedKeyCount,
 } from '../../../core/types/dict-keys.js';
 import { isEmpty } from '../../../core/values.js';
+import {
+  carriedListElement,
+  requireOverlap,
+  type Carried,
+} from '../../../core/types/overlap.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import {
   throwCatchableHostHalt,
@@ -498,12 +507,28 @@ export const mPadEnd: RillMethod = (receiver, args, ctx, location) => {
 };
 
 /** Equality check (deep structural comparison) */
-export const mEq: RillMethod = (receiver, args) =>
-  deepEquals(receiver, args[0] ?? null);
+export const mEq: RillMethod = (receiver, args, ctx, location, carried) => {
+  const other = args[0] ?? null;
+  requireOverlap(
+    { value: receiver, declared: carried?.[0] },
+    { value: other, declared: carried?.[1] },
+    { location, sourceId: ctx.sourceId, fn: 'eq' },
+    '.eq'
+  );
+  return deepEquals(receiver, other);
+};
 
 /** Inequality check (deep structural comparison) */
-export const mNe: RillMethod = (receiver, args) =>
-  !deepEquals(receiver, args[0] ?? null);
+export const mNe: RillMethod = (receiver, args, ctx, location, carried) => {
+  const other = args[0] ?? null;
+  requireOverlap(
+    { value: receiver, declared: carried?.[0] },
+    { value: other, declared: carried?.[1] },
+    { location, sourceId: ctx.sourceId, fn: 'ne' },
+    '.ne'
+  );
+  return !deepEquals(receiver, other);
+};
 
 /** Order two values via the compare protocol; halts RILL-R002 when incomparable. */
 export function orderedCompare(
@@ -584,8 +609,32 @@ export const mEntries: RillMethod = (receiver, _args, ctx, location) => {
   return orderedDictEntries(receiver).map((e): RillValue => [e.key, e.value]);
 };
 
+/**
+ * Halt #TYPE_MISMATCH when a list's element type cannot overlap the operand
+ * checked against it. A list with no element type to compare passes.
+ */
+function requireElementOverlap(
+  receiver: RillValue,
+  receiverDeclared: Carried['declared'],
+  operand: Carried,
+  operandDeclared: boolean,
+  ctx: RuntimeContext,
+  location: SourceLocation | undefined,
+  fn: string
+): void {
+  const element = carriedListElement(receiver, receiverDeclared);
+  if (element === undefined) return;
+  requireOverlap(
+    { value: null, declared: element },
+    operand,
+    { location, sourceId: ctx.sourceId, fn },
+    `.${fn}`,
+    receiverDeclared !== undefined || operandDeclared
+  );
+}
+
 /** Check if list contains value (deep equality) */
-export const mHas: RillMethod = (receiver, args, ctx, location) => {
+export const mHas: RillMethod = (receiver, args, ctx, location, carried) => {
   if (!Array.isArray(receiver)) {
     throwFatalHostHalt(
       { location, sourceId: ctx.sourceId, fn: 'has', preserveHostShape: true },
@@ -594,6 +643,15 @@ export const mHas: RillMethod = (receiver, args, ctx, location) => {
     );
   }
   const searchValue = args[0] ?? null;
+  requireElementOverlap(
+    receiver,
+    carried?.[0],
+    { value: searchValue, declared: carried?.[1] },
+    carried?.[1] !== undefined,
+    ctx,
+    location,
+    'has'
+  );
   for (const item of receiver) {
     if (deepEquals(item, searchValue)) return true;
   }
@@ -622,8 +680,30 @@ function listArg(
   );
 }
 
+/** Gate a candidates list against the receiver's element type. */
+function requireCandidatesOverlap(
+  receiver: RillValue,
+  candidates: RillValue,
+  carried: readonly (TypeStructure | undefined)[] | undefined,
+  ctx: RuntimeContext,
+  location: SourceLocation | undefined,
+  fn: string
+): void {
+  const element = carriedListElement(candidates, carried?.[1]);
+  if (element === undefined) return;
+  requireElementOverlap(
+    receiver,
+    carried?.[0],
+    { value: null, declared: element },
+    carried?.[1] !== undefined,
+    ctx,
+    location,
+    fn
+  );
+}
+
 /** Check if list contains any value from candidates (deep equality) */
-export const mHasAny: RillMethod = (receiver, args, ctx, location) => {
+export const mHasAny: RillMethod = (receiver, args, ctx, location, carried) => {
   if (!Array.isArray(receiver)) {
     throwFatalHostHalt(
       {
@@ -637,6 +717,14 @@ export const mHasAny: RillMethod = (receiver, args, ctx, location) => {
     );
   }
   const candidates = listArg(args[0], 'candidates', 'has_any', ctx, location);
+  requireCandidatesOverlap(
+    receiver,
+    args[0] ?? null,
+    carried,
+    ctx,
+    location,
+    'has_any'
+  );
   for (const candidate of candidates) {
     for (const item of receiver) {
       if (deepEquals(item, candidate)) return true;
@@ -646,7 +734,7 @@ export const mHasAny: RillMethod = (receiver, args, ctx, location) => {
 };
 
 /** Check if list contains all values from candidates (deep equality) */
-export const mHasAll: RillMethod = (receiver, args, ctx, location) => {
+export const mHasAll: RillMethod = (receiver, args, ctx, location, carried) => {
   if (!Array.isArray(receiver)) {
     throwFatalHostHalt(
       {
@@ -660,6 +748,14 @@ export const mHasAll: RillMethod = (receiver, args, ctx, location) => {
     );
   }
   const candidates = listArg(args[0], 'candidates', 'has_all', ctx, location);
+  requireCandidatesOverlap(
+    receiver,
+    args[0] ?? null,
+    carried,
+    ctx,
+    location,
+    'has_all'
+  );
   for (const candidate of candidates) {
     let found = false;
     for (const item of receiver) {

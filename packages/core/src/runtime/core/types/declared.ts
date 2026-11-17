@@ -48,7 +48,8 @@ export function declarationOf(
  * list(E) -> E; tuple by index, dict by name, ordered by name or index. A
  * uniform dict or ordered valueType wins over fields, as in the matcher; with
  * none set, an unmatched key projects nothing. Index keys are non-negative.
- * Unions and bare kinds project nothing.
+ * Unions and bare kinds project nothing. With no carried type, the element
+ * carries none and is judged by its own type.
  */
 export function projectElement(
   collection: TypeStructure | undefined,
@@ -93,9 +94,10 @@ export function projectElement(
 }
 
 /**
- * Declared element type for iteration; only list(E) carries one. Iteration
- * visits every element rather than looking one up, so it takes the same
- * projection a list index does.
+ * Declared element type for iteration; only a declared list carries one:
+ * list(E). Undeclared collections carry nothing, so each element is judged by
+ * its own type. Iteration visits every element rather than looking one up, so
+ * it takes the same projection a list index does.
  */
 export function iterationElement(
   collection: TypeStructure | undefined

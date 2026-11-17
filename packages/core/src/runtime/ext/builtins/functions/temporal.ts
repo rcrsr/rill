@@ -1,5 +1,6 @@
 import type { RillFunction } from '../../../core/callable.js';
 import { throwTypeHalt } from '../../../core/types/halt.js';
+import { DURATION_UNITS } from '../../../core/types/duration-units.js';
 import { structureToTypeValue } from '../../../core/values.js';
 import { constructDatetime, constructDuration } from '../temporal/construct.js';
 
@@ -106,54 +107,25 @@ export const TEMPORAL_FUNCTIONS: Record<string, RillFunction> = {
   },
 
   /**
-   * Construct a duration value from named unit parameters.
-   * All values must be non-negative integers; negative values halt.
+   * Construct a duration value from printed-form text or named unit parameters.
+   * Text such as "1m30s" parses through the unit table; a non-string positional
+   * halts at parameter typing. Named values must be non-negative.
    * Fixed units collapse to single ms field; calendar units collapse to months.
    */
   duration: {
     params: [
       {
-        name: 'years',
-        type: { kind: 'any' },
-        defaultValue: 0,
+        name: 'input',
+        type: { kind: 'string' },
+        defaultValue: null,
         annotations: {},
       },
-      {
-        name: 'months',
-        type: { kind: 'any' },
+      ...DURATION_UNITS.map((unit) => ({
+        name: unit.name,
+        type: { kind: 'any' as const },
         defaultValue: 0,
         annotations: {},
-      },
-      {
-        name: 'days',
-        type: { kind: 'any' },
-        defaultValue: 0,
-        annotations: {},
-      },
-      {
-        name: 'hours',
-        type: { kind: 'any' },
-        defaultValue: 0,
-        annotations: {},
-      },
-      {
-        name: 'minutes',
-        type: { kind: 'any' },
-        defaultValue: 0,
-        annotations: {},
-      },
-      {
-        name: 'seconds',
-        type: { kind: 'any' },
-        defaultValue: 0,
-        annotations: {},
-      },
-      {
-        name: 'ms',
-        type: { kind: 'any' },
-        defaultValue: 0,
-        annotations: {},
-      },
+      })),
     ],
     returnType: structureToTypeValue({ kind: 'duration' }),
     fn: (args, _ctx, location) => {

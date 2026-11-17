@@ -1,4 +1,4 @@
-import type { RillValue } from '../../core/types/structures.js';
+import type { RillValue, TypeStructure } from '../../core/types/structures.js';
 import {
   iterationElement,
   recordArgDeclared,
@@ -8,7 +8,7 @@ import {
 import type { RuntimeContext } from '../../core/types/runtime.js';
 import type { SourceLocation } from '../../../types.js';
 import type { EvalState } from '../../core/eval/state.js';
-import { callable, isCallable } from '../../core/callable.js';
+import { internalCallable, isCallable } from '../../core/callable.js';
 import { isDict, isStream } from '../../core/types/guards.js';
 import { typedKeyEntries } from '../../core/types/dict-keys.js';
 import {
@@ -237,12 +237,17 @@ export function isBmpOnly(str: string): boolean {
   return !/[\uD800-\uDBFF]/.test(str);
 }
 
-/** Internal type alias for built-in method implementations. */
+/**
+ * Internal type alias for built-in method implementations. `carried` holds the
+ * declared type of each call position, receiver first then the arguments;
+ * a position with no declared type reads as undefined.
+ */
 export type RillMethod = (
   receiver: RillValue,
   args: RillValue[],
   ctx: RuntimeContext,
-  location?: SourceLocation
+  location?: SourceLocation,
+  carried?: readonly (TypeStructure | undefined)[]
 ) => RillValue | Promise<RillValue>;
 
 // ============================================================
@@ -256,12 +261,15 @@ export type RillMethod = (
 export function makeListIterator(list: RillValue[], index: number): RillValue {
   const value = list[index];
   if (value === undefined) {
-    return { done: true, next: callable(() => makeListIterator(list, index)) };
+    return {
+      done: true,
+      next: internalCallable(() => makeListIterator(list, index)),
+    };
   }
   return {
     value,
     done: false,
-    next: callable(() => makeListIterator(list, index + 1)),
+    next: internalCallable(() => makeListIterator(list, index + 1)),
   };
 }
 
@@ -288,13 +296,13 @@ function makeCodePointIterator(codePoints: string[], index: number): RillValue {
   if (value === undefined) {
     return {
       done: true,
-      next: callable(() => makeCodePointIterator(codePoints, index)),
+      next: internalCallable(() => makeCodePointIterator(codePoints, index)),
     };
   }
   return {
     value,
     done: false,
-    next: callable(() => makeCodePointIterator(codePoints, index + 1)),
+    next: internalCallable(() => makeCodePointIterator(codePoints, index + 1)),
   };
 }
 
@@ -319,13 +327,13 @@ export function makeDictIterator(
   if (entry === undefined) {
     return {
       done: true,
-      next: callable(() => makeDictIterator(dict, index)),
+      next: internalCallable(() => makeDictIterator(dict, index)),
     };
   }
   return {
     value: { key: entry.key, value: entry.value },
     done: false,
-    next: callable(() => makeDictIterator(dict, index + 1)),
+    next: internalCallable(() => makeDictIterator(dict, index + 1)),
   };
 }
 
@@ -356,12 +364,12 @@ export function makeGenericIterator(
   const step = (current: number): RillValue => {
     const result = fn(current);
     if (result.done) {
-      return { done: true, next: callable(() => step(current)) };
+      return { done: true, next: internalCallable(() => step(current)) };
     }
     return {
       value: result.value,
       done: false,
-      next: callable(() => step(result.next)),
+      next: internalCallable(() => step(result.next)),
     };
   };
   return step(seed);
@@ -370,9 +378,10 @@ export function makeGenericIterator(
 /**
  * Bind one collection element into a per-element body context and build the
  * body's call args. The element's declared type is the declared list's
- * element type when the collection argument (position `collectionIndex` of the
+ * element type when the collection argument (`list`, position 0 of the
  * marshalled `record`) is a declared list; every other collection, and every
- * stream or iterator, carries nothing. `extra` args (a fold accumulator)
+ * stream or iterator, carries nothing and each element is judged by its own
+ * type. `extra` args (a fold accumulator)
  * follow the element and carry nothing.
  *
  * @internal
@@ -380,11 +389,10 @@ export function makeGenericIterator(
 export function bindElement(
   childCtx: RuntimeContext,
   element: RillValue,
-  record: object,
-  extra: readonly RillValue[] = [],
-  collectionIndex = 0
+  record: Readonly<Record<string, RillValue>>,
+  extra: readonly RillValue[] = []
 ): RillValue[] {
-  const declared = iterationElement(recordArgDeclared(record, collectionIndex));
+  const declared = iterationElement(recordArgDeclared(record, 0));
   setPipe(childCtx, element, declared);
   const callArgs: RillValue[] = [element, ...extra];
   if (declared !== undefined) {

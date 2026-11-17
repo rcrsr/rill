@@ -3,10 +3,10 @@ id: structural-typing
 title: Structural typing
 status: normative
 since: 0.24.0
-issues: [560, 572, 623]
+issues: [572, 623]
 errors: [TYPE_MISMATCH]
 depends: [type-value, any, list, dict, tuple, ordered, union]
-tests: [structural-type-identity.test.ts, structural-type-boundaries.test.ts, structural-type-errors.test.ts, structural-type-defaults.test.ts]
+tests: [equality-gate.test.ts, structural-type-identity.test.ts, structural-type-boundaries.test.ts, structural-type-errors.test.ts, structural-type-defaults.test.ts]
 ---
 
 # Structural typing
@@ -70,21 +70,21 @@ A function value MUST have a function type only when its own type equals that ty
 
 ### Overlap
 
-r[structural-typing.overlap-scalar] Two scalar types overlap when they are the same kind {pending #560}
+r[structural-typing.overlap-scalar] Two scalar types overlap when they are the same kind
 `number` MUST overlap `number` and MUST NOT overlap `string`.
 
-r[structural-typing.overlap-list] Two list types overlap when their element types overlap {pending #560}
+r[structural-typing.overlap-list] Two list types overlap when their element types overlap
 `list(number)` and `list(string)` MUST NOT overlap. The type of `list[]` leaves its element
 unspecified, so `list[]` MUST overlap `list["a"]`.
 
-r[structural-typing.overlap-kind] Types of different kinds do not overlap {pending #560}
+r[structural-typing.overlap-kind] Types of different kinds do not overlap
 `tuple[1]` and `list[1]` MUST NOT overlap, because their values have different kinds.
 
-r[structural-typing.overlap-fields] Types with named fields overlap when shared fields do {pending #560}
+r[structural-typing.overlap-fields] Types with named fields overlap when shared fields do
 Two types with named fields MUST overlap when every shared field overlaps and every field
 named by only one has a default.
 
-r[structural-typing.overlap-union] A union overlaps a type when one member does {pending #560}
+r[structural-typing.overlap-union] A union overlaps a type when one member does
 A union MUST overlap a type when at least one member overlaps it. `any` MUST overlap every type.
 
 ## Errors
