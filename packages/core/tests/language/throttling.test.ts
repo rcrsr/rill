@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Throttling Operators — debounce, throttle, sample
  * (Phase 2, Task 2.4)
@@ -55,6 +56,7 @@ import {
 
 import { expectHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 // ---------------------------------------------------------------------------
 // Helper: host function that returns a RillStream over provided values
@@ -270,4 +272,54 @@ describe('EC-11 / AC-16: non-duration argument raises a parameter type error', (
       expect.objectContaining({ errorId: 'RILL-R001' })
     );
   });
+});
+
+// ---------------------------------------------------------------------------
+// Time bounds need a fixed-length duration
+// ---------------------------------------------------------------------------
+
+describe('time-domain options need a fixed-length duration', () => {
+  const { it: ruleIt } = rule('construct-options.timeout-fixed-duration');
+
+  for (const op of ['debounce', 'throttle', 'sample']) {
+    ruleIt(`halts #INVALID_INPUT for ${op} with a months part`, async () => {
+      await expectHalt(() => run(`range(0, 3) -> ${op}(duration("1mo"))`), {
+        code: 'INVALID_INPUT',
+        messagePattern: new RegExp(op),
+      });
+    });
+
+    ruleIt(`halts #INVALID_INPUT for ${op} with a years part`, async () => {
+      await expectHalt(() => run(`range(0, 3) -> ${op}(duration("1y"))`), {
+        code: 'INVALID_INPUT',
+        messagePattern: new RegExp(op),
+      });
+    });
+  }
+
+  ruleIt(
+    'halts #INVALID_INPUT for batch idle_flush with a months part',
+    async () => {
+      await expectHalt(
+        () =>
+          run(
+            'list[1, 2, 3] -> batch(2, dict[idle_flush: duration("1mo")]) -> seq({ $ })'
+          ),
+        { code: 'INVALID_INPUT', messagePattern: /idle_flush/ }
+      );
+    }
+  );
+
+  ruleIt(
+    'halts #INVALID_INPUT for batch idle_flush with a years part',
+    async () => {
+      await expectHalt(
+        () =>
+          run(
+            'list[1, 2, 3] -> batch(2, dict[idle_flush: duration("1y")]) -> seq({ $ })'
+          ),
+        { code: 'INVALID_INPUT', messagePattern: /idle_flush/ }
+      );
+    }
+  );
 });

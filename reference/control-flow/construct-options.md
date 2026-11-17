@@ -7,7 +7,7 @@ issues: [578]
 grammar: []
 errors: [INVALID_INPUT, RILL-P004, RILL-P025, TYPE_MISMATCH]
 depends: [loop, pass]
-tests: [timeout.test.ts]
+tests: [timeout.test.ts, throttling.test.ts]
 ---
 
 # Construct options

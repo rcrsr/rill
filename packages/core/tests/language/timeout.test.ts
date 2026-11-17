@@ -28,7 +28,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   anyTypeValue,
+  createRillStream,
   parse,
+  type RillValue,
   type CallableFn,
   type RillFunction,
   type RuntimeContext,
@@ -247,6 +249,177 @@ describe('timeout<idle:> restarts on activity', () => {
       { functions: { quick: returnsAtOnce }, scheduler: recording.scheduler }
     );
     expect(recording.requested).toEqual([50, 70, 50, 70]);
+  });
+
+  // -------------------------------------------------------------------------
+  // Virtual clock: host work and timeout timers share one deterministic
+  // timeline, so no real time passes.
+  // -------------------------------------------------------------------------
+
+  interface VirtualClock {
+    readonly scheduler: TimeoutScheduler;
+    sleep(ms: number): Promise<void>;
+    drive<T>(pending: Promise<T>): Promise<T>;
+  }
+
+  function makeVirtualClock(): VirtualClock {
+    let now = 0;
+    let nextId = 1;
+    const timers = new Map<number, { at: number; fn: () => void }>();
+    const scheduler: TimeoutScheduler = {
+      setTimeout: (fn, ms) => {
+        const id = nextId++;
+        timers.set(id, { at: now + ms, fn });
+        return id as unknown as ReturnType<typeof setTimeout>;
+      },
+      clearTimeout: (handle) => {
+        timers.delete(handle as unknown as number);
+      },
+    };
+    const settle = async (): Promise<void> => {
+      for (let i = 0; i < 5; i++) {
+        await new Promise<void>((resolve) => {
+          setImmediate(resolve);
+        });
+      }
+    };
+    return {
+      scheduler,
+      sleep: (ms) =>
+        new Promise<void>((resolve) => {
+          scheduler.setTimeout(resolve, ms);
+        }),
+      drive: async (pending) => {
+        let settled = false;
+        const mark = (): void => {
+          settled = true;
+        };
+        void pending.then(mark, mark);
+        for (let guard = 0; guard < 1000; guard++) {
+          await settle();
+          if (settled) break;
+          let earliest: [number, { at: number; fn: () => void }] | undefined;
+          for (const entry of timers) {
+            if (earliest === undefined || entry[1].at < earliest[1].at) {
+              earliest = entry;
+            }
+          }
+          if (earliest === undefined) break;
+          timers.delete(earliest[0]);
+          now = earliest[1].at;
+          earliest[1].fn();
+        }
+        return pending;
+      },
+    };
+  }
+
+  function msParam(name: string): RillFunction['params'][number] {
+    return {
+      name,
+      type: { kind: 'number' },
+      defaultValue: undefined,
+      annotations: {},
+    };
+  }
+
+  function runVirtual(
+    script: string,
+    build: (clock: VirtualClock) => Record<string, RillFunction>
+  ): Promise<RillValue> {
+    const clock = makeVirtualClock();
+    return clock.drive(
+      run(script, { functions: build(clock), scheduler: clock.scheduler })
+    );
+  }
+
+  const workFn = (clock: VirtualClock): RillFunction => ({
+    params: [msParam('ms')],
+    returnType: anyTypeValue,
+    fn: async (args) => {
+      await clock.sleep(Number(args['ms']));
+      return 'ok';
+    },
+  });
+
+  const ticksFn = (clock: VirtualClock): RillFunction => ({
+    params: [msParam('count'), msParam('gap_ms')],
+    returnType: anyTypeValue,
+    fn: (args) => {
+      const count = Number(args['count']);
+      const gapMs = Number(args['gap_ms']);
+      async function* chunks(): AsyncGenerator<RillValue> {
+        for (let i = 0; i < count; i++) {
+          await clock.sleep(gapMs);
+          yield i;
+        }
+      }
+      return createRillStream({
+        chunks: chunks(),
+        resolve: () => Promise.resolve('done'),
+      });
+    },
+  });
+
+  ruleIt(
+    'restarts the idle timer when stream chunks arrive in time',
+    async () => {
+      const result = await runVirtual(
+        'timeout<idle: duration("50ms")> { ticks(5, 30) -> seq({ $ }) -> .len }',
+        (clock) => ({ ticks: ticksFn(clock) })
+      );
+      expect(result).toBe(5);
+    }
+  );
+
+  ruleIt(
+    'halts #RILL_R083 when a stream gap outlasts the idle window',
+    async () => {
+      const result = await runVirtual(
+        `
+      guard { timeout<idle: duration("50ms")> { ticks(3, 80) -> seq({ $ }) } } => $r
+      ($r.!code == #RILL_R083)
+    `,
+        (clock) => ({ ticks: ticksFn(clock) })
+      );
+      expect(result).toBe(true);
+    }
+  );
+
+  ruleIt('does not count a host call that halts as activity', async () => {
+    const result = await runVirtual(
+      `
+      guard { timeout<idle: duration("50ms")> { guard { failing() } => $a
+        work(30)
+      } } => $r
+      ($r.!code == #RILL_R083)
+    `,
+      (clock) => ({
+        work: workFn(clock),
+        failing: {
+          params: [],
+          returnType: anyTypeValue,
+          fn: async () => {
+            await clock.sleep(30);
+            throw new Error('boom');
+          },
+        },
+      })
+    );
+    expect(result).toBe(true);
+  });
+
+  ruleIt('does not restart the limit from a sibling fan branch', async () => {
+    const result = await runVirtual(
+      `
+      list[1, 2] -> fan({
+        ($ == 1) ? guard { timeout<idle: duration("50ms")> { work(100) } } ! work(30)
+      }) => $r
+      ($r[0].!code == #RILL_R083)
+    `,
+      (clock) => ({ work: workFn(clock) })
+    );
+    expect(result).toBe(true);
   });
 });
 
