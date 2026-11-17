@@ -10,7 +10,6 @@ import {
   createRillStream,
   createRuntimeContext,
   getStatus,
-  getTypedKeyEntries,
   inferStructure,
   invokeCallable,
   isApplicationCallable,
@@ -154,7 +153,7 @@ describe('Rill Runtime: Host Integration', () => {
       expect(result).toBe('custom-type');
     });
 
-    it('a host function with a typed dict param receives typed keys readable via getTypedKeyEntries (#434)', async () => {
+    it('a host function receives number-spelled and boolean-spelled keys as plain string keys', async () => {
       let captured: RillValue | undefined;
       await run('read_dict(dict[1: "a", true: "b", name: "c"])', {
         functions: {
@@ -179,10 +178,11 @@ describe('Rill Runtime: Host Integration', () => {
         },
       });
 
-      const entries = getTypedKeyEntries(captured as RillValue);
-      expect(entries).toHaveLength(2);
-      expect(entries.find((e) => e.key === 1)?.value).toBe('a');
-      expect(entries.find((e) => e.key === true)?.value).toBe('b');
+      expect(captured).toEqual({ '1': 'a', true: 'b', name: 'c' });
+      expect(Object.getOwnPropertySymbols(captured as object)).toEqual([]);
+      expect(Object.keys(toNative(captured as RillValue) as object)).toEqual(
+        expect.not.arrayContaining(['__rill_typed_keys'])
+      );
     });
   });
 
@@ -1848,9 +1848,9 @@ describe('Host function return-value validation (RILL-R085)', () => {
       expect(result).toEqual([[0, 1], [2, 3], [4]]);
     });
 
-    it('accepts a dict carrying typed (non-string) keys', async () => {
-      const result = await echoThrough('dict[1: "number one", "1": "string"]');
-      expect(result).toEqual({ '1': 'string' });
+    it('accepts a dict carrying number-spelled keys', async () => {
+      const result = await echoThrough('dict[1: "number one"]');
+      expect(result).toEqual({ '1': 'number one' });
     });
   });
 

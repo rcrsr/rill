@@ -3,7 +3,7 @@ id: existence
 title: Existence check
 status: normative
 since: 0.24.0
-issues: [599, 607]
+issues: [599]
 grammar: []
 errors: [RILL-R009, INVALID_INPUT, TYPE_MISMATCH]
 depends: [selection]
@@ -26,11 +26,16 @@ $c.?[sel]     by a selector expression          $c.?name&T   by name and type
 r[existence.found] The existence check finds a key
 `.?name` and `.?$k` MUST yield true when the selection exists.
 
-r[existence.bracket] The existence check takes a selector expression {pending #607}
+r[existence.bracket] The existence check takes a selector expression
 `$c.?[sel]` MUST check as `$c.?$k` does, with `$k` holding the value of `sel`.
 
 r[existence.missing] The existence check never halts for a missing key
 `.?name` and `.?$k` MUST yield false, without halting, when the selection is missing or the receiver is a scalar.
+
+r[existence.key-type] The existence check halts on a non-string dict selector
+`.?$k` and `.?[sel]` on a dict MUST halt with `#TYPE_MISMATCH` when the selector is not a string,
+as `selection.key-type` states. A wrong selector type is not a missing key, so the check does not
+yield false.
 
 r[existence.chain] The existence check tests only its own step
 A step before `.?` that selects a missing key or index MUST halt with RILL-R009, by every
@@ -57,6 +62,7 @@ r[existence.map-type] A map existence check needs the key type {pending #599}
 |-----------|-------|-----------|
 | A step before `.?` is missing | RILL-R009 | Yes |
 | An index is not an integer | `#INVALID_INPUT` | Yes |
+| A dict selector is not a string | `#TYPE_MISMATCH` | Yes |
 | A map selector has the wrong key type {pending #599} | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
@@ -64,8 +70,8 @@ r[existence.map-type] A map existence check needs the key type {pending #599}
 ```rill
 dict[a: 1] => $d
 "z" => $z
-list[$d.?a, $d.?$z, $d.?a&number, $d.?a&string]
-# Result: list[true, false, true, false]
+list[$d.?a, $d.?$z, $d.?["a"], $d.?a&number, $d.?a&string]
+# Result: list[true, false, true, true, false]
 ```
 
 ```rill

@@ -299,7 +299,7 @@ const pipeTargetDispatchTable: Record<
   // chain identical to parsePipeTargetDot's shape.
   [TOKEN_TYPES.DOT_QUESTION]: function (this: Parser): PipeTargetNode {
     const dotToken = advance(this.state);
-    const finalAccess = this.parseFieldAccessElement(true, dotToken.span.start);
+    const finalAccess = this.parseExistenceAccess(dotToken.span.start);
     if (!finalAccess) {
       if (!check(this.state, TOKEN_TYPES.NEWLINE) && !isAtEnd(this.state)) {
         throw new ParseError(

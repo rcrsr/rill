@@ -32,7 +32,7 @@ const BODY_PAIRS: readonly BodyPair[] = [
   {
     name: 'literal vs computed field access kind',
     base: '$x.a',
-    variant: '$x.("a")',
+    variant: '$x["a"]',
   },
   { name: 'literal field access name', base: '$x.a', variant: '$x.b' },
   { name: 'variable field access name', base: '$x.$k', variant: '$x.$j' },
@@ -40,13 +40,7 @@ const BODY_PAIRS: readonly BodyPair[] = [
   { name: 'grouped expression', base: '($x + 1) * 2', variant: '($x + 2) * 2' },
   { name: 'interpolation', base: '"a {$x + 1}"', variant: '"a {$x + 2}"' },
   { name: 'index access', base: 'list[1, 2][0]', variant: 'list[1, 2][1]' },
-  { name: 'computed field access', base: '$x.("a")', variant: '$x.("b")' },
-  { name: 'block field access', base: '$x.{"a"}', variant: '$x.{"b"}' },
-  {
-    name: 'alternatives field access',
-    base: '$x.(a || b)',
-    variant: '$x.(a || c)',
-  },
+  { name: 'computed field access', base: '$x["a"]', variant: '$x["b"]' },
   { name: 'annotation access', base: '$x.^one', variant: '$x.^two' },
   { name: 'slice', base: '$x -> slice<0:2>', variant: '$x -> slice<0:3>' },
   {

@@ -157,7 +157,7 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
     Right: $obj.?missing                   # boolean: does field exist?
 
     Wrong: obj["computed-" + key]
-    Right: $obj.("{$prefix}-{$key}")       # computed key
+    Right: $obj["{$prefix}-{$key}"]        # computed key
 
 ## Function calls vs closures
 

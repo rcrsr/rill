@@ -644,7 +644,7 @@ Every member of the `ASTNode` union has a defined child set: a fixed, exhaustive
 
 ### Field access and dict key spans
 
-`FieldAccessLiteral`, `FieldAccessVariable`, `FieldAccessComputed`, `DictKeyVariable`, and `DictKeyComputed` each carry a `readonly span: SourceSpan` field, following the same inline-span pattern as `BracketAccess`. These interfaces are segments within a larger node (a property access chain or a dict key) rather than standalone `BaseNode` subtypes, so `span` covers only that segment.
+`FieldAccessLiteral`, `FieldAccessVariable`, `DictKeyVariable`, and `DictKeyComputed` each carry a `readonly span: SourceSpan` field, following the same inline-span pattern as `BracketAccess`. These interfaces are segments within a larger node (a property access chain or a dict key) rather than standalone `BaseNode` subtypes, so `span` covers only that segment.
 
 ```typescript
 interface FieldAccessLiteral {
@@ -656,12 +656,6 @@ interface FieldAccessLiteral {
 interface FieldAccessVariable {
   readonly kind: 'variable';
   readonly variableName: string | null;
-  readonly span: SourceSpan;
-}
-
-interface FieldAccessComputed {
-  readonly kind: 'computed';
-  readonly expression: ExpressionNode;
   readonly span: SourceSpan;
 }
 
@@ -682,7 +676,6 @@ interface DictKeyComputed {
 |-----------|-----------------|
 | `FieldAccessLiteral` | From the `.` token through the field-name token, e.g. `.name` |
 | `FieldAccessVariable` | From the `.` token through the variable-name token, e.g. `.$var` |
-| `FieldAccessComputed` | From the `.` token through the closing `)` token, e.g. `.(expr)` |
 | `DictKeyVariable` | From the opening key delimiter through the closing delimiter |
 | `DictKeyComputed` | From the opening key delimiter through the closing delimiter |
 

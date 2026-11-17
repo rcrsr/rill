@@ -247,11 +247,6 @@ describe('Rill Runtime: Whitespace Continuations', () => {
       expect(result).toEqual({ a: 1 });
     });
 
-    it('computed field access with newlines around expression evaluates correctly', async () => {
-      const result = await run('dict[key: "value"] => $obj\n$obj.(\n"key"\n)');
-      expect(result).toBe('value');
-    });
-
     it('identity call with newline after ( still parses and executes', async () => {
       const result = await run('identity(\n  "x"\n)', {
         functions: {

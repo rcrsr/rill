@@ -29,7 +29,7 @@ import type { FieldArg, TypeRef } from './value-types.js';
  * ASTNode union members and are never yielded directly: `PropertyAccess`
  * entries in `VariableNode.accessChain` (and `ExistenceCheck.finalAccess`)
  * and `DictEntryNode.key` variants. Their nested ASTNode children (e.g. a
- * computed field-access expression) are yielded in their place.
+ * bracket-access expression) are yielded in their place.
  *
  * `TypeRef` values (also not themselves ASTNode union members) can carry
  * ASTNode children through parameterized-type field args: a field default
@@ -337,10 +337,8 @@ function typeRefChildren(ref: TypeRef): ASTNode[] {
 
 /**
  * Yields child ASTNodes carried inside a span-less property-access
- * segment. Only `FieldAccessComputed.expression`, `FieldAccessBlock.block`,
- * and `BracketAccess.expression` carry ASTNode children; the remaining
- * segment kinds (`literal`, `variable`, `alternatives`, `annotation`)
- * carry none.
+ * segment. Only `BracketAccess.expression` carries an ASTNode child; the
+ * field-access kinds (`literal`, `variable`, `annotation`) carry none.
  */
 function propertyAccessChildren(access: PropertyAccess): ASTNode[] {
   if ('accessKind' in access) {
@@ -348,13 +346,8 @@ function propertyAccessChildren(access: PropertyAccess): ASTNode[] {
     return [access.expression];
   }
   switch (access.kind) {
-    case 'computed':
-      return [access.expression];
-    case 'block':
-      return [access.block];
     case 'literal':
     case 'variable':
-    case 'alternatives':
     case 'annotation':
       return [];
     default: {
@@ -368,16 +361,12 @@ function propertyAccessChildren(access: PropertyAccess): ASTNode[] {
 
 /**
  * Yields child ASTNodes carried inside a `DictEntryNode.key`. Plain
- * `string | number | boolean` keys and `DictKeyVariable` carry no ASTNode
+ * `string` keys and `DictKeyVariable` carry no ASTNode
  * children. `DictKeyComputed` yields its expression. A `ListLiteralNode`
  * key is itself an ASTNode union member and is yielded directly.
  */
 function dictKeyChildren(key: DictEntryNode['key']): ASTNode[] {
-  if (
-    typeof key === 'string' ||
-    typeof key === 'number' ||
-    typeof key === 'boolean'
-  ) {
+  if (typeof key === 'string') {
     return [];
   }
   if (!('kind' in key)) {
@@ -439,16 +428,14 @@ function spanContains(span: SourceSpan | undefined, offset: number): boolean {
  * access chain that follows it (e.g. `.field`, `[0]`) — a pre-existing
  * parser characteristic (see `parser-variables.ts`), not something this
  * module changes. Segments that themselves carry a `span`
- * (`FieldAccessLiteral`, `FieldAccessVariable`, `FieldAccessComputed`,
- * `BracketAccess`) are checked here so that an offset landing on one of
- * those segments — including `FieldAccessComputed`'s own delimiters
- * (the `.` through the closing `)`, outside its inner expression's span)
- * — still resolves to the owning `VariableNode` rather than falling
- * through to an outer ancestor. For offsets inside `FieldAccessComputed`'s
- * inner expression, `astChildren` reaches the same result first via its
- * ASTNode children. `FieldAccessBlock`'s ASTNode children are reached only
- * via `astChildren`. `FieldAccessAlternatives` and `FieldAccessAnnotation`
- * carry no span of their own and are not resolvable this way.
+ * (`FieldAccessLiteral`, `FieldAccessVariable`, `BracketAccess`) are
+ * checked here so that an offset landing on one of those segments —
+ * including a `BracketAccess`'s own delimiters (outside its inner
+ * expression's span) — still resolves to the owning `VariableNode` rather
+ * than falling through to an outer ancestor. For offsets inside a
+ * `BracketAccess`'s inner expression, `astChildren` reaches the same
+ * result first via its ASTNode children. `FieldAccessAnnotation` carries
+ * no span of its own and is not resolvable this way.
  */
 function ownsOffset(node: ASTNode, offset: number): boolean {
   if (spanContains(node.span, offset)) return true;
@@ -470,11 +457,7 @@ function accessSegmentContains(
   offset: number
 ): boolean {
   if ('accessKind' in access) return spanContains(access.span, offset);
-  if (
-    access.kind === 'literal' ||
-    access.kind === 'variable' ||
-    access.kind === 'computed'
-  ) {
+  if (access.kind === 'literal' || access.kind === 'variable') {
     return spanContains(access.span, offset);
   }
   return false;
@@ -506,7 +489,7 @@ function accessSegmentContains(
  * latency proportional to cursor nesting depth rather than total node
  * count. The one exception is `VariableNode`: per `ownsOffset`, its own
  * `span` covers only the leading `$name` token while its access-chain
- * children (`FieldAccessComputed`/`FieldAccessBlock` inner expressions)
+ * children (`BracketAccess` inner expressions)
  * can extend further, so a `VariableNode` child is always descended into
  * unconditionally, without a span pre-check.
  */

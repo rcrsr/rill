@@ -302,10 +302,7 @@ export type {
   ExistenceCheck,
   ExpressionNode,
   FieldAccess,
-  FieldAccessAlternatives,
   FieldAccessAnnotation,
-  FieldAccessBlock,
-  FieldAccessComputed,
   FieldAccessLiteral,
   FieldAccessVariable,
   FrontmatterNode,
@@ -392,7 +389,7 @@ type NativeValue =
 
 `rillTypeName` and `rillTypeSignature` describe the own type of the value, never a declared type.
 
-A dict with a number or boolean key adds a reserved `__rill_typed_keys` field to its `NativePlainObject`. This field is the lossless carrier for those keys. See [Resolver Registration](integration-resolvers.md) for the field's shape and a conversion example.
+A dict converts to a plain object with string keys; a number or boolean key in the source literal is already the string of its spelling.
 
 ### Descriptor shapes for non-native types
 
@@ -713,19 +710,7 @@ type CallableFn = (
 
 **Migration note:** The `args` parameter changed from `RillValue[]` (positional) to `Record<string, RillValue>` (named). Replace `args[0]` with `args.paramName` for each parameter. Every callable is marshaled, including those created via `callable()`. `callable(fn)` declares no parameters, so calling it with arguments halts with `RILL-R045`; property-style `callable(fn, true)` reads the bound dict from `args.self`, not `args[0]`. Use `toCallable` with declared `params` or a `signature` for callables that take arguments.
 
-### Typed dict keys
-
-```typescript
-import { getTypedKeyEntries } from '@rcrsr/rill';
-
-const fn: CallableFn = (args) => {
-  const someDict = args.someDict; // dict[1: "a", "1": "b"]
-  Object.keys(someDict); // -> ["1"], the number key 1 is missing
-  return getTypedKeyEntries(someDict); // -> [{ key: 1, value: "a" }]
-};
-```
-
-A dict value in `args` is a live `RillValue`; its number- and boolean-keyed entries do not appear in `Object.keys`/`Object.entries`. See `getTypedKeyEntries()`, which returns each such entry with its original `number`/`boolean` key type, without converting the dict.
+A dict value in `args` is a live `RillValue` whose keys are all strings, so `Object.keys` and `Object.entries` list every entry.
 
 ---
 

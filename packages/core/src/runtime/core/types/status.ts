@@ -22,7 +22,6 @@ import {
 } from './atom-registry.js';
 import { ERROR_CODE_NAMES } from '../../../constants.js';
 import { appendFrame, type TraceFrame } from './trace.js';
-import { typedKeyCount } from './dict-keys.js';
 import { RuntimeError } from '../../../types.js';
 import { ERROR_IDS } from '../../../error-registry.js';
 
@@ -204,7 +203,7 @@ export function isEmpty(value: RillValue): boolean {
     // datetime, duration, etc.) return false here.
     const proto = Reflect.getPrototypeOf(value);
     if (proto === Object.prototype || proto === null) {
-      return Object.keys(value).length === 0 && typedKeyCount(value) === 0;
+      return Object.keys(value).length === 0;
     }
   }
   return false;

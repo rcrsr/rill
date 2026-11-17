@@ -82,11 +82,7 @@ import {
   isDictKeyScalar,
   type DictKeyScalar,
 } from '../shared.js';
-import {
-  setTypedKey,
-  typedKeyEntries,
-  orderedDictEntries,
-} from '../../types/dict-keys.js';
+import { orderedDictEntries } from '../../types/dict-keys.js';
 import {
   evaluateExpression,
   evaluatePipeChain,
@@ -103,6 +99,7 @@ import { evaluateBody, evaluateBodyExpression } from './control-flow.js';
 import { assertUsableAnnotationKey } from './annotations.js';
 import { resolveTypeRef, evaluateTypeConstructor } from './types.js';
 import { evaluateListLiteralElements } from './extraction.js';
+import { dictSelectorKey } from './field-access.js';
 
 /**
  * Capture annotation context at closure creation time.
@@ -480,8 +477,8 @@ export async function evaluateDictMultiKeyFromList(
   // Evaluate value once
   const evaluatedValue = await evaluateDictEntryValue(s, value);
 
-  // Create entry for each key, preserving the key's original type (number and
-  // boolean keys are routed to the sidecar by the caller).
+  // Create entry for each key, preserving the key's original type (callers
+  // stringify number and boolean keys).
   const entries: Array<[DictKeyScalar, RillValue]> = [];
   for (const key of scalarKeys) {
     entries.push([key, evaluatedValue]);
@@ -602,9 +599,7 @@ export async function evaluateDict(
         }
       } else if (isDict(spreadValue)) {
         for (const { key, value } of orderedDictEntries(spreadValue)) {
-          if (isDictKeyScalar(key)) {
-            pairs.push([key, value]);
-          }
+          pairs.push([key, value]);
         }
       } else {
         throwCatchableHostHalt(
@@ -625,13 +620,9 @@ export async function evaluateDict(
           () => entry.span.start,
           s.ctx.sourceId
         );
-        if (typeof k === 'number' || typeof k === 'boolean') {
-          setTypedKey(result, k, v);
-        } else {
-          const stringKey = String(k);
-          assertUsableDictKey(s, stringKey, entry.span);
-          setDictField(result, stringKey, v);
-        }
+        const stringKey = String(k);
+        assertUsableDictKey(s, stringKey, entry.span);
+        setDictField(result, stringKey, v);
       }
       continue;
     }
@@ -719,11 +710,6 @@ export async function evaluateDict(
         entry.value
       );
       for (const [key, value] of pairs) {
-        if (typeof key === 'number' || typeof key === 'boolean') {
-          // Number/boolean multi-key: store in the sidecar (type-preserving).
-          setTypedKey(result, key, value);
-          continue;
-        }
         const stringKey = String(key);
         assertUsableDictKey(s, stringKey, entry.span);
         // Apply last-write-wins semantics
@@ -732,27 +718,13 @@ export async function evaluateDict(
       continue;
     }
 
-    // Number and boolean keys carry their type: they are stored in the
-    // sidecar (see dict-keys.ts) so number 1 and string "1" stay distinct.
-    // String keys are stored as own string properties, exactly as before.
-    const storeKey =
-      typeof entry.key === 'number' || typeof entry.key === 'boolean'
-        ? entry.key
-        : String(entry.key);
-
-    if (typeof storeKey === 'string') {
-      assertUsableDictKey(s, storeKey, entry.span);
-    }
-
-    const store = (value: RillValue): void => {
-      if (typeof storeKey === 'string') {
-        setDictField(result, storeKey, value);
-      } else {
-        setTypedKey(result, storeKey, value);
-      }
-    };
-
-    store(await evaluateDictEntryValue(s, entry.value));
+    const storeKey = String(entry.key);
+    assertUsableDictKey(s, storeKey, entry.span);
+    setDictField(
+      result,
+      storeKey,
+      await evaluateDictEntryValue(s, entry.value)
+    );
   }
 
   // Bind all callables to the containing dict. Use setDictField so a field
@@ -766,14 +738,6 @@ export async function evaluateDict(
       setDictField(result, key, bound);
     }
   }
-  // Bind callables stored under number/boolean keys as well.
-  for (const { key, value } of typedKeyEntries(result)) {
-    if (isCallable(value)) {
-      const bound = { ...value, boundDict: result };
-      copyExtensionIdentity(value, bound);
-      setTypedKey(result, key, bound);
-    }
-  }
 
   return result;
 }
@@ -781,12 +745,9 @@ export async function evaluateDict(
 /**
  * Evaluate dict as dispatch table when piped.
  *
- * Searches dict entries for key matching piped value using type-aware deep equality.
+ * Searches dict entries for a key matching the piped value. Dict keys are
+ * strings, so a non-string input halts #TYPE_MISMATCH.
  * Returns matched value. Auto-invokes if matched value is closure.
- *
- * Type-aware matching ensures:
- * - Number key 1 matches only number input 1, not string "1"
- * - Boolean key true matches only boolean input true, not string "true"
  *
  * Multi-key support: [["k1", "k2"]: value] syntax allows multiple keys
  * to map to the same value. Key tuple is evaluated to get list of candidates.
@@ -802,6 +763,12 @@ export async function evaluateDictDispatch(
   node: DictNode,
   input: RillValue
 ): Promise<RillValue> {
+  // A non-string selector halts before any lookup, so the default cannot mask it.
+  dictSelectorKey(input, {
+    location: node.span?.start,
+    sourceId: s.ctx.sourceId,
+    fn: 'evaluateDictDispatch',
+  });
   // Search entries for matching key (process in order, return first match)
   for (const entry of node.entries) {
     let matchFound = false;
@@ -825,16 +792,19 @@ export async function evaluateDictDispatch(
       // ListLiteralNode key - evaluate to get list of candidates
       const keyValue = await evaluateListLiteralElements(s, entry.key.elements);
 
-      // Check if input matches any element in the list (type-aware)
+      // A number or bool element names a string key, as in a dict literal
       for (const candidate of keyValue) {
-        if (deepEquals(input, candidate)) {
+        const key =
+          typeof candidate === 'number' || typeof candidate === 'boolean'
+            ? String(candidate)
+            : candidate;
+        if (deepEquals(input, key)) {
           matchFound = true;
           break;
         }
       }
     } else {
-      // Primitive key (string, number, or boolean) - type-aware comparison
-      // deepEquals ensures number 1 != string "1", boolean true != string "true"
+      // Spelled key, always a string after parsing
       matchFound = deepEquals(input, entry.key);
     }
 

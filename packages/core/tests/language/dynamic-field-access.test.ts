@@ -1,12 +1,13 @@
 /**
  * Rill Language Tests: Dynamic Field Access
- * Tests for variable keys (.$var), computed keys (.($expr)),
- * alternative keys (.(a || b)), and chained dynamic access
+ * Tests for variable keys (.$var), computed keys ([expr]),
+ * the removed parenthesized selector forms, and chained dynamic access
  */
 
 import { describe, expect, it } from 'vitest';
 
-import { expectHalt } from '../helpers/halt.js';
+import { expectHalt, expectThrowMessage } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Dynamic Field Access', () => {
@@ -67,14 +68,14 @@ describe('Dynamic Field Access', () => {
     });
   });
 
-  describe('Computed Key (.($expr))', () => {
+  describe('Computed Key ([expr])', () => {
     it('evaluates expression returning string to access dict field', async () => {
       // AC-3: Computed expression returns string, accesses dict field
       const code = `
         "name" => $key1
         "age" => $key2
         dict[name: "alice", age: 30] => $data
-        $data.(true ? $key1 ! $key2)
+        $data[true ? $key1 ! $key2]
       `;
       expect(await run(code)).toBe('alice');
     });
@@ -84,7 +85,7 @@ describe('Dynamic Field Access', () => {
       const code = `
         0 => $i
         list["a", "b", "c"] => $list
-        $list.($i + 1)
+        $list[$i + 1]
       `;
       expect(await run(code)).toBe('b');
     });
@@ -94,7 +95,7 @@ describe('Dynamic Field Access', () => {
       const code = `
         "abc" => $str
         dict[a: "single-char-key", name: "alice"] => $data
-        $data.($str -> .replace("bc", ""))
+        $data[$str -> .replace("bc", "")]
       `;
       expect(await run(code)).toBe('single-char-key');
     });
@@ -103,7 +104,7 @@ describe('Dynamic Field Access', () => {
       const code = `
         2 => $base
         list["a", "b", "c", "d", "e"] => $list
-        $list.($base * 2)
+        $list[$base * 2]
       `;
       expect(await run(code)).toBe('e'); // index 4
     });
@@ -112,75 +113,34 @@ describe('Dynamic Field Access', () => {
       const code = `
         "  name  " => $key
         dict[name: "alice", age: 30] => $data
-        $data.($key -> .trim)
+        $data[$key -> .trim]
       `;
       expect(await run(code)).toBe('alice');
     });
   });
 
-  describe('Alternative Keys (.(a || b))', () => {
-    it('returns value when first alternative key exists', async () => {
-      // AC-5: First alternative key exists, returns its value
-      const code = `
-        dict[name: "alice", nickname: "Al"] => $user
-        $user.(name || nickname)
-      `;
-      expect(await run(code)).toBe('alice');
-    });
+  describe('Removed parenthesized selector forms', () => {
+    for (const [label, code] of [
+      ['.(expr)', 'dict[a: 1] => $d\n$d.("a")'],
+      ['.?(expr)', 'dict[a: 1] => $d\n$d.?("a")'],
+      ['.(a || b) alternatives', 'dict[a: 1] => $d\n$d.(a || b)'],
+      ['.{...} block', 'dict[a: 1] => $d\n$d.{ "a" }'],
+    ] as const) {
+      rule('selection.no-paren').it(
+        `rejects ${label} naming both replacements`,
+        async () => {
+          await expectThrowMessage(
+            () => run(code),
+            /Syntax removed[\s\S]*\$c\[expr\][\s\S]*\$c\.\?\[expr\]/
+          );
+        }
+      );
+    }
 
-    it('returns value when second alternative key exists and first missing', async () => {
-      // AC-6: Second alternative key exists (first missing), returns its value
-      const code = `
-        dict[nickname: "Al"] => $user
-        $user.(name || nickname)
-      `;
-      expect(await run(code)).toBe('Al');
-    });
-
-    it('returns null when all alternative keys are missing', async () => {
-      // AC-16: All alternative keys missing returns null
-      const code = `
-        dict[age: 30] => $user
-        $user.(name || nickname) ?? "unknown"
-      `;
-      expect(await run(code)).toBe('unknown');
-    });
-
-    it('works with single alternative key', async () => {
-      // AC-17: Single alternative key (edge case) works correctly
-      const code = `
-        dict[name: "alice"] => $user
-        $user.(name || missing)
-      `;
-      // Test that single existing alternative works (use two to avoid parse edge case)
-      expect(await run(code)).toBe('alice');
-    });
-
-    it('tries multiple alternatives left-to-right', async () => {
-      const code = `
-        dict[title: "Dr."] => $user
-        $user.(name || nickname || title)
-      `;
-      expect(await run(code)).toBe('Dr.');
-    });
-
-    it('returns first non-null alternative', async () => {
-      const code = `
-        dict[name: "", nickname: "Al"] => $user
-        $user.(name || nickname)
-      `;
-      // Empty string is valid value, should return it (not try nickname)
-      expect(await run(code)).toBe('');
-    });
-
-    it('works with number alternatives on list', async () => {
-      const code = `
-        0 => $idx
-        list["a", "b"] => $list
-        $list.($idx)
-      `;
-      // Simple variable index test
-      expect(await run(code)).toBe('a');
+    it('reports the removed parenthesized selector as RILL-P012', async () => {
+      await expect(run('dict[a: 1] => $d\n$d.("a")')).rejects.toMatchObject({
+        errorId: 'RILL-P012',
+      });
     });
   });
 
@@ -201,7 +161,7 @@ describe('Dynamic Field Access', () => {
         0 => $idx
         "name" => $field
         list[dict[name: "alice"], dict[name: "bob"]] => $users
-        $users.($idx + 0).$field
+        $users[$idx + 0].$field
       `;
       expect(await run(code)).toBe('alice');
     });
@@ -219,7 +179,7 @@ describe('Dynamic Field Access', () => {
       const code = `
         "user" => $key
         dict[user: dict[name: "alice"]] => $data
-        $data.($key).name
+        $data[$key].name
       `;
       expect(await run(code)).toBe('alice');
     });
@@ -229,15 +189,7 @@ describe('Dynamic Field Access', () => {
         0 => $i
         "name" => $field
         list[dict[name: "alice", age: 30]] => $users
-        $users.($i).$field
-      `;
-      expect(await run(code)).toBe('alice');
-    });
-
-    it('chains alternative keys followed by literal field', async () => {
-      const code = `
-        dict[person: dict[name: "alice"]] => $data
-        $data.(user || person).name
+        $users[$i].$field
       `;
       expect(await run(code)).toBe('alice');
     });
@@ -266,7 +218,7 @@ describe('Dynamic Field Access', () => {
       const code = `
         10 => $i
         list["a", "b", "c"] => $list
-        $list.($i * 10) ?? "out-of-bounds"
+        $list[$i * 10] ?? "out-of-bounds"
       `;
       expect(await run(code)).toBe('out-of-bounds');
     });
@@ -284,7 +236,7 @@ describe('Dynamic Field Access', () => {
       const code = `
         1 => $n
         list["first", "second"] => $list
-        $list.($n - 1)
+        $list[$n - 1]
       `;
       expect(await run(code)).toBe('first');
     });
@@ -312,7 +264,7 @@ describe('Dynamic Field Access', () => {
         "found" => $key1
         "missing" => $key2
         dict[found: "success"] => $data
-        $data.(true ? $key1 ! $key2)
+        $data[true ? $key1 ! $key2]
       `;
       // Conditional expression returns string key
       expect(await run(code)).toBe('success');
@@ -333,7 +285,7 @@ describe('Dynamic Field Access', () => {
         });
       });
 
-      it('throws RILL-R002 when variable key is boolean', async () => {
+      it('halts #TYPE_MISMATCH when variable key is boolean', async () => {
         // AC-10: Variable key is boolean throws RILL-R002 [EC-2]
         const code = `
           true => $key
@@ -341,13 +293,12 @@ describe('Dynamic Field Access', () => {
           $data.$key
         `;
         await expectHalt(() => run(code), {
-          code: 'RILL_R002',
-          hostErrorId: 'RILL-R002',
-          messagePattern: /Key must be string or number, got bool/,
+          code: 'TYPE_MISMATCH',
+          messagePattern: /Dict key must be string, got bool/,
         });
       });
 
-      it('throws RILL-R002 when variable key is list', async () => {
+      it('halts #TYPE_MISMATCH when variable key is list', async () => {
         // EC-3: Variable value is list → RILL-R002
         const code = `
           list["name", "age"] => $key
@@ -355,26 +306,23 @@ describe('Dynamic Field Access', () => {
           $data.$key
         `;
         await expectHalt(() => run(code), {
-          code: 'RILL_R002',
-          hostErrorId: 'RILL-R002',
-          messagePattern: /Key must be string or number, got list/,
+          code: 'TYPE_MISMATCH',
+          messagePattern: /Dict key must be string, got list/,
         });
       });
     });
 
     describe('Computed Key Errors', () => {
-      it('throws RILL-R002 when computed expression returns list', async () => {
+      it('halts #TYPE_MISMATCH when computed expression returns list', async () => {
         // AC-11: Computed expression returns list throws RILL-R002
         const code = `
           list["name"] => $keys
           dict[name: "alice", age: 30] => $data
-          $data.($keys)
+          $data[$keys]
         `;
         await expectHalt(() => run(code), {
-          code: 'RILL_R002',
-          hostErrorId: 'RILL-R002',
-          messagePattern:
-            /Computed key evaluated to list, expected string or number/,
+          code: 'TYPE_MISMATCH',
+          messagePattern: /Dict key must be string, got list/,
         });
       });
 
@@ -382,7 +330,7 @@ describe('Dynamic Field Access', () => {
         // AC-12: Computed expression error propagates
         const code = `
           dict[name: "alice"] => $data
-          $data.($undefined + 1)
+          $data[$undefined + 1]
         `;
         await expect(run(code)).rejects.toMatchObject({
           errorId: 'RILL-R005',
@@ -390,74 +338,29 @@ describe('Dynamic Field Access', () => {
         });
       });
 
-      it('throws RILL-R002 when computed expression returns closure', async () => {
+      it('halts #TYPE_MISMATCH when computed expression returns closure', async () => {
         // EC-4: Result is closure → RILL-R002
         const code = `
           |x|($x + 1) => $fn
           dict[name: "alice"] => $data
-          $data.($fn)
+          $data[$fn]
         `;
         await expectHalt(() => run(code), {
-          code: 'RILL_R002',
-          hostErrorId: 'RILL-R002',
-          messagePattern:
-            /Computed key evaluated to closure, expected string or number/,
+          code: 'TYPE_MISMATCH',
+          messagePattern: /Dict key must be string, got closure/,
         });
       });
 
-      it('throws RILL-R002 when computed expression returns dict', async () => {
+      it('halts #TYPE_MISMATCH when computed expression returns dict', async () => {
         // EC-5: Result is dict → RILL-R002
         const code = `
           dict[field: "name"] => $obj
           dict[name: "alice"] => $data
-          $data.($obj)
+          $data[$obj]
         `;
         await expectHalt(() => run(code), {
-          code: 'RILL_R002',
-          hostErrorId: 'RILL-R002',
-          messagePattern:
-            /Computed key evaluated to dict, expected string or number/,
-        });
-      });
-    });
-
-    describe('Alternative Access Errors', () => {
-      it('throws RILL-R002 when alternative access used on non-dict', async () => {
-        // AC-13: Alternative access on list (not dict) throws RILL-R002 [EC-6]
-        const code = `
-          list["a", "b", "c"] => $list
-          $list.(name || title)
-        `;
-        await expectHalt(() => run(code), {
-          code: 'RILL_R002',
-          hostErrorId: 'RILL-R002',
-          messagePattern: /Alternative access requires dict, got list/,
-        });
-      });
-
-      it('throws RILL-R002 when alternative access used on string', async () => {
-        // EC-6: Target is not dict → RILL-R002 (additional test for string)
-        const code = `
-          "hello" => $str
-          $str.(name || nickname)
-        `;
-        await expectHalt(() => run(code), {
-          code: 'RILL_R002',
-          hostErrorId: 'RILL-R002',
-          messagePattern: /Alternative access requires dict, got string/,
-        });
-      });
-
-      it('throws RILL-R002 when alternative access used on number', async () => {
-        // EC-6: Target is not dict → RILL-R002 (additional test for number)
-        const code = `
-          42 => $num
-          $num.(name || nickname)
-        `;
-        await expectHalt(() => run(code), {
-          code: 'RILL_R002',
-          hostErrorId: 'RILL-R002',
-          messagePattern: /Alternative access requires dict, got number/,
+          code: 'TYPE_MISMATCH',
+          messagePattern: /Dict key must be string, got dict/,
         });
       });
     });

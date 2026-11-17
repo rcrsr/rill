@@ -29,7 +29,7 @@ import {
   isTypeValue,
   isVector,
 } from './guards.js';
-import { copyTypedKeys, setDictField } from './dict-keys.js';
+import { setDictField } from './dict-keys.js';
 import { internalCallable } from '../callable-factory.js';
 import { notifyActivity } from '../activity.js';
 import { RuntimeError } from '../../../types.js';
@@ -295,8 +295,6 @@ export function copyValue(value: RillValue): RillValue {
   const copy: Record<string, RillValue> = {};
   for (const [k, v] of Object.entries(value))
     setDictField(copy, k, copyValue(v));
-  // Carry number/boolean keys across, deep-copying their values.
-  copyTypedKeys(value, copy, copyValue);
   return copy;
 }
 

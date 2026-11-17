@@ -240,12 +240,11 @@ describe('Rill Runtime: Dict Methods', () => {
   });
 
   describe('.entries', () => {
-    it('returns list of [key, value] pairs', async () => {
-      const result = await run('dict[a: 1, b: 2] -> .entries');
-      expect(result).toEqual([
-        ['a', 1],
-        ['b', 2],
-      ]);
+    it('returns list of key and value tuples', async () => {
+      const result = await run(
+        'dict[a: 1, b: 2] -> .entries => $e\n$e == list[tuple["a", 1], tuple["b", 2]]'
+      );
+      expect(result).toBe(true);
     });
 
     it('returns empty list for empty dict', async () => {

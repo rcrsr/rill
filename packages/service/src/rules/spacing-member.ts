@@ -8,9 +8,9 @@
  * to a tight one, and nothing else in the toolchain reports it. This rule is
  * the only signal, which is why it is formatting/info rather than an error.
  *
- * Only `accessChain` entries carrying a source span are checked. The block,
- * alternatives, and annotation field-access kinds have no span, so a spaced
- * dot in `.{block}`, `.(a || b)`, and `.^key` goes unreported.
+ * Only `accessChain` entries carrying a source span are checked. The
+ * annotation field-access kind has no span, so a spaced dot in `.^key` goes
+ * unreported.
  */
 
 import type { ASTNode, FieldAccess } from '@rcrsr/rill';
@@ -65,7 +65,8 @@ export const spacingMember: Rule = {
         (a): a is FieldAccess =>
           !('accessKind' in a && a.accessKind === 'bracket')
       ),
-      ...(variableNode.existenceCheck?.finalAccess
+      ...(variableNode.existenceCheck?.finalAccess &&
+      !('accessKind' in variableNode.existenceCheck.finalAccess)
         ? [variableNode.existenceCheck.finalAccess]
         : []),
     ];

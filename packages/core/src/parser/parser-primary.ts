@@ -285,14 +285,11 @@ Parser.prototype.parsePostfixExprBase = function (
       // the valid existence/bool probe on the receiver itself and still
       // ends the postfix chain without wrapping. Anything else following
       // `.?` that isn't a recognized field-access element (not an
-      // identifier, `$var`, `^annotation`, `(...)`, or `{...}`) is a parse
+      // identifier, `$var`, `^annotation`, or `[...]`) is a parse
       // error naming the missing field name, rather than silently ending
       // the statement.
       const dotToken = advance(this.state);
-      const finalAccess = this.parseFieldAccessElement(
-        true,
-        dotToken.span.start
-      );
+      const finalAccess = this.parseExistenceAccess(dotToken.span.start);
       if (!finalAccess) {
         if (!check(this.state, TOKEN_TYPES.NEWLINE) && !isAtEnd(this.state)) {
           throw new ParseError(

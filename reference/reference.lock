@@ -230,20 +230,20 @@ destruct.result 979409b161ac
 destruct.skip 86168bbe3c38
 destruct.target 7cc2b884121b
 destruct.typed 1fb13796760d capture.mismatch@616241654040 type-lock.halt@33dbd80723fe
-dict 8b0ce5804e2d type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
+dict 04f432573a3e type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
 dict.any 71a5cc6bd21a
 dict.empty-parens c8b91cfc3a0e
-dict.entries-type d2fc8dda2113
+dict.entries-type 1694a66fcd0a
 dict.field-default 2d46c2d66ea8
 dict.field-equality 59a0c468bdd0
 dict.field-inner cd37b043f41b
 dict.field-print 8d9ff802effb
 dict.field-type f1601698eb92
 dict.fields b8c3432bfe22
-dict.key-duplicate 24852b51c473
+dict.key-duplicate b6d0d4b31a32
 dict.key-print 1a4cf8a625cf
 dict.key-spelling 009f9a053949
-dict.key-string 768e6f41d4ee
+dict.key-string e24f644a5bdc
 dict.named-membership bf387b3cf3d5
 dict.no-outer 62f0b3f59f69
 dict.no-uniform b86b80e51011
@@ -313,11 +313,12 @@ error.halt 47e4fdc51d64
 error.interpolation d6109c97e3c9
 error.non-catchable 5384696a5840 halt.non-catchable@8eb8c26644b7
 error.string ad262088c62d
-existence.bracket b64ea6053798
+existence.bracket 12194e1ce0ab
 existence.chain 2782e18dc1fa
 existence.found e543db21d88e
 existence.index 2a5509ce5f92
 existence.integer 7852fe326328
+existence.key-type 7d9a40f81361 selection.key-type@29d9a1316d3a
 existence.map 854f46e4ae13
 existence.map-type 84cd4987a7be
 existence.missing 435682d3d526
@@ -598,17 +599,17 @@ scope.parameter dd958f3cbfa5
 scope.read-outer 34cc09dd4252
 scope.recursion 2c74c0bb9aee
 scope.siblings b9765c9736cc
-selection 928b11ff9ee1 carried-type.element@708e75eb72f7
+selection 55c52498c054 carried-type.element@708e75eb72f7
 selection.at 7ee8cd577174
-selection.bracket-default 5312a42ee3e0
+selection.bracket-default 7ce3c0805d9c selection.key-no-mask@95ef94de5628 selection.key-type@29d9a1316d3a
 selection.computed 173483f7594b
 selection.default 40b9bbb857e8
-selection.default-last-step ac885bfdaa65 selection.bracket-default@5312a42ee3e0
+selection.default-last-step bd0009760a8c selection.key-no-mask@95ef94de5628
 selection.forms 39994787f2d5
 selection.index-integer c6a1fc84549e
 selection.index-type 299ce26a41f9
-selection.key-no-mask 74fe59dc2a82
-selection.key-type def96f05f81e
+selection.key-no-mask 95ef94de5628
+selection.key-type 29d9a1316d3a
 selection.map-default 2d1f14ab57ae
 selection.map-forms c6046f0a321f
 selection.map-missing f2efc4c6a125
@@ -620,7 +621,7 @@ selection.missing 73f450e78615
 selection.negative ddf7750ffc21
 selection.no-mask 64a407be7b4e
 selection.no-name 8fc222705f4d
-selection.no-paren c92da2fdf244
+selection.no-paren 057386a9d912
 selection.range 9cb420804046
 selection.string 0b0752019113 pipe.variable-kind@d61d19325ad6
 selection.variable dff77378d874
@@ -822,7 +823,7 @@ vacancy 65b0e218fce5 carried-type.fallback@9a18ebc2b806 conditional.bool@e166d29
 vacancy.empty 93cdf5149efe
 vacancy.empty-probe 0604f14c1ffc
 vacancy.fallback a8ddb8c219f9
-vacancy.missing 037dd8f22fe9 selection.default@40b9bbb857e8 selection.default-last-step@ac885bfdaa65
+vacancy.missing 037dd8f22fe9 selection.default@40b9bbb857e8 selection.default-last-step@bd0009760a8c
 vacancy.vacant 93e05a6e4241
 vacancy.zero-false 62d3ba62eb32
 value.always 04f8d3b96b4e

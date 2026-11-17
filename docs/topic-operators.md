@@ -592,30 +592,30 @@ Use a variable as key:
 $data.$key                       # "alice"
 ```
 
-### Computed Key `.($expr)`
+### Computed Key `[expr]`
 
-Use an expression as key. A numeric key indexes a list under the same rules as `[n]`.
-
-```text
-0 => $i
-["a", "b", "c"] => $list
-$list.($i + 1)                   # "b"
-```
-
-### Alternative Keys `.(a || b)`
-
-Try keys left-to-right:
-
-```text
-[nickname: "Al"] => $user
-$user.(name || nickname)         # "Al"
-```
-
-When every key is missing, the access halts with `RILL-R009`. Add `??` to supply a fallback:
+Use an expression as key. A numeric key indexes a list under the same rules as `[n]`. A dict key must be a string; see [Types](topic-types.md) for the rule.
 
 ```rill
-dict[age: 30] => $user
-$user.(name || nickname) ?? "unknown"
+["a", "b", "c"] => $list
+$list[0 + 1]
+# Result: "b"
+```
+
+### Computed Existence `.?[expr]`
+
+```rill
+dict[name: "Al"] => $user
+$user.?["name"]&string
+# Result: true
+```
+
+### Fallback Across Fields
+
+```rill
+# ?? chains try fields left-to-right
+dict[age: 30] => $u
+$u.name ?? $u.nickname ?? "unknown"
 # Result: "unknown"
 ```
 
@@ -734,7 +734,7 @@ $config.get_setting() ?? [:]     # default if method returns undefined
 
 Method calls evaluate fully before the default operator applies.
 
-`??` recovers only a miss on the last step of an access chain, for fields, annotations, and brackets. `$d.x.y ?? 0` with `.x` missing halts `RILL-R009`, as do `$d.b[1] ?? 0` with `.b` missing and `$d[$d.zz] ?? 0` with `.zz` missing. An existence check is the right-most step too, so `$d.x.?b ?? 0` with `.x` missing halts `RILL-R009`. A wrong key type still halts `RILL-R002`, and a number or bool key at a bracket on a dict halts `RILL-R009` even with `??`.
+`??` recovers only a miss on the last step of an access chain, for fields, annotations, and brackets. `$d.x.y ?? 0` with `.x` missing halts `RILL-R009`, as do `$d.b[1] ?? 0` with `.b` missing and `$d[$d.zz] ?? 0` with `.zz` missing. An existence check is the right-most step too, so `$d.x.?b ?? 0` with `.x` missing halts `RILL-R009`. A wrong key type still halts `RILL-R002`, and a non-string dict selector follows [Dict Keys Are Strings](topic-types.md).
 
 ---
 

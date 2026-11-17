@@ -64,7 +64,7 @@ Built-in atom literals. The core error set is every built-in atom except #ok and
                                    #       non-positive or non-integer concurrency for fan/filter;
                                    #       unknown option key for fan/filter;
                                    #       zero step for range;
-                                   #       non-integer index for [], .(n), .at, list dispatch;
+                                   #       non-integer index for [], .at, list dispatch;
                                    #       zero step for slice<>;
                                    #       string argument to duration() or piped into duration not in printed form,
                                    #       timeout total/idle or debounce/throttle/sample/idle_flush duration with a months part,
@@ -143,7 +143,7 @@ A value is **vacant** when empty (`""`, `0`, `false`, `list[]`, `dict[]`) or inv
     $d.missing ?? "default"         # "default"
     $d.a ?? "default"               # 1
 
-`??` recovers only a miss on the last step of an access chain: an out-of-range list index or an absent string key. A number or bool key on a dict is a wrong key and halts `RILL-R009` at a bracket (`dict[a: 1][1] ?? 0`) and in pipe selection (`1 -> $d ?? 0`), and `RILL-R002` through `.$k` on a plain dict. A miss on an earlier step still halts `RILL-R009`: `$d.x.y ?? 0` with `.x` missing, `$d.b[1] ?? 0` with `.b` missing. `$d.x.?b ?? 0` with `.x` missing halts too. A wrong key type still halts `RILL-R002`.
+`??` recovers only a miss on the last step of an access chain: an out-of-range list index or an absent string key. A non-string selector on a dict is a wrong key and halts `#TYPE_MISMATCH` at a bracket (`dict[a: 1][1] ?? 0`), through `.$k`, and in pipe selection (`1 -> $d ?? 0`); convert it with `-> string`. A miss on an earlier step still halts `RILL-R009`: `$d.x.y ?? 0` with `.x` missing, `$d.b[1] ?? 0` with `.b` missing. `$d.x.?b ?? 0` with `.x` missing halts too. A wrong key type still halts `RILL-R002`.
 
     guard { "x":number } => $out
     $out ?? "fallback"              # "fallback" (invalid is vacant)

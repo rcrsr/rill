@@ -27,7 +27,9 @@ import { invokeCallable } from './closures.js';
 import { evaluateBodyExpression } from './control-flow.js';
 import { matchesErrorId } from './core.js';
 import { selectByBracketKey } from './variables.js';
+import type { FieldKey } from './field-access.js';
 import {
+  dictSelectorKey,
   isFieldKey,
   projectLocated,
   throwFieldMiss,
@@ -47,13 +49,14 @@ import {
  *
  * A list key must be a number and a fractional one halts. A miss resolves to
  * `defaultValue` when given, otherwise halts. Only an absent string key or an
- * out-of-range list index recovers: a number or bool key on a dict, and a key
- * that is not a string, number or bool, halt even with a default. With `resolve` set to `'keep'` a
- * selected callable is returned as stored for the caller to resolve; otherwise
- * it is invoked with `key` as its input.
+ * out-of-range list index recovers: a non-string key on a dict halts even with
+ * a default. With `resolve` set to `'keep'` a selected callable is returned as
+ * stored for the caller to resolve; otherwise it is invoked with `key` as its
+ * input.
  *
  * @param collection - Plain dict, list, tuple or ordered value to select from
- * @param key - Dispatch key (dict field or typed key; list, tuple or ordered position)
+ * @param key - Dispatch key (string dict field; list, tuple or ordered
+ *   position)
  * @param declared - Declared type of `collection`, if any
  * @param defaultValue - Default body for a miss, or null
  * @param location - Source location for error reporting
@@ -108,17 +111,22 @@ export async function selectElement(
       `Dict dispatch: key '${formatValue(key)}' not found`,
       { key }
     );
-  // A key that cannot address a field is a wrong key, not a missing one.
-  if (!isFieldKey(key)) return haltDispatchMiss();
+  // A plain dict takes only a string key; any other type is a wrong key, not
+  // a missing one, and halts ahead of the lookup.
+  const fieldKey: FieldKey = isPlainDict(collection)
+    ? dictSelectorKey(key, site)
+    : isFieldKey(key)
+      ? key
+      : haltDispatchMiss();
   const found = locateOrRecover(
     collection,
-    key,
+    fieldKey,
     defaultValue !== null,
     (miss) =>
       // A fractional or list-position miss names its own container; any
       // other miss on a dict names the dispatch key.
       miss === 'non-integer' || isList
-        ? throwFieldMiss(collection, key, miss, site)
+        ? throwFieldMiss(collection, fieldKey, miss, site)
         : haltDispatchMiss()
   );
   if (found === undefined) {
@@ -246,10 +254,10 @@ export async function evaluateHierarchicalDispatch(
 /**
  * Execute single path step: select `key` from the current value.
  *
- * A string key selects from a dict and a number key from a list; any other
- * combination is a type error. A non-terminal closure is resolved via
- * resolveIntermediateClosure. A terminal closure is left for the caller,
- * which invokes it with $ = key.
+ * A plain dict takes a string key (any other type halts as a dict key type
+ * mismatch) and a list a number key; any other combination is a type error.
+ * A non-terminal closure is resolved via resolveIntermediateClosure. A
+ * terminal closure is left for the caller, which invokes it with $ = key.
  */
 async function traversePathStep(
   s: EvalState,
@@ -260,7 +268,7 @@ async function traversePathStep(
 ): Promise<Carried> {
   const value = current.value;
   if (
-    (isPlainDict(value) && typeof key === 'string') ||
+    isPlainDict(value) ||
     (Array.isArray(value) && !isTuple(value) && typeof key === 'number')
   ) {
     const result = await selectElement(

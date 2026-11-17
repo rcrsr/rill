@@ -84,8 +84,8 @@ describe('Rill Language: Keyword-Prefixed Collection Literals', () => {
       expect(result).toBe(10);
     });
 
-    it('parses a negative-number key', async () => {
-      const result = await run('-1 -> dict[-1: "x"]');
+    it('parses a negative-number key as its string spelling', async () => {
+      const result = await run('"-1" -> dict[-1: "x"]');
       expect(result).toBe('x');
     });
   });

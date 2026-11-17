@@ -267,16 +267,15 @@ describe('ref-llms-full: Syntax Quick Reference', () => {
   });
 
   it('dict with number keys', async () => {
-    const r = await run('dict[1: "one", 2: "two"] -> .entries');
-    expect(r).toEqual([
-      [1, 'one'],
-      [2, 'two'],
-    ]);
+    const r = await run(
+      'dict[1: "one", 2: "two"] -> .entries => $e\n$e == list[tuple["1", "one"], tuple["2", "two"]]'
+    );
+    expect(r).toBe(true);
   });
 
   it('dict with boolean keys', async () => {
     const r = await run(
-      'dict[true: "yes", false: "no"] => $d\nlist[$d[true], $d[false]]'
+      'dict[true: "yes", false: "no"] => $d\nlist[$d["true"], $d["false"]]'
     );
     expect(r).toEqual(['yes', 'no']);
   });
@@ -640,7 +639,7 @@ describe('ref-llms-full: Property Access', () => {
   });
 
   it('computed key access', async () => {
-    expect(await run('dict[b: 2] => $d\n$d.("b")')).toBe(2);
+    expect(await run('dict[b: 2] => $d\n$d["b"]')).toBe(2);
   });
 
   it('default with ??', async () => {
@@ -677,16 +676,18 @@ describe('ref-llms-full: Dispatch Operators', () => {
     );
   });
 
-  it('dict dispatch: type-aware (number key)', async () => {
-    expect(await run('1 -> dict[1: "number", "1": "string"]')).toBe('number');
+  it('dict dispatch: string selector (number-spelled key)', async () => {
+    expect(await run('"1" -> dict[1: "number", one: "word"]')).toBe('number');
   });
 
-  it('dict dispatch: type-aware (string key)', async () => {
-    expect(await run('"1" -> dict[1: "number", "1": "string"]')).toBe('string');
+  it('dict dispatch: string selector (identifier key)', async () => {
+    expect(await run('"one" -> dict[1: "number", one: "word"]')).toBe('word');
   });
 
-  it('dict dispatch: type-aware (boolean key)', async () => {
-    expect(await run('true -> dict[true: "bool", "true": "str"]')).toBe('bool');
+  it('dict dispatch: string selector (boolean-spelled key)', async () => {
+    expect(await run('"true" -> dict[true: "bool", truthy: "str"]')).toBe(
+      'bool'
+    );
   });
 
   it('list dispatch: index 0', async () => {
@@ -990,8 +991,10 @@ describe('ref-llms-full: List/Dict Methods', () => {
   });
 
   it('.entries (dict)', async () => {
-    const r = await run('dict[a: 1] -> .entries');
-    expect(r).toEqual([['a', 1]]);
+    const r = await run(
+      'dict[a: 1] -> .entries => $e\n$e == list[tuple["a", 1]]'
+    );
+    expect(r).toBe(true);
   });
 
   it('.has(val) (list)', async () => {

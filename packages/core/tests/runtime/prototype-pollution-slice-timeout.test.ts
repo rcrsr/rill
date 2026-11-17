@@ -60,15 +60,6 @@ describe('#263: dict access does not reach Object.prototype', () => {
     );
   });
 
-  it('computed access of an inherited member halts as a missing field', async () => {
-    // An inherited JS member resolves as absent, so bare computed access
-    // halts exactly like any missing field (never the JS function).
-    await expectHalts(
-      () => run('dict[a: 1] => $d  $d.("constructor")'),
-      /no field/
-    );
-  });
-
   it('variable-key access of an inherited member halts as a missing field', async () => {
     await expectHalts(
       () => run('"constructor" => $k  dict[a: 1] => $d  $d.$k'),
@@ -78,7 +69,7 @@ describe('#263: dict access does not reach Object.prototype', () => {
 
   it('computed access of an inherited member coalesces as vacant', async () => {
     // With a default, the absent inherited member is vacant, not the JS value.
-    const result = await run('dict[a: 1] => $d  $d.("constructor") ?? "gone"');
+    const result = await run('dict[a: 1] => $d  $d["constructor"] ?? "gone"');
     expect(result).toBe('gone');
   });
 
@@ -88,14 +79,14 @@ describe('#263: dict access does not reach Object.prototype', () => {
   });
 
   it('existence check of an inherited member via computed key is false', async () => {
-    const result = await run('dict[a: 1] => $d  $d.?("__proto__")');
+    const result = await run('dict[a: 1] => $d  $d.?["__proto__"]');
     expect(result).toBe(false);
   });
 
   it('an explicitly-set __proto__ key is stored as an ordinary own field', async () => {
     // The data key must be readable back...
     const readBack = await run(
-      'dict[("__proto__"): dict[x: 1]] => $p  $p.("__proto__").x'
+      'dict[("__proto__"): dict[x: 1]] => $p  $p["__proto__"].x'
     );
     expect(readBack).toBe(1);
   });

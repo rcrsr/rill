@@ -148,7 +148,7 @@ type NamingFixKind = 'capture' | 'param' | 'dictKey';
  * - `capture`/`param` when `toSnakeCase(name)` collides with an existing
  *   capture: renaming would merge two distinct variables.
  * - `dictKey` when the script has any dynamically-keyed field access
- *   (`.($expr)`, `.$var`, `.{...}`): a bare-identifier rename could silently
+ *   (`.$var`, `[expr]`, `.?[expr]`): a bare-identifier rename could silently
  *   retarget a computed lookup elsewhere in the script.
  * - `dictKey` when the script has any literal field access (`.name`) to a
  *   field named `name`: the fix only rewrites the dict-literal key, so a
@@ -283,13 +283,10 @@ export const namingSnakeCase: Rule = {
           return [];
         }
 
-        if (entryNode.keyForm === 'string') {
-          return [];
-        }
-
-        // `...$expr` spread entries are encoded with the literal key '...'
-        // and no keyForm; there is no name to check.
-        if (key === '...' && entryNode.keyForm === undefined) {
+        // Only bare-identifier keys are names; string, number, and bool
+        // keys keep their source spelling, and `...$expr` spread entries
+        // carry no keyForm.
+        if (entryNode.keyForm !== 'identifier') {
           return [];
         }
 

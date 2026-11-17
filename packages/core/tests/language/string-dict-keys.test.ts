@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: String Literal Dict Keys
  * Tests for using string literals as dict keys
@@ -5,6 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Language: String Literal Dict Keys', () => {
@@ -36,30 +38,47 @@ describe('Rill Language: String Literal Dict Keys', () => {
   });
 
   describe('Mixed Key Types', () => {
-    it('parses dict with string, identifier, number, and boolean keys', async () => {
-      // Dict keys are type-aware: string/identifier keys are stored as plain
-      // properties while number and boolean keys are distinct typed keys. The
-      // plain object surfaces only the string keys; typed keys are reached via
-      // dispatch and counted by .len.
-      const src = 'dict["str": 1, ident: 2, 3: 3, true: 4]';
-      expect(await run(src)).toEqual({ str: 1, ident: 2 });
-      expect(await run(`${src} -> .len`)).toBe(4);
-      expect(await run(`${src} => $d\n3 -> $d`)).toBe(3);
-      expect(await run(`${src} => $d\ntrue -> $d`)).toBe(4);
-    });
+    rule('dict.key-string').it(
+      'stores number and boolean keys as the string of their spelling',
+      async () => {
+        const src = 'dict["str": 1, ident: 2, 3: 3, true: 4]';
+        expect(await run(src)).toEqual({
+          str: 1,
+          ident: 2,
+          '3': 3,
+          true: 4,
+        });
+        expect(await run(`${src} -> .len`)).toBe(4);
+        expect(await run(`${src} => $d\n"3" -> $d`)).toBe(3);
+        expect(await run(`${src} => $d\n"true" -> $d`)).toBe(4);
+      }
+    );
 
-    it('parses dict with string and identifier keys with same value', async () => {
-      const result = await run('dict["key": 1, key: 2]');
-      expect(result).toEqual({ key: 2 }); // Later value overwrites
-    });
+    rule('dict.key-string').it(
+      'treats dict[1: "n"] and dict["1": "n"] as equal',
+      async () => {
+        expect(await run('dict[1: "n"] == dict["1": "n"]')).toBe(true);
+        expect(await run('dict[1: "n"] -> .keys')).toEqual(['1']);
+      }
+    );
 
-    it('keeps a negative number key distinct from its string form', async () => {
-      // dict["-1": ..., -1: ...] holds TWO entries: string "-1" and number -1.
-      const src = 'dict["-1": "string", -1: "number"]';
-      expect(await run(`${src} -> .len`)).toBe(2);
-      expect(await run(`${src} => $d\n-1 -> $d`)).toBe('number');
-      expect(await run(`${src} => $d\n"-1" -> $d`)).toBe('string');
-    });
+    rule('dict.key-duplicate').it(
+      'rejects a string key and an identifier key spelled alike',
+      async () => {
+        await expect(run('dict["key": 1, key: 2]')).rejects.toMatchObject({
+          errorId: 'RILL-P027',
+        });
+      }
+    );
+
+    rule('dict.key-duplicate').it(
+      'rejects a negative number key and its string spelling',
+      async () => {
+        await expect(
+          run('dict["-1": "string", -1: "number"]')
+        ).rejects.toMatchObject({ errorId: 'RILL-P027' });
+      }
+    );
   });
 
   describe('String Keys with Complex Values', () => {
@@ -133,7 +152,7 @@ describe('Rill Language: String Literal Dict Keys', () => {
     });
 
     it('accesses field with string key containing special chars using dynamic access', async () => {
-      const result = await run('dict["foo-bar": 42] => $d\n$d.("foo-bar")');
+      const result = await run('dict["foo-bar": 42] => $d\n$d["foo-bar"]');
       expect(result).toBe(42);
     });
   });

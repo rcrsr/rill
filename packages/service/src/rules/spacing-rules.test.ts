@@ -334,7 +334,7 @@ describe('SPACING_MEMBER', () => {
   });
 
   it('does not fire on tight member access', () => {
-    const source = '$obj.field\n$a.b.c\n$obj.?field\n$obj.$key\n$obj.("k")\n';
+    const source = '$obj.field\n$a.b.c\n$obj.?field\n$obj.$key\n$obj["k"]\n';
     const parsed = toParseResult(source);
 
     expect(runRules(parsed, source, makeConfig(), [spacingMember])).toEqual([]);

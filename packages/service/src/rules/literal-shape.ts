@@ -98,7 +98,6 @@ export function literalKind(node: ASTNode): LiteralKind | null {
 function staticKey(entry: DictEntryNode): string | null {
   const { key } = entry;
   if (typeof key === 'string') return key === '...' ? null : key;
-  if (typeof key === 'number' || typeof key === 'boolean') return String(key);
   return null;
 }
 

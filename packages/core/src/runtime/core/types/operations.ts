@@ -37,7 +37,7 @@ import {
 import type { RillFieldDef, RillValue, TypeStructure } from './structures.js';
 import type { DefaultMismatch } from './field-defaults.js';
 import { quoteRillString } from './format-string.js';
-import { typedKeyEntries, setDictField } from './dict-keys.js';
+import { setDictField } from './dict-keys.js';
 import { formatUnion } from './error-code.js';
 // oxlint-disable-next-line import/no-cycle -- unions.ts imports this file; the edge is used only at call time, never at module init
 import { reduceUnionMembers } from './unions.js';
@@ -399,12 +399,7 @@ function createMatchesCallbacks(
       if (isDict(value)) {
         const dict = value;
         const vals = Object.values(dict);
-        if (!vals.every((v) => structureMatches(v, valueType))) return false;
-        // Number/boolean keys are stored outside the string-keyed record,
-        // so they must be checked separately to enforce a uniform valueType.
-        return typedKeyEntries(dict).every(({ value: v }) =>
-          structureMatches(v, valueType)
-        );
+        return vals.every((v) => structureMatches(v, valueType));
       }
       return false;
     },
@@ -989,14 +984,6 @@ export function inferStructure(value: RillValue): TypeStructure {
       const fields: Record<string, RillFieldDef> = {};
       for (const [k, v] of Object.entries(dict)) {
         setDictField(fields, k, Object.freeze({ type: inferStructure(v) }));
-      }
-      // Number/boolean keys contribute fields under their string form.
-      for (const { key, value: v } of typedKeyEntries(dict)) {
-        setDictField(
-          fields,
-          String(key),
-          Object.freeze({ type: inferStructure(v) })
-        );
       }
       if (Object.keys(fields).length === 0)
         return Object.freeze({ kind: 'dict' });

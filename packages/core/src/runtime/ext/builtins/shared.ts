@@ -10,7 +10,6 @@ import type { SourceLocation } from '../../../types.js';
 import type { EvalState } from '../../core/eval/state.js';
 import { internalCallable, isCallable } from '../../core/callable.js';
 import { isDict, isStream } from '../../core/types/guards.js';
-import { typedKeyEntries } from '../../core/types/dict-keys.js';
 import {
   DEFAULT_MAX_ITERATIONS,
   checkAborted,
@@ -308,8 +307,7 @@ function makeCodePointIterator(codePoints: string[], index: number): RillValue {
 
 /**
  * Create an iterator for a dict at the given index.
- * Dict iteration yields { key, value } entries: sorted string keys first, then
- * number/boolean keys (in insertion order), each surfaced with its real type.
+ * Dict iteration yields { key, value } entries in sorted string-key order.
  */
 export function makeDictIterator(
   dict: Record<string, RillValue>,
@@ -319,9 +317,6 @@ export function makeDictIterator(
   for (const key of Object.keys(dict).sort()) {
     const value = dict[key];
     if (value !== undefined) entries.push({ key, value });
-  }
-  for (const e of typedKeyEntries(dict)) {
-    entries.push({ key: e.key, value: e.value });
   }
   const entry = entries[index];
   if (entry === undefined) {

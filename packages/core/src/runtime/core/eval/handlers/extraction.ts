@@ -44,11 +44,10 @@ import { accessHaltGateFast } from './access.js';
 import { isKeyedSource } from './collections.js';
 import {
   setDictField,
-  isDictKeyScalar,
   type DictKeyScalar,
   throwSourceKindHalt,
 } from '../shared.js';
-import { setTypedKey, orderedDictEntries } from '../../types/dict-keys.js';
+import { orderedDictEntries } from '../../types/dict-keys.js';
 import {
   assertUsableDictKey,
   assertStringVariableKey,
@@ -524,30 +523,15 @@ export async function evaluateCollectionLiteral(
         s,
         node.entries
       )) {
-        if (typeof key === 'number' || typeof key === 'boolean') {
-          // Number/boolean keys go to the typed-key sidecar.
-          setTypedKey(result, key, value);
-        } else {
-          // Safe assignment so a `__proto__` key becomes an own field rather
-          // than reparenting the dict via the prototype setter.
-          setDictField(result, String(key), value);
-        }
+        // Safe assignment so a `__proto__` key becomes an own field rather
+        // than reparenting the dict via the prototype setter.
+        setDictField(result, key, value);
       }
       return result;
     }
 
     case 'OrderedLiteral': {
-      // Ordered literals keep string keys; stringify any typed key. Keys that
-      // collide once stringified (1 and "1") collapse: last value wins at the
-      // first key's position, as with spread overrides.
-      const merged = new Map<string, RillValue>();
-      for (const [key, value] of await evaluateDictLiteralEntries(
-        s,
-        node.entries
-      )) {
-        merged.set(String(key), value);
-      }
-      return createOrdered([...merged]);
+      return createOrdered(await evaluateDictLiteralEntries(s, node.entries));
     }
   }
   return throwFatalHostHalt(
@@ -613,22 +597,21 @@ export async function evaluateListLiteralElements(
 }
 
 /**
- * Evaluate dict/ordered literal entries, returning [key, value] pairs. Number
- * and boolean keys are returned with their original type; the DictLiteral
- * caller routes them to the typed-key sidecar, while the OrderedLiteral caller
- * stringifies them. Variable and computed keys must resolve to strings, as in
+ * Evaluate dict/ordered literal entries, returning [key, value] pairs. Keys are
+ * returned as strings; number and boolean keys from multi-key lists are
+ * stringified. Variable and computed keys must resolve to strings, as in
  * dict literals; any other value halts.
  * Spread entries (...$other) expand inline (dict keys merged).
  */
 async function evaluateDictLiteralEntries(
   s: EvalState,
   entries: DictEntryNode[]
-): Promise<[DictKeyScalar, RillValue][]> {
-  // Keyed by a type-qualified encoding so a spread-introduced key that a
+): Promise<[string, RillValue][]> {
+  // Keyed by the string key so a spread-introduced key that a
   // later literal key (or a later spread) overrides keeps its original
   // position — matching plain-object/Map override semantics — instead of
   // being appended again at the end.
-  const merged = new Map<string, [DictKeyScalar, RillValue]>();
+  const merged = new Map<string, [string, RillValue]>();
   const setMergedEntry = (
     key: DictKeyScalar,
     value: RillValue,
@@ -640,7 +623,8 @@ async function evaluateDictLiteralEntries(
       () => location,
       s.ctx.sourceId
     );
-    merged.set(`${typeof key}:${String(key)}`, [key, gated]);
+    const stringKey = String(key);
+    merged.set(stringKey, [stringKey, gated]);
   };
 
   for (const entry of entries) {
@@ -662,9 +646,7 @@ async function evaluateDictLiteralEntries(
         }
       } else if (isPlainDict(spreadValue)) {
         for (const { key: k, value: v } of orderedDictEntries(spreadValue)) {
-          if (isDictKeyScalar(k)) {
-            setMergedEntry(k, v, entry.span?.start);
-          }
+          setMergedEntry(k, v, entry.span?.start);
         }
       } else {
         throwSourceKindHalt(
@@ -681,14 +663,11 @@ async function evaluateDictLiteralEntries(
       continue;
     }
 
-    let stringKey: string | number | boolean;
+    let stringKey: string;
 
     if (typeof key === 'string') {
       stringKey = key;
       assertUsableDictKey(s, stringKey, entry.span);
-    } else if (typeof key === 'number' || typeof key === 'boolean') {
-      // Preserve the typed key; the DictLiteral caller sends it to the sidecar.
-      stringKey = key;
     } else {
       // Object key (DictKeyVariable or DictKeyComputed) — evaluate like evaluateDict
       if ('kind' in key) {
@@ -728,9 +707,7 @@ async function evaluateDictLiteralEntries(
         // Multi-key entry (ListLiteralNode key): one entry per listed key.
         const pairs = await evaluateDictMultiKeyFromList(s, key, entry.value);
         for (const [k, v] of pairs) {
-          if (typeof k === 'string') {
-            assertUsableDictKey(s, k, entry.span);
-          }
+          assertUsableDictKey(s, String(k), entry.span);
           setMergedEntry(k, v, entry.span?.start);
         }
         continue;

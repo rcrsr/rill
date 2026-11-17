@@ -47,6 +47,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { createTuple } from '@rcrsr/rill';
 import type { RillVector } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
@@ -155,7 +156,7 @@ describe('brand-value guards against the generic dict path', () => {
     it.each([
       ['keys', ['a']],
       ['values', [1]],
-      ['entries', [['a', 1]]],
+      ['entries', [createTuple(['a', 1])]],
     ])('.%s still works on a dict receiver', async (method, expected) => {
       expect(await run(`dict[a: 1] -> .${method}`)).toEqual(expected);
     });
@@ -175,15 +176,15 @@ describe('brand-value guards against the generic dict path', () => {
 
     it('keeps ordered and spread-built dicts working', async () => {
       expect(await run('ordered[a: 1, b: 2] -> .entries')).toEqual([
-        ['a', 1],
-        ['b', 2],
+        createTuple(['a', 1]),
+        createTuple(['b', 2]),
       ]);
       const spread = 'dict[a: 1] => $x\ndict[...$x, b: 2] => $d\n';
       expect(await run(`${spread}$d -> .keys`)).toEqual(['a', 'b']);
       expect(await run(`${spread}$d -> .values`)).toEqual([1, 2]);
       expect(await run(`${spread}$d -> .entries`)).toEqual([
-        ['a', 1],
-        ['b', 2],
+        createTuple(['a', 1]),
+        createTuple(['b', 2]),
       ]);
     });
 
@@ -260,8 +261,8 @@ describe('brand-value guards against the generic dict path', () => {
 
     it('dict .entries returns canonical [key, value] pairs', async () => {
       expect(await run('dict[a: 1, b: 2] -> .entries')).toEqual([
-        ['a', 1],
-        ['b', 2],
+        createTuple(['a', 1]),
+        createTuple(['b', 2]),
       ]);
     });
 
@@ -283,8 +284,8 @@ describe('brand-value guards against the generic dict path', () => {
 
     it('ordered .entries returns [key, value] pairs in order', async () => {
       expect(await run('ordered[a: 1, b: 2] -> .entries')).toEqual([
-        ['a', 1],
-        ['b', 2],
+        createTuple(['a', 1]),
+        createTuple(['b', 2]),
       ]);
     });
 

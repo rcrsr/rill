@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Dict Dispatch
  * Tests for dict literal as dispatch table when piped
@@ -5,7 +6,10 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { expectHalt } from '../helpers/halt.js';
+import { ParseError } from '@rcrsr/rill';
+
+import { expectHalt, expectThrowMessage } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Dict Dispatch', () => {
@@ -105,11 +109,16 @@ describe('Rill Runtime: Dict Dispatch', () => {
       );
     });
 
-    it('returns first match when duplicate keys', async () => {
-      // AC-34: First match wins
-      const result = await run('"a" -> dict[a: 1, a: 2]');
-      expect(result).toBe(1);
-    });
+    rule('dict.key-duplicate').it(
+      'rejects a dict literal that spells a key twice',
+      async () => {
+        await expectThrowMessage(
+          () => run('"a" -> dict[a: 1, a: 2]'),
+          /Duplicate key 'a' in dict/,
+          ParseError
+        );
+      }
+    );
 
     it('preserves dict construction without pipe', async () => {
       // AC-35: Construction preserved (not dispatch)
@@ -259,77 +268,102 @@ describe('Rill Runtime: Dict Dispatch', () => {
   });
 
   describe('Number and Boolean Literal Keys', () => {
-    it('dispatches with number literal key (AC-3)', async () => {
-      const result = await run('1 -> dict[1: "one", 2: "two"]');
-      expect(result).toBe('one');
-    });
+    // A number or bool key is stored as the string of its source spelling.
+    rule('dict.key-string').it(
+      'dispatches the string spelling of a number literal key',
+      async () => {
+        expect(await run('"1" -> dict[1: "one", 2: "two"]')).toBe('one');
+      }
+    );
 
-    it('dispatches with second number literal key', async () => {
-      const result = await run('2 -> dict[1: "one", 2: "two"]');
-      expect(result).toBe('two');
-    });
+    rule('dict.key-string').it(
+      'dispatches the string spelling of a second number literal key',
+      async () => {
+        expect(await run('"2" -> dict[1: "one", 2: "two"]')).toBe('two');
+      }
+    );
 
-    it('dispatches with negative number literal key (AC-9)', async () => {
-      const result = await run('(-1) -> dict[-1: "negative", 1: "positive"]');
-      expect(result).toBe('negative');
-    });
+    rule('dict.key-string').it(
+      'dispatches the string spelling of a negative number literal key',
+      async () => {
+        expect(await run('"-1" -> dict[-1: "negative", 1: "positive"]')).toBe(
+          'negative'
+        );
+      }
+    );
 
-    it('dispatches with decimal number literal key (AC-10)', async () => {
-      const result = await run('3.14 -> dict[3.14: "pi", 2.71: "e"]');
-      expect(result).toBe('pi');
-    });
+    rule('dict.key-string').it(
+      'dispatches the string spelling of a decimal number literal key',
+      async () => {
+        expect(await run('"3.14" -> dict[3.14: "pi", 2.71: "e"]')).toBe('pi');
+      }
+    );
 
-    it('dispatches with boolean literal key true (AC-4)', async () => {
-      const result = await run('true -> dict[true: "yes", false: "no"]');
-      expect(result).toBe('yes');
-    });
+    rule('dict.key-string').it(
+      'dispatches the string spelling of a boolean literal key',
+      async () => {
+        expect(await run('"true" -> dict[true: "yes", false: "no"]')).toBe(
+          'yes'
+        );
+        expect(await run('"false" -> dict[true: "yes", false: "no"]')).toBe(
+          'no'
+        );
+      }
+    );
 
-    it('dispatches with boolean literal key false (AC-4)', async () => {
-      const result = await run('false -> dict[true: "yes", false: "no"]');
-      expect(result).toBe('no');
-    });
-
-    it('throws when number key not found', async () => {
-      await expect(run('3 -> dict[1: "one", 2: "two"]')).rejects.toThrow(
+    it('throws when the string spelling is not a key', async () => {
+      await expect(run('"3" -> dict[1: "one", 2: "two"]')).rejects.toThrow(
         /Dict dispatch.*not found/i
       );
     });
 
-    it('throws when boolean key not found', async () => {
-      await expect(run('true -> dict[false: "no"]')).rejects.toThrow(
-        /Dict dispatch.*not found/i
-      );
-    });
+    rule('selection.key-type').it(
+      'halts when a number input meets a number-spelled key',
+      async () => {
+        await expectHalt(() => run('1 -> dict[1: "one", 2: "two"]'), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: /Dict key must be string/,
+        });
+      }
+    );
+
+    rule('selection.key-type').it(
+      'halts when a boolean input meets a boolean-spelled key',
+      async () => {
+        await expectHalt(() => run('true -> dict[true: "yes"]'), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: /Dict key must be string/,
+        });
+      }
+    );
 
     it('uses default with number literal keys', async () => {
-      const result = await run('3 -> dict[1: "one", 2: "two"] ?? "other"');
+      const result = await run('"3" -> dict[1: "one", 2: "two"] ?? "other"');
       expect(result).toBe('other');
     });
 
     it('uses default with boolean literal keys', async () => {
-      const result = await run('false -> dict[true: "yes"] ?? "no"');
+      const result = await run('"false" -> dict[true: "yes"] ?? "no"');
       expect(result).toBe('no');
     });
   });
 
   describe('Type Discrimination', () => {
-    it('distinguishes number from string identifier key (AC-11, AC-14)', async () => {
-      // AC-14: Number 1 matches number key 1, not identifier key "one"
-      const result = await run('1 -> dict[1: "number", one: "identifier"]');
+    it('distinguishes a number-spelled key from an identifier key', async () => {
+      const result = await run('"1" -> dict[1: "number", one: "identifier"]');
       expect(result).toBe('number');
     });
 
-    it('distinguishes string from number key (AC-11, AC-15)', async () => {
-      // AC-15: String "1" does not match number 1
-      await expect(run('"1" -> dict[1: "n"]')).rejects.toThrow(
-        /Dict dispatch.*not found/i
-      );
+    it('halts on a number input against a number-spelled key', async () => {
+      await expectHalt(() => run('1 -> dict[1: "n"]'), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: /Dict key must be string/,
+      });
     });
 
-    it('distinguishes boolean from string identifier key (AC-16)', async () => {
-      // AC-16: Boolean true matches boolean key, not identifier "true"
+    it('distinguishes a boolean-spelled key from an identifier key', async () => {
       const result = await run(
-        'true -> dict[true: "bool", truthy: "identifier"]'
+        '"true" -> dict[true: "bool", truthy: "identifier"]'
       );
       expect(result).toBe('bool');
     });
@@ -339,14 +373,15 @@ describe('Rill Runtime: Dict Dispatch', () => {
       expect(result).toBe('s');
     });
 
-    it('throws when number does not match identifier keys', async () => {
-      await expect(run('1 -> dict[one: "s", two: "s"]')).rejects.toThrow(
-        /Dict dispatch.*not found/i
-      );
+    it('halts on a number input against identifier keys', async () => {
+      await expectHalt(() => run('1 -> dict[one: "s", two: "s"]'), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: /Dict key must be string/,
+      });
     });
 
     it('throws when string does not match number keys', async () => {
-      await expect(run('"1" -> dict[1: "n", 2: "n"]')).rejects.toThrow(
+      await expect(run('"3" -> dict[1: "n", 2: "n"]')).rejects.toThrow(
         /Dict dispatch.*not found/i
       );
     });
@@ -360,14 +395,13 @@ describe('Rill Runtime: Dict Dispatch', () => {
       );
     });
 
-    it('works with single-entry number key dict (AC-13)', async () => {
-      // AC-13: Single-entry dicts work for all key types
-      const result = await run('42 -> dict[42: "answer"]');
+    it('works with single-entry number key dict', async () => {
+      const result = await run('"42" -> dict[42: "answer"]');
       expect(result).toBe('answer');
     });
 
-    it('works with single-entry boolean key dict (AC-13)', async () => {
-      const result = await run('true -> dict[true: "yes"]');
+    it('works with single-entry boolean key dict', async () => {
+      const result = await run('"true" -> dict[true: "yes"]');
       expect(result).toBe('yes');
     });
 
@@ -376,16 +410,27 @@ describe('Rill Runtime: Dict Dispatch', () => {
       expect(result).toBe('value');
     });
 
-    it('duplicate number keys return first match (AC-6)', async () => {
-      // AC-6: Duplicate keys produce first match (existing behavior)
-      const result = await run('1 -> dict[1: "a", 1: "b"]');
-      expect(result).toBe('a');
-    });
+    rule('dict.key-duplicate').it(
+      'rejects a number key spelled twice with RILL-P027',
+      async () => {
+        await expectThrowMessage(
+          () => run('"1" -> dict[1: "a", 1: "b"]'),
+          /Duplicate key '1' in dict/,
+          ParseError
+        );
+      }
+    );
 
-    it('duplicate boolean keys return first match', async () => {
-      const result = await run('true -> dict[true: "a", true: "b"]');
-      expect(result).toBe('a');
-    });
+    rule('dict.key-duplicate').it(
+      'rejects a boolean key spelled twice with RILL-P027',
+      async () => {
+        await expectThrowMessage(
+          () => run('"true" -> dict[true: "a", true: "b"]'),
+          /Duplicate key 'true' in dict/,
+          ParseError
+        );
+      }
+    );
   });
 
   describe('Error Contracts', () => {
@@ -490,10 +535,10 @@ describe('Rill Runtime: Dict Dispatch', () => {
     it('applies last-write-wins with multiple overwrites (AC-17)', async () => {
       // AC-17: Duplicate keys follow last-write-wins per entry order
       const result = await run(`
-        dict[a: 0, list["a", "b"]: 1, a: 2] => $dict
-        list[$dict.a, $dict.b]
+        dict[a: 0, list["a", "b"]: 1, list["a", "c"]: 2] => $dict
+        list[$dict.a, $dict.b, $dict.c]
       `);
-      expect(result).toEqual([2, 1]);
+      expect(result).toEqual([2, 1, 2]);
     });
 
     it('expands multi-key with three elements', async () => {
@@ -513,11 +558,10 @@ describe('Rill Runtime: Dict Dispatch', () => {
     });
 
     it('expands multi-key with boolean and number keys', async () => {
-      // Boolean and number multi-keys are type-aware: they are reached by
-      // dispatching the typed value, not by a string-keyed lookup.
+      // Boolean and number multi-keys store the string of their value.
       const result = await run(`
         dict[list[true, false]: "bool", list[1, 2]: "num"] => $dict
-        list[true -> $dict, false -> $dict, 1 -> $dict, 2 -> $dict]
+        list["true" -> $dict, "false" -> $dict, "1" -> $dict, "2" -> $dict]
       `);
       expect(result).toEqual(['bool', 'bool', 'num', 'num']);
     });

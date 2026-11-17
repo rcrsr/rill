@@ -46,13 +46,20 @@ declare module './parser.js' {
       isExistenceCheck: boolean | undefined,
       dotStart: SourceLocation
     ): FieldAccess | null;
-    parseComputedOrAlternatives(
-      isExistenceCheck: boolean | undefined,
-      dotStart: SourceLocation
-    ): FieldAccess;
-    tryParseAlternatives(): string[] | null;
+    parseExistenceAccess(dotStart: SourceLocation): PropertyAccess | null;
     parseDefaultValue(): BodyNode;
   }
+}
+
+function removedSelectorError(
+  form: '.(' | '.{' | '.?(' | '.?{',
+  at: SourceLocation
+): ParseError {
+  return new ParseError(
+    ERROR_IDS.RILL_P012,
+    `Syntax removed: '${form}' selector removed; use $c[expr] to select, or $c.?[expr] to probe`,
+    at
+  );
 }
 
 // ============================================================
@@ -175,10 +182,7 @@ Parser.prototype.parseAccessChain = function (this: Parser): {
       // parse error naming the missing field name, rather than silently
       // ending the statement and leaving the trailing tokens to misparse
       // as a new statement.
-      const finalAccess = this.parseFieldAccessElement(
-        true,
-        dotToken.span.start
-      );
+      const finalAccess = this.parseExistenceAccess(dotToken.span.start);
       if (!finalAccess && check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
         break;
       }
@@ -264,13 +268,11 @@ Parser.prototype.parseFieldAccessElement = function (
     return { kind: 'annotation', key: keyToken.value };
   }
 
-  if (check(this.state, TOKEN_TYPES.LPAREN)) {
-    return this.parseComputedOrAlternatives(isExistenceCheck, dotStart);
-  }
-
-  if (check(this.state, TOKEN_TYPES.LBRACE)) {
-    const block = this.parseBlock();
-    return { kind: 'block', block };
+  if (check(this.state, TOKEN_TYPES.LPAREN, TOKEN_TYPES.LBRACE)) {
+    throw removedSelectorError(
+      check(this.state, TOKEN_TYPES.LPAREN) ? '.(' : '.{',
+      dotStart
+    );
   }
 
   if (check(this.state, TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.METHOD_NAME)) {
@@ -285,75 +287,37 @@ Parser.prototype.parseFieldAccessElement = function (
   return null;
 };
 
-Parser.prototype.parseComputedOrAlternatives = function (
+/**
+ * Parse the element after `.?`: a bracket selector `[expr]` (a computed
+ * probe, producing a BracketAccess) or any dot-form field element. Returns
+ * null when no element follows (a bare `.?` probe on the receiver).
+ */
+Parser.prototype.parseExistenceAccess = function (
   this: Parser,
-  isExistenceCheck: boolean | undefined,
   dotStart: SourceLocation
-): FieldAccess {
-  advance(this.state);
-
-  // For existence checks, only parse computed expressions, not alternatives
-  if (isExistenceCheck !== true) {
-    const alternatives = this.tryParseAlternatives();
-    if (alternatives) {
-      expect(
-        this.state,
-        TOKEN_TYPES.RPAREN,
-        'Expected ) after alternatives',
-        ERROR_IDS.RILL_P005
-      );
-      return { kind: 'alternatives', alternatives };
-    }
+): PropertyAccess | null {
+  if (check(this.state, TOKEN_TYPES.LBRACKET)) {
+    const openBracket = advance(this.state);
+    const expression = this.parsePipeChain();
+    const closeBracket = expect(
+      this.state,
+      TOKEN_TYPES.RBRACKET,
+      'Expected ] after index expression',
+      ERROR_IDS.RILL_P005
+    );
+    return {
+      accessKind: 'bracket',
+      expression,
+      span: makeSpan(openBracket.span.start, closeBracket.span.end),
+    };
   }
-
-  skipNewlines(this.state);
-  const expression = this.parsePipeChain();
-  skipNewlines(this.state);
-  const closeParen = expect(
-    this.state,
-    TOKEN_TYPES.RPAREN,
-    'Expected ) after expression',
-    ERROR_IDS.RILL_P005
-  );
-  return {
-    kind: 'computed',
-    expression,
-    span: makeSpan(dotStart, closeParen.span.end),
-  };
-};
-
-Parser.prototype.tryParseAlternatives = function (
-  this: Parser
-): string[] | null {
-  const savedPos = this.state.pos;
-
-  const alternatives: string[] = [];
-
-  if (!check(this.state, TOKEN_TYPES.IDENTIFIER)) {
-    return null;
+  if (check(this.state, TOKEN_TYPES.LPAREN, TOKEN_TYPES.LBRACE)) {
+    throw removedSelectorError(
+      check(this.state, TOKEN_TYPES.LPAREN) ? '.?(' : '.?{',
+      dotStart
+    );
   }
-  alternatives.push(advance(this.state).value);
-
-  if (!check(this.state, TOKEN_TYPES.OR)) {
-    this.state.pos = savedPos;
-    return null;
-  }
-
-  while (check(this.state, TOKEN_TYPES.OR)) {
-    advance(this.state);
-    if (!check(this.state, TOKEN_TYPES.IDENTIFIER)) {
-      this.state.pos = savedPos;
-      return null;
-    }
-    alternatives.push(advance(this.state).value);
-  }
-
-  if (!check(this.state, TOKEN_TYPES.RPAREN)) {
-    this.state.pos = savedPos;
-    return null;
-  }
-
-  return alternatives;
+  return this.parseFieldAccessElement(true, dotStart);
 };
 
 Parser.prototype.parseDefaultValue = function (this: Parser): BodyNode {

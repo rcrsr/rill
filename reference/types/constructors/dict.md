@@ -3,7 +3,7 @@ id: dict
 title: Dict types
 status: normative
 since: 0.24.0
-issues: [563, 572, 576, 581, 600]
+issues: [572, 581, 600]
 grammar: []
 errors: [RILL-P006, RILL-P027, TYPE_MISMATCH]
 depends: [type-value, type-form]
@@ -44,11 +44,11 @@ r[dict.empty-parens] dict and dict() are one type
 r[dict.no-outer] A dict type takes no outer
 A dict type written with an outer, such as `dict(a: number):string`, MUST be a parse error.
 
-r[dict.key-string] A dict key is always a string {pending #576}
+r[dict.key-string] A dict key is always a string 
 A key written as a number or a bool MUST be the string of its spelling, so `dict[1: "n"]`
 equals `dict["1": "n"]`.
 
-r[dict.key-duplicate] A key written twice in one literal is rejected {pending #576}
+r[dict.key-duplicate] A key written twice in one literal is rejected
 A literal that spells one key twice, including a number and the string with the same text,
 MUST be rejected at parse time with RILL-P027.
 
@@ -80,7 +80,7 @@ r[dict.field-inner] A dict type's inner is its fields
 r[dict.field-print] A dict type prints its fields
 A dict type MUST print as `dict(a: T, ...)`.
 
-r[dict.entries-type] A dict's entries are string-keyed tuples {pending #563}
+r[dict.entries-type] A dict's entries are string-keyed tuples
 `.entries` on a dict or an ordered whose values have type `V` MUST return
 `list(tuple(string, V))`, one `tuple[key, value]` per entry.
 
@@ -95,7 +95,7 @@ that holds a non-type follows `type-value.variable-halt`.
 |-----------|-------|-----------|
 | Outer on a type that takes none | RILL-P006 | No |
 | Value has a field a named form does not name {pending #572} | `#TYPE_MISMATCH` | Yes |
-| A literal spells one key twice {pending #576} | RILL-P027 | No |
+| A literal spells one key twice | RILL-P027 | No |
 | A type names one key twice {pending #581} | RILL-P027 | No |
 
 ## Examples

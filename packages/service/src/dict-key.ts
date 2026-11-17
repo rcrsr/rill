@@ -11,7 +11,6 @@ import type { DictEntryNode, SourceSpan } from '@rcrsr/rill';
  */
 export function dictKeyName(key: DictEntryNode['key']): string | null {
   if (typeof key === 'string') return key;
-  if (typeof key === 'number' || typeof key === 'boolean') return String(key);
   if (typeof key === 'object' && 'kind' in key) {
     return key.kind === 'variable' ? key.variableName : null;
   }

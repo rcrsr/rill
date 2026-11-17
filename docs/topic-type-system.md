@@ -819,7 +819,7 @@ $y.^type.signature
 # Result: "number"
 ```
 
-Every element and field read carries the declared element or field type: `[expr]`, `.name`, `.$k`, `.(expr)`, `.(a || b)`, and pipe selection such as `"a" -> $d`. Methods such as `.head` take the own type:
+Every element and field read carries the declared element or field type: `[expr]`, `.name`, `.$k`, and pipe selection such as `"a" -> $d`. Methods such as `.head` take the own type:
 
 ```rill
 dict[a: 1] => $d:dict(a: union(number, string))
@@ -830,7 +830,7 @@ $d.a.^type.signature
 ```rill
 dict[a: 1] => $d:dict(a: union(number, string))
 "a" -> $d => $v
-tuple[$d.("a").^type.signature, $v.^type.signature]
+tuple[$d["a"].^type.signature, $v.^type.signature]
 # Result: tuple["union(number, string)", "union(number, string)"]
 ```
 
@@ -955,12 +955,12 @@ $t.inner
 # Error: Type value has no property "inner"
 ```
 
-`.inner`, `.("inner")`, `.$k`, `.(a || b)`, `-> .inner`, and `.?inner` agree on what a type value has. The general rule lives in [Language Reference](ref-language.md).
+`.inner`, `.$k`, `-> .inner`, and `.?inner` agree on what a type value has. The general rule lives in [Language Reference](ref-language.md).
 
 ```rill
 string => $t
 "signature" => $k
-tuple[$t.$k, $t.("name")]
+tuple[$t.$k, $t.name]
 # Result: tuple["string", "string"]
 ```
 

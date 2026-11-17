@@ -153,7 +153,6 @@ export { formatHalt } from './runtime/core/types/status.js';
 // Remain in values.ts
 export {
   anyTypeValue,
-  getTypedKeyEntries,
   isEmpty,
   structureToTypeValue,
   toNative,
@@ -365,10 +364,7 @@ export type {
   ExistenceCheck,
   ExpressionNode,
   FieldAccess,
-  FieldAccessAlternatives,
   FieldAccessAnnotation,
-  FieldAccessBlock,
-  FieldAccessComputed,
   FieldAccessLiteral,
   FieldAccessVariable,
   FrontmatterNode,

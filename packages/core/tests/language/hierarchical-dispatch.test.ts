@@ -200,11 +200,9 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
       );
     });
 
-    it('throws RUNTIME_TYPE_ERROR for number index on dict (AC-10/EC-2)', async () => {
-      // AC-10/EC-2: Number index on dict throws type error
-      // Implementation uses unified error message at hierarchical dispatch level
+    it('halts #TYPE_MISMATCH for number index on dict', async () => {
       await expect(run('list[0] -> dict[a: 1]')).rejects.toThrow(
-        /cannot use number key with dict value/
+        /Dict key must be string, got number/
       );
     });
 

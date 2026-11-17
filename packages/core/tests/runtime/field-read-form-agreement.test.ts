@@ -4,8 +4,8 @@
  * For each receiver and key that passes the form's key validation, `.?k` is
  * true exactly when `.k ?? sentinel` returns something other than the sentinel
  * and exactly when `.k` does not halt. Method sugar (`.len`, `.params`) is
- * literal-only, and a bool key on a dict without typed keys answers `.?` false
- * while the read form rejects it at key validation.
+ * literal-only, and a non-string key on a dict halts in every form, including
+ * `.?`, with the same type mismatch.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -56,8 +56,10 @@ interface Row {
   readonly setup: string;
   /** Source text of the key. */
   readonly key: string;
-  /** Result of every dynamic read form (`.$k`, `.(expr)`). */
+  /** Result of the variable-key read form (`.$k`). */
   readonly read: Expected;
+  /** Result of the bracket form `[key]` where it departs from `read`. */
+  readonly bracket?: Expected;
   /** Identifier spelling of the key, when the literal forms apply. */
   readonly name?: string;
   /** Result of the literal form `.k`. */
@@ -68,7 +70,7 @@ interface Row {
   readonly postfix?: string;
   /** Existence answer where it departs from the read (documented exceptions). */
   readonly exists?: boolean;
-  /** A dict or stream read with a number or bool key: `??` does not recover. */
+  /** A stream read with a number or bool key: `??` does not recover. */
   readonly strictKey?: boolean;
 }
 
@@ -87,6 +89,8 @@ const NOT_AN_INTEGER = (kind: string): Expected => ({
   message: `${kind} index must be an integer, got 1.5`,
 });
 
+const DICT_KEY_NUMBER = 'Dict key must be string, got number';
+
 const TYPE = 'union(1, "a") => $r';
 const TYPE_RECEIVER = 'union(1, "a")';
 const LIST = 'list[10, 20] => $r';
@@ -100,6 +104,7 @@ const ROWS: readonly Row[] = [
     key: '"inner"',
     name: 'inner',
     read: { value: [1, 'a'] },
+    bracket: { halt: 'RILL_R002', message: 'Cannot index type' },
     literal: { value: [1, 'a'] },
     method: { value: [1, 'a'] },
     postfix: TYPE_RECEIVER,
@@ -110,6 +115,7 @@ const ROWS: readonly Row[] = [
     key: '"outer"',
     name: 'outer',
     read: { halt: 'RILL_R003', message: /Type value has no property "outer"/ },
+    bracket: { halt: 'RILL_R002', message: 'Cannot index type' },
     literal: {
       halt: 'RILL_R003',
       message: /Type value has no property "outer"/,
@@ -132,6 +138,7 @@ const ROWS: readonly Row[] = [
     key: '"len"',
     name: 'len',
     read: NON_DICT('len'),
+    bracket: { halt: 'RILL_R002', message: 'Cannot index string' },
     literal: { value: 3 },
     method: { value: 3 },
     postfix: '"abc"',
@@ -161,6 +168,10 @@ const ROWS: readonly Row[] = [
     key: '"a"',
     name: 'a',
     read: NON_DICT('a'),
+    bracket: {
+      halt: 'RILL_R002',
+      message: 'List index must be number, got string',
+    },
     literal: NON_DICT('a'),
   },
   {
@@ -205,6 +216,10 @@ const ROWS: readonly Row[] = [
     key: '"a"',
     name: 'a',
     read: NON_DICT('a'),
+    bracket: {
+      halt: 'RILL_R002',
+      message: 'Tuple index must be number, got string',
+    },
     literal: NON_DICT('a'),
   },
   {
@@ -213,6 +228,7 @@ const ROWS: readonly Row[] = [
     key: '"params"',
     name: 'params',
     read: NON_DICT('params'),
+    bracket: { halt: 'RILL_R002', message: 'Cannot index closure' },
     literal: { value: { x: {} } },
     exists: false,
   },
@@ -231,6 +247,7 @@ const ROWS: readonly Row[] = [
     key: '"chunk"',
     name: 'chunk',
     read: { halt: 'RILL_R009', message: "Dict has no field 'chunk'" },
+    bracket: { halt: 'RILL_R009', message: 'Undefined dict key: chunk' },
     literal: { halt: 'RILL_R009', message: "Dict has no field 'chunk'" },
     method: { halt: 'RILL_R009', message: "Dict has no field 'chunk'" },
   },
@@ -250,35 +267,35 @@ const ROWS: readonly Row[] = [
     key: '"b"',
     name: 'b',
     read: { halt: 'RILL_R009', message: "Dict has no field 'b'" },
+    bracket: { halt: 'RILL_R009', message: 'Undefined dict key: b' },
     literal: { halt: 'RILL_R009', message: "Dict has no field 'b'" },
     method: { halt: 'RILL_R009', message: "Dict has no field 'b'" },
     postfix: 'dict[a: 1]',
   },
   {
-    label: 'dict with typed keys, number key',
+    label: 'dict, number-spelled key by its string spelling',
     setup: 'dict[1: "one"] => $r',
-    key: '1',
+    key: '"1"',
     read: { value: 'one' },
   },
   {
-    label: 'dict with typed keys, missing number key',
+    label: 'dict, number selector',
     setup: 'dict[1: "one"] => $r',
-    key: '2',
-    read: { halt: 'RILL_R009', message: 'Undefined dict key: 2' },
-    strictKey: true,
+    key: '1',
+    read: { halt: 'TYPE_MISMATCH', message: DICT_KEY_NUMBER },
   },
   {
-    label: 'dict without typed keys, number key',
+    label: 'dict without number-spelled keys, number selector',
     setup: 'dict[a: 1] => $r',
     key: '1',
-    read: { halt: 'RILL_R002', message: 'Cannot index dict' },
-    strictKey: true,
+    read: { halt: 'TYPE_MISMATCH', message: DICT_KEY_NUMBER },
   },
   {
     label: 'stream, number key',
     setup: 'make_stream() => $r',
     key: '0',
     read: { halt: 'RILL_R002', message: 'Cannot index stream' },
+    bracket: { halt: 'RILL_R009', message: 'Undefined dict key: 0' },
     strictKey: true,
   },
 ];
@@ -306,9 +323,15 @@ async function expectOutcome(
   });
 }
 
-/** A fractional index halts in every form, including existence and `??`. */
+/**
+ * A fractional index or a non-string dict selector halts in every form,
+ * including existence and `??`.
+ */
 function isFractional(expected: Expected): boolean {
-  return !isValue(expected) && expected.halt === 'INVALID_INPUT';
+  return (
+    !isValue(expected) &&
+    (expected.halt === 'INVALID_INPUT' || expected.halt === 'TYPE_MISMATCH')
+  );
 }
 
 // ============================================================
@@ -345,8 +368,11 @@ describe('field read forms agree', () => {
       await expectOutcome(`${keyed}$r.$k`, row.read);
     });
 
-    it('reads through a computed key', async () => {
-      await expectOutcome(`${row.setup}\n$r.(${row.key})`, row.read);
+    it('reads through a bracket key', async () => {
+      await expectOutcome(
+        `${row.setup}\n$r[${row.key}]`,
+        row.bracket ?? row.read
+      );
     });
 
     it('answers .? for a variable key from the read', async () => {
@@ -356,9 +382,9 @@ describe('field read forms agree', () => {
       );
     });
 
-    it('answers .? for a computed key from the read', async () => {
+    it('answers .? for a bracket key from the read', async () => {
       await expectOutcome(
-        `${row.setup}\n$r.?(${row.key})`,
+        `${row.setup}\n$r.?[${row.key}]`,
         existenceOutcome(row.read, row.exists)
       );
     });
@@ -425,58 +451,6 @@ describe('field read forms agree', () => {
   });
 });
 
-describe('field read forms: alternatives', () => {
-  it('reads the first alternative a type value defines', async () => {
-    expect(await run(`${TYPE}\n$r.(outer || inner)`)).toEqual([1, 'a']);
-  });
-
-  it('halts naming every alternative a type value lacks', async () => {
-    await expectHalt(() => run(`${TYPE}\n$r.(outer || nope)`), {
-      code: 'RILL_R003',
-      messagePattern: /Type value has none of the properties "outer", "nope"/,
-    });
-  });
-
-  it('coalesces a type value with no alternative using ??', async () => {
-    expect(await run(`${TYPE}\n$r.(outer || nope) ?? "${SENTINEL}"`)).toBe(
-      SENTINEL
-    );
-  });
-
-  it('reads the first alternative an ordered value defines', async () => {
-    expect(await run(`${ORDERED}\n$r.(z || b)`)).toBe(2);
-  });
-
-  it('halts when no alternative exists on an ordered value', async () => {
-    await expectHalt(() => run(`${ORDERED}\n$r.(z || y)`), {
-      code: 'RILL_R009',
-      messagePattern: "Dict has none of the fields 'z', 'y'",
-    });
-  });
-
-  it('halts when no alternative exists on a dict', async () => {
-    await expectHalt(() => run('dict[a: 1] => $r\n$r.(z || y)'), {
-      code: 'RILL_R009',
-      messagePattern: "Dict has none of the fields 'z', 'y'",
-    });
-  });
-
-  it('reads the first alternative a stream defines', async () => {
-    expect(
-      await run('make_stream() => $r\n$r.(chunk || done)', {
-        functions: FUNCTIONS,
-      })
-    ).toBe(false);
-  });
-
-  it('rejects a list receiver', async () => {
-    await expectHalt(() => run(`${LIST}\n$r.(a || b)`), {
-      code: 'RILL_R002',
-      messagePattern: 'Alternative access requires dict, got list',
-    });
-  });
-});
-
 // ============================================================
 // EXISTENCE DOES NOT INVOKE
 // ============================================================
@@ -508,7 +482,7 @@ describe('field existence checks', () => {
   it.each([
     ['literal', '$d.?prop'],
     ['variable', '"prop" => $k\n$d.?$k'],
-    ['computed', '$d.?("prop")'],
+    ['bracket', '$d.?["prop"]'],
   ])('does not invoke a property callable for a %s key', async (_, source) => {
     const counter = { calls: 0 };
     const result = await run(source, {
@@ -544,14 +518,6 @@ describe('declared type projection', () => {
     expect(await run(`${DECL}"a" => $k\n$d.$k.^type == ${U}`)).toBe(true);
   });
 
-  it('projects the declared type for an alternative key', async () => {
-    expect(await run(`${DECL}$d.(z || a).^type == ${U}`)).toBe(true);
-  });
-
-  it('projects the declared type for a computed key', async () => {
-    expect(await run(`${DECL}$d.("a").^type == ${U}`)).toBe(true);
-  });
-
   it('projects the declared type for a bracket key', async () => {
     expect(await run(`${DECL}$d["a"].^type == ${U}`)).toBe(true);
   });
@@ -561,7 +527,7 @@ describe('declared type projection', () => {
   });
 
   it('locks a capture from any access form to the declared type', async () => {
-    for (const read of ['$d.a', '$d.("a")', '"a" -> $d', '$d["a"]']) {
+    for (const read of ['$d.a', '$d["a"]', '"a" -> $d']) {
       expect(await run(`${DECL}${read} => $v\n"x" => $v\n$v`)).toBe('x');
     }
   });
@@ -571,8 +537,7 @@ describe('declared type projection', () => {
     expect(await run(`${DECL}"a" => $k\n$d.$k.^effective == number`)).toBe(
       true
     );
-    expect(await run(`${DECL}$d.(z || a).^effective == number`)).toBe(true);
-    expect(await run(`${DECL}$d.("a").^effective == number`)).toBe(true);
+    expect(await run(`${DECL}$d["a"].^effective == number`)).toBe(true);
     expect(await run(`${DECL}"a" -> $d => $v\n$v.^effective == number`)).toBe(
       true
     );

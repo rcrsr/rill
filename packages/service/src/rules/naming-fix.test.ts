@@ -167,7 +167,7 @@ describe('NAMING_SNAKE_CASE fix: withheld on ambiguous binding identity', () => 
 
 describe('NAMING_SNAKE_CASE fix: dict key withheld on dynamic field access', () => {
   it('withholds the fix when the script has computed field access anywhere', () => {
-    const source = 'dict[camelKey: 1] => $c\n"camelKey" => $k\n$c.($k)\n';
+    const source = 'dict[camelKey: 1] => $c\n"camelKey" => $k\n$c[$k]\n';
     const parsed = parse(source);
 
     const result = runRules(parsed, source, createDefaultConfig(), [

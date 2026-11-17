@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Dynamic Existence Check
  * Tests for dynamic existence check patterns including type qualifiers,
@@ -6,6 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Dynamic Existence Check', () => {
@@ -129,7 +131,7 @@ describe('Dynamic Existence Check', () => {
     it('checks existence using computed expression', async () => {
       const result = await run(`
         dict[name: "alice", age: 30] => $data
-        $data.?("name")
+        $data.?["name"]
       `);
       expect(result).toBe(true);
     });
@@ -137,7 +139,7 @@ describe('Dynamic Existence Check', () => {
     it('returns false for computed key that does not exist', async () => {
       const result = await run(`
         dict[name: "alice"] => $data
-        $data.?("missing")
+        $data.?["missing"]
       `);
       expect(result).toBe(false);
     });
@@ -146,7 +148,7 @@ describe('Dynamic Existence Check', () => {
       const result = await run(`
         dict[name_first: "alice"] => $data
         "name" => $prefix
-        $data.?("{$prefix}_first")
+        $data.?["{$prefix}_first"]
       `);
       expect(result).toBe(true);
     });
@@ -156,7 +158,7 @@ describe('Dynamic Existence Check', () => {
     it('AC-5: returns false when computed field exists but type does not match', async () => {
       const result = await run(`
         dict[x: 1] => $data
-        $data.?("x")&string
+        $data.?["x"]&string
       `);
       expect(result).toBe(false);
     });
@@ -164,7 +166,7 @@ describe('Dynamic Existence Check', () => {
     it('returns true when computed field exists and type matches', async () => {
       const result = await run(`
         dict[x: 1] => $data
-        $data.?("x")&number
+        $data.?["x"]&number
       `);
       expect(result).toBe(true);
     });
@@ -172,7 +174,7 @@ describe('Dynamic Existence Check', () => {
     it('IC-8: returns true for computed dict type match', async () => {
       const result = await run(`
         dict[x: dict[a: 1]] => $data
-        $data.?("x")&dict
+        $data.?["x"]&dict
       `);
       expect(result).toBe(true);
     });
@@ -180,7 +182,7 @@ describe('Dynamic Existence Check', () => {
     it('returns false when computed field does not exist', async () => {
       const result = await run(`
         dict[x: 1] => $data
-        $data.?("y")&number
+        $data.?["y"]&number
       `);
       expect(result).toBe(false);
     });
@@ -251,153 +253,35 @@ describe('Dynamic Existence Check', () => {
       });
     });
 
-    describe('EC-10: Variable field name number/boolean is type-aware', () => {
-      it('AC-10: number variable key resolves against typed keys', async () => {
-        // A number variable key is type-aware: absent on a string-keyed dict,
-        // present when the dict carries that number key.
-        expect(
-          await run(`
-            42 => $n
-            dict[x: 1] => $data
-            $data.?$n
-          `)
-        ).toBe(false);
-        expect(
-          await run(`
-            42 => $n
-            dict[42: "answer"] => $data
-            $data.?$n
-          `)
-        ).toBe(true);
-      });
+    describe('A non-string selector on a dict halts #TYPE_MISMATCH', () => {
+      const cases: ReadonlyArray<readonly [string, string, string]> = [
+        ['number variable', '42 => $k\n$data.?$k', 'number'],
+        ['bool variable', 'true => $k\n$data.?$k', 'bool'],
+        ['list variable', 'list[1, 2, 3] => $k\n$data.?$k', 'list'],
+        ['dict variable', 'dict[a: 1] => $k\n$data.?$k', 'dict'],
+        ['number bracket', '$data.?[42]', 'number'],
+        ['bool bracket', '$data.?[true]', 'bool'],
+        ['list bracket', '$data.?[list[1, 2]]', 'list'],
+        ['dict bracket', '$data.?[dict[a: 1]]', 'dict'],
+        ['typed number bracket', '$data.?[42]&number', 'number'],
+      ];
 
-      it('boolean variable key resolves against typed keys', async () => {
-        expect(
-          await run(`
-            true => $b
-            dict[x: 1] => $data
-            $data.?$b
-          `)
-        ).toBe(false);
-        expect(
-          await run(`
-            true => $b
-            dict[true: "yes"] => $data
-            $data.?$b
-          `)
-        ).toBe(true);
-      });
+      for (const [label, body, actual] of cases) {
+        rule(
+          'selection.key-type',
+          'existence.bracket',
+          'existence.key-type'
+        ).it(`halts for a ${label}`, async () => {
+          await expectHalt(() => run(`dict[x: 1] => $data\n${body}`), {
+            code: 'TYPE_MISMATCH',
+            messagePattern: `Dict key must be string, got ${actual}`,
+          });
+        });
+      }
 
-      it('throws when variable contains list', async () => {
-        await expectHalt(
-          () =>
-            run(`
-            list[1, 2, 3] => $list
-            dict[x: 1] => $data
-            $data.?$list
-          `),
-          {
-            code: 'RILL_R002',
-            hostErrorId: 'RILL-R002',
-            messagePattern: 'Existence check key must be string, got list',
-          }
-        );
-      });
-
-      it('throws when variable contains dict', async () => {
-        await expectHalt(
-          () =>
-            run(`
-            dict[a: 1] => $dict
-            dict[x: 1] => $data
-            $data.?$dict
-          `),
-          {
-            code: 'RILL_R002',
-            hostErrorId: 'RILL-R002',
-            messagePattern: 'Existence check key must be string, got dict',
-          }
-        );
-      });
-    });
-
-    describe('EC-11: Computed number/boolean key is type-aware', () => {
-      it('number computed key resolves against typed keys', async () => {
-        expect(
-          await run(`
-            dict[x: 1] => $data
-            $data.?(42)
-          `)
-        ).toBe(false);
-        expect(
-          await run(`
-            dict[42: "answer"] => $data
-            $data.?(42)
-          `)
-        ).toBe(true);
-      });
-
-      it('boolean computed key resolves against typed keys', async () => {
-        expect(
-          await run(`
-            dict[x: 1] => $data
-            $data.?(true)
-          `)
-        ).toBe(false);
-        expect(
-          await run(`
-            dict[true: "yes"] => $data
-            $data.?(true)
-          `)
-        ).toBe(true);
-      });
-
-      it('throws when computed expression evaluates to list', async () => {
-        await expectHalt(
-          () =>
-            run(`
-            dict[x: 1] => $data
-            $data.?(list[1, 2])
-          `),
-          {
-            code: 'RILL_R002',
-            hostErrorId: 'RILL-R002',
-            messagePattern:
-              'Existence check key evaluated to list, expected string',
-          }
-        );
-      });
-
-      it('throws when computed expression evaluates to dict', async () => {
-        await expectHalt(
-          () =>
-            run(`
-            dict[x: 1] => $data
-            $data.?(dict[a: 1])
-          `),
-          {
-            code: 'RILL_R002',
-            hostErrorId: 'RILL-R002',
-            messagePattern:
-              'Existence check key evaluated to dict, expected string',
-          }
-        );
-      });
-
-      it('type-qualified check with a number key verifies the typed value', async () => {
-        // Absent number key -> false; present number key with matching type -> true.
-        expect(
-          await run(`
-            dict[x: 1] => $data
-            $data.?(42)&number
-          `)
-        ).toBe(false);
-        expect(
-          await run(`
-            dict[42: 7] => $data
-            $data.?(42)&number
-          `)
-        ).toBe(true);
+      it('string bracket selectors probe present and absent keys', async () => {
+        expect(await run('dict[x: 1] => $data\n$data.?["x"]')).toBe(true);
+        expect(await run('dict[x: 1] => $data\n$data.?["y"]')).toBe(false);
       });
     });
   });
@@ -416,7 +300,7 @@ describe('Dynamic Existence Check', () => {
       it('returns false for computed key on empty dict', async () => {
         const result = await run(`
           list[] => $empty
-          $empty.?("x")
+          $empty.?["x"]
         `);
         expect(result).toBe(false);
       });
@@ -444,7 +328,7 @@ describe('Dynamic Existence Check', () => {
       it('returns false for computed key on string', async () => {
         const result = await run(`
           "string" => $str
-          $str.?("x")
+          $str.?["x"]
         `);
         expect(result).toBe(false);
       });
@@ -461,7 +345,7 @@ describe('Dynamic Existence Check', () => {
       it('returns false for computed key on number', async () => {
         const result = await run(`
           42 => $num
-          $num.?("x")
+          $num.?["x"]
         `);
         expect(result).toBe(false);
       });
@@ -478,7 +362,7 @@ describe('Dynamic Existence Check', () => {
       it('returns false for computed key on boolean', async () => {
         const result = await run(`
           false => $bool
-          $bool.?("x")
+          $bool.?["x"]
         `);
         expect(result).toBe(false);
       });
@@ -495,7 +379,7 @@ describe('Dynamic Existence Check', () => {
       it('returns false for computed key on list', async () => {
         const result = await run(`
           list[1, 2, 3] => $list
-          $list.?("x")
+          $list.?["x"]
         `);
         expect(result).toBe(false);
       });
@@ -524,7 +408,7 @@ describe('Dynamic Existence Check', () => {
     it('handles computed empty string', async () => {
       const result = await run(`
         dict["": "value"] => $data
-        $data.?("")
+        $data.?[""]
       `);
       expect(result).toBe(true);
     });
@@ -620,7 +504,7 @@ describe('Dynamic Existence Check', () => {
       it('creates dict with computed key and checks existence with same computed expression', async () => {
         const result = await run(`
           dict[_static: 0, ("a" -> .upper): 1] => $dict
-          $dict.?("a" -> .upper)
+          $dict.?["a" -> .upper]
         `);
         expect(result).toBe(true);
       });
@@ -629,7 +513,7 @@ describe('Dynamic Existence Check', () => {
         const result = await run(`
           "test" => $base
           dict[_static: 0, ($base -> .upper): 1] => $dict
-          $dict.?("TEST")
+          $dict.?["TEST"]
         `);
         expect(result).toBe(true);
       });
@@ -638,7 +522,7 @@ describe('Dynamic Existence Check', () => {
         const result = await run(`
           2 => $base
           dict[_static: 0, (($base + 3) -> string): "five"] => $dict
-          $dict.?(5 -> string)
+          $dict.?[5 -> string]
         `);
         expect(result).toBe(true);
       });
@@ -647,7 +531,7 @@ describe('Dynamic Existence Check', () => {
         const result = await run(`
           true => $flag
           dict[_static: 0, ($flag ? "yes" ! "no"): "value"] => $dict
-          $dict.?("yes")
+          $dict.?["yes"]
         `);
         expect(result).toBe(true);
       });
@@ -655,7 +539,7 @@ describe('Dynamic Existence Check', () => {
       it('creates dict with computed key and verifies type-qualified existence', async () => {
         const result = await run(`
           dict[_static: 0, ("KEY" -> .lower): 42] => $dict
-          $dict.?("key")&number
+          $dict.?["key"]&number
         `);
         expect(result).toBe(true);
       });
@@ -664,7 +548,7 @@ describe('Dynamic Existence Check', () => {
         const result = await run(`
           "  key  " => $raw
           dict[_static: 0, ($raw -> .trim -> .upper): "cleaned"] => $dict
-          $dict.?("KEY")
+          $dict.?["KEY"]
         `);
         expect(result).toBe(true);
       });
@@ -684,7 +568,7 @@ describe('Dynamic Existence Check', () => {
       it('creates nested dict with computed keys and checks nested existence', async () => {
         const result = await run(`
           dict[_static: 0, ("a" -> .upper): dict[_nested: 0, ("b" -> .upper): 1]] => $dict
-          $dict.("A").?("B")
+          $dict["A"].?["B"]
         `);
         expect(result).toBe(true);
       });
@@ -693,7 +577,7 @@ describe('Dynamic Existence Check', () => {
         const result = await run(`
           "level1" => $k1
           dict[_static: 0, $k1: dict[_nested: 0, ("level2" -> .upper): "value"]] => $dict
-          $dict.$k1.?("LEVEL2")
+          $dict.$k1.?["LEVEL2"]
         `);
         expect(result).toBe(true);
       });
@@ -713,7 +597,7 @@ describe('Dynamic Existence Check', () => {
         const result = await run(`
           "data" => $navKey
           dict[_static: 0, $navKey: dict[_nested: 0, ("field" -> .upper): 1]] => $dict
-          $dict.$navKey.?("FIELD")
+          $dict.$navKey.?["FIELD"]
         `);
         expect(result).toBe(true);
       });
@@ -731,7 +615,7 @@ describe('Dynamic Existence Check', () => {
         const result = await run(`
           "outer" => $varKey
           dict[_static: 0, $varKey: dict[_nested: 0, ("inner" -> .upper): 42]] => $dict
-          $dict.$varKey.?("INNER")&number
+          $dict.$varKey.?["INNER"]&number
         `);
         expect(result).toBe(true);
       });
@@ -769,7 +653,7 @@ describe('Dynamic Existence Check', () => {
           () =>
             run(`
               dict[_static: 0, (42): 1] => $dict
-              $dict.?(42)
+              $dict.?[42]
             `),
           {
             code: 'RILL_R002',

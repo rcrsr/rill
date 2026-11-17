@@ -448,25 +448,20 @@ export interface DictKeyComputed {
 
 export interface DictEntryNode extends BaseNode {
   readonly type: 'DictEntry';
-  readonly key:
-    | string
-    | number
-    | boolean
-    | ListLiteralNode
-    | DictKeyVariable
-    | DictKeyComputed;
+  readonly key: string | ListLiteralNode | DictKeyVariable | DictKeyComputed;
   readonly value: ExpressionNode;
   /**
-   * Present only for string keys that came directly from source syntax as either an
-   * IDENTIFIER token or a quoted STRING token. Reflects the syntactic form used at the call
-   * site: `'identifier'` for bare-identifier keys (`[name: "x"]`) and `'string'` for
-   * quoted-string keys (`["name": "x"]` or `dict["name": "x"]`).
+   * Present only for string keys that came directly from source syntax as an
+   * IDENTIFIER, quoted STRING, number, or boolean token. Reflects the syntactic form used at
+   * the call site: `'identifier'` for bare-identifier keys (`dict[name: "x"]`), `'string'` for
+   * quoted-string keys (`dict["name": "x"]`), and `'number'` or `'bool'` for numeric and
+   * boolean keys, which are stored as the string of their source spelling.
    *
    * Not all string-valued keys have `keyForm`; some internal or synthesized string keys
    * intentionally omit it (for example the `'...'` key used to encode spread entries). This
    * is metadata for downstream tools and does not affect runtime semantics.
    */
-  readonly keyForm?: 'identifier' | 'string';
+  readonly keyForm?: 'identifier' | 'string' | 'number' | 'bool';
 }
 
 /**
@@ -642,7 +637,7 @@ export interface ExistenceCheck {
    * The final field/index being checked for existence, or null for a bare
    * `.?` probe that checks the validity of the receiver itself.
    */
-  readonly finalAccess: FieldAccess | null;
+  readonly finalAccess: PropertyAccess | null;
   /** Optional type check: returns true only if exists AND matches type */
   readonly typeRef: TypeRef | null;
 }
@@ -653,18 +648,14 @@ export interface ExistenceCheck {
  * Access forms:
  * - literal: .identifier (string key)
  * - variable: .$var (variable as key)
- * - computed: .(expr) (computed expression)
- * - block: .{block} (block returning key)
- * - alternatives: .(a || b) (try keys left-to-right)
+ * - annotation: .^key (annotation reflection)
  *
- * Note: Numeric indices use bracket syntax [0], [-1] instead of dot.
+ * Computed selectors use bracket syntax `[expr]` (see BracketAccess), and
+ * `.?[expr]` probes one. Numeric indices use the same bracket form.
  */
 export type FieldAccess =
   | FieldAccessLiteral
   | FieldAccessVariable
-  | FieldAccessComputed
-  | FieldAccessBlock
-  | FieldAccessAlternatives
   | FieldAccessAnnotation;
 
 /** Literal field access: .identifier */
@@ -681,26 +672,6 @@ export interface FieldAccessVariable {
   readonly variableName: string | null; // null for pipe variable ($)
   /** Source span from the . token through the variable-name token */
   readonly span: SourceSpan;
-}
-
-/** Computed expression: .(expr) */
-export interface FieldAccessComputed {
-  readonly kind: 'computed';
-  readonly expression: ExpressionNode;
-  /** Source span from the . token through the closing ) token */
-  readonly span: SourceSpan;
-}
-
-/** Block returning key: .{block} */
-export interface FieldAccessBlock {
-  readonly kind: 'block';
-  readonly block: BlockNode;
-}
-
-/** Alternatives (try keys left-to-right): .(a || b) */
-export interface FieldAccessAlternatives {
-  readonly kind: 'alternatives';
-  readonly alternatives: string[];
 }
 
 /** Annotation reflection: .^key */

@@ -151,7 +151,7 @@ dict[
   list["a", "b"]: 3
 ] => $d
 
-$d.name[0].(1 + 1).{"lit"} => $chain
+$d.name[0][1 + 1]["lit"] => $chain
 
 $x -> .eq("start") ? "yes" ! "no" => $cond
 
@@ -199,9 +199,7 @@ $f(1)
 1 -> $f
 1 -> $(2)
 $f.^note
-$d.("a")
-$d.{"a"}
-$d.(a || b)
+$d["a"]
 $d.^note
 $d.?a&string
 (list[1, 2])[0]
@@ -299,12 +297,12 @@ describe('walkAst', () => {
   it('visits the computed-key expression nested inside a PostfixExpr terminal existence check', () => {
     // Regression: astChildren() previously never descended into
     // PostfixExprNode.existenceCheck (finalAccess / typeRef), so an
-    // expression nested inside a computed key on a postfix `.?(...)`
-    // (index-then-existence-check, e.g. `list[1][0].?("k")`) was
+    // expression nested inside a computed key on a postfix `.?[...]`
+    // (index-then-existence-check, e.g. `list[1][0].?["k"]`) was
     // unreachable. The only StringLiteral in this fixture is the nested
     // computed-key expression, so finding it at all proves descent reached
     // existenceCheck.finalAccess.
-    const source = `list[1][0].?("k")`;
+    const source = `list[1][0].?["k"]`;
     const ast = parse(source);
 
     const oracle = [...collectNodesReflectively(ast)] as ASTNode[];
@@ -489,7 +487,7 @@ describe('nodeAtPosition', () => {
   });
 
   it('descends through computed field access to find the inner expression', () => {
-    const source = `$data.(1 + 1).name`;
+    const source = `$data[1 + 1].name`;
     const ast = parse(source);
 
     const oracle = [...collectNodesReflectively(ast)] as ASTNode[];
@@ -510,35 +508,23 @@ describe('nodeAtPosition', () => {
     expect(found).not.toBe(postfixExpr);
   });
 
-  it('returns the enclosing Variable for an offset on a computed field-access delimiter', () => {
-    // Regression: FieldAccessComputed carries its own span (the `.` token
-    // through the closing `)`), which is wider than its inner expression's
-    // span. An offset on the delimiter itself (here the opening `.(`) is
-    // inside FieldAccessComputed.span but outside the inner expression's
-    // span, and must still resolve to the owning VariableNode rather than
-    // falling through to an outer ancestor.
-    const source = `$data.(1 + 1)`;
+  it('returns the enclosing Variable for an offset on a bracket-access delimiter', () => {
+    // Regression: a bracket access carries its own span (the `[` token
+    // through the closing `]`), which is wider than its inner expression's
+    // span. An offset on the delimiter itself (here the opening `[`) is
+    // inside the access span but outside the inner expression's span, and
+    // must still resolve to the owning VariableNode rather than falling
+    // through to an outer ancestor.
+    const source = `$data[1 + 1]`;
     const ast = parse(source);
 
     const oracle = [...collectNodesReflectively(ast)] as ASTNode[];
     const variableNode = oracle.find((node) => node.type === 'Variable');
     expect(variableNode).toBeDefined();
 
-    const delimiterOffset = source.indexOf('.(');
+    const delimiterOffset = source.indexOf('[');
     const found = nodeAtPosition(ast, delimiterOffset);
     expect(found).toBe(variableNode);
-  });
-
-  it('descends through block field access to find a node inside the block', () => {
-    const source = `$data.{"lit"}`;
-    const ast = parse(source);
-
-    const oracle = [...collectNodesReflectively(ast)] as ASTNode[];
-    const stringLiteral = oracle.find((node) => node.type === 'StringLiteral');
-    expect(stringLiteral).toBeDefined();
-
-    const found = nodeAtPosition(ast, stringLiteral!.span.start.offset);
-    expect(found).toBe(stringLiteral);
   });
 
   it('returns the enclosing Variable for an offset over a span-less literal field-access segment without crashing', () => {

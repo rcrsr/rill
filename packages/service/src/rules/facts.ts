@@ -292,19 +292,18 @@ function hasBracketAccessSelf(node: ASTNode): boolean {
 
 /**
  * True for a Variable node whose access chain contains a dynamically-keyed
- * field access: `computed` (`.($expr)`), `variable` (`.$var`), or `block`
- * (`.{...}`) kind. Excludes `alternatives` (`.a|b|c`) deliberately - those
- * keys are static identifiers known at parse time, so they carry no dynamic
- * field name and are out of scope for this fact.
+ * access: a `variable` field access (`.$var`) or any bracket access
+ * (`[expr]`), including a bracket probe on the existence check (`.?[expr]`).
  */
 function hasDynamicFieldAccessSelf(node: ASTNode): boolean {
   if (node.type !== 'Variable') return false;
+  const final = node.existenceCheck?.finalAccess;
+  if (final !== undefined && final !== null && 'accessKind' in final) {
+    return true;
+  }
   return node.accessChain.some(
     (access) =>
-      'kind' in access &&
-      (access.kind === 'computed' ||
-        access.kind === 'variable' ||
-        access.kind === 'block')
+      'accessKind' in access || ('kind' in access && access.kind === 'variable')
   );
 }
 

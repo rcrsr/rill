@@ -11,7 +11,6 @@ import { resolvePolicy } from '../../../src/runtime/core/policy/config-resolver.
 import { createConfigFilterResolver } from '../../../src/runtime/core/policy/resolve.js';
 import { extResolver } from '../../../src/runtime/core/resolvers.js';
 import { toCallable } from '../../../src/runtime/core/callable.js';
-import { setTypedKey } from '../../../src/runtime/core/types/dict-keys.js';
 import { anyTypeValue } from '../../../src/runtime/core/values.js';
 import type { FilterResolver } from '../../../src/index.js';
 import type { PolicyConfig } from '../../../src/runtime/core/policy/types.js';
@@ -1148,21 +1147,22 @@ describe('filter integration: callables returned at call time', () => {
     );
   });
 
-  it('brands callables under number and boolean dict keys', async () => {
-    const typed = {} as Record<string, RillValue>;
-    setTypedKey(typed, 1, method('purged'));
-    setTypedKey(typed, true, method('purged'));
+  it('brands callables under number-spelled and boolean-spelled dict keys', async () => {
+    const typed: Record<string, RillValue> = {
+      '1': method('purged'),
+      true: method('purged'),
+    };
     const ctx = buildContext(
       { kb: { '*': { access: 'deny' }, t: { access: 'allow' } } },
       { kb: { t: producer(() => typed) } }
     );
     await expectHalt(
-      () => execute(parse('use<ext:kb> => $kb\n$kb.t() => $t\n$t[1]()'), ctx),
+      () => execute(parse('use<ext:kb> => $kb\n$kb.t() => $t\n$t["1"]()'), ctx),
       { code: 'RILL_R088' }
     );
     await expectHalt(
       () =>
-        execute(parse('use<ext:kb> => $kb\n$kb.t() => $t\n$t[true]()'), ctx),
+        execute(parse('use<ext:kb> => $kb\n$kb.t() => $t\n$t["true"]()'), ctx),
       { code: 'RILL_R088' }
     );
   });

@@ -122,7 +122,7 @@ describe('createTestContext: eager-parse safety net', () => {
     });
 
     const result = await execInContext(
-      'use<module:ext> => $m\n$m.("user-id")',
+      'use<module:ext> => $m\n$m["user-id"]',
       ctx
     );
     expect(result).toBe('abc-123');

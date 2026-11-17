@@ -223,7 +223,7 @@ See [Collections](topic-collections.md) for iteration operators.
 
 ## Dicts
 
-Key-value mappings with identifier, number, boolean, variable, or computed keys. The bare `[k: v]` form and the keyword `dict[...]` form are equivalent; `dict[...]` is canonical.
+Key-value mappings with string keys written as identifier, number, boolean, variable, or computed keys. The bare `[k: v]` form and the keyword `dict[...]` form are equivalent; `dict[...]` is canonical.
 
 ```rill
 [name: "alice", age: 30]         # bare form
@@ -239,90 +239,90 @@ $person.name               # "alice"
 $person.age                # 30
 ```
 
-```text
-# Number keys (including negative)
+```rill
+# Number and boolean keys are string keys spelled differently
 [1: "one", 2: "two", -1: "minus one"] => $numbers
-1 -> $numbers              # "one"
-(-1) -> $numbers           # "minus one"
-
-# Boolean keys
 [true: "yes", false: "no"] => $yesno
-true -> $yesno             # "yes"
+list[$numbers["1"], $numbers["-1"], $yesno["true"]]
+# Result: list["one", "minus one", "yes"]
+```
 
-# Variable keys (key value from variable, must be string)
+```rill
+# Variable and computed keys must evaluate to strings
 "status" => $key
-[$key: "active"]       # dict[status: "active"]
-
-# Computed keys (key from expression, must be string)
 "user" => $prefix
-[($prefix -> "{$}_name"): "alice"]  # dict[user_name: "alice"]
+list[dict[$key: "active"], dict[($prefix -> "{$}_name"): "alice"]]
+# Result: list[dict[status: "active"], dict[user_name: "alice"]]
+```
 
+```rill
 # Multi-key syntax (same value for multiple keys)
-[["a", "b"]: 1]    # dict[a: 1, b: 1]
-[[1, "1"]: "x"]    # dict[1: "x", "1": "x"] (mixed types)
-[a: 0, ["b", "c"]: 1]  # dict[a: 0, b: 1, c: 1] (mixed entries)
-[a: 0, ["a", "b"]: 1]  # dict[a: 1, b: 1] (last-write-wins)
+[a: 0, ["b", "c"]: 1]
+# Result: dict[a: 0, b: 1, c: 1]
+```
 
+```rill
 # Multi-key dispatch
 [["GET", "HEAD"]: "safe", list["POST", "PUT"]: "unsafe"] => $methods
-"GET" -> $methods          # "safe"
-"POST" -> $methods         # "unsafe"
+"GET" -> $methods
+# Result: "safe"
 ```
 
 Multi-key errors:
 
 ```text
-[[]: 1]            # Error: Multi-key dict entry requires non-empty list
-[[list[1, 2], "a"]: 1]  # Error: Dict key must be string, number, or boolean, got list
+[[]: 1]            # Error: RILL-R002 Multi-key dict entry requires non-empty list
+[[list[1, 2], "a"]: 1]  # Error: RILL-R002 Dict key must be string, number, or boolean, got object
 ```
 
-**Access patterns:**
-- `.field`: Literal field access (identifier keys only)
-- `.$key`: Variable as key
-- `.($i + 1)`: Computed expression as key
-- `.(a || b)`: Alternatives (try keys left-to-right)
-- `.field ?? default`: Default value if missing
-- `.?field`: Existence check, literal key (returns bool)
-- `.?$key`: Existence check, variable key
-- `.?($expr)`: Existence check, computed key
-- `.?field&type`: Existence + type check (all forms support `&type`)
-
-**Note:** Number and boolean keys require dispatch syntax (`value -> dict`) or bracket access. Dot notation (`.1`, `.true`) is not valid syntax.
+**Note:** Dot notation for a number spelling (`.1`) is not valid syntax; see [Operators](topic-operators.md) for access forms. Reach a number-spelled key with `["1"]`, and a boolean-spelled key with `["true"]` or `.true`.
 
 **Missing key access** throws an error. Use `??` for safe access:
 
 ```rill
 [:] => $d
-$d.missing ?? ""           # "" (safe default)
-```
-
-`??` on a dict recovers only an absent string key. A number or bool key is a wrong key, so it halts with or without `??`:
-
-```rill
-dict[a: 1] => $d
-$d[1] ?? 0
-# Error: RILL-R009
+$d.missing ?? ""
+# Result: ""
 ```
 
 `??` recovers only the last step of a chain, so `$d.x.y ?? 0` with `.x` missing halts `RILL-R009`.
 
-### Type-Aware Dispatch
+### Dict Keys Are Strings
 
-Dict dispatch uses type-aware matching. Keys are matched by both value and type:
+Every dict key is a string. A number or boolean key in a literal names the string of its spelling, so `[1: "one"]` and `["1": "one"]` are the same dict. Writing the same key twice halts at parse time with `RILL-P027`, including `[1: "a", "1": "b"]`.
 
-```text
-# Number vs string discrimination
-[1: "number one", "1": "string one"] => $mixed
-1 -> $mixed                # "number one" (number key)
-"1" -> $mixed              # "string one" (string key)
-
-# Boolean vs string discrimination
-[true: "bool true", "true": "string true"] => $flags
-true -> $flags             # "bool true" (boolean key)
-"true" -> $flags           # "string true" (string key)
+```rill
+[1: "one", true: "yes"] -> .keys
+# Result: list["1", "true"]
 ```
 
-This enables pattern matching where the same semantic value (e.g., `1` vs `"1"`) triggers different behavior based on type.
+```text
+dict[a: 1, a: 2]    # Error: RILL-P027 Duplicate key 'a' in dict
+dict[1: "a", "1": "b"]    # Error: RILL-P027 Duplicate key '1' in dict
+```
+
+A selector that reads a plain dict must be a string. A number or bool selector halts catchable `#TYPE_MISMATCH` in bracket access, `.$k`, `.?$k`, `.?[expr]`, pipe dispatch, and hierarchical dispatch. `??` does not recover it, because the selector is wrong rather than absent.
+
+```rill
+dict[a: 1] => $d
+guard { $d[1] } => $r
+$r.!message
+# Result: "Dict key must be string, got number"
+```
+
+```rill
+dict[a: 1] => $d
+$d[1] ?? 0
+# Error: #TYPE_MISMATCH
+```
+
+Convert a number or bool selector with `-> string`:
+
+```rill
+[1: "one", 2: "two"] => $d
+2 -> string -> $d
+# Result: "two"
+```
 
 ### Dict Methods
 
@@ -330,7 +330,7 @@ This enables pattern matching where the same semantic value (e.g., `1` vs `"1"`)
 |--------|-------------|
 | `.keys` | All keys as list |
 | `.values` | All values as list |
-| `.entries` | List of `[key, value]` pairs |
+| `.entries` | List of `tuple(string, V)` pairs |
 
 `.keys`, `.values`, and `.entries` all return dict's canonical order (see Ordered, below).
 
@@ -339,7 +339,7 @@ On a non-dict receiver (tuple, stream, string, number, and so on) they halt `RIL
 ```rill
 [name: "test", count: 42] -> .keys      # ["count", "name"]
 [name: "test", count: 42] -> .values    # [42, "test"]
-[a: 1, b: 2] -> .entries                # [list["a", 1], list["b", 2]]
+[a: 1, b: 2] -> .entries                # list[tuple["a", 1], tuple["b", 2]]
 ```
 
 **Reserved methods** (`keys`, `values`, `entries`) cannot be used as dict keys.
@@ -437,7 +437,7 @@ $o.?a
 # Result: true
 ```
 
-Key order in `ordered` is the insertion order. `dict` has no insertion order to preserve; it iterates in a canonical order instead — string keys sorted lexically, then number keys ascending, then boolean keys with `false` before `true`.
+Key order in `ordered` is the insertion order. `dict` has no insertion order to preserve; it iterates in a canonical order instead: keys sorted by UTF-16 code unit.
 
 `ordered` converts to a plain object via `toNative()`. The `NativeResult.value` field holds `{ key: value, ... }`.
 

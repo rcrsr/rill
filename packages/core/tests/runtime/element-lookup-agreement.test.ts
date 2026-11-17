@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Every access form finds the same element and projects the same type.
  *
@@ -11,6 +12,7 @@
 import { describe, expect, it } from 'vitest';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 // ============================================================
 // FORMS
@@ -19,8 +21,6 @@ import { expectHalt } from '../helpers/halt.js';
 type Form =
   | 'literal'
   | 'variable key'
-  | 'computed key'
-  | 'alternatives'
   | 'bracket'
   | 'pipe method'
   | 'pipe selection'
@@ -40,10 +40,6 @@ function readOf(
       return { prelude: '', expr: `$c.${name}` };
     case 'variable key':
       return { prelude: `${key} => $k\n`, expr: '$c.$k' };
-    case 'computed key':
-      return { prelude: '', expr: `$c.(${key})` };
-    case 'alternatives':
-      return { prelude: '', expr: `$c.(y || ${name})` };
     case 'bracket':
       return { prelude: '', expr: `$c[${key}]` };
     case 'pipe method':
@@ -105,8 +101,6 @@ interface Hit extends Receiver {
 const NAMED: readonly Form[] = [
   'literal',
   'variable key',
-  'computed key',
-  'alternatives',
   'bracket',
   'pipe method',
 ];
@@ -119,7 +113,6 @@ const ORDERED_NAMED: readonly Form[] = [
 
 const POSITIONAL: readonly Form[] = [
   'variable key',
-  'computed key',
   'bracket',
   'pipe selection',
 ];
@@ -180,7 +173,6 @@ const HITS: readonly Hit[] = [
     pattern: '$v, _',
     forms: [
       'variable key',
-      'computed key',
       'bracket',
       'pipe selection',
       'hierarchical',
@@ -194,13 +186,7 @@ const HITS: readonly Hit[] = [
     setup: `list[1, 2] => $c:list(${U})`,
     key: '-1',
     name: '',
-    forms: [
-      'variable key',
-      'computed key',
-      'bracket',
-      'pipe selection',
-      'hierarchical',
-    ],
+    forms: ['variable key', 'bracket', 'pipe selection', 'hierarchical'],
     value: 2,
     type: U,
   },
@@ -232,20 +218,20 @@ const HITS: readonly Hit[] = [
     type: 'number',
   },
   {
-    label: 'dict typed number key',
+    label: 'dict number-spelled key',
     setup: `dict[1: "x"] => $c:dict(${U})`,
-    key: '1',
+    key: '"1"',
     name: '',
-    forms: ['variable key', 'computed key', 'bracket', 'pipe selection'],
+    forms: ['variable key', 'bracket', 'pipe selection'],
     value: 'x',
     type: U,
   },
   {
-    label: 'dict typed bool key',
+    label: 'dict bool-spelled key',
     setup: `dict[true: "x"] => $c:dict(${U})`,
-    key: 'true',
+    key: '"true"',
     name: '',
-    forms: ['variable key', 'computed key', 'bracket', 'pipe selection'],
+    forms: ['variable key', 'bracket', 'pipe selection'],
     value: 'x',
     type: U,
   },
@@ -323,8 +309,6 @@ const MISSES: readonly Miss[] = [
     expected: {
       literal: R009("Dict has no field 'z'"),
       'variable key': R009("Dict has no field 'z'"),
-      'computed key': R009("Dict has no field 'z'"),
-      alternatives: R009("Dict has none of the fields 'y', 'z'"),
       bracket: R009('Undefined dict key: z'),
       'pipe method': R009("Dict has no field 'z'"),
       'pipe selection': R009("Dict dispatch: key 'z' not found"),
@@ -342,8 +326,6 @@ const MISSES: readonly Miss[] = [
     expected: {
       literal: R009('Undefined ordered key: z'),
       'variable key': R009('Undefined ordered key: z'),
-      'computed key': R009('Undefined ordered key: z'),
-      alternatives: R009("Dict has none of the fields 'y', 'z'"),
       bracket: R009('Undefined ordered key: z'),
       'pipe selection': R009('Undefined ordered key: z'),
     },
@@ -357,7 +339,6 @@ const MISSES: readonly Miss[] = [
     recovers: true,
     expected: {
       'variable key': R009('Ordered index out of bounds: 5'),
-      'computed key': R009('Ordered index out of bounds: 5'),
       bracket: R009('Ordered index out of bounds: 5'),
       'pipe selection': R009('Ordered index out of bounds: 5'),
     },
@@ -367,17 +348,10 @@ const MISSES: readonly Miss[] = [
     setup: `list[1, 2] => $c:list(${U})`,
     key: '5',
     name: '',
-    forms: [
-      'variable key',
-      'computed key',
-      'bracket',
-      'pipe selection',
-      'hierarchical',
-    ],
+    forms: ['variable key', 'bracket', 'pipe selection', 'hierarchical'],
     recovers: true,
     expected: {
       'variable key': R009('List index out of bounds: 5'),
-      'computed key': R009('List index out of bounds: 5'),
       bracket: R009('List index out of bounds: 5'),
       'pipe selection': R009('List index out of bounds: 5'),
       hierarchical: R009('List index out of bounds: 5'),
@@ -388,17 +362,10 @@ const MISSES: readonly Miss[] = [
     setup: `list[1, 2] => $c:list(${U})`,
     key: '-3',
     name: '',
-    forms: [
-      'variable key',
-      'computed key',
-      'bracket',
-      'pipe selection',
-      'hierarchical',
-    ],
+    forms: ['variable key', 'bracket', 'pipe selection', 'hierarchical'],
     recovers: true,
     expected: {
       'variable key': R009('List index out of bounds: -3'),
-      'computed key': R009('List index out of bounds: -3'),
       bracket: R009('List index out of bounds: -3'),
       'pipe selection': R009('List index out of bounds: -3'),
       hierarchical: R009('List index out of bounds: -3'),
@@ -409,17 +376,10 @@ const MISSES: readonly Miss[] = [
     setup: `list[1, 2] => $c:list(${U})`,
     key: '1.5',
     name: '',
-    forms: [
-      'variable key',
-      'computed key',
-      'bracket',
-      'pipe selection',
-      'hierarchical',
-    ],
+    forms: ['variable key', 'bracket', 'pipe selection', 'hierarchical'],
     recovers: false,
     expected: {
       'variable key': NOT_INT('List'),
-      'computed key': NOT_INT('List'),
       bracket: NOT_INT('List'),
       'pipe selection': NOT_INT('List'),
       hierarchical: NOT_INT('List'),
@@ -434,23 +394,8 @@ const MISSES: readonly Miss[] = [
     recovers: true,
     expected: {
       'variable key': R009('Tuple index out of bounds: 5'),
-      'computed key': R009('Tuple index out of bounds: 5'),
       bracket: R009('Tuple index out of bounds: 5'),
       'pipe selection': R009('Tuple index out of bounds: 5'),
-    },
-  },
-  {
-    label: 'dict missing typed number key',
-    setup: `dict[1: "x"] => $c:dict(${U})`,
-    key: '2',
-    name: '',
-    forms: ['variable key', 'computed key', 'bracket', 'pipe selection'],
-    recovers: false,
-    expected: {
-      'variable key': R009('Undefined dict key: 2'),
-      'computed key': R009('Undefined dict key: 2'),
-      bracket: R009('Undefined dict key: 2'),
-      'pipe selection': R009("Dict dispatch: key '2' not found"),
     },
   },
 ];
@@ -555,30 +500,32 @@ describe('element lookup: bracket default covers only the right-most access', ()
       expect(await run(`${r.dict}["z"] ?? 0`)).toBe(0);
     });
 
-    it('halts for an absent number key on a dict', async () => {
-      await expectHalt(() => run(`${r.dict}[2] ?? 0`), { code: 'RILL_R009' });
-    });
+    rule('selection.key-no-mask').it(
+      'halts #TYPE_MISMATCH for a number selector on a dict, even with a default',
+      async () => {
+        await expectHalt(() => run(`${r.dict}[2] ?? 0`), {
+          code: 'TYPE_MISMATCH',
+        });
+        await expectHalt(() => run(`${r.numDict}[1] ?? 0`), {
+          code: 'TYPE_MISMATCH',
+        });
+      }
+    );
 
-    it('halts for an absent bool key on a dict', async () => {
-      await expectHalt(() => run(`${r.dict}[true] ?? 0`), {
-        code: 'RILL_R009',
-      });
-    });
+    rule('selection.key-no-mask').it(
+      'halts #TYPE_MISMATCH for a bool selector on a dict, even with a default',
+      async () => {
+        await expectHalt(() => run(`${r.dict}[true] ?? 0`), {
+          code: 'TYPE_MISMATCH',
+        });
+        await expectHalt(() => run(`${r.numDict}[true] ?? 0`), {
+          code: 'TYPE_MISMATCH',
+        });
+      }
+    );
 
-    it('halts for an absent number key on a typed-key dict', async () => {
-      await expectHalt(() => run(`${r.numDict}[2] ?? 0`), {
-        code: 'RILL_R009',
-      });
-    });
-
-    it('halts for an absent bool key on a typed-key dict', async () => {
-      await expectHalt(() => run(`${r.numDict}[true] ?? 0`), {
-        code: 'RILL_R009',
-      });
-    });
-
-    it('returns the element for a present number key', async () => {
-      expect(await run(`${r.numDict}[1] ?? 0`)).toBe('x');
+    it('returns the element for the string spelling of a number key', async () => {
+      expect(await run(`${r.numDict}["1"] ?? 0`)).toBe('x');
     });
 
     it('returns the default for an out-of-range index', async () => {
@@ -625,25 +572,22 @@ describe('element lookup: bracket default covers only the right-most access', ()
 });
 
 describe('element lookup: existence check', () => {
-  const dynamicHits = HIT_CASES.filter(
-    (c) =>
-      c.form === 'computed key' && c.receiver.label !== 'dict typed bool key'
-  );
+  const dynamicHits = HIT_CASES.filter((c) => c.form === 'bracket');
 
   it.each(dynamicHits)(
     'answers true for $receiver.label found through .?',
     async (c) => {
-      expect(await run(`${c.receiver.setup}\n$c.?(${c.receiver.key})`)).toBe(
+      expect(await run(`${c.receiver.setup}\n$c.?[${c.receiver.key}]`)).toBe(
         true
       );
     }
   );
 
-  it.each(MISS_CASES.filter((c) => c.form === 'computed key'))(
+  it.each(MISS_CASES.filter((c) => c.form === 'bracket'))(
     'answers false for $receiver.label missed through .?',
     async (c) => {
       const fractional = c.receiver.label.includes('fractional');
-      const source = `${c.receiver.setup}\n$c.?(${c.receiver.key})`;
+      const source = `${c.receiver.setup}\n$c.?[${c.receiver.key}]`;
       if (fractional) {
         await expectHalt(() => run(source), { code: 'INVALID_INPUT' });
       } else {
@@ -703,27 +647,23 @@ describe('element lookup: selected callable', () => {
 });
 
 describe('element lookup: key identity', () => {
-  const SETUP = 'dict[1: "n", "1": "s"] => $c';
+  const SETUP = 'dict[1: "n", one: "s"] => $c';
 
   it.each([
-    ['number key', '1', 'n'],
-    ['string key', '"1"', 's'],
-  ])('keeps the %s distinct in every form', async (_label, key, value) => {
+    ['number-spelled key', '"1"', 'n'],
+    ['identifier key', '"one"', 's'],
+  ])('finds the %s in every form', async (_label, key, value) => {
     expect(await run(`${SETUP}\n${key} => $k\n$c.$k`)).toBe(value);
-    expect(await run(`${SETUP}\n$c.(${key})`)).toBe(value);
     expect(await run(`${SETUP}\n$c[${key}]`)).toBe(value);
     expect(await run(`${SETUP}\n${key} -> $c`)).toBe(value);
-    expect(await run(`${SETUP}\n$c.?(${key})`)).toBe(true);
+    expect(await run(`${SETUP}\n$c.?[${key}]`)).toBe(true);
   });
 
   it.each(['__proto__', 'constructor'])(
     'never finds the inherited member %s in any form',
     async (key) => {
       const setup = 'dict[a: 1] => $c';
-      expect(await run(`${setup}\n$c.?("${key}")`)).toBe(false);
-      await expectHalt(() => run(`${setup}\n$c.("${key}")`), {
-        code: 'RILL_R009',
-      });
+      expect(await run(`${setup}\n$c.?["${key}"]`)).toBe(false);
       await expectHalt(() => run(`${setup}\n$c["${key}"]`), {
         code: 'RILL_R009',
       });
@@ -738,10 +678,9 @@ describe('element lookup: key identity', () => {
 
   it('finds an own __proto__ field in every form', async () => {
     const setup = 'dict["__proto__": "p"] => $c';
-    expect(await run(`${setup}\n$c.("__proto__")`)).toBe('p');
     expect(await run(`${setup}\n$c["__proto__"]`)).toBe('p');
     expect(await run(`${setup}\n"__proto__" -> $c`)).toBe('p');
-    expect(await run(`${setup}\n$c.?("__proto__")`)).toBe(true);
+    expect(await run(`${setup}\n$c.?["__proto__"]`)).toBe(true);
   });
 });
 
@@ -749,8 +688,6 @@ describe('element lookup: type value receiver', () => {
   const FORMS: readonly string[] = [
     'string => $c\n$c.name',
     'string => $c\n"name" => $k\n$c.$k',
-    'string => $c\n$c.("name")',
-    'string => $c\n$c.(y || name)',
     'string => $c\n$c -> .name',
   ];
 
@@ -759,43 +696,84 @@ describe('element lookup: type value receiver', () => {
   });
 
   it('answers .? from the same lookup', async () => {
-    expect(await run('string => $c\n$c.?("name")')).toBe(true);
-    expect(await run('string => $c\n$c.?("bogus")')).toBe(false);
+    expect(await run('string => $c\n$c.?["name"]')).toBe(true);
+    expect(await run('string => $c\n$c.?["bogus"]')).toBe(false);
   });
 
   it('halts for a missing property in every read form', async () => {
-    for (const read of ['$c.bogus', '$c.("bogus")', '$c.(y || bogus)']) {
-      await expectHalt(() => run(`string => $c\n${read}`), {
-        code: 'RILL_R003',
-      });
-    }
+    await expectHalt(() => run('string => $c\n$c.bogus'), {
+      code: 'RILL_R003',
+    });
+  });
+
+  it('does not index a type value by bracket', async () => {
+    await expectHalt(() => run('string => $c\n$c["name"]'), {
+      code: 'RILL_R002',
+      messagePattern: 'Cannot index type',
+    });
   });
 });
 
 describe('element lookup: dispatch with a key that cannot address a field', () => {
   const KEYS = [
-    ['a tuple', 'tuple[1]'],
-    ['a dict', 'dict[a: 1]'],
-    ['a closure', '|x| ($x)'],
+    ['a tuple', 'tuple[1]', 'tuple'],
+    ['a dict', 'dict[a: 1]', 'dict'],
+    ['a closure', '|x| ($x)', 'closure'],
   ] as const;
 
-  describe.each(KEYS)('%s key', (_label, key) => {
-    it('halts without a default', async () => {
-      await expectHalt(() => run(`dict[a: 1] => $d\n${key} -> $d`), {
-        code: 'RILL_R009',
-        messagePattern: 'Dict dispatch',
-      });
-    });
+  describe.each(KEYS)('%s key', (_label, key, typeName) => {
+    rule('selection.key-type').it(
+      'halts #TYPE_MISMATCH without a default',
+      async () => {
+        await expectHalt(() => run(`dict[a: 1] => $d\n${key} -> $d`), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: `Dict key must be string, got ${typeName}`,
+        });
+      }
+    );
 
-    it('halts with a default', async () => {
-      await expectHalt(() => run(`dict[a: 1] => $d\n${key} -> $d ?? 9`), {
-        code: 'RILL_R009',
-        messagePattern: 'Dict dispatch',
-      });
-    });
+    rule('selection.key-no-mask').it(
+      'halts #TYPE_MISMATCH with a default',
+      async () => {
+        await expectHalt(() => run(`dict[a: 1] => $d\n${key} -> $d ?? 9`), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: `Dict key must be string, got ${typeName}`,
+        });
+      }
+    );
   });
 
   it('still recovers an absent string key with a default', async () => {
     expect(await run('dict[a: 1] => $d\n"z" -> $d ?? 9')).toBe(9);
+  });
+});
+
+describe('element lookup: a non-string selector on a dict halts alike in every form', () => {
+  const SETUP = 'dict[a: 1] => $d\n1 => $n\n';
+  const FORMS = [
+    ['bracket with a default', '$d[1] ?? 0'],
+    ['dispatch with a default', '1 -> $d ?? 0'],
+    ['variable key with a default', '$d.$n ?? 0'],
+    ['existence check by variable', '$d.?$n'],
+    ['existence check by bracket', '$d.?[1]'],
+    ['hierarchical dispatch', 'list[1] -> $d'],
+  ] as const;
+
+  describe.each(FORMS)('%s', (_label, read) => {
+    rule('selection.key-type', 'selection.key-no-mask', 'existence.bracket').it(
+      'halts #TYPE_MISMATCH with the one message',
+      async () => {
+        await expectHalt(() => run(`${SETUP}${read}`), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: 'Dict key must be string, got number',
+        });
+      }
+    );
+
+    it('is caught by guard', async () => {
+      expect(
+        await run(`${SETUP}guard { ${read} } => $r\n$r.!code == #TYPE_MISMATCH`)
+      ).toBe(true);
+    });
   });
 });

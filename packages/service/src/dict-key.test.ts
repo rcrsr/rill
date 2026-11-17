@@ -12,12 +12,12 @@ describe('dictKeyName', () => {
     expect(dictKeyName('name')).toBe('name');
   });
 
-  it('stringifies a number key', () => {
-    expect(dictKeyName(42)).toBe('42');
+  it('returns the stored spelling for a number-spelled key', () => {
+    expect(dictKeyName('42')).toBe('42');
   });
 
-  it('stringifies a boolean key', () => {
-    expect(dictKeyName(true)).toBe('true');
+  it('returns the stored spelling for a boolean-spelled key', () => {
+    expect(dictKeyName('true')).toBe('true');
   });
 
   it('returns the variable name for a variable key', () => {
@@ -54,12 +54,12 @@ describe('dictKeySpan', () => {
     expect(dictKeySpan('name')).toBeUndefined();
   });
 
-  it('returns undefined for a number key', () => {
-    expect(dictKeySpan(42)).toBeUndefined();
+  it('returns undefined for a number-spelled key', () => {
+    expect(dictKeySpan('42')).toBeUndefined();
   });
 
-  it('returns undefined for a boolean key', () => {
-    expect(dictKeySpan(true)).toBeUndefined();
+  it('returns undefined for a boolean-spelled key', () => {
+    expect(dictKeySpan('true')).toBeUndefined();
   });
 
   it('returns the span for a variable key', () => {
