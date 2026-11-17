@@ -311,9 +311,9 @@ const MISSES: readonly Miss[] = [
       'variable key': R009('Undefined dict key: z'),
       bracket: R009('Undefined dict key: z'),
       'pipe method': R009("Dict has no field 'z'"),
-      'pipe selection': R009("Dict dispatch: key 'z' not found"),
-      hierarchical: R009("Dict dispatch: key 'z' not found"),
-      destructure: R009("Key 'z' not found in dict"),
+      'pipe selection': R009('Undefined dict key: z'),
+      hierarchical: R009('Undefined dict key: z'),
+      destructure: R009('Undefined dict key: z'),
     },
   },
   {

@@ -237,7 +237,7 @@ describe('Unified Dispatch', () => {
           {
             code: 'RILL_R009',
             hostErrorId: 'RILL-R009',
-            messagePattern: /Dict dispatch.*key.*not found/i,
+            messagePattern: /Undefined dict key/,
           }
         );
       });

@@ -360,9 +360,22 @@ export function throwFieldMiss(
   }
 }
 
+/** Halt for an absent dict key, as the bracket read words it. */
+export function throwUndefinedDictKey(
+  key: FieldKey,
+  site: TypeHaltSite
+): never {
+  return throwCatchableHostHalt(
+    site,
+    ERROR_ATOMS[ERROR_IDS.RILL_R009],
+    `Undefined dict key: ${key}`
+  );
+}
+
 /**
  * Halt for a miss in a bracket read. A dict names a missing key `Undefined
  * dict key`, whatever the key type; any other receiver halts as throwFieldMiss.
+ * Every form that selects by key reports its miss through this function.
  */
 export function throwBracketMiss(
   receiver: RillValue,
@@ -370,13 +383,7 @@ export function throwBracketMiss(
   miss: FieldMiss,
   site: TypeHaltSite
 ): never {
-  if (isFieldReceiver(receiver)) {
-    return throwCatchableHostHalt(
-      site,
-      ERROR_ATOMS[ERROR_IDS.RILL_R009],
-      `Undefined dict key: ${key}`
-    );
-  }
+  if (isFieldReceiver(receiver)) return throwUndefinedDictKey(key, site);
   return throwFieldMiss(receiver, key, miss, site);
 }
 

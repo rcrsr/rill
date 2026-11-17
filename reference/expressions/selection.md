@@ -51,7 +51,7 @@ message, in every form, and `??` MUST NOT mask it. A string held in `$k` is a ke
 so a number or bool key on a stream MUST halt with `Dict key must be string, got <type>`. A spelled field name (`$c.name`, `$c.?name`) is not a selector and is unchanged.
 
 r[selection.variable-miss] The variable form reports a miss as the bracket form does
-`$c.$k` MUST halt for a missing key or index with the error id and message `$c[$k]` raises, such as RILL-R009 `Undefined dict key: k` on a dict. `??` recovers the miss in both forms alike. A spelled `$c.name` keeps its own message, `Dict has no field 'name'`.
+`$c.$k` MUST halt for a missing key or index with the error id and message `$c[$k]` raises, such as RILL-R009 `Undefined dict key: k` on a dict. `??` recovers the miss in both forms alike. `k -> $c`, a dispatch table, hierarchical dispatch, and `destruct<k: $x>` use the same message; see `dispatch.miss-message` and `destruct.missing-field`. A spelled `$c.name` keeps its own message, `Dict has no field 'name'`.
 
 r[selection.no-paren] The parenthesized selector is removed
 `$c.(expr)`, `$c.?(expr)`, the alternatives form `$c.(a || b)`, and the block form `$c.{ ... }`

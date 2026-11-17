@@ -198,6 +198,26 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
       );
     });
 
+    it('selects a number index in an ordered value as the bracket read does', async () => {
+      expect(await run('list["a", 0] -> dict[a: ordered[x: 5]]')).toBe(5);
+    });
+
+    it('selects a number index in a tuple as the bracket read does', async () => {
+      expect(await run('list["a", 1] -> dict[a: tuple[1, 2]]')).toBe(2);
+    });
+
+    it('halts a bad key on an ordered value with the bracket read message', async () => {
+      await expect(
+        run('list["a", list[1]] -> dict[a: ordered[x: 5]]')
+      ).rejects.toThrow(/Ordered index must be string or number, got list/);
+    });
+
+    it('names a missing ordered key as the bracket read does', async () => {
+      await expect(
+        run('list["a", "z"] -> dict[a: ordered[x: 5]]')
+      ).rejects.toThrow(/Undefined ordered key: z/);
+    });
+
     it('halts #TYPE_MISMATCH for number index on dict', async () => {
       await expect(run('list[0] -> dict[a: 1]')).rejects.toThrow(
         /Dict key must be string, got number/
@@ -214,7 +234,7 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
     it('throws RUNTIME_PROPERTY_NOT_FOUND for missing intermediate key (AC-13/EC-4/EC-7)', async () => {
       // AC-13/EC-4/EC-7: Missing key in dict at intermediate position
       await expect(run('list["a", "b"] -> dict[a: dict[]]')).rejects.toThrow(
-        /Dict dispatch.*not found/i
+        /Undefined dict key/
       );
     });
 

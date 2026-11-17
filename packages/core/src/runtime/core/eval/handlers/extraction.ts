@@ -24,7 +24,11 @@ import {
   throwFatalHostHalt,
 } from '../../types/halt.js';
 import type { RillValue, TypeStructure } from '../../types/structures.js';
-import { locateField, projectLocated } from './field-access.js';
+import {
+  locateField,
+  projectLocated,
+  throwBracketMiss,
+} from './field-access.js';
 import { createOrdered, createTuple } from '../../types/constructors.js';
 import {
   isOrdered,
@@ -113,21 +117,11 @@ export async function evaluateDestructure(
       // not satisfy a destructure key.
       const located = locateField(input, elem.key);
       if (!located.found) {
-        throwCatchableHostHalt(
-          {
-            location: elem.span.start,
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateDestructure',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R009],
-          `Key '${elem.key}' not found in dict`,
-          {
-            key: elem.key,
-            availableKeys: isOrdered(input)
-              ? orderedValueEntries(input).map(([k]) => k)
-              : Object.keys(input),
-          }
-        );
+        throwBracketMiss(input, elem.key, located.miss, {
+          location: elem.span.start,
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateDestructure',
+        });
       }
 
       const dictResolved =

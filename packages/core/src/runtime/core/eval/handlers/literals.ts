@@ -93,7 +93,7 @@ import { evaluateBody, evaluateBodyExpression } from './control-flow.js';
 import { assertUsableAnnotationKey } from './annotations.js';
 import { resolveTypeRef, evaluateTypeConstructor } from './types.js';
 import { evaluateListLiteralElements } from './extraction.js';
-import { dictSelectorKey } from './field-access.js';
+import { dictSelectorKey, throwUndefinedDictKey } from './field-access.js';
 
 /**
  * Capture annotation context at closure creation time.
@@ -782,7 +782,7 @@ export async function evaluateDictDispatch(
     }
   }
   // A non-string selector halts before any lookup, so the default cannot mask it.
-  dictSelectorKey(input, {
+  const inputKey = dictSelectorKey(input, {
     location: node.span?.start,
     sourceId: s.ctx.sourceId,
     fn: 'evaluateDictDispatch',
@@ -805,14 +805,12 @@ export async function evaluateDictDispatch(
     return await evaluateBodyExpression(s, node.defaultValue);
   }
 
-  // No match and no default - halt with RILL-R009 (key not found)
-  const location = node.span?.start;
-  return throwCatchableHostHalt(
-    { location, sourceId: s.ctx.sourceId, fn: 'evaluateDictDispatch' },
-    ERROR_ATOMS[ERROR_IDS.RILL_R009],
-    `Dict dispatch: key '${formatValue(input)}' not found`,
-    { key: input }
-  );
+  // No match and no default: the miss reads as a bracket read's
+  return throwUndefinedDictKey(inputKey, {
+    location: node.span?.start,
+    sourceId: s.ctx.sourceId,
+    fn: 'evaluateDictDispatch',
+  });
 }
 
 /**

@@ -133,7 +133,7 @@ describe('Rill Language: String Literal Dict Keys', () => {
 
     it('throws error when string key not found in dispatch', async () => {
       await expect(run('"missing" -> dict["key": 1]')).rejects.toThrow(
-        /not found/i
+        /Undefined dict key: missing/
       );
     });
   });

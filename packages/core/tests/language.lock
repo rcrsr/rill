@@ -36,7 +36,7 @@ c4e3c60b80325a1902248a1b58322960739aa6f1ecaa2374a7a69661c00583c3  packages/core/
 308adcf540f3c1458542d7272577055885a26f3fbe7e61a9dcb7dee5ab184e78  packages/core/tests/language/declared-types.test.ts
 bd60116f35f0acaaee4e194193680ecf6625ccc1b361484ef7ec5b4f861933a3  packages/core/tests/language/default-value-operator.test.ts
 00e0a0474134d574e79859e1dc8943601a5e50c8cad1e0db604aeafe6d6fd18e  packages/core/tests/language/destruct-slice-keyword.test.ts
-bf79346fb435ef901b9c312e9be46b256399429a45b75508467470e9f7d4d7cf  packages/core/tests/language/dict-dispatch.test.ts
+dfd3e84f20ed5f58e3358fa8834ed385b1544d3f2a1092529ca57fffb3226a07  packages/core/tests/language/dict-dispatch.test.ts
 ee792b853c002918fc6cdde9a788af66d88b2d8a91aeddb629f70d55b46219bc  packages/core/tests/language/dict-field-annotations.test.ts
 7bdd4b4dfdf66e909023ffa890a9fe0625a123c26044da9732eca20ee2187fc1  packages/core/tests/language/dict-key-form.test.ts
 4e9737141e40dbd707baea10b2a81f1da674f1b011fc1d1c2b0ea5412e9c61b2  packages/core/tests/language/dict-variable-keys.test.ts
@@ -53,7 +53,7 @@ fc5aa9b09cffd03d540fb06481c211881ac07ec90b67b2388c319312da298140  packages/core/
 8404933a2906ab4933edb51715298329d254add516323342a634a206ab1cb549  packages/core/tests/language/frontmatter.test.ts
 0e27fbeca4d0465b3655c06391f4a47f242d1494d18181edbc4839baec8bff61  packages/core/tests/language/functions.test.ts
 c32fa739b369912ac140cdaaee42d18c4f957e200fbd86623d58867724aa091d  packages/core/tests/language/guard-retry.test.ts
-878554cf4c8a4a4a9cfd3bd9c1612612092ab7da0bc5830433d965e8bc7ef056  packages/core/tests/language/hierarchical-dispatch.test.ts
+b733251a7c5cf49098f55456790f6b0ea8957962b7be162dbd632180fb7fdf7f  packages/core/tests/language/hierarchical-dispatch.test.ts
 cb4217019805e9c785c5da9ed54a5e342d9b8c9121f8e1d9c5e766d1559d04a8  packages/core/tests/language/identifier-prototype-names.test.ts
 93899cddc19610cb85ef0e9ee3cafca1d075634a1e29f00e9341456b79f7a93c  packages/core/tests/language/interpolation-locations.test.ts
 4cbc0cf8792cb5b9db18c87bb30b03ab6c3522e15f5bc1fac3d89c79f1b05f3f  packages/core/tests/language/interpolation-scope.test.ts
@@ -88,7 +88,7 @@ f6d434693bc1ff8d866a3572bc537030e18e51f3435e1425a26a93b418c4ecf4  packages/core/
 e40bcd948d58b2e0a9468e7a5a36b88c1192ea774358965a6b17f9407e6e680e  packages/core/tests/language/status-probe.test.ts
 4c4e2d91c4d5c33fa3f87b1b6224a92f32d7d0daef21f90e0f8d711cf790bffc  packages/core/tests/language/stream-type-parsing.test.ts
 ba3ca4f586c6fcc53260107c1bd9856693b426c0f7b6dbce14b484dee015dce5  packages/core/tests/language/streams.test.ts
-8bad50e14814a672df9e5e23046da373f40c30fc30f06f736879b79d793e4cdd  packages/core/tests/language/string-dict-keys.test.ts
+7d7599f6d3cb31a3b782a1d24adb7bdc7f32f6dd36b35ec1e2e4383dbd02e845  packages/core/tests/language/string-dict-keys.test.ts
 2a754f6286ad6b7676f732143028425899eeb9dac181b03a12cc8003c8e103c7  packages/core/tests/language/strings.test.ts
 755e620beae9625dce82e015187b01489a95624897d4ddefc30aca5dbaec6a62  packages/core/tests/language/structural-type-boundaries.test.ts
 4e6a36fb195591e22bb9070c034e347455a693b4b9aa60e15a42ae6688df048f  packages/core/tests/language/structural-type-defaults.test.ts
@@ -105,7 +105,7 @@ d5aa82062ffce258d5e3fa4775723f6683d878fa4a5397f67dcb05fc12ad5bbb  packages/core/
 42757bfa4afc8b78aeb676e1f05b6bd1bfba505251f3a5a3772dd9a526e891f2  packages/core/tests/language/type-values.test.ts
 ea31cd2c2af95cd21d79ed499d35a193c983c401c4deec12cbf5c552ec488962  packages/core/tests/language/type-var-positions.test.ts
 2f7ea721dfd9d9eb104657311c1e157c8eff383c4d16920908e1aedf05b39c5a  packages/core/tests/language/typed-atom-migration.test.ts
-960f696492ad66850e363741f89cab0dd5a2f309888849e6a5a9c253e824cbf8  packages/core/tests/language/unified-dispatch.test.ts
+4e1b904ea87a8ce98cad0a0ba33030d77083bd3abe25bdb592f3bbfbdf5b5b01  packages/core/tests/language/unified-dispatch.test.ts
 86658fb253d5741818c6db4358750dea22d1f9530688700cbd7952b691e457fe  packages/core/tests/language/uniform-value-type.test.ts
 d67baf09f7d8169d7eb113754538b9328a62dbbb563ae4bce6c3d2c5ec33335b  packages/core/tests/language/union-types.test.ts
 dc28c78a73fefad9ea9e305eee1d6c327e4c14b8c4739d8696aa091d054cdd50  packages/core/tests/language/unspecified-type-args.test.ts

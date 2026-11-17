@@ -38,7 +38,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
       // AC-30: No match, no default
       // EC-12: RUNTIME_PROPERTY_NOT_FOUND error
       await expect(run('"z" -> dict[a: 1, b: 2]')).rejects.toThrow(
-        /Dict dispatch.*not found/i
+        /Undefined dict key/
       );
     });
 
@@ -105,7 +105,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
       // AC-33: Dict with no matching keys
       // Should throw because there are no keys to match against
       await expect(run('"a" -> dict[b: 1]')).rejects.toThrow(
-        /Dict dispatch.*not found/i
+        /Undefined dict key/
       );
     });
 
@@ -220,7 +220,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
 
     it('throws when no match in multi-key', async () => {
       await expect(run('"z" -> dict[list["a", "b"]: "found"]')).rejects.toThrow(
-        /Dict dispatch.*not found/i
+        /Undefined dict key/
       );
     });
 
@@ -313,7 +313,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
 
     it('throws when the string spelling is not a key', async () => {
       await expect(run('"3" -> dict[1: "one", 2: "two"]')).rejects.toThrow(
-        /Dict dispatch.*not found/i
+        /Undefined dict key/
       );
     });
 
@@ -382,7 +382,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
 
     it('throws when string does not match number keys', async () => {
       await expect(run('"3" -> dict[1: "n", 2: "n"]')).rejects.toThrow(
-        /Dict dispatch.*not found/i
+        /Undefined dict key/
       );
     });
   });
@@ -390,9 +390,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
   describe('Boundary Conditions', () => {
     it('works with empty dict (AC-12)', async () => {
       // AC-12: Empty dict should work (though no keys to match)
-      await expect(run('"a" -> dict[]')).rejects.toThrow(
-        /Dict dispatch.*not found/i
-      );
+      await expect(run('"a" -> dict[]')).rejects.toThrow(/Undefined dict key/);
     });
 
     it('works with single-entry number key dict', async () => {
@@ -439,7 +437,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
       await expectHalt(() => run('"z" -> dict[a: 1, b: 2]'), {
         code: 'RILL_R009',
         hostErrorId: 'RILL-R009',
-        messagePattern: /Dict dispatch.*key 'z' not found/i,
+        messagePattern: /Undefined dict key: z/,
       });
     });
   });

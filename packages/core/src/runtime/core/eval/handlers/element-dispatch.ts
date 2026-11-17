@@ -17,7 +17,7 @@ import type { Carried } from '../../types/declared.js';
 import type { RillValue, TypeStructure } from '../../types/structures.js';
 import type { RillCallable } from '../../callable.js';
 import { declaredParams, isCallable } from '../../callable.js';
-import { formatValue, inferType } from '../../types/registrations.js';
+import { inferType } from '../../types/registrations.js';
 import { isOrdered, isPlainDict, isTuple } from '../../types/guards.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { TypeHaltSite } from '../../types/halt.js';
@@ -31,7 +31,7 @@ import type { FieldKey } from './field-access.js';
 import {
   bracketKey,
   projectLocated,
-  throwFieldMiss,
+  throwBracketMiss,
   locateOrRecover,
 } from './field-access.js';
 
@@ -74,7 +74,6 @@ export async function selectElement(
   location: SourceLocation | undefined,
   resolve: 'invoke' | 'keep'
 ): Promise<Carried> {
-  const isList = Array.isArray(collection);
   const site: TypeHaltSite = {
     location,
     sourceId: s.ctx.sourceId,
@@ -94,13 +93,6 @@ export async function selectElement(
       declared: undefined,
     };
   }
-  const haltDispatchMiss = (): never =>
-    throwCatchableHostHalt(
-      site,
-      ERROR_ATOMS[ERROR_IDS.RILL_R009],
-      `Dict dispatch: key '${formatValue(key)}' not found`,
-      { key }
-    );
   // A wrong-typed key is not a missing one and halts ahead of the lookup,
   // with the bracket read's message.
   const fieldKey: FieldKey = bracketKey(collection, key, site);
@@ -108,16 +100,13 @@ export async function selectElement(
     collection,
     fieldKey,
     defaultValue !== null,
-    (miss) =>
-      // A fractional or list-position miss names its own container; any
-      // other miss on a dict names the dispatch key.
-      miss === 'non-integer' || isList
-        ? throwFieldMiss(collection, fieldKey, miss, site)
-        : haltDispatchMiss()
+    (miss) => throwBracketMiss(collection, fieldKey, miss, site)
   );
   if (found === undefined) {
     // locateOrRecover recovers only when a default was supplied.
-    if (defaultValue === null) return haltDispatchMiss();
+    if (defaultValue === null) {
+      return throwBracketMiss(collection, fieldKey, 'absent', site);
+    }
     return {
       value: await evaluateBodyExpression(s, defaultValue),
       declared: undefined,
@@ -253,9 +242,13 @@ async function traversePathStep(
   location?: SourceLocation
 ): Promise<Carried> {
   const value = current.value;
+  // Every collection selects as the bracket read does, so a key the receiver
+  // rejects halts with the bracket read's message.
   if (
     isPlainDict(value) ||
-    (Array.isArray(value) && !isTuple(value) && typeof key === 'number')
+    Array.isArray(value) ||
+    isTuple(value) ||
+    isOrdered(value)
   ) {
     const result = await selectElement(
       s,

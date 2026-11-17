@@ -438,11 +438,12 @@ The index must be an integer; a non-integer number halts with `#INVALID_INPUT` a
 1 -> $items                           # "b"
 ```
 
-**Error Messages:**
+**Error Messages:** a miss reads the same in `$c[k]`, `.$k`, pipe selection, a dispatch table, hierarchical dispatch, and `destruct<k: $x>`.
 
 | Scenario | Code | Message |
 |----------|------|---------|
-| Dict key not found | RILL-R009 | `Dict dispatch: key '{key}' not found` |
+| Dict key not found | RILL-R009 | `Undefined dict key: {key}` |
+| Ordered key not found | RILL-R009 | `Undefined ordered key: {key}` |
 | List index out of range | RILL-R009 | `{Kind} index out of bounds: {index}` |
 | List index not an integer | `#INVALID_INPUT` | `{Kind} index must be an integer, got {index}` |
 | List dispatch with a non-number | RILL-R002 | `List index must be number, got {type}` |
