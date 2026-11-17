@@ -78,6 +78,11 @@ operator option that turns a duration into wall time, such as `debounce`, `throt
 the `idle_flush` option of `batch`, MUST halt `#INVALID_INPUT` naming the option for such a
 duration.
 
+r[construct-options.timeout-ceiling] a timeout limit has a ceiling
+A `timeout` `total` or `idle` limit above 2147483647 milliseconds, about 24.8 days, MUST halt
+`#INVALID_INPUT` naming the option before the body runs. A limit of exactly 2147483647 milliseconds
+MUST be accepted.
+
 ## Errors
 
 | Condition | Error | Catchable |
@@ -87,6 +92,7 @@ duration.
 | Options written in angle brackets {pending #578} | RILL-P025 | No |
 | A spread field repeats a written option {pending #578} | `#INVALID_INPUT` | Yes |
 | A time bound's duration has a months part | `#INVALID_INPUT` | Yes |
+| A `timeout` `total` or `idle` limit is above 2147483647 milliseconds | `#INVALID_INPUT` | Yes |
 
 ## Examples
 

@@ -45,4 +45,49 @@ describe('EQUALITY_NO_OVERLAP', () => {
   it('stays silent when an operand is not statically typed', () => {
     expect(check('"a" => $x\n$x == "a"\n')).toEqual([]);
   });
+
+  it('fires on an .eq call written as a pipe', () => {
+    expect(check('1 -> .eq("a")\n')).toHaveLength(1);
+  });
+
+  it('fires on .has with a sought kind absent from the list literal', () => {
+    const result = check('list[1, 2] -> .has("a")\n');
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'EQUALITY_NO_OVERLAP',
+      severity: 'warning',
+      location: { line: 1 },
+    });
+  });
+
+  it('fires on .has in the method-call form', () => {
+    expect(check('list[1, 2].has("a")\n')).toHaveLength(1);
+  });
+
+  it('fires on .has_any and .has_all with no candidate kind in the list', () => {
+    expect(check('list[1, 2] -> .has_any(list["a", "b"])\n')).toHaveLength(1);
+    expect(check('list["a"] -> .has_all(list[true])\n')).toHaveLength(1);
+  });
+
+  it('stays silent on .has when the sought kind is among the list kinds', () => {
+    expect(check('list[1, "a"] -> .has("a")\n')).toEqual([]);
+    expect(check('list[1, 2] -> .has(3)\n')).toEqual([]);
+  });
+
+  it('stays silent on .has_any when one candidate kind matches', () => {
+    expect(check('list[1, 2] -> .has_any(list["a", 3])\n')).toEqual([]);
+  });
+
+  it('stays silent on membership with an empty or non-literal operand', () => {
+    expect(check('list[] -> .has("a")\n')).toEqual([]);
+    expect(check('list[1] => $l\n$l -> .has("a")\n')).toEqual([]);
+    expect(check('list[1, $x] -> .has("a")\n')).toEqual([]);
+    expect(check('list[1] -> .has($x)\n')).toEqual([]);
+  });
+
+  it('judges collection literals by kind only, so differing dict shapes stay silent', () => {
+    expect(check('list[dict[a: 1]] -> .has(dict[b: 2])\n')).toEqual([]);
+    expect(check('list[dict[a: 1]] -> .has("a")\n')).toEqual([]);
+  });
 });

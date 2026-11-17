@@ -2,9 +2,12 @@
  * Activity signal for `timeout<idle:>`.
  *
  * Activity is a stream chunk arriving or a host function call returning.
- * Each active idle timeout registers a listener on the shared
- * `activityListeners` set; both activity sites call `notifyActivity`, which
- * restarts every registered idle timer, so enclosing timeouts all see it.
+ * Each idle timeout gives its body a context whose `activityListeners` set is
+ * its own: the listeners of the enclosing timeouts plus the timeout's own
+ * reset. Both activity sites call `notifyActivity` with the set of the context
+ * they run under, which restarts every listener in that chain, so enclosing timeouts
+ * all see activity inside a nested one. A sibling branch keeps the set it
+ * inherited and never reaches an unrelated timeout.
  *
  * Runtime-internal callables (built-in functions and methods, iterator and
  * stream steps) are marked so their dispatch never counts as a host return;

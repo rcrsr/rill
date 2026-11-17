@@ -124,6 +124,48 @@ describe('Rill Language: equality gate', () => {
     }
   );
 
+  const declaredDict = 'dict[a: 1, b: 2] => $x:dict(a: number)\n';
+
+  rule('equality.declared-dict').it(
+    'passes a one-sided dict key when an operand carries a declared type',
+    async () => {
+      expect(await run(`${declaredDict}$x == dict[a: 1, b: 2]`)).toBe(true);
+      expect(await run(`${declaredDict}dict[a: 1, b: 2] != $x`)).toBe(false);
+      expect(await run(`${declaredDict}$x -> .eq(dict[a: 1, b: 2])`)).toBe(
+        true
+      );
+      expect(
+        await run(
+          'list[dict[a: 1, b: 2]] => $l:list(dict(a: number))\n$l -> .has(dict[a: 1, b: 2])'
+        )
+      ).toBe(true);
+    }
+  );
+
+  rule('equality.declared-dict').it(
+    'still halts when a shared key of a declared dict has another type',
+    async () => {
+      await expectHalt(() => run(`${declaredDict}$x == dict[a: "x", b: 2]`), {
+        code: 'TYPE_MISMATCH',
+      });
+    }
+  );
+
+  rule('equality.declared-dict', 'carried-type.own-element').it(
+    'halts on an undeclared list whose element dicts differ in keys',
+    async () => {
+      await expectHalt(
+        () => run('list[dict[a: 1], dict[b: 2]] -> seq({ $ == dict[a: 1] })'),
+        { code: 'TYPE_MISMATCH' }
+      );
+      expect(
+        await run(
+          'list[dict[a: 1], dict[b: 2]] => $l:list(dict)\n$l -> seq({ $ == dict[a: 1] })'
+        )
+      ).toEqual([true, false]);
+    }
+  );
+
   it('halts RILL-R002 when the right operand is a stream', async () => {
     await expectHalt(
       () =>

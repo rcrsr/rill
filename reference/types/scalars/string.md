@@ -103,8 +103,12 @@ A list, dict, tuple, or ordered piped into `string` MUST yield its printed form,
 `conversion.no-string-vector`, and `conversion.no-string-time` state.
 `list[1] -> string` ⇒ `"list[1]"`.
 
-r[string.from-time] A datetime and a duration have no route
-`datetime -> string` and `duration -> string` MUST halt with RILL-R036.
+r[string.from-datetime] A datetime has no route
+`datetime -> string` MUST halt with RILL-R036.
+
+r[string.from-duration] A duration converts to its printed form
+`duration -> string` MUST yield the string the duration prints as (`duration.print`).
+`duration("90s") -> string` ⇒ `"1m30s"`.
 
 r[string.membership] Only a string satisfies string
 A string MUST satisfy `:string`; any other value MUST halt it with `#TYPE_MISMATCH`.
@@ -118,7 +122,7 @@ A string MUST satisfy `:string`; any other value MUST halt it with `#TYPE_MISMAT
 | A backslash escape is undefined, or `"""` appears inside a triple-quoted interpolation | RILL-L005 | No |
 | An interpolation is empty | RILL-P004 | No |
 | An arithmetic operand is a string, or an ordering operator mixes a string with a non-string | RILL-R002 | Yes |
-| A datetime or duration is converted to string | RILL-R036 | Yes |
+| A datetime is converted to string | RILL-R036 | Yes |
 | A non-string is asserted as `:string` | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
@@ -144,3 +148,5 @@ no \n escape, "quotes" stay, {{braces}} collapse
 ## Notes
 
 The `string` production lists `newline` in `char`, but the lexer rejects it in a `"` string.
+
+Superseded: `string.from-time`, now `string.from-datetime` and `string.from-duration`.

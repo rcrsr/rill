@@ -68,6 +68,10 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
     Right: list[1, "a"] => $l:list(union(number, string))
            $l -> seq({ $ == "a" })             # list[false, true]
 
+    Wrong: list[dict[a: 1], dict[b: 2]] -> seq({ $ == dict[a: 1] })   # halts on element 2: dict shapes differ
+    Right: list[dict[a: 1], dict[b: 2]] => $l:list(dict)
+           $l -> seq({ $ == dict[a: 1] })      # list[true, false]
+
 ## Loops
 
     Wrong: for item in list { ... }

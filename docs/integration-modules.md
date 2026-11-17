@@ -215,6 +215,7 @@ See [Error Reference](ref-errors.md) for full error details on RILL-R055 and rel
 | `RILL-R054` | Scheme name not registered in `resolvers` | Yes |
 | `RILL-R055` | Circular resolution: key already in flight | No |
 | `RILL-R056` | Resolver threw, returned a malformed result, or the source failed to parse | Yes |
+| `RILL-R057` | Variable or computed `use<>` identifier is not a string | Yes |
 | `RILL-R058` | Computed `use<>` identifier lacks `:` | Yes |
 | `RILL-P020` | Missing `:` after scheme in `use<>` | No (parse error) |
 | `RILL-P021` | Missing resource identifier after `:` | No (parse error) |

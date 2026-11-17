@@ -268,6 +268,28 @@ describe('timeout limits need a fixed-length duration', () => {
   });
 });
 
+describe('timeout limits have a ceiling', () => {
+  const { it: ruleIt } = rule('construct-options.timeout-ceiling');
+
+  ruleIt('halts #INVALID_INPUT for a total above the ceiling', async () => {
+    await expectHalt(
+      () => run('timeout<total: duration("2147483648ms")> { 1 }'),
+      { code: 'INVALID_INPUT', messagePattern: /total/ }
+    );
+  });
+
+  ruleIt('halts #INVALID_INPUT for an idle above the ceiling', async () => {
+    await expectHalt(
+      () => run('timeout<idle: duration("2147483648ms")> { 1 }'),
+      { code: 'INVALID_INPUT', messagePattern: /idle/ }
+    );
+  });
+
+  ruleIt('accepts a total at the ceiling', async () => {
+    expect(await run('timeout<total: duration("2147483647ms")> { 1 }')).toBe(1);
+  });
+});
+
 describe('AC-15 / EC-2: timeout<idle:> fires #TIMEOUT_IDLE', () => {
   it('produces #TIMEOUT_IDLE when body does not complete within idle window', async () => {
     // A host call that never returns is a body with no activity, so the idle

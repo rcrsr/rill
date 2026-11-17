@@ -123,6 +123,30 @@ describe('formatDurationText', () => {
   });
 });
 
+describe('fractional ms', () => {
+  it('prints the clean decimal, not float residue', () => {
+    expect(formatDurationText({ months: 0, ms: 1000.3 })).toBe('1s0.3ms');
+    expect(formatDurationText({ months: 0, ms: 90061001.7 })).toBe(
+      '1d1h1m1s1.7ms'
+    );
+  });
+
+  it('round-trips clean decimal text exactly', () => {
+    for (const ms of [1000.3, 2500.7, 61000.1, 90061001.7, 86400000.25]) {
+      expect(parseDurationText(formatDurationText({ months: 0, ms }))).toEqual({
+        months: 0,
+        ms,
+      });
+    }
+  });
+
+  it('decomposes to a clean remainder for the ms accessor', () => {
+    const parts = decomposeDuration({ months: 0, ms: 1000.3 });
+    expect(parts.seconds).toBe(1);
+    expect(parts.ms).toBe(0.3);
+  });
+});
+
 describe('decomposeDuration', () => {
   it('splits months and ms into per-unit components', () => {
     expect(decomposeDuration({ months: 14, ms: 90061001 })).toEqual({

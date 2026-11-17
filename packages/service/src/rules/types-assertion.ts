@@ -125,7 +125,11 @@ export const unnecessaryAssertion: Rule = {
     }
 
     const literalType = literalKind(operand.primary);
-    if (literalType === null) {
+    if (
+      literalType === null ||
+      literalType === 'atom' ||
+      literalType === 'ordered'
+    ) {
       return [];
     }
 

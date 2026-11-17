@@ -131,7 +131,7 @@ Explicit conversion between compatible types. Halts with `RILL-R036` on invalid 
     ⁵ 0 → false, 1 → true; all other values halt with RILL-R036
 
     closure, iterator, and vector have no -> string, nor does a list, dict, tuple, or ordered holding one at any depth; converting, interpolating, or .join-ing one halts RILL-R036
-    datetime and duration interpolate as their printed form, but -> string on one, or on a collection holding one, halts RILL-R036
+    datetime and duration interpolate as their printed form, and duration -> string yields it; -> string on a datetime, or on a collection holding a datetime or duration, halts RILL-R036
 
 ## Default values in type constructors
 
@@ -153,6 +153,10 @@ Constructed with function-call syntax.
     now()                                              # current datetime
     duration("25h") -> .days                          # 1
     duration("1y") -> .months                         # 12
+    "1h30m" -> duration                               # duration("1h30m"); halts INVALID_INPUT if malformed
+    duration("90s") -> string                         # "1m30s", the printed form
+    # printed form: units in order y mo d h m s ms, each at most once; only ms may be decimal
+    # (1s500.5ms); each component at most 2^53-1
 
 ## Type inspection `^type`
 

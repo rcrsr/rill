@@ -145,6 +145,14 @@ function deserializeDuration(data: unknown): RillValue {
 }
 
 // ============================================================
+// CONVERT-TO
+// ============================================================
+
+const durationConvertTo: Record<string, (v: RillValue) => RillValue> = {
+  string: formatDuration,
+};
+
+// ============================================================
 // TYPE DEFINITION
 // ============================================================
 
@@ -158,6 +166,7 @@ export const durationType: TypeDefinition = {
     format: formatDuration,
     eq: eqDuration,
     compare: compareDuration,
+    convertTo: durationConvertTo,
     serialize: serializeDuration,
     deserialize: deserializeDuration,
   },

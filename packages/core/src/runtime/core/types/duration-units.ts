@@ -104,6 +104,33 @@ export const MS_PER_HOUR: number =
 // DECOMPOSE / FORMAT
 // ============================================================
 
+/** Digits after the decimal point in the plain-decimal form of `n`. */
+function fractionDigits(n: number): number {
+  const text = String(n);
+  const match = /^-?\d+(?:\.(\d+))?(?:e([+-]\d+))?$/.exec(text);
+  if (match === null) return 0;
+  const frac = (match[1] ?? '').length;
+  return Math.max(0, frac - Number(match[2] ?? 0));
+}
+
+/**
+ * The remainder of a field as a clean decimal: the float residue left by
+ * subtracting whole units (`1000.3 - 1000` is `0.2999999999999545`) is rounded
+ * to the digits the field's total carries. Kept only when the printed form
+ * still sums back to the field total exactly; otherwise the exact residue
+ * stays.
+ */
+function cleanRemainder(
+  total: number,
+  wholeUnits: number,
+  remainder: number
+): number {
+  const digits = fractionDigits(total);
+  if (digits === 0 || digits > 100) return remainder;
+  const clean = Number(remainder.toFixed(digits));
+  return wholeUnits + clean === total ? clean : remainder;
+}
+
 /**
  * Split a duration into per-unit components, largest unit first within each
  * field. The smallest unit of each field takes the remainder.
@@ -113,6 +140,7 @@ export function decomposeDuration(d: {
   readonly ms: number;
 }): DurationComponents {
   const remaining = { months: d.months, ms: d.ms };
+  const whole = { months: 0, ms: 0 };
   const out: Record<DurationUnitName, number> = {
     years: 0,
     months: 0,
@@ -126,11 +154,16 @@ export function decomposeDuration(d: {
   for (const unit of DURATION_UNITS) lastOfField.set(unit.field, unit.name);
   for (const unit of DURATION_UNITS) {
     if (lastOfField.get(unit.field) === unit.name) {
-      out[unit.name] = remaining[unit.field];
+      out[unit.name] = cleanRemainder(
+        d[unit.field],
+        whole[unit.field],
+        remaining[unit.field]
+      );
     } else {
       const count = Math.floor(remaining[unit.field] / unit.factor);
       out[unit.name] = count;
       remaining[unit.field] -= count * unit.factor;
+      whole[unit.field] += count * unit.factor;
     }
   }
   return out;

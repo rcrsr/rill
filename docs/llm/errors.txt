@@ -66,14 +66,16 @@ Built-in atom literals. The core error set is every built-in atom except #ok and
                                    #       zero step for range;
                                    #       non-integer index for [], .(n), .at, list dispatch;
                                    #       zero step for slice<>;
-                                   #       string argument to duration() not in printed form,
+                                   #       string argument to duration() or piped into duration not in printed form,
+                                   #       timeout total/idle or debounce/throttle/sample/idle_flush duration with a months part,
+                                   #       timeout total/idle above 2147483647 ms,
                                    #       negative duration .subtract result, negative .multiply factor,
                                    #       non-finite or fractional-month .multiply result, .total_ms on calendar duration;
                                    #       vector dimension mismatch for .similarity/.dot/.distance
     #PROTOCOL  #DISPOSED
     #TYPE_MISMATCH                 # failed `:type` assertion or typed capture or typed destructure element failing its type;
                                    # also: `sort` key extractor mixed types,
-                                   #       ==, !=, .eq, .ne, .has between operands whose types cannot overlap,
+                                   #       ==, !=, .eq, .ne, .has, .has_any, .has_all between operands whose types cannot overlap,
                                    #       `sort` `key_fn` not callable,
                                    #       tuple comparison length/type mismatch,
                                    #       start_when/stop_when predicate non-bool,

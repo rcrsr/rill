@@ -59,7 +59,8 @@ holds one at any depth, and so MUST interpolating `v` (`interpolation.printed`).
 
 r[conversion.no-string-time] A nested datetime or duration has no string route
 `v -> string` MUST halt with RILL-R036 when `v` is a list, dict, tuple or ordered that holds a
-datetime or a duration at any depth, as `string.from-time` halts at the top level.
+datetime or a duration at any depth, though a datetime halts alone (`string.from-datetime`) and a
+duration alone converts (`string.from-duration`).
 
 r[conversion.value-fail] A string that is not a number halts with a value error
 `"abc" -> number` MUST halt with RILL-R038. The scalar files state the other value failures.
@@ -91,7 +92,8 @@ MUST NOT be tried in turn.
 r[conversion.scalar] Scalar routes belong to the scalar types
 The routes into `number`, `string`, `bool`, and `atom` MUST be those stated by `number.from-string`,
 `number.from-bool`, `string.from-number`, `string.from-bool`, `string.from-collection`,
-`bool.from-number`, `bool.from-string`, `atom.from-string`, and `atom.to-string`.
+`bool.from-number`, `bool.from-string`, `atom.from-string`, and `atom.to-string`. The routes into
+`duration` are `duration.from-pipe`, and the route out of one into `string` is `string.from-duration`.
 
 ## Errors
 

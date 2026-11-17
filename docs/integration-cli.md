@@ -158,13 +158,13 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `STREAM_PRE_ITERATION` | anti-patterns | warning | Stream method called before iteration starts |
 | `USE_DYNAMIC_IDENTIFIER` | anti-patterns | warning | Dynamic identifier in `use` expression |
 | `USE_EMPTY_METHOD` | strings | warning | Use `.empty` instead of `.len == 0` |
-| `UNNECESSARY_ASSERTION` | types | info | Type assertion on a literal value |
+| `UNNECESSARY_ASSERTION` | types | info | Type assertion on a string, number, bool, list, tuple, or dict literal that already has the asserted type |
 | `USE_UNTYPED_HOST_REF` | types | warning | Untyped host reference in `use` expression |
 | `VALIDATE_EXTERNAL` | types | info | External data lacks type validation |
 | `TUPLE_ONE_POSITION` | types | info | `tuple(T)` names exactly one position |
 | `TEMPORAL_LITERAL` | types | warning | `duration("...")` or `datetime("...")` with a string literal that cannot parse, so the call halts `#INVALID_INPUT` |
-| `EQUALITY_NO_OVERLAP` | types | warning | `==`, `!=`, `.eq`, or `.ne` between operands whose types never overlap, so the comparison halts `#TYPE_MISMATCH` |
-| `MIXED_ELEMENT_TYPE_READ` | types | info | `.^type` read from a list literal of distinct compound shapes, or from an iterated dict literal of distinct value shapes |
+| `EQUALITY_NO_OVERLAP` | types | warning | `==`, `!=`, `.eq`, or `.ne` (operator or pipe form), or `.has`, `.has_any`, or `.has_all` on a list literal of scalar literals, between operands whose types never overlap, so the comparison halts `#TYPE_MISMATCH` |
+| `MIXED_ELEMENT_TYPE_READ` | types | info | `.^type` or `.^effective` read from a list literal of distinct compound shapes, or from the result of iterating a dict literal of distinct value shapes, where the read reports a union element type |
 | `ATOM_CASE_MISMATCH` | errors | warning | Atom differs from a builtin only by case |
 | `ATOM_NOT_ERROR_CODE` | errors | warning | `.!code` compared to an atom that is not `#ok` or a core error code |
 | `ATOM_DISCARDED` | anti-patterns | warning | Bare atom as a discarded statement; a comment needs a space after `#` |

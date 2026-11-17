@@ -860,7 +860,7 @@ The idle timer restarts each time a stream chunk arrives in the body or a host f
 
 ### Duration Argument
 
-The duration expression must evaluate to a `duration` value. A non-duration argument halts with `#INVALID_INPUT`, and so does a duration with a months part (`duration("1mo")`, `duration("1y")`), which has no fixed length:
+The duration expression must evaluate to a `duration` value. A non-duration argument halts with `#INVALID_INPUT`, and so does a duration with a months part (`duration("1mo")`, `duration("1y")`), which has no fixed length. A `total` or `idle` limit above 2147483647 ms, about 24.8 days, halts `#INVALID_INPUT` too:
 
 ```text
 # Error: #INVALID_INPUT — duration must be a duration value

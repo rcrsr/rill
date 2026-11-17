@@ -139,12 +139,7 @@ export {
   structureEquals,
   structureMatches,
 } from './runtime/core/types/operations.js';
-export {
-  carriedStructure,
-  requireOverlap,
-  structureOverlaps,
-} from './runtime/core/types/overlap.js';
-export type { Carried } from './runtime/core/types/overlap.js';
+export { structureOverlaps } from './runtime/core/types/overlap.js';
 export {
   BUILT_IN_TYPES,
   deepEquals,

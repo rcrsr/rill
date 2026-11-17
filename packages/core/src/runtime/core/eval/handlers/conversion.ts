@@ -174,8 +174,9 @@ export function applyConversion(
   }
 
   // A function, iterator, vector, datetime, or duration has no string form,
-  // at the top level or nested
-  if (targetType === 'string') {
+  // at the top level or nested. A bare duration is the exception: it converts
+  // to its printed form. A collection holding one still halts.
+  if (targetType === 'string' && sourceType !== 'duration') {
     const d = describeNoStringForm(input, 'convert');
     if (d !== undefined) {
       throwCatchableHostHalt(

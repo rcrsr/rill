@@ -305,8 +305,8 @@ pass-option      = identifier , ":" , ( atom-literal | literal ) ;
      - When the countdown expires before the body completes, halts with #RILL_R082.
 
    idle: duration
-     - Resets the timer each time a stream chunk is emitted inside body.
-     - When no chunk arrives within the idle window, halts with #RILL_R083.
+     - Restarts the timer on each stream chunk and each host-call return inside body.
+     - When neither a chunk nor a host-call return occurs within the idle window, halts with #RILL_R083.
 
    With both options, the first limit to fire ends the body and the halt
    carries that limit's atom.

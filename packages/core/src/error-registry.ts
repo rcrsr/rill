@@ -1436,7 +1436,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Incompatible convert source/target',
     messageTemplate: 'cannot convert {source} to {target}',
     cause:
-      'The `-> type` form does not support conversion between the given source and target types. -> string has no route from a function, an iterator, or a vector, or from a list, dict, tuple, or ordered that holds one at any depth, and interpolating or joining one halts the same way. -> string has no route from a datetime or a duration, or from a collection that holds one, though interpolation prints them. -> number accepts only string (must be numeric) and bool (produces 0 or 1). Other targets (-> bool, -> list, -> dict, -> tuple, -> ordered) have their own accepted sources.',
+      'The `-> type` form does not support conversion between the given source and target types. -> string has no route from a function, an iterator, or a vector, or from a list, dict, tuple, or ordered that holds one at any depth, and interpolating or joining one halts the same way. -> string has no route from a datetime, or from a collection that holds a datetime or a duration, though interpolation prints them; a duration alone converts to its printed form. -> number accepts only string (must be numeric) and bool (produces 0 or 1). Other targets (-> bool, -> list, -> dict, -> tuple, -> ordered) have their own accepted sources.',
     resolution:
       'Check the target type. A function, an iterator, or a vector, or a collection that holds one, has no string form; read its type with .^type instead. Interpolate a datetime or duration instead of converting it. For -> number, only string and bool sources are accepted. Verify the source type matches the accepted sources for the target type.',
     examples: [
@@ -2202,7 +2202,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Idle inactivity timeout exceeded',
     messageTemplate: 'timeout<idle:> exceeded: no activity for {durationMs}ms',
     cause:
-      'no stream chunk arrived and no host call returned within the idle bound.',
+      'The timeout<idle: duration> block saw no stream chunk and no host call return within the idle bound.',
     resolution:
       'Recover via guard { timeout<idle: d> { body } } ?? fallback. Increase the idle duration, or make the body read stream chunks or call the host more often.',
     examples: [

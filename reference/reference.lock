@@ -143,6 +143,7 @@ construct-options.order 1d6b6fe441b6
 construct-options.parens 8ddaad32696a
 construct-options.space 41e48387924e
 construct-options.spread 363569976dca
+construct-options.timeout-ceiling d744b56da9e6
 construct-options.timeout-fixed-duration 7407da20a63c
 construct-options.timeout-idle-activity ff699ac8a2cf
 construct-options.timeout-limits 48fae22e61a1
@@ -158,11 +159,11 @@ conversion.missing f98bb007434c
 conversion.no-signature b899c99c7c8b
 conversion.no-string-form d673fef041e6 interpolation.printed@fdb3073b6dba
 conversion.no-string-nested c8125a4057fe interpolation.printed@fdb3073b6dba
-conversion.no-string-time 683aaf33a9fa string.from-time@1dbd24ad86ed
+conversion.no-string-time a74630140808 string.from-datetime@976dba66f8fe string.from-duration@b53d038ff9af
 conversion.no-string-vector bc4a6c616350 interpolation.printed@fdb3073b6dba
 conversion.ordered-dict 519188d5b030
 conversion.pipe b31bebe73638 assertion.unchanged@d5063326e3a7
-conversion.scalar 82e5c1778ac4 atom.from-string@013a2d860f57 atom.to-string@a4a3cd7d5805 bool.from-number@afce697c38d8 bool.from-string@387862b2c2a8 number.from-bool@6305e49e7045 number.from-string@1d7ed899cb56 string.from-bool@a2d54837dbaf string.from-collection@4778d11e7f7a string.from-number@aa4ac6bcf48e
+conversion.scalar 8df7f1519e6d atom.from-string@013a2d860f57 atom.to-string@a4a3cd7d5805 bool.from-number@afce697c38d8 bool.from-string@387862b2c2a8 duration.from-pipe@ff6f18a13f0c number.from-bool@6305e49e7045 number.from-string@1d7ed899cb56 string.from-bool@a2d54837dbaf string.from-collection@4778d11e7f7a string.from-duration@b53d038ff9af string.from-number@aa4ac6bcf48e
 conversion.union 415487b22deb
 conversion.union-miss 59c0bce8424f
 conversion.value-fail 411bbbd33387
@@ -258,10 +259,11 @@ dispatch.ordered 3922f001c122
 dispatch.path 5a324e95d596
 dispatch.select b43bf6dece5b
 dispatch.tuple 2908349a89b3
-duration 2f01284c7dc7 equality.no-overlap@39f213f599cf
+duration be0a73c69ff5 equality.no-overlap@39f213f599cf
 duration.construct c247666dc907
 duration.equality b3b087dac628
 duration.fractional-months 62a7bc1432aa
+duration.from-pipe ff6f18a13f0c duration.from-string@0193e8280640 duration.string-malformed@8b2174fd7ba0
 duration.from-string 0193e8280640
 duration.membership ef072ee6acc9
 duration.negative fb6422129850
@@ -270,7 +272,7 @@ duration.no-positional 86e2337aa544
 duration.not-finite 9cc1c774d9ba
 duration.ordering ad0a26752d18
 duration.ordering-disagree 2e306e152793
-duration.print 73df419fc205
+duration.print 24e5b6c7874c
 duration.print-zero 87563ecd9b31
 duration.range 77dbb4626cfe
 duration.round-trip d5c97a172e42
@@ -281,6 +283,7 @@ duration.years 9867c2f5c9ca
 equality 4ec09699ff9d carried-type.equality@e57cad672ddc
 equality.atom 505ad5a65ec2
 equality.content 654a7056b375
+equality.declared-dict 3b93b31757d2 carried-type.carriage@619f46dafff7 structural-typing.overlap-fields@10ec669ce02c
 equality.function 780a229ffda3
 equality.keyed d85d782acb49
 equality.kind 65342655309f equality.no-overlap@39f213f599cf
@@ -399,7 +402,7 @@ inference.shape-union ea494999abd5
 inference.shape-union-ordered aaca1b188e6b
 inference.uniform a737257018f3
 inference.union-element 8eeac61a0bfd
-interpolation 1d821f6f50f0 conversion.no-string-form@d673fef041e6 conversion.no-string-nested@c8125a4057fe conversion.no-string-time@683aaf33a9fa conversion.no-string-vector@bc4a6c616350 invalid-value.interpolate@c5addb31436e pipe.string@e11eeeaf2f49
+interpolation 471a39b3e299 conversion.no-string-form@d673fef041e6 conversion.no-string-nested@c8125a4057fe conversion.no-string-time@a74630140808 conversion.no-string-vector@bc4a6c616350 invalid-value.interpolate@c5addb31436e pipe.string@e11eeeaf2f49 string.from-datetime@976dba66f8fe
 interpolation.brace-escape 6e5608da3dc5
 interpolation.dollar 0ab302e7a77c
 interpolation.expression e6e5f7c53b8a
@@ -689,7 +692,7 @@ strict-mode.kind 473337e9dc96
 strict-mode.leaf 60e3956d9309
 strict-mode.unwritten 1823ab932ade
 strict-mode.whole-type 1402bd7a5564
-string 0bfc8e0b8182 equality.no-overlap@39f213f599cf
+string 0dbc48551d3a equality.no-overlap@39f213f599cf
 string.bad-escape 2fbee16294fc
 string.brace-escape f37758319dd6
 string.cross-order 1ee5c4b8186e
@@ -697,9 +700,10 @@ string.empty-interpolation 3a51cfee184b
 string.equality 3a43772daed2
 string.escape ddf4684bc06c
 string.from-bool a2d54837dbaf
-string.from-collection 4778d11e7f7a conversion.no-string-nested@c8125a4057fe conversion.no-string-time@683aaf33a9fa conversion.no-string-vector@bc4a6c616350
+string.from-collection 4778d11e7f7a conversion.no-string-nested@c8125a4057fe conversion.no-string-time@a74630140808 conversion.no-string-vector@bc4a6c616350
+string.from-datetime 976dba66f8fe
+string.from-duration b53d038ff9af duration.print@24e5b6c7874c
 string.from-number aa4ac6bcf48e
-string.from-time 1dbd24ad86ed
 string.interpolation 2a8079956f1e
 string.lone-brace ff26ba0834e7
 string.membership 22d7ed93ff4d

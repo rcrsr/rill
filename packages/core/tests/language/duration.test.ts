@@ -524,6 +524,65 @@ describe('Rill Language: Duration Type', () => {
       });
     });
 
+    rule('duration.from-pipe').it(
+      'parses a string piped into duration as duration("...") does',
+      async () => {
+        expect(await run('("500ms" -> duration) == duration("500ms")')).toBe(
+          true
+        );
+        expect(await run('("1m30s" -> duration) == duration("1m30s")')).toBe(
+          true
+        );
+      }
+    );
+
+    rule('duration.from-pipe').it(
+      'halts INVALID_INPUT when a piped string does not parse',
+      async () => {
+        await expectHalt(() => run('"30s1m" -> duration'), {
+          code: 'INVALID_INPUT',
+          messagePattern: 'duration() cannot parse',
+        });
+      }
+    );
+
+    rule('duration.from-pipe').it(
+      'halts RILL-R036 when a number is piped into duration',
+      async () => {
+        await expectHalt(() => run('500 -> duration'), {
+          code: 'RILL_R036',
+          hostErrorId: 'RILL-R036',
+        });
+      }
+    );
+
+    rule('string.from-duration').it(
+      'converts a duration to its printed form with -> string',
+      async () => {
+        expect(await run('duration("90s") -> string')).toBe('1m30s');
+        expect(await run('duration("0ms") -> string')).toBe('0ms');
+      }
+    );
+
+    rule('duration.print').it(
+      'prints a fractional millisecond count as a decimal',
+      async () => {
+        expect(await run('duration(...dict[ms: 1000.3]) -> string')).toBe(
+          '1s0.3ms'
+        );
+      }
+    );
+
+    rule('conversion.no-string-time').it(
+      'halts RILL-R036 when a list holding a duration is converted to string',
+      async () => {
+        await expectHalt(() => run('list[duration("1s")] -> string'), {
+          code: 'RILL_R036',
+          hostErrorId: 'RILL-R036',
+        });
+      }
+    );
+
     const range = rule('duration.range').it;
 
     range('round-trips the largest whole-day duration', async () => {

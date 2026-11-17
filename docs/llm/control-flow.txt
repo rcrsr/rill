@@ -184,7 +184,7 @@ Bound a body to a time limit. On expiry, the block produces an invalid value car
 | `total: duration` | `#RILL_R082` | Wall-time from block entry |
 | `idle: duration` | `#RILL_R083` | Inactivity: no stream chunk or host call return within duration; restarts every enclosing idle limit |
 
-Either, both, or neither option may appear. With both, the first limit to fire ends the body and the halt carries that limit's atom. `timeout<>` with neither arms nothing (checker rule `TIMEOUT_TRIVIAL`). The duration must be a `duration` value with no months part; anything else halts with `#INVALID_INPUT`.
+Either, both, or neither option may appear. With both, the first limit to fire ends the body and the halt carries that limit's atom. `timeout<>` with neither arms nothing (checker rule `TIMEOUT_TRIVIAL`). The duration must be a `duration` value with no months part and at most 2147483647 ms (about 24.8 days); anything else halts with `#INVALID_INPUT`.
 
 Expiry produces a catchable halt. See the errors fragment for `guard` and `??` recovery.
 

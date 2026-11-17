@@ -1,11 +1,13 @@
 import type { SourceLocation } from '../../../../types.js';
 import { throwTypeHalt } from '../../../core/types/halt.js';
-import { requireDurationInRange } from '../../../core/types/duration-limit.js';
+import {
+  durationFromText,
+  requireDurationInRange,
+} from '../../../core/types/duration-limit.js';
 import type { RillValue } from '../../../core/types/structures.js';
 import {
   DURATION_UNITS,
   MS_PER_HOUR,
-  parseDurationText,
 } from '../../../core/types/duration-units.js';
 import { formatValue, inferType } from '../../../core/types/registrations.js';
 
@@ -481,22 +483,7 @@ export function constructDuration(
         'runtime'
       );
     }
-    const parsed = parseDurationText(input);
-    if (parsed === undefined) {
-      throwTypeHalt(
-        { location, fn: 'duration' },
-        'INVALID_INPUT',
-        `duration() cannot parse "${input}"`,
-        'runtime'
-      );
-    }
-    requireDurationInRange(
-      parsed.months,
-      parsed.ms,
-      { location, fn: 'duration' },
-      'duration()'
-    );
-    return { __rill_duration: true, months: parsed.months, ms: parsed.ms };
+    return durationFromText(input, { location, fn: 'duration' });
   }
 
   // Collapse each unit into its target field via the unit table

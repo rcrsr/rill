@@ -1,16 +1,11 @@
 /**
- * Tests for structureOverlaps() and the requireOverlap() halt.
+ * Tests for structureOverlaps() and the comparison overlap gate.
  */
 
-import {
-  carriedStructure,
-  requireOverlap,
-  RuntimeHaltSignal,
-  structureOverlaps,
-  type TypeStructure,
-} from '@rcrsr/rill';
+import { structureOverlaps, type TypeStructure } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
-import { expectHaltSync } from '../helpers/halt.js';
+import { expectHalt } from '../helpers/halt.js';
+import { run } from '../helpers/runtime.js';
 
 const num: TypeStructure = { kind: 'number' };
 const str: TypeStructure = { kind: 'string' };
@@ -216,41 +211,83 @@ describe('structureOverlaps', () => {
   });
 });
 
-describe('carriedStructure', () => {
-  it('prefers the declared structure', () => {
-    expect(carriedStructure(1, str)).toBe(str);
+describe('comparison overlap gate', () => {
+  it('halts with the comparison message when types cannot overlap', async () => {
+    await expectHalt(() => run('1 == "a"'), {
+      code: 'TYPE_MISMATCH',
+      messagePattern: /^Cannot compare number with string using ==$/,
+    });
   });
 
-  it('infers the structure when none is declared', () => {
-    expect(carriedStructure(1)).toEqual(num);
+  it('halts catchably', async () => {
+    expect(
+      await run('(guard { 1 == "a" } => $r).!code == #TYPE_MISMATCH')
+    ).toBe(true);
+  });
+
+  it('passes when types overlap', async () => {
+    expect(await run('1 == 2')).toBe(false);
   });
 });
 
-describe('requireOverlap', () => {
-  it('halts with the comparison message when types cannot overlap', () => {
-    expectHaltSync(
-      () => requireOverlap({ value: 1 }, { value: 'a' }, { fn: '==' }, '=='),
-      {
-        code: 'TYPE_MISMATCH',
-        messagePattern: /^Cannot compare number with string using ==$/,
-      }
+describe('declared dict overlap', () => {
+  const declared = 'dict[a: 1, b: 2] => $x:dict(a: number)\n';
+
+  it('compares a declared dict with == without halting on an extra key', async () => {
+    expect(await run(`${declared}$x == dict[a: 1, b: 2]`)).toBe(true);
+  });
+
+  it('compares a declared dict with != without halting on an extra key', async () => {
+    expect(await run(`${declared}$x != dict[a: 1, b: 3]`)).toBe(true);
+  });
+
+  it('applies the leniency when the declared dict is the right operand', async () => {
+    expect(await run(`${declared}dict[a: 1, b: 2] == $x`)).toBe(true);
+  });
+
+  it('compares a declared dict with .eq and .ne', async () => {
+    expect(await run(`${declared}$x -> .eq(dict[a: 1, b: 2])`)).toBe(true);
+    expect(await run(`${declared}$x -> .ne(dict[a: 1, b: 2])`)).toBe(false);
+  });
+
+  it('finds a dict in a list with .has when the list is declared', async () => {
+    expect(
+      await run(
+        'list[dict[a: 1, b: 2]] => $l:list(dict(a: number))\n$l -> .has(dict[a: 1, b: 2])'
+      )
+    ).toBe(true);
+  });
+
+  it('finds a dict in a list with .has when the sought dict is declared', async () => {
+    expect(
+      await run(
+        'dict[a: 1, b: 2] => $x:dict(a: number)\nlist[dict[a: 1, b: 2]] -> .has($x)'
+      )
+    ).toBe(true);
+  });
+
+  it('still halts when a shared key of a declared dict has a different type', async () => {
+    await expectHalt(() => run(`${declared}$x == dict[a: "x", b: 2]`), {
+      code: 'TYPE_MISMATCH',
+    });
+  });
+
+  it('still halts on inferred dicts with different keys', async () => {
+    await expectHalt(() => run('dict[a: 1] == dict[a: 1, b: 2]'), {
+      code: 'TYPE_MISMATCH',
+    });
+    await expectHalt(() => run('dict[a: 1] -> .eq(dict[a: 1, b: 2])'), {
+      code: 'TYPE_MISMATCH',
+    });
+  });
+
+  it('still halts on an undeclared list whose element dicts differ in keys', async () => {
+    await expectHalt(
+      () => run('list[dict[a: 1], dict[b: 2]] -> seq({ $ == dict[a: 1] })'),
+      { code: 'TYPE_MISMATCH' }
     );
-  });
-
-  it('halts catchably', () => {
-    let caught: unknown;
-    try {
-      requireOverlap({ value: 1 }, { value: 'a' }, { fn: '==' }, '==');
-    } catch (e) {
-      caught = e;
-    }
-    expect(caught).toBeInstanceOf(RuntimeHaltSignal);
-    expect((caught as RuntimeHaltSignal).catchable).toBe(true);
-  });
-
-  it('returns when types overlap', () => {
-    expect(() =>
-      requireOverlap({ value: 1 }, { value: 2 }, { fn: '==' }, '==')
-    ).not.toThrow();
+    await expectHalt(() => run('list[dict[a: 1]] -> .has(dict[a: 1, b: 2])'), {
+      code: 'TYPE_MISMATCH',
+    });
   });
 });

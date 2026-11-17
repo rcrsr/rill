@@ -7,8 +7,12 @@
  */
 
 import type { RillDuration } from './structures.js';
-import { throwCatchableHostHalt, type TypeHaltSite } from './halt.js';
-import { isDurationInRange } from './duration-units.js';
+import {
+  throwCatchableHostHalt,
+  throwTypeHalt,
+  type TypeHaltSite,
+} from './halt.js';
+import { isDurationInRange, parseDurationText } from './duration-units.js';
 
 /**
  * Return the milliseconds of `value`, halting `#INVALID_INPUT` when it has a
@@ -68,4 +72,26 @@ export function requireDurationInRange(
       `${operation}: duration out of range (months ${months}, ms ${ms}); each component must be a non-negative integer no larger than ${Number.MAX_SAFE_INTEGER}`
     );
   }
+}
+
+/**
+ * Parse duration text (the printed form) into a duration value. Halts
+ * `#INVALID_INPUT` on malformed text or an out-of-range result. Shared by
+ * `duration("...")` and `"..." -> duration`.
+ */
+export function durationFromText(
+  text: string,
+  site: TypeHaltSite
+): RillDuration {
+  const parsed = parseDurationText(text);
+  if (parsed === undefined) {
+    throwTypeHalt(
+      site,
+      'INVALID_INPUT',
+      `duration() cannot parse "${text}"`,
+      'runtime'
+    );
+  }
+  requireDurationInRange(parsed.months, parsed.ms, site, 'duration()');
+  return { __rill_duration: true, months: parsed.months, ms: parsed.ms };
 }

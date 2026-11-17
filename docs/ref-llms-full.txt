@@ -261,6 +261,10 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
     Right: list[1, "a"] => $l:list(union(number, string))
            $l -> seq({ $ == "a" })             # list[false, true]
 
+    Wrong: list[dict[a: 1], dict[b: 2]] -> seq({ $ == dict[a: 1] })   # halts on element 2: dict shapes differ
+    Right: list[dict[a: 1], dict[b: 2]] => $l:list(dict)
+           $l -> seq({ $ == dict[a: 1] })      # list[true, false]
+
 ## Loops
 
     Wrong: for item in list { ... }
@@ -584,7 +588,7 @@ Bound a body to a time limit. On expiry, the block produces an invalid value car
 | `total: duration` | `#RILL_R082` | Wall-time from block entry |
 | `idle: duration` | `#RILL_R083` | Inactivity: no stream chunk or host call return within duration; restarts every enclosing idle limit |
 
-Either, both, or neither option may appear. With both, the first limit to fire ends the body and the halt carries that limit's atom. `timeout<>` with neither arms nothing (checker rule `TIMEOUT_TRIVIAL`). The duration must be a `duration` value with no months part; anything else halts with `#INVALID_INPUT`.
+Either, both, or neither option may appear. With both, the first limit to fire ends the body and the halt carries that limit's atom. `timeout<>` with neither arms nothing (checker rule `TIMEOUT_TRIVIAL`). The duration must be a `duration` value with no months part and at most 2147483647 ms (about 24.8 days); anything else halts with `#INVALID_INPUT`.
 
 Expiry produces a catchable halt. See the errors fragment for `guard` and `??` recovery.
 
@@ -687,14 +691,16 @@ Built-in atom literals. The core error set is every built-in atom except #ok and
                                    #       zero step for range;
                                    #       non-integer index for [], .(n), .at, list dispatch;
                                    #       zero step for slice<>;
-                                   #       string argument to duration() not in printed form,
+                                   #       string argument to duration() or piped into duration not in printed form,
+                                   #       timeout total/idle or debounce/throttle/sample/idle_flush duration with a months part,
+                                   #       timeout total/idle above 2147483647 ms,
                                    #       negative duration .subtract result, negative .multiply factor,
                                    #       non-finite or fractional-month .multiply result, .total_ms on calendar duration;
                                    #       vector dimension mismatch for .similarity/.dot/.distance
     #PROTOCOL  #DISPOSED
     #TYPE_MISMATCH                 # failed `:type` assertion or typed capture or typed destructure element failing its type;
                                    # also: `sort` key extractor mixed types,
-                                   #       ==, !=, .eq, .ne, .has between operands whose types cannot overlap,
+                                   #       ==, !=, .eq, .ne, .has, .has_any, .has_all between operands whose types cannot overlap,
                                    #       `sort` `key_fn` not callable,
                                    #       tuple comparison length/type mismatch,
                                    #       start_when/stop_when predicate non-bool,
@@ -955,7 +961,7 @@ Explicit conversion between compatible types. Halts with `RILL-R036` on invalid 
     ⁵ 0 → false, 1 → true; all other values halt with RILL-R036
 
     closure, iterator, and vector have no -> string, nor does a list, dict, tuple, or ordered holding one at any depth; converting, interpolating, or .join-ing one halts RILL-R036
-    datetime and duration interpolate as their printed form, but -> string on one, or on a collection holding one, halts RILL-R036
+    datetime and duration interpolate as their printed form, and duration -> string yields it; -> string on a datetime, or on a collection holding a datetime or duration, halts RILL-R036
 
 ## Default values in type constructors
 
@@ -977,6 +983,10 @@ Constructed with function-call syntax.
     now()                                              # current datetime
     duration("25h") -> .days                          # 1
     duration("1y") -> .months                         # 12
+    "1h30m" -> duration                               # duration("1h30m"); halts INVALID_INPUT if malformed
+    duration("90s") -> string                         # "1m30s", the printed form
+    # printed form: units in order y mo d h m s ms, each at most once; only ms may be decimal
+    # (1s500.5ms); each component at most 2^53-1
 
 ## Type inspection `^type`
 

@@ -894,14 +894,15 @@ A duration represents a span of time. It stores two fields independently: `month
 
 ### Construction
 
-Two families of units construct duration values:
+Three forms construct duration values: named components, the printed form, and a piped string. The first three rows below are named components.
 
 | Form | Example | Notes |
 |------|---------|-------|
 | Fixed units | `duration(...dict[days: 1, hours: 2])` | Collapses to ms; exact arithmetic |
 | Calendar units | `duration(...dict[months: 3, years: 1])` | Collapses years to months; variable-length |
 | Raw milliseconds | `duration(...dict[ms: 86400000])` | Direct ms count |
-| Printed form | `duration("1d2h")` | Only the `ms` count may be a decimal (`"1s500.5ms"`); malformed text halts with `#INVALID_INPUT`; a positional number halts with `RILL-R001` |
+| Printed form | `duration("1d2h")` | Units in the order `y`, `mo`, `d`, `h`, `m`, `s`, `ms`, each at most once; only the `ms` count may be a decimal (`"1s500.5ms"`); each component is at most 2^53-1; malformed text halts with `#INVALID_INPUT`; a positional number halts with `RILL-R001` |
+| String pipe | `"1d2h" -> duration` | Parses as `duration("1d2h")` and halts the same way; `duration -> string` returns the printed form; a number or dict piped into `duration` halts with `RILL-R036` |
 
 ```text
 duration(...dict[days: 1, hours: 2]) -> .display
