@@ -37,7 +37,12 @@ export const spacingBrackets: Rule = {
 
     const variableNode = postfixNode.primary;
 
-    for (const access of variableNode.accessChain) {
+    const finalAccess = variableNode.existenceCheck?.finalAccess;
+    const accesses = finalAccess
+      ? [...variableNode.accessChain, finalAccess]
+      : variableNode.accessChain;
+
+    for (const access of accesses) {
       if (!('accessKind' in access) || access.accessKind !== 'bracket') {
         continue;
       }

@@ -335,14 +335,7 @@ type NativeValue = string | number | boolean | null | NativeValue[] | { [key: st
 
 `value` is always a `NativeValue` — it is never `undefined`. JavaScript `null` is a valid `NativeValue` (rill null maps to JS null).
 
-An all-string-key dict converts unchanged. A dict carrying any number or boolean key adds a reserved `__rill_typed_keys` string property. Its value is an array of `{ key, value }` entries, where `key` keeps its JS `number`/`boolean` type. String keys stay plain properties, so existing hosts reading only string keys are unaffected.
-
-```typescript
-const result = toNative(dictValue); // dict[1: "a", "1": "b"]
-// result.value -> { "1": "b", __rill_typed_keys: [{ key: 1, value: "a" }] }
-```
-
-`__rill_typed_keys` is a shape of `toNative()`'s output only. A dict a host function receives directly as an `args` value (see [CallableFn](ref-host-api.md#callablefn)) is a live `RillValue`, not a `toNative()` result — its number- and boolean-keyed entries sit under a non-enumerable Symbol sidecar on the object, invisible to `Object.entries`, `JSON.stringify`, and object spread. Read them with `getTypedKeyEntries()` instead of reaching for `__rill_typed_keys` on the live value.
+A dict converts to a plain object. Every dict key is a string, so each entry becomes a plain property.
 
 ### Descriptor shapes
 

@@ -49,6 +49,7 @@ import {
 import { parseScriptTypeRef, throwBareUnion } from './parser-types.js';
 import { atTypeConstructor } from './parser-shape.js';
 import { ERROR_IDS } from '../error-registry.js';
+import { removedSelectorError } from './parser-variables.js';
 import { isRillTypeName } from '../types.js';
 import {
   postfixDispatchTable,
@@ -133,6 +134,14 @@ Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
         span: makeSpan(dotStart, nameToken.span.end),
       });
     } else {
+      // `-> .(` and `-> .{` are the removed selectors, not a method call.
+      const afterDot = this.state.tokens[this.state.pos + 1]?.type;
+      if (afterDot === TOKEN_TYPES.LPAREN || afterDot === TOKEN_TYPES.LBRACE) {
+        throw removedSelectorError(
+          afterDot === TOKEN_TYPES.LPAREN ? '.(' : '.{',
+          current(this.state).span.start
+        );
+      }
       methods.push(this.parseMethodCall(null));
     }
     skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT);
@@ -299,7 +308,7 @@ const pipeTargetDispatchTable: Record<
   // chain identical to parsePipeTargetDot's shape.
   [TOKEN_TYPES.DOT_QUESTION]: function (this: Parser): PipeTargetNode {
     const dotToken = advance(this.state);
-    const finalAccess = this.parseFieldAccessElement(true, dotToken.span.start);
+    const finalAccess = this.parseExistenceAccess(dotToken.span.start);
     if (!finalAccess) {
       if (!check(this.state, TOKEN_TYPES.NEWLINE) && !isAtEnd(this.state)) {
         throw new ParseError(

@@ -219,6 +219,15 @@ describe('formatValue', () => {
     });
   });
 
+  describe('dict keys that spell other types', () => {
+    it('quotes the keys "1", "true" and "a b" so the printed form parses back to the same dict', async () => {
+      const source = { '1': 1, true: 2, 'a b': 3 };
+      const printed = formatValue(source);
+      expect(printed).toBe('dict["1": 1, "a b": 3, "true": 2]');
+      expect(await run(printed)).toEqual(source);
+    });
+  });
+
   describe('AC-17: guard clause ordering', () => {
     it('callable is formatted before dict (callable has __type, not treated as plain dict)', () => {
       const fn = callable(() => null);

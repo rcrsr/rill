@@ -75,18 +75,8 @@ import {
 } from '../../context.js';
 import { getEvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import {
-  getNodeLocation,
-  setDictField,
-  withChildScope,
-  isDictKeyScalar,
-  type DictKeyScalar,
-} from '../shared.js';
-import {
-  setTypedKey,
-  typedKeyEntries,
-  orderedDictEntries,
-} from '../../types/dict-keys.js';
+import { getNodeLocation, setDictField, withChildScope } from '../shared.js';
+import { orderedDictEntries } from '../../types/dict-keys.js';
 import {
   evaluateExpression,
   evaluatePipeChain,
@@ -103,6 +93,7 @@ import { evaluateBody, evaluateBodyExpression } from './control-flow.js';
 import { assertUsableAnnotationKey } from './annotations.js';
 import { resolveTypeRef, evaluateTypeConstructor } from './types.js';
 import { evaluateListLiteralElements } from './extraction.js';
+import { dictSelectorKey, throwUndefinedDictKey } from './field-access.js';
 
 /**
  * Capture annotation context at closure creation time.
@@ -430,6 +421,102 @@ async function evaluateDictEntryValue(
   );
 }
 
+/** Key lists made only of plain string literals, computed once per AST node. */
+const LITERAL_KEY_LISTS = new WeakMap<
+  ListLiteralNode,
+  readonly string[] | null
+>();
+
+/**
+ * The keys of a non-empty list made only of plain (non-interpolated) string
+ * literals, or undefined when any element needs evaluation. Such a list is
+ * valid by construction and always yields the same keys, so it is computed once
+ * per node instead of on every dispatch.
+ */
+function literalStringKeys(
+  keyList: ListLiteralNode
+): readonly string[] | undefined {
+  const cached = LITERAL_KEY_LISTS.get(keyList);
+  if (cached !== undefined) return cached ?? undefined;
+  const keys: string[] = [];
+  let allLiteral = keyList.elements.length > 0;
+  for (const element of keyList.elements) {
+    const text = plainStringLiteralText(element);
+    if (text === undefined) {
+      allLiteral = false;
+      break;
+    }
+    keys.push(text);
+  }
+  LITERAL_KEY_LISTS.set(keyList, allLiteral ? keys : null);
+  return allLiteral ? keys : undefined;
+}
+
+/** Text of a bare, non-interpolated string literal expression, else undefined. */
+function plainStringLiteralText(
+  element: ListLiteralNode['elements'][number]
+): string | undefined {
+  if (element.type !== 'PipeChain') return undefined;
+  if (element.pipes.length > 0 || element.terminator !== null) return undefined;
+  const head = element.head;
+  if (head.type !== 'PostfixExpr' || head.methods.length > 0) return undefined;
+  if (head.defaultValue !== null || (head.existenceCheck ?? null) !== null) {
+    return undefined;
+  }
+  const primary = head.primary;
+  if (primary.type !== 'StringLiteral') return undefined;
+  let text = '';
+  for (const part of primary.parts) {
+    if (typeof part !== 'string') return undefined;
+    text += part;
+  }
+  return text;
+}
+
+/**
+ * Evaluate a multi-key entry's key list and validate it: the list is
+ * non-empty and every element is a string. A number or bool is ambiguous
+ * (`0.50` evaluates to 0.5), so such a key is spelled as a string.
+ */
+async function evaluateMultiKeyStrings(
+  s: EvalState,
+  keyList: ListLiteralNode,
+  fn: string
+): Promise<readonly string[]> {
+  const literalKeys = literalStringKeys(keyList);
+  if (literalKeys !== undefined) return literalKeys;
+  const keys: RillValue[] = await evaluateListLiteralElements(
+    s,
+    keyList.elements
+  );
+  const site = {
+    location: keyList.span?.start,
+    sourceId: s.ctx.sourceId,
+    fn,
+  };
+  if (keys.length === 0) {
+    throwCatchableHostHalt(
+      site,
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      'Multi-key dict entry requires non-empty list'
+    );
+  }
+  const stringKeys: string[] = [];
+  for (const key of keys) {
+    if (typeof key !== 'string') {
+      const keyType = inferType(key);
+      throwCatchableHostHalt(
+        site,
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
+        `Multi-key dict entry keys must be string, got ${keyType}; quote the key`,
+        { got: keyType }
+      );
+    }
+    stringKeys.push(key);
+  }
+  return stringKeys;
+}
+
 /**
  * Evaluate multi-key dict entry from a ListLiteralNode key.
  */
@@ -437,57 +524,15 @@ export async function evaluateDictMultiKeyFromList(
   s: EvalState,
   keyList: ListLiteralNode,
   value: ExpressionNode
-): Promise<Array<[DictKeyScalar, RillValue]>> {
-  // Evaluate list elements to get keys
-  const keys: RillValue[] = await evaluateListLiteralElements(
+): Promise<Array<[string, RillValue]>> {
+  const stringKeys = await evaluateMultiKeyStrings(
     s,
-    keyList.elements
+    keyList,
+    'evaluateDictMultiKeyFromList'
   );
-
-  // Validate non-empty
-  if (keys.length === 0) {
-    throwCatchableHostHalt(
-      {
-        location: keyList.span?.start,
-        sourceId: s.ctx.sourceId,
-        fn: 'evaluateDictMultiKeyFromList',
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      'Multi-key dict entry requires non-empty list'
-    );
-  }
-
-  // Validate all keys are primitives
-  const scalarKeys: DictKeyScalar[] = [];
-  for (const key of keys) {
-    if (isDictKeyScalar(key)) {
-      scalarKeys.push(key);
-    } else {
-      const keyType = typeof key;
-      throwCatchableHostHalt(
-        {
-          location: keyList.span?.start,
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluateDictMultiKeyFromList',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        `Dict key must be string, number, or boolean, got ${keyType}`,
-        { got: keyType }
-      );
-    }
-  }
-
   // Evaluate value once
   const evaluatedValue = await evaluateDictEntryValue(s, value);
-
-  // Create entry for each key, preserving the key's original type (number and
-  // boolean keys are routed to the sidecar by the caller).
-  const entries: Array<[DictKeyScalar, RillValue]> = [];
-  for (const key of scalarKeys) {
-    entries.push([key, evaluatedValue]);
-  }
-
-  return entries;
+  return stringKeys.map((key): [string, RillValue] => [key, evaluatedValue]);
 }
 
 /**
@@ -504,7 +549,7 @@ export function assertStringVariableKey(
     throwCatchableHostHalt(
       { location: span.start, sourceId: s.ctx.sourceId, fn },
       ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `Dict key must be string, got ${typeof value}`
+      `Dict key must be string, got ${inferType(value)}`
     );
   }
 }
@@ -523,7 +568,7 @@ export function assertStringComputedKey(
     throwCatchableHostHalt(
       { location: span.start, sourceId: s.ctx.sourceId, fn },
       ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `Dict key evaluated to ${typeof value}, expected string`
+      `Dict key evaluated to ${inferType(value)}, expected string`
     );
   }
 }
@@ -595,16 +640,14 @@ export async function evaluateDict(
         () => entry.span.start,
         s.ctx.sourceId
       );
-      const pairs: [DictKeyScalar, RillValue][] = [];
+      const pairs: [string, RillValue][] = [];
       if (isOrdered(spreadValue)) {
         for (const pair of orderedValueEntries(spreadValue)) {
           pairs.push(pair);
         }
       } else if (isDict(spreadValue)) {
         for (const { key, value } of orderedDictEntries(spreadValue)) {
-          if (isDictKeyScalar(key)) {
-            pairs.push([key, value]);
-          }
+          pairs.push([key, value]);
         }
       } else {
         throwCatchableHostHalt(
@@ -625,13 +668,8 @@ export async function evaluateDict(
           () => entry.span.start,
           s.ctx.sourceId
         );
-        if (typeof k === 'number' || typeof k === 'boolean') {
-          setTypedKey(result, k, v);
-        } else {
-          const stringKey = String(k);
-          assertUsableDictKey(s, stringKey, entry.span);
-          setDictField(result, stringKey, v);
-        }
+        assertUsableDictKey(s, k, entry.span);
+        setDictField(result, k, v);
       }
       continue;
     }
@@ -719,40 +757,20 @@ export async function evaluateDict(
         entry.value
       );
       for (const [key, value] of pairs) {
-        if (typeof key === 'number' || typeof key === 'boolean') {
-          // Number/boolean multi-key: store in the sidecar (type-preserving).
-          setTypedKey(result, key, value);
-          continue;
-        }
-        const stringKey = String(key);
-        assertUsableDictKey(s, stringKey, entry.span);
+        assertUsableDictKey(s, key, entry.span);
         // Apply last-write-wins semantics
-        setDictField(result, stringKey, value);
+        setDictField(result, key, value);
       }
       continue;
     }
 
-    // Number and boolean keys carry their type: they are stored in the
-    // sidecar (see dict-keys.ts) so number 1 and string "1" stay distinct.
-    // String keys are stored as own string properties, exactly as before.
-    const storeKey =
-      typeof entry.key === 'number' || typeof entry.key === 'boolean'
-        ? entry.key
-        : String(entry.key);
-
-    if (typeof storeKey === 'string') {
-      assertUsableDictKey(s, storeKey, entry.span);
-    }
-
-    const store = (value: RillValue): void => {
-      if (typeof storeKey === 'string') {
-        setDictField(result, storeKey, value);
-      } else {
-        setTypedKey(result, storeKey, value);
-      }
-    };
-
-    store(await evaluateDictEntryValue(s, entry.value));
+    const storeKey = String(entry.key);
+    assertUsableDictKey(s, storeKey, entry.span);
+    setDictField(
+      result,
+      storeKey,
+      await evaluateDictEntryValue(s, entry.value)
+    );
   }
 
   // Bind all callables to the containing dict. Use setDictField so a field
@@ -766,14 +784,6 @@ export async function evaluateDict(
       setDictField(result, key, bound);
     }
   }
-  // Bind callables stored under number/boolean keys as well.
-  for (const { key, value } of typedKeyEntries(result)) {
-    if (isCallable(value)) {
-      const bound = { ...value, boundDict: result };
-      copyExtensionIdentity(value, bound);
-      setTypedKey(result, key, bound);
-    }
-  }
 
   return result;
 }
@@ -781,12 +791,9 @@ export async function evaluateDict(
 /**
  * Evaluate dict as dispatch table when piped.
  *
- * Searches dict entries for key matching piped value using type-aware deep equality.
+ * Searches dict entries for a key matching the piped value. Dict keys are
+ * strings, so a non-string input halts #TYPE_MISMATCH.
  * Returns matched value. Auto-invokes if matched value is closure.
- *
- * Type-aware matching ensures:
- * - Number key 1 matches only number input 1, not string "1"
- * - Boolean key true matches only boolean input true, not string "true"
  *
  * Multi-key support: [["k1", "k2"]: value] syntax allows multiple keys
  * to map to the same value. Key tuple is evaluated to get list of candidates.
@@ -802,41 +809,43 @@ export async function evaluateDictDispatch(
   node: DictNode,
   input: RillValue
 ): Promise<RillValue> {
-  // Search entries for matching key (process in order, return first match)
+  // Validate every entry's keys before matching, so a malformed table halts
+  // whatever the input and whichever entry would match.
+  const candidates: Array<readonly string[]> = [];
   for (const entry of node.entries) {
-    let matchFound = false;
-
-    if (typeof entry.key === 'object') {
-      // Check for new key types (variable/computed keys)
-      if ('kind' in entry.key) {
-        throwTypeHalt(
-          {
-            location: entry.span.start,
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateDictDispatch',
-          },
-          'INVALID_INPUT',
-          'Variable and computed dict keys not yet supported',
-          'runtime',
-          undefined,
-          'host'
-        );
-      }
-      // ListLiteralNode key - evaluate to get list of candidates
-      const keyValue = await evaluateListLiteralElements(s, entry.key.elements);
-
-      // Check if input matches any element in the list (type-aware)
-      for (const candidate of keyValue) {
-        if (deepEquals(input, candidate)) {
-          matchFound = true;
-          break;
-        }
-      }
+    if (typeof entry.key !== 'object') {
+      // Spelled key, always a string after parsing
+      candidates.push([entry.key]);
+    } else if ('kind' in entry.key) {
+      throwTypeHalt(
+        {
+          location: entry.span.start,
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateDictDispatch',
+        },
+        'INVALID_INPUT',
+        'Variable and computed dict keys not yet supported',
+        'runtime',
+        undefined,
+        'host'
+      );
     } else {
-      // Primitive key (string, number, or boolean) - type-aware comparison
-      // deepEquals ensures number 1 != string "1", boolean true != string "true"
-      matchFound = deepEquals(input, entry.key);
+      candidates.push(
+        await evaluateMultiKeyStrings(s, entry.key, 'evaluateDictDispatch')
+      );
     }
+  }
+  // A non-string selector halts before any lookup, so the default cannot mask it.
+  const inputKey = dictSelectorKey(input, {
+    location: node.span?.start,
+    sourceId: s.ctx.sourceId,
+    fn: 'evaluateDictDispatch',
+  });
+  // Search entries for matching key (process in order, return first match)
+  for (const [index, entry] of node.entries.entries()) {
+    const matchFound = (candidates[index] ?? []).some((candidate) =>
+      deepEquals(input, candidate)
+    );
 
     if (matchFound) {
       // Found match - evaluate and return the value
@@ -850,13 +859,15 @@ export async function evaluateDictDispatch(
     return await evaluateBodyExpression(s, node.defaultValue);
   }
 
-  // No match and no default - halt with RILL-R009 (key not found)
-  const location = node.span?.start;
-  return throwCatchableHostHalt(
-    { location, sourceId: s.ctx.sourceId, fn: 'evaluateDictDispatch' },
-    ERROR_ATOMS[ERROR_IDS.RILL_R009],
-    `Dict dispatch: key '${formatValue(input)}' not found`,
-    { key: input }
+  // No match and no default: the miss reads as a bracket read's
+  return throwUndefinedDictKey(
+    inputKey,
+    {
+      location: node.span?.start,
+      sourceId: s.ctx.sourceId,
+      fn: 'evaluateDictDispatch',
+    },
+    { key: inputKey }
   );
 }
 

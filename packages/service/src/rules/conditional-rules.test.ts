@@ -67,6 +67,25 @@ describe('USE_DEFAULT_OPERATOR', () => {
     });
   });
 
+  it('fires on a bracket probe guarding the same bracket read', () => {
+    const source = '$d.?[$k] ? $d[$k] ! "x"\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [useDefaultOperator]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ code: 'USE_DEFAULT_OPERATOR' });
+  });
+
+  it('does not fire on a bracket probe guarding a different bracket read', () => {
+    const source = '$d.?[$k] ? $d[$j] ! "x"\n';
+    const parsed = toParseResult(source);
+
+    expect(
+      runRules(parsed, source, makeConfig(), [useDefaultOperator])
+    ).toEqual([]);
+  });
+
   it('does not fire on a conditional without an existence check', () => {
     const source = '"hello" -> .contains("ell") ? "found" ! "not found"\n';
     const parsed = toParseResult(source);

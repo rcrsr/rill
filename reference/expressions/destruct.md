@@ -68,7 +68,7 @@ r[destruct.keyed-source] A keyed pattern takes a dict or an ordered
 the fields. Any other source MUST halt with RILL-R002 naming the source's kind.
 
 r[destruct.missing-field] A missing key halts
-A keyed element whose key the dict or ordered lacks MUST halt with RILL-R009.
+A keyed element whose key the dict or ordered lacks MUST halt with RILL-R009 and the message `$c[k]` raises for that miss, `Undefined dict key: k` on a dict and `Undefined ordered key: k` on an ordered.
 
 r[destruct.bind] Each element binds as a capture
 Each `$name` MUST bind as `=> $name` would in the enclosing scope, with the same rebinding and

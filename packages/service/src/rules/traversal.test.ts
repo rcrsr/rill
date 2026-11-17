@@ -191,8 +191,8 @@ describe('traverseForRules / walkAst parity over the full corpus', () => {
 // ============================================================
 
 describe('traverseForRules / walkAst parity: targeted constructs', () => {
-  it('Variable computed access chain segment', () => {
-    const { viaRules, viaCore } = computeParity('$data.items.(1 + 1)\n');
+  it('Variable bracket access with a computed expression', () => {
+    const { viaRules, viaCore } = computeParity('$data.items[1 + 1]\n');
     expect(viaRules).toEqual(viaCore);
   });
 
@@ -214,18 +214,13 @@ describe('traverseForRules / walkAst parity: targeted constructs', () => {
     expect(variableNodes).toHaveLength(1);
   });
 
-  it('Variable block access chain segment', () => {
-    const { viaRules, viaCore } = computeParity('$data.{ "key" }\n');
-    expect(viaRules).toEqual(viaCore);
-  });
-
   it('Variable existence check on a literal field', () => {
     const { viaRules, viaCore } = computeParity('$data.?field\n');
     expect(viaRules).toEqual(viaCore);
   });
 
-  it('Variable existence check on a computed field with a type narrow', () => {
-    const { viaRules, viaCore } = computeParity('$data.?(1 + 1)&string\n');
+  it('Variable existence check on a bracket selector with a type narrow', () => {
+    const { viaRules, viaCore } = computeParity('$data.?[1 + 1]&string\n');
     expect(viaRules).toEqual(viaCore);
   });
 

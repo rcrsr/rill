@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Parser Syntax Error Tests
  * Tests for parser-level syntax validation
@@ -5,8 +6,9 @@
 
 import { describe, expect, it } from 'vitest';
 import { parse, ParseError } from '@rcrsr/rill';
-import type { ScriptNode, DictNode } from '@rcrsr/rill';
+import type { ScriptNode, DictNode, VariableNode } from '@rcrsr/rill';
 import { asPostfixHead, getStatementAt } from '../helpers/ast.js';
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Parser Syntax Errors', () => {
@@ -24,8 +26,8 @@ describe('Parser Syntax Errors', () => {
 
       expect(dictNode.type).toBe('Dict');
       expect(dictNode.entries).toHaveLength(1);
-      expect(typeof dictNode.entries[0]!.key).toBe('number');
-      expect(dictNode.entries[0]!.key).toBe(1);
+      expect(dictNode.entries[0]!.key).toBe('1');
+      expect(dictNode.entries[0]!.keyForm).toBe('number');
     });
 
     it('parses dict with boolean keys to DictNode (AC-2)', () => {
@@ -39,10 +41,10 @@ describe('Parser Syntax Errors', () => {
 
       expect(dictNode.type).toBe('Dict');
       expect(dictNode.entries).toHaveLength(2);
-      expect(typeof dictNode.entries[0]!.key).toBe('boolean');
-      expect(dictNode.entries[0]!.key).toBe(true);
-      expect(typeof dictNode.entries[1]!.key).toBe('boolean');
-      expect(dictNode.entries[1]!.key).toBe(false);
+      expect(dictNode.entries[0]!.key).toBe('true');
+      expect(dictNode.entries[0]!.keyForm).toBe('bool');
+      expect(dictNode.entries[1]!.key).toBe('false');
+      expect(dictNode.entries[1]!.keyForm).toBe('bool');
     });
 
     it('parses dict with identifier key (AC-5, backward compatibility)', () => {
@@ -71,8 +73,7 @@ describe('Parser Syntax Errors', () => {
 
       expect(dictNode.type).toBe('Dict');
       expect(dictNode.entries).toHaveLength(1);
-      expect(typeof dictNode.entries[0]!.key).toBe('number');
-      expect(dictNode.entries[0]!.key).toBe(42);
+      expect(dictNode.entries[0]!.key).toBe('42');
     });
 
     it('parses dict with decimal number key (AC-10)', () => {
@@ -86,8 +87,7 @@ describe('Parser Syntax Errors', () => {
 
       expect(dictNode.type).toBe('Dict');
       expect(dictNode.entries).toHaveLength(1);
-      expect(typeof dictNode.entries[0]!.key).toBe('number');
-      expect(dictNode.entries[0]!.key).toBe(3.14);
+      expect(dictNode.entries[0]!.key).toBe('3.14');
     });
 
     it('parses dict with mixed key types', () => {
@@ -102,8 +102,8 @@ describe('Parser Syntax Errors', () => {
       expect(dictNode.type).toBe('Dict');
       expect(dictNode.entries).toHaveLength(3);
       expect(dictNode.entries[0]!.key).toBe('name');
-      expect(dictNode.entries[1]!.key).toBe(1);
-      expect(dictNode.entries[2]!.key).toBe(true);
+      expect(dictNode.entries[1]!.key).toBe('1');
+      expect(dictNode.entries[2]!.key).toBe('true');
     });
 
     it('parses dict with negative number key', () => {
@@ -117,9 +117,9 @@ describe('Parser Syntax Errors', () => {
         .primary as DictNode;
       expect(dictNode.type).toBe('Dict');
       expect(dictNode.entries).toHaveLength(3);
-      expect(dictNode.entries[0]!.key).toBe(-1);
-      expect(dictNode.entries[1]!.key).toBe(0);
-      expect(dictNode.entries[2]!.key).toBe(1);
+      expect(dictNode.entries[0]!.key).toBe('-1');
+      expect(dictNode.entries[1]!.key).toBe('0');
+      expect(dictNode.entries[2]!.key).toBe('1');
     });
   });
 
@@ -409,5 +409,74 @@ describe('Parser Syntax Errors', () => {
       const result = await run('true ? 5 ! 2');
       expect(result).toBe(5);
     });
+  });
+
+  describe('Dict key duplicates and removed selector forms', () => {
+    rule('dict.key-duplicate').it(
+      'rejects dict[a: 1, a: 2] with RILL-P027',
+      () => {
+        try {
+          parse('dict[a: 1, a: 2]');
+          expect.fail('Should have thrown ParseError');
+        } catch (err) {
+          expect(err).toBeInstanceOf(ParseError);
+          expect((err as ParseError).errorId).toBe('RILL-P027');
+          expect((err as ParseError).message).toContain("Duplicate key 'a'");
+        }
+      }
+    );
+
+    rule('dict.key-duplicate').it(
+      'rejects an ordered literal that spells a key twice',
+      () => {
+        try {
+          parse('ordered[a: 1, "a": 2]');
+          expect.fail('Should have thrown ParseError');
+        } catch (err) {
+          expect((err as ParseError).errorId).toBe('RILL-P027');
+        }
+      }
+    );
+
+    rule('selection.no-paren').it(
+      'rejects $d.("a") with RILL-P012 naming both replacements',
+      () => {
+        try {
+          parse('$d.("a")');
+          expect.fail('Should have thrown ParseError');
+        } catch (err) {
+          expect((err as ParseError).errorId).toBe('RILL-P012');
+          expect((err as ParseError).message).toContain('[expr]');
+          expect((err as ParseError).message).toContain('.?[expr]');
+        }
+      }
+    );
+
+    rule('selection.no-paren').it(
+      'rejects the removed .( and .{ selectors after a pipe with RILL-P012',
+      () => {
+        for (const source of ['$d -> .("a")', '$d -> .{ "a" }']) {
+          try {
+            parse(source);
+            expect.fail('Should have thrown ParseError');
+          } catch (err) {
+            expect((err as ParseError).errorId).toBe('RILL-P012');
+            expect((err as ParseError).message).toContain('[expr]');
+          }
+        }
+      }
+    );
+
+    rule('existence.bracket').it(
+      'parses $d.?["a"] to an existence check with a bracket final access',
+      () => {
+        const ast = parse('$d.?["a"]');
+        const variable = asPostfixHead(getStatementAt(ast, 0).expression.head)
+          .primary as VariableNode;
+        expect(variable.existenceCheck?.finalAccess).toMatchObject({
+          accessKind: 'bracket',
+        });
+      }
+    );
   });
 });

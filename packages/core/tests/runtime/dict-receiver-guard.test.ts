@@ -8,6 +8,7 @@ import {
   BUILTIN_METHODS,
   createRuntimeContext,
   type RillValue,
+  createTuple,
 } from '@rcrsr/rill';
 import { expectHalt, expectHaltSync } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
@@ -62,13 +63,7 @@ describe('dict receiver guard', () => {
   it.each([
     ['keys', ['a', 'b']],
     ['values', [1, 2]],
-    [
-      'entries',
-      [
-        ['a', 1],
-        ['b', 2],
-      ],
-    ],
+    ['entries', [createTuple(['a', 1]), createTuple(['b', 2])]],
   ] as const)('lists %s of an ordered receiver', async (name, expected) => {
     expect(await run(`ordered[a: 1, b: 2] -> .${name}`)).toEqual(expected);
   });

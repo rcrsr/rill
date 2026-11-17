@@ -819,7 +819,7 @@ $y.^type.signature
 # Result: "number"
 ```
 
-Every element and field read carries the declared element or field type: `[expr]`, `.name`, `.$k`, `.(expr)`, `.(a || b)`, and pipe selection such as `"a" -> $d`. Methods such as `.head` take the own type:
+Every element and field read carries the declared element or field type: `[expr]`, `.name`, `.$k`, and pipe selection such as `"a" -> $d`. Methods such as `.head` take the own type:
 
 ```rill
 dict[a: 1] => $d:dict(a: union(number, string))
@@ -830,7 +830,7 @@ $d.a.^type.signature
 ```rill
 dict[a: 1] => $d:dict(a: union(number, string))
 "a" -> $d => $v
-tuple[$d.("a").^type.signature, $v.^type.signature]
+tuple[$d["a"].^type.signature, $v.^type.signature]
 # Result: tuple["union(number, string)", "union(number, string)"]
 ```
 
@@ -955,13 +955,13 @@ $t.inner
 # Error: Type value has no property "inner"
 ```
 
-`.inner`, `.("inner")`, `.$k`, `.(a || b)`, `-> .inner`, and `.?inner` agree on what a type value has. The general rule lives in [Language Reference](ref-language.md).
+`.inner`, `-> .inner`, and `.?inner` agree on what a type value has. A variable key is a selector, not a field name, so `$t.$k` and `$t.?$k` halt RILL-R002 `Cannot index type`, as `$t["inner"]` does. The general rule lives in [Language Reference](ref-language.md).
 
 ```rill
 string => $t
 "signature" => $k
-tuple[$t.$k, $t.("name")]
-# Result: tuple["string", "string"]
+$t.$k ?? "none"
+# Error: Cannot index type
 ```
 
 The removed `.^input`, `.^output`, and `.^chunk` probes halt and name their replacements. See [Removed Reflection Probes](ref-language.md#removed-reflection-probes) for the table.

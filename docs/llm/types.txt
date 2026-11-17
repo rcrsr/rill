@@ -71,13 +71,14 @@ In closure params (validates input structure):
     $data[0], $data[-1]             # list index (negative from end)
     tuple[1,"a"][1]  # "a" — tuple and ordered index by position; ordered also by key
     $data.$key                      # variable as key
-    $data.($i + 1)                  # computed key
-    $data.(a || b)                  # try keys left to right
+    $data[$i + 1]                   # computed key
+    $data[1]                        # halts #TYPE_MISMATCH on a dict: keys are strings; use $data["1"]
     $data.field ?? "default"        # vacant fallback
     $data.?field                    # boolean: does field exist?
     $data.?field&string             # exists AND is string
     $data.?$key&number              # variable existence + type check
-    $data.?($expr)&list             # computed existence + type check
+    $data.?[$expr]&list             # computed existence + type check
+    $data.?[5]                      # absent key or out-of-range index is false; a wrong-typed selector halts like $data[5]
 
 The 8 dict method names are reserved and cannot be used as dict keys:
 
@@ -193,7 +194,7 @@ Under a declared union, `.^type` reports the declaration and `.^effective` the o
 Dispatch on `.^effective.name`, not `.^type.name`. `any` declares nothing:
 `1 => $x:any` locks as number.
 
-A declaration carries through `$`, plain and inline captures, grouped `( )`, `pass`, destructure, closure params, iteration over a declared `list(E)`, and every element or field read on a declared collection: `[i]`, `.name`, `.$k`, `.(expr)`, `.(a || b)`, and pipe selection `"a" -> $d`. A capture locks to the carried declaration.
+A declaration carries through `$`, plain and inline captures, grouped `( )`, `pass`, destructure, closure params, iteration over a declared `list(E)`, and every element or field read on a declared collection: `[i]`, `.name`, `.$k`, and pipe selection `"a" -> $d`. A capture locks to the carried declaration.
 Computed results (operators, methods like `.head`, calls) take their own type.
 A bare `list`, `list(any)`, or `union(list(number), string)` projects no element type. A bare kind such as `:list` makes `.^type` report `list` and `.^effective` report `list(number)`.
 Host boundary: `toNative` reports the own type.

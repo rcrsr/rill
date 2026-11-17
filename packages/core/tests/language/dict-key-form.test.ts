@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: DictEntry keyForm metadata
  * AST-inspection tests verifying keyForm is set correctly by the parser.
@@ -5,6 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { type DictEntryNode, parse } from '@rcrsr/rill';
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
 /** Recursively find the first node with the given `type` field. */
@@ -41,19 +43,29 @@ describe('AST keyForm metadata', () => {
     expect(entry.keyForm).toBe('string');
   });
 
-  it('number key leaves keyForm undefined', () => {
-    const ast = parse('dict[1: "x"]');
-    const entry = findFirst(ast, 'DictEntry') as DictEntryNode;
-    expect(entry).toBeTruthy();
-    expect('keyForm' in entry).toBe(false);
-  });
+  rule('dict.key-string').it(
+    'number key sets keyForm to number and stores its spelling',
+    () => {
+      const ast = parse('dict[1: "x", -2.50: "y"]');
+      const dictNode = findFirst(ast, 'Dict') as { entries: DictEntryNode[] };
+      expect(dictNode.entries.map((e) => [e.key, e.keyForm])).toEqual([
+        ['1', 'number'],
+        ['-2.50', 'number'],
+      ]);
+    }
+  );
 
-  it('boolean key leaves keyForm undefined', () => {
-    const ast = parse('dict[true: "x"]');
-    const entry = findFirst(ast, 'DictEntry') as DictEntryNode;
-    expect(entry).toBeTruthy();
-    expect('keyForm' in entry).toBe(false);
-  });
+  rule('dict.key-string').it(
+    'boolean key sets keyForm to bool and stores its spelling',
+    () => {
+      const ast = parse('dict[true: "x", false: "y"]');
+      const dictNode = findFirst(ast, 'Dict') as { entries: DictEntryNode[] };
+      expect(dictNode.entries.map((e) => [e.key, e.keyForm])).toEqual([
+        ['true', 'bool'],
+        ['false', 'bool'],
+      ]);
+    }
+  );
 
   it('synthesized pass<> option entry has keyForm identifier', () => {
     const ast = parse('42 -> pass<on_error: #IGNORE> { 1 }');
@@ -120,12 +132,35 @@ describe('Dict key method ordering', () => {
   });
 
   it('.entries aligns keys and values under sorted key order', async () => {
-    const result = await run('dict[zebra: 1, apple: 2, mango: 3] -> .entries');
-    expect(result).toEqual([
-      ['apple', 2],
-      ['mango', 3],
-      ['zebra', 1],
-    ]);
+    const result = await run(
+      'dict[zebra: 1, apple: 2, mango: 3] -> .entries => $e\n$e == list[tuple["apple", 2], tuple["mango", 3], tuple["zebra", 1]]'
+    );
+    expect(result).toBe(true);
+  });
+
+  rule('dict.entries-type').it(
+    '.entries of a dict and of an ordered has type list(tuple(string, number))',
+    async () => {
+      const dictEntries = 'dict[b: 2, a: 1] -> .entries => $e\n';
+      expect(
+        await run(`${dictEntries}$e == list[tuple["a", 1], tuple["b", 2]]`)
+      ).toBe(true);
+      expect(
+        await run(`${dictEntries}$e.^type == list(tuple(string, number))`)
+      ).toBe(true);
+      const orderedEntries = 'ordered[b: 2, a: 1] -> .entries => $e\n';
+      expect(
+        await run(`${orderedEntries}$e == list[tuple["b", 2], tuple["a", 1]]`)
+      ).toBe(true);
+      expect(
+        await run(`${orderedEntries}$e.^type == list(tuple(string, number))`)
+      ).toBe(true);
+    }
+  );
+
+  it('sorts number-spelled keys as strings, so "10" precedes "9"', async () => {
+    const result = await run('dict[9: "a", 10: "b", 1: "c"] -> .keys');
+    expect(result).toEqual(['1', '10', '9']);
   });
 
   it('.values follows the same sorted key order as .keys and .entries', async () => {

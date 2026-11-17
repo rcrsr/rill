@@ -221,7 +221,11 @@ function findBracketAccessSegmentAt(
   let found: AccessSegmentMatch | null = null;
   walkAst(container, (node) => {
     if (found !== null || node.type !== 'Variable') return;
-    for (const access of node.accessChain) {
+    const finalAccess = node.existenceCheck?.finalAccess;
+    const accesses = finalAccess
+      ? [...node.accessChain, finalAccess]
+      : node.accessChain;
+    for (const access of accesses) {
       if (isBracketAccess(access) && spanContainsOffset(access.span, offset)) {
         found = { span: access.span, description: accessDescription(access) };
         return;
@@ -267,17 +271,12 @@ function findAccessSegmentAt(
 
 /**
  * Returns the access segment's own span, or `undefined` for segment kinds
- * that carry no span of their own (`block`, `alternatives`, `annotation`) --
- * these are resolved via their ASTNode children instead, per core's
- * `ownsOffset` documentation.
+ * that carry no span of their own (`annotation`) -- these are resolved via
+ * their ASTNode children instead, per core's `ownsOffset` documentation.
  */
 function accessSpan(access: PropertyAccess): SourceSpan | undefined {
   if (isBracketAccess(access)) return access.span;
-  if (
-    access.kind === 'literal' ||
-    access.kind === 'variable' ||
-    access.kind === 'computed'
-  ) {
+  if (access.kind === 'literal' || access.kind === 'variable') {
     return access.span;
   }
   return undefined;
@@ -290,12 +289,6 @@ function accessDescription(access: PropertyAccess): string {
       return `field \`${access.field}\``;
     case 'variable':
       return `field (dynamic key \`$${access.variableName ?? ''}\`)`;
-    case 'computed':
-      return 'field (computed key)';
-    case 'block':
-      return 'field (block key)';
-    case 'alternatives':
-      return 'field (alternatives)';
     case 'annotation':
       return `annotation \`^${access.key}\``;
   }

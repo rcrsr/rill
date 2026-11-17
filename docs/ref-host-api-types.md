@@ -564,27 +564,27 @@ interface DictEntryNode {
   readonly type: 'DictEntry';
   readonly key:
     | string
-    | number
-    | boolean
     | ListLiteralNode
     | DictKeyVariable
     | DictKeyComputed;
   readonly value: ExpressionNode;
-  readonly keyForm?: 'identifier' | 'string';
+  readonly keyForm?: 'identifier' | 'string' | 'number' | 'bool';
   // ...standard BaseNode span/location fields
 }
 ```
 
-`keyForm` records how a string key appeared in source:
+`keyForm` records how a string key appeared in source. A single number or bool key is stored as the string of its spelling; a multi-key list element must already be a string:
 
 | Source form | `keyForm` |
 |-------------|-----------|
 | `dict[name: 1]` (bare identifier) | `'identifier'` |
 | `dict["name": 1]` (quoted string) | `'string'` |
-| Number, boolean, computed, variable, or list keys | `undefined` |
+| `dict[1: "x"]` (number, stored as `"1"`) | `'number'` |
+| `dict[true: "x"]` (boolean, stored as `"true"`) | `'bool'` |
+| Computed, variable, or list keys | `undefined` |
 | Internal `'...'` spread sentinel | `undefined` |
 
-`keyForm` is parser metadata only. Runtime semantics are unchanged: `dict[a: 1]` and `dict["a": 1]` are AST- and value-equal. Use `keyForm` in linting and analysis tools that want to treat quoted keys as an intentional escape for foreign API names (for example a `snake_case` rule that allows `dict["maxResults": ...]` while flagging `dict[maxResults: ...]`).
+`keyForm` is parser metadata only. Runtime semantics are unchanged: `dict[a: 1]` and `dict["a": 1]` are AST- and value-equal. Use `keyForm` in linting and analysis tools that want to tell bare identifier, quoted, number, and bool keys apart, for example to treat quoted keys as an intentional escape for foreign API names (for example a `snake_case` rule that allows `dict["maxResults": ...]` while flagging `dict[maxResults: ...]`).
 
 ### `RecoveryErrorNode`
 
@@ -644,7 +644,7 @@ Every member of the `ASTNode` union has a defined child set: a fixed, exhaustive
 
 ### Field access and dict key spans
 
-`FieldAccessLiteral`, `FieldAccessVariable`, `FieldAccessComputed`, `DictKeyVariable`, and `DictKeyComputed` each carry a `readonly span: SourceSpan` field, following the same inline-span pattern as `BracketAccess`. These interfaces are segments within a larger node (a property access chain or a dict key) rather than standalone `BaseNode` subtypes, so `span` covers only that segment.
+`FieldAccessLiteral`, `FieldAccessVariable`, `DictKeyVariable`, and `DictKeyComputed` each carry a `readonly span: SourceSpan` field, following the same inline-span pattern as `BracketAccess`. These interfaces are segments within a larger node (a property access chain or a dict key) rather than standalone `BaseNode` subtypes, so `span` covers only that segment.
 
 ```typescript
 interface FieldAccessLiteral {
@@ -656,12 +656,6 @@ interface FieldAccessLiteral {
 interface FieldAccessVariable {
   readonly kind: 'variable';
   readonly variableName: string | null;
-  readonly span: SourceSpan;
-}
-
-interface FieldAccessComputed {
-  readonly kind: 'computed';
-  readonly expression: ExpressionNode;
   readonly span: SourceSpan;
 }
 
@@ -682,7 +676,6 @@ interface DictKeyComputed {
 |-----------|-----------------|
 | `FieldAccessLiteral` | From the `.` token through the field-name token, e.g. `.name` |
 | `FieldAccessVariable` | From the `.` token through the variable-name token, e.g. `.$var` |
-| `FieldAccessComputed` | From the `.` token through the closing `)` token, e.g. `.(expr)` |
 | `DictKeyVariable` | From the opening key delimiter through the closing delimiter |
 | `DictKeyComputed` | From the opening key delimiter through the closing delimiter |
 

@@ -14,7 +14,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 **Navigation:**
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
-- [Parse Errors (RILL-P001 - RILL-P026)](#parse-errors)
+- [Parse Errors (RILL-P001 - RILL-P027)](#parse-errors)
 - [Runtime Errors (RILL-R001 - RILL-R091)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 
@@ -381,6 +381,10 @@ math::add(1, 2)  # Error: use use<ext:math> => $math, then $math.add(1, 2)
 
 # -> export pipe syntax removed
 "value" -> export  # Error: use last-expression result instead
+
+# Computed-selector dot forms removed
+dict[a: 1] => $d
+$d.("a")  # Error: use $d["a"], or $d.?["a"] to probe
 ```
 
 ---
@@ -529,6 +533,26 @@ list[1, 2] -> destruct<$a, b: $c>
 
 # Keyed element followed by a skip
 dict[a: 1] -> destruct<a: $x, _>
+```
+
+---
+
+### rill-p027
+
+**Description:** Duplicate key in a dict or ordered literal
+
+**Cause:** A dict or ordered literal spells the same literal key twice. Identifier, string, number, and boolean keys are compared as strings, so 1 and "1" are the same key.
+
+**Resolution:** Remove the repeated key, or give each entry a distinct key.
+
+**Example:**
+
+```text
+# Identifier key repeated
+dict[a: 1, a: 2]
+
+# Number key and string key spell the same key
+dict[1: "x", "1": "y"]
 ```
 
 ---
@@ -690,7 +714,7 @@ $stmt.^timeout  # No ^(timeout: ...) set
 
 **Description:** Key or index not found
 
-**Cause:** A dict or ordered key, or a list, tuple or ordered index, does not exist in the value. Index access through [], .at, .(n), or list[...] dispatch raises it when the index is outside the valid range.
+**Cause:** A dict or ordered key, or a list, tuple or ordered index, does not exist in the value. Index access through [], .at, or list[...] dispatch raises it when the index is outside the valid range.
 
 **Resolution:** Check property name spelling, verify the property exists, or use null-coalescing (??) to provide default. For safe access, use .? operator.
 
@@ -700,7 +724,7 @@ $stmt.^timeout  # No ^(timeout: ...) set
 # Missing dict key
 dict[name: "x"] -> .age  # age key not in dict
 
-# Index out of bounds (also .at, .(n), list dispatch)
+# Index out of bounds (also .at, list dispatch)
 list[1, 2, 3] => $items
 $items[5]  # Only 3 elements (0-2)
 

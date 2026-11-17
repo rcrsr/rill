@@ -25,7 +25,6 @@
 import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
 import { isCallable } from '../callable.js';
 import type { RillCallable } from '../callable.js';
-import { typedKeyEntries } from '../types/dict-keys.js';
 import { throwCatchableHostHalt } from '../types/halt.js';
 import type { TypeHaltSite } from '../types/halt.js';
 import {
@@ -262,13 +261,13 @@ function walkAndBrand(
  * it is only needed when a callable is branded, so each entry records its
  * parent and the segment that reaches it. The root entry has no parent and
  * carries the path prefix as its segment. `dotted` marks a member reached
- * by key (`.key`, or the bare key at an empty base) rather than by index or
- * typed key (`[k]`).
+ * by key (`.key`, or the bare key at an empty base) rather than by index
+ * (`[i]`, a list or tuple element).
  */
 interface PendingEntry {
   readonly value: RillValue;
   readonly parent: PendingEntry | null;
-  readonly segment: string | number | boolean;
+  readonly segment: string | number;
   readonly dotted: boolean;
 }
 
@@ -342,11 +341,6 @@ function members(
     if (child === undefined || !isWalkable(child)) continue;
     if (skipValue && key === 'value') continue;
     out.push({ value: child, parent, segment: key, dotted: true });
-  }
-  // Number and boolean keys live in a sidecar, not in Object.keys.
-  for (const { key, value: child } of typedKeyEntries(value)) {
-    if (!isWalkable(child)) continue;
-    out.push({ value: child, parent, segment: key, dotted: false });
   }
 }
 

@@ -20,10 +20,8 @@ import {
   isVector,
   orderedValueEntries,
 } from '../../../core/types/guards.js';
-import {
-  orderedDictEntries,
-  typedKeyCount,
-} from '../../../core/types/dict-keys.js';
+import { orderedDictEntries } from '../../../core/types/dict-keys.js';
+import { createTuple } from '../../../core/types/constructors.js';
 import { isEmpty } from '../../../core/values.js';
 import {
   carriedListElement,
@@ -70,7 +68,7 @@ export const mLen: RillMethod = (receiver) => {
   if (Array.isArray(receiver)) return receiver.length;
   if (isOrdered(receiver)) return receiver.entries.length;
   if (receiver !== null && typeof receiver === 'object') {
-    return Object.keys(receiver).length + typedKeyCount(receiver);
+    return Object.keys(receiver).length;
   }
   return 0;
 };
@@ -581,10 +579,7 @@ function requireDictReceiver(
   );
 }
 
-/**
- * Get all keys of a dict as a list, in canonical order: sorted string keys,
- * then number keys ascending, then boolean keys (false before true).
- */
+/** Get all keys of a dict as a list, in sorted string-key order. */
 export const mKeys: RillMethod = (receiver, _args, ctx, location) => {
   // Ordered values dispatch before isDict: the JS wrapper object also
   // satisfies isDict's structural shape check.
@@ -601,12 +596,16 @@ export const mValues: RillMethod = (receiver, _args, ctx, location) => {
   return orderedDictEntries(receiver).map((e) => e.value);
 };
 
-/** Get all entries of a dict as a list of [key, value] pairs, in canonical key order. */
+/** Get all entries of a dict or ordered as a list of [key, value] tuples, in canonical key order. */
 export const mEntries: RillMethod = (receiver, _args, ctx, location) => {
   if (isOrdered(receiver))
-    return orderedValueEntries(receiver).map(([k, v]): RillValue => [k, v]);
+    return orderedValueEntries(receiver).map(([k, v]): RillValue =>
+      createTuple([k, v])
+    );
   requireDictReceiver(receiver, 'entries', ctx, location);
-  return orderedDictEntries(receiver).map((e): RillValue => [e.key, e.value]);
+  return orderedDictEntries(receiver).map((e): RillValue =>
+    createTuple([e.key, e.value])
+  );
 };
 
 /**

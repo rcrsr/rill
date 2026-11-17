@@ -208,13 +208,11 @@ describe('Rill Language: sort primitive', () => {
       );
     });
 
-    it('mixed-type dict keys via the default extractor halt with #TYPE_MISMATCH', async () => {
-      // [SPEC] dict[b: 1, 2: "x"] mixes a string key and a number key.
-      // With no key_fn argument, sort falls back to the default key extractor,
-      // which must halt on the mixed key types rather than sorting.
-      await expectHalt(() => run('dict[b: 1, 2: "x"] -> sort'), {
-        code: 'TYPE_MISMATCH',
-      });
+    it('number-spelled dict keys sort as strings by the default extractor', async () => {
+      // Every dict key is a string, so "10" sorts before "9".
+      expect(await run('dict[b: 1, 9: "y", 10: "x"] -> sort -> .keys')).toEqual(
+        ['10', '9', 'b']
+      );
     });
 
     it('AC-ERR-2 / EC-2: extractor returning vacant value halts with #INVALID_INPUT', async () => {

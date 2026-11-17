@@ -10,9 +10,12 @@
  * read of a bare field):
  * - Literal key: $data.field
  * - Variable key: $data.$key
- * - Computed key: $data.(expr)
- * - Alternatives: $data.(a || b)
  * - Existence checks (.?) locate without invoking anything
+ *
+ * A dict is keyed by strings only. dictSelectorKey is the one place that rule
+ * is written: every form that selects from a plain dict by an evaluated
+ * selector (variable key, bracket, `.?` checks, pipe selection) validates it
+ * there, before any lookup, so a `??` default never masks a wrong-typed key.
  *
  * Forms that validate their own key and locate directly: bracket index
  * (variables.ts), pipe selection (element-dispatch.ts), literal list
@@ -32,12 +35,7 @@
  * @internal
  */
 
-import type {
-  ExpressionNode,
-  SourceLocation,
-  VariableNode,
-} from '../../../../types.js';
-import { isPipeChainNode } from '../../../../types.js';
+import type { SourceLocation, VariableNode } from '../../../../types.js';
 import type { RillValue, TypeStructure } from '../../types/structures.js';
 import type { Carried } from '../../types/declared.js';
 import { projectElement } from '../../types/declared.js';
@@ -45,7 +43,6 @@ import { inferType } from '../../types/registrations.js';
 import {
   isIterator,
   isOrdered,
-  isStream,
   isTuple,
   isTypeValue,
 } from '../../types/guards.js';
@@ -55,11 +52,8 @@ import {
   throwIndexOutOfBounds,
 } from '../../types/index-access.js';
 import type { IndexKind } from '../../types/index-access.js';
-import { isDict, isCallable } from '../../callable.js';
-import {
-  throwCatchableHostHalt,
-  throwFatalHostHalt,
-} from '../../types/halt.js';
+import { isCallable } from '../../callable.js';
+import { throwCatchableHostHalt, throwTypeHalt } from '../../types/halt.js';
 import type { TypeHaltSite } from '../../types/halt.js';
 import {
   readTypeProperty,
@@ -68,8 +62,6 @@ import {
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getNodeLocation, isFieldReceiver, readOwnField } from '../shared.js';
-import { getTypedKey, getTypedKeyMap } from '../../types/dict-keys.js';
-import { evaluatePipeChain } from './core.js';
 import { invokeCallable } from './closures.js';
 
 // ============================================================
@@ -77,7 +69,7 @@ import { invokeCallable } from './closures.js';
 // ============================================================
 
 /** A key that can address a field or position. */
-export type FieldKey = string | number | boolean;
+export type FieldKey = string | number;
 
 /** Why a lookup found nothing. */
 export type FieldMiss =
@@ -113,21 +105,65 @@ export interface FieldReadRequest {
   readonly fn: string;
   /** Declared type of the receiver, used to project the element's type. */
   readonly receiverDeclared?: TypeStructure | undefined;
-  /** Every alternative tried, reported when none exists. */
-  readonly names?: readonly string[] | undefined;
+  /** Report a miss with the bracket read's halt, for `.$k`. */
+  readonly bracketMiss?: boolean | undefined;
 }
 
 // ============================================================
 // LOCATE
 // ============================================================
 
-/** True for the value kinds that can key a field read. */
-export function isFieldKey(value: RillValue): value is FieldKey {
-  return (
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean'
+/**
+ * Validate a selector against a plain dict: only a string selects a field. Any
+ * other type halts with a catchable type mismatch, ahead of the lookup, so a
+ * `??` default cannot recover it.
+ */
+export function dictSelectorKey(
+  selector: RillValue,
+  site: TypeHaltSite
+): string {
+  if (typeof selector === 'string') return selector;
+  return throwTypeHalt(
+    site,
+    'TYPE_MISMATCH',
+    `Dict key must be string, got ${inferType(selector)}`,
+    'runtime',
+    { expectedType: 'string', actualType: inferType(selector) }
   );
+}
+
+/**
+ * Validate a bracket key against its receiver. Lists and tuples take a number,
+ * ordered values a string or number, dicts a string; every other receiver, and
+ * an iterator, cannot be indexed.
+ */
+export function bracketKey(
+  receiver: RillValue,
+  indexValue: RillValue,
+  site: TypeHaltSite
+): FieldKey {
+  const reject = (message: string): never =>
+    throwCatchableHostHalt(site, ERROR_ATOMS[ERROR_IDS.RILL_R002], message);
+  const got = (): string => inferType(indexValue);
+  if (Array.isArray(receiver)) {
+    return typeof indexValue === 'number'
+      ? indexValue
+      : reject(`List index must be number, got ${got()}`);
+  }
+  if (isOrdered(receiver)) {
+    return typeof indexValue === 'string' || typeof indexValue === 'number'
+      ? indexValue
+      : reject(`Ordered index must be string or number, got ${got()}`);
+  }
+  if (isTuple(receiver)) {
+    return typeof indexValue === 'number'
+      ? indexValue
+      : reject(`Tuple index must be number, got ${got()}`);
+  }
+  // Must precede the dict case: an iterator is structurally a dict.
+  if (isIterator(receiver)) return reject('Cannot index iterator');
+  if (isFieldReceiver(receiver)) return dictSelectorKey(indexValue, site);
+  return reject(`Cannot index ${inferType(receiver)}`);
 }
 
 const NOT_FOUND = (miss: FieldMiss): FieldLocation => ({ found: false, miss });
@@ -172,48 +208,26 @@ export function locateField(receiver: RillValue, key: FieldKey): FieldLocation {
   }
   if (isOrdered(receiver)) {
     const entries = receiver.entries;
-    if (typeof key === 'string') {
-      const entry = entries.find(([name]) => name === key);
-      return entry === undefined
-        ? NOT_FOUND('absent')
-        : { found: true, value: entry[1], key };
-    }
     if (typeof key === 'number') {
       return locatePosition(key, entries.length, (i) => entries[i]?.[1]);
     }
-    return NOT_FOUND('not-indexable');
+    const entry = entries.find(([name]) => name === key);
+    return entry === undefined
+      ? NOT_FOUND('absent')
+      : { found: true, value: entry[1], key };
   }
   if (Array.isArray(receiver)) {
     if (typeof key === 'string') return NOT_FOUND('no-fields');
-    if (typeof key === 'number') {
-      return locatePosition(key, receiver.length, (i) => receiver[i]);
-    }
-    return NOT_FOUND('not-indexable');
+    return locatePosition(key, receiver.length, (i) => receiver[i]);
   }
   if (isTuple(receiver)) {
     const entries = receiver.entries;
     if (typeof key === 'string') return NOT_FOUND('no-fields');
-    if (typeof key === 'number') {
-      return locatePosition(key, entries.length, (i) => entries[i]);
-    }
-    return NOT_FOUND('not-indexable');
+    return locatePosition(key, entries.length, (i) => entries[i]);
   }
   if (isFieldReceiver(receiver)) {
     if (typeof key === 'string') return locateOwnField(receiver, key);
-    if (isStream(receiver) || isIterator(receiver)) {
-      return NOT_FOUND('not-indexable');
-    }
-    if (getTypedKeyMap(receiver) === undefined) {
-      return NOT_FOUND('not-indexable');
-    }
-    const value = getTypedKey(receiver, key);
-    return value === undefined || value === null
-      ? NOT_FOUND('absent')
-      : {
-          found: true,
-          value,
-          key,
-        };
+    return NOT_FOUND('not-indexable');
   }
   return typeof key === 'string'
     ? NOT_FOUND('no-fields')
@@ -229,7 +243,7 @@ export function locateField(receiver: RillValue, key: FieldKey): FieldLocation {
  * miss goes to `onMiss`, which must halt.
  *
  * A miss recovers unless it is a fractional index, or the receiver is a dict
- * or stream read with a number or bool key. Such a key is a wrong key, not an
+ * or stream read with a number key. Such a key is a wrong key, not an
  * absent one, so only an absent string key recovers on those receivers.
  */
 export function locateOrRecover(
@@ -296,7 +310,7 @@ export function throwFieldMiss(
   key: FieldKey,
   miss: FieldMiss,
   site: TypeHaltSite,
-  names?: readonly string[]
+  raw?: Record<string, unknown>
 ): never {
   const target = indexTarget(receiver);
   switch (miss) {
@@ -316,23 +330,54 @@ export function throwFieldMiss(
         `Cannot access field '${key}' on non-dict`
       );
     case 'absent': {
-      const message =
-        names !== undefined
-          ? `Dict has none of the fields ${names.map((k) => `'${k}'`).join(', ')}`
-          : isOrdered(receiver)
-            ? `Undefined ordered key: ${key}`
-            : typeof key === 'string'
-              ? `Dict has no field '${key}'`
-              : `Undefined dict key: ${key}`;
+      const message = isOrdered(receiver)
+        ? `Undefined ordered key: ${key}`
+        : typeof key === 'string'
+          ? `Dict has no field '${key}'`
+          : `Undefined dict key: ${key}`;
       return throwCatchableHostHalt(
         site,
         ERROR_ATOMS[ERROR_IDS.RILL_R009],
-        message
+        message,
+        raw ?? { key }
       );
     }
     default:
       return throwNotIndexable(receiver, site);
   }
+}
+
+/**
+ * Halt for an absent dict key, as the bracket read words it. `raw` is the
+ * halt's structured context; it defaults to the missing key.
+ */
+export function throwUndefinedDictKey(
+  key: FieldKey,
+  site: TypeHaltSite,
+  raw?: Record<string, unknown>
+): never {
+  return throwCatchableHostHalt(
+    site,
+    ERROR_ATOMS[ERROR_IDS.RILL_R009],
+    `Undefined dict key: ${key}`,
+    raw ?? { key }
+  );
+}
+
+/**
+ * Halt for a miss in a bracket read. A dict names a missing key `Undefined
+ * dict key`, whatever the key type; any other receiver halts as throwFieldMiss.
+ * Every form that selects by key reports its miss through this function.
+ */
+export function throwBracketMiss(
+  receiver: RillValue,
+  key: FieldKey,
+  miss: FieldMiss,
+  site: TypeHaltSite,
+  raw?: Record<string, unknown>
+): never {
+  if (isFieldReceiver(receiver)) return throwUndefinedDictKey(key, site, raw);
+  return throwFieldMiss(receiver, key, miss, site, raw);
 }
 
 /** Declared type of a located element, projected from its receiver's type. */
@@ -368,14 +413,13 @@ export async function readField(
     key,
     request.allowMissing,
     (miss) => {
-      if (miss === 'absent' && isTypeValue(receiver)) {
-        return throwMissingTypeProperty(
-          site,
-          receiver,
-          request.names ?? String(key)
-        );
+      if (request.bracketMiss === true) {
+        return throwBracketMiss(receiver, key, miss, site);
       }
-      return throwFieldMiss(receiver, key, miss, site, request.names);
+      if (miss === 'absent' && isTypeValue(receiver)) {
+        return throwMissingTypeProperty(site, receiver, String(key));
+      }
+      return throwFieldMiss(receiver, key, miss, site);
     }
   );
   if (located === undefined) return { value: null, declared: undefined };
@@ -405,19 +449,15 @@ export async function readField(
 // FORMS
 // ============================================================
 
-/** True when a bool or number key may address `receiver` through typed keys. */
-function usesTypedKeys(receiver: RillValue): boolean {
-  return isDict(receiver) && getTypedKeyMap(receiver) !== undefined;
-}
-
 function siteFor(s: EvalState, node: VariableNode, fn: string): TypeHaltSite {
   return { location: getNodeLocation(s, node), sourceId: s.ctx.sourceId, fn };
 }
 
 /**
  * Evaluate field access using a variable as the key.
- * Resolves the variable by name and reads the resulting string, number or
- * (for a dict with typed keys) bool key from the receiver.
+ * Resolves the variable by name and reads the resulting key from the
+ * receiver. The key is validated and a miss reported exactly as the
+ * bracket read `[$k]` does.
  *
  * @param s - Evaluator state
  * @param access - The field access node with variable name
@@ -464,154 +504,12 @@ export async function evaluateFieldAccessVariable(
     }
   }
 
-  // A boolean key addresses only a dict that carries a typed-key sidecar;
-  // on any other receiver it halts with the key-type error.
-  if (
-    isFieldKey(keyValue) &&
-    (typeof keyValue !== 'boolean' || usesTypedKeys(value))
-  ) {
-    return await readField(s, value, keyValue, {
-      allowMissing,
-      location: getNodeLocation(s, node),
-      fn,
-      receiverDeclared,
-    });
-  }
-  return throwCatchableHostHalt(
-    siteFor(s, node, fn),
-    ERROR_ATOMS[ERROR_IDS.RILL_R002],
-    `Key must be string or number, got ${inferType(keyValue)}`
-  );
-}
-
-/**
- * Evaluate field access using a computed expression as the key.
- * Evaluates the expression and reads the resulting string, number or (for a
- * dict with typed keys) bool key from the receiver.
- *
- * @param s - Evaluator state
- * @param access - The field access node with expression
- * @param value - The current value being accessed
- * @param node - The parent variable node for location info
- * @param allowMissing - Resolve a miss to null instead of halting
- * @param receiverDeclared - Declared type of the receiver, if any
- * @returns The field or element value, carrying the element type projected
- *   from the receiver's declared type
- * @throws RuntimeHaltSignal (catchable or fatal) if the expression result is
- *   the wrong type or the read misses without allowMissing
- */
-export async function evaluateFieldAccessComputed(
-  s: EvalState,
-  access: {
-    readonly kind: 'computed';
-    readonly expression: ExpressionNode;
-  },
-  value: RillValue,
-  node: VariableNode,
-  allowMissing: boolean,
-  receiverDeclared?: TypeStructure
-): Promise<Carried> {
-  const fn = 'evaluateFieldAccessComputed';
-  // Evaluate the expression to get the key. Parsed inline while
-  // building a live access chain (never via the statement-level
-  // recovery path), so it only ever holds a PipeChainNode;
-  // PartialExpressionNode is reserved for parser error recovery.
-  if (!isPipeChainNode(access.expression)) {
-    throwFatalHostHalt(
-      siteFor(s, node, fn),
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      'Computed field access expression must be a pipe chain'
-    );
-  }
-  const keyValue = await evaluatePipeChain(s, access.expression);
-
-  if (isCallable(keyValue)) {
-    throwCatchableHostHalt(
-      siteFor(s, node, fn),
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `Computed key evaluated to closure, expected string or number`
-    );
-  }
-  if (isDict(keyValue)) {
-    throwCatchableHostHalt(
-      siteFor(s, node, fn),
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `Computed key evaluated to dict, expected string or number`
-    );
-  }
-  if (
-    isFieldKey(keyValue) &&
-    (typeof keyValue !== 'boolean' || usesTypedKeys(value))
-  ) {
-    return await readField(s, value, keyValue, {
-      allowMissing,
-      location: getNodeLocation(s, node),
-      fn,
-      receiverDeclared,
-    });
-  }
-  if (typeof keyValue === 'boolean' || Array.isArray(keyValue)) {
-    throwCatchableHostHalt(
-      siteFor(s, node, fn),
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `Computed key evaluated to ${inferType(keyValue)}, expected string or number`
-    );
-  }
-  return throwCatchableHostHalt(
-    siteFor(s, node, fn),
-    ERROR_ATOMS[ERROR_IDS.RILL_R002],
-    `Computed key evaluated to unexpected type`
-  );
-}
-
-/**
- * Evaluate field access using alternatives (try keys left-to-right).
- * Reads the first key the receiver defines. When every key is missing it
- * halts, unless a `??` default or `.?` existence check permits a
- * coalescible null.
- *
- * @param s - Evaluator state
- * @param access - The field access node with alternatives array
- * @param value - The current value being accessed (dict, stream, ordered or type value)
- * @param node - The parent variable node for location info
- * @param allowMissing - If true, return null when every key is missing
- * @param receiverDeclared - Declared type of the receiver, if any
- * @returns The first found value with its projected declared type
- * @throws RuntimeHaltSignal (catchable) if the target cannot hold fields, or
- *   if all keys are missing without allowMissing
- */
-export async function evaluateFieldAccessAlternatives(
-  s: EvalState,
-  access: {
-    readonly kind: 'alternatives';
-    readonly alternatives: string[];
-  },
-  value: RillValue,
-  node: VariableNode,
-  allowMissing = false,
-  receiverDeclared?: TypeStructure
-): Promise<Carried> {
-  const fn = 'evaluateFieldAccessAlternatives';
-  if (!isFieldReceiver(value) && !isOrdered(value) && !isTypeValue(value)) {
-    throwCatchableHostHalt(
-      siteFor(s, node, fn),
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `Alternative access requires dict, got ${inferType(value)}`
-    );
-  }
-  const request = {
+  const key = bracketKey(value, keyValue, siteFor(s, node, fn));
+  return await readField(s, value, key, {
     allowMissing,
     location: getNodeLocation(s, node),
     fn,
     receiverDeclared,
-    names: access.alternatives,
-  };
-
-  // Short-circuit on the first alternative the receiver defines.
-  for (const key of access.alternatives) {
-    if (locateField(value, key).found) {
-      return await readField(s, value, key, { ...request, allowMissing: true });
-    }
-  }
-  return await readField(s, value, access.alternatives[0] ?? '', request);
+    bracketMiss: true,
+  });
 }

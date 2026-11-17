@@ -115,7 +115,7 @@ describe('function source never reaches script-visible output', () => {
 
   it('rejects reading the stream resolve function from a script', async () => {
     const out = await collectOutput(
-      'make_stream() => $s\n$s.("__rill_stream_resolve")'
+      'make_stream() => $s\n$s["__rill_stream_resolve"]'
     );
     expectNoFunctionSource(out);
     expect(out).toContain('__rill_stream_resolve');

@@ -194,8 +194,8 @@ describe('Rill Language: declared types', () => {
 
     it('carries the declared field type for a computed .(expr) key', async () => {
       const src = `dict[a: 1] => $d:dict(a: ${U})\n`;
-      expect(await run(`${src}$d.("a").^type == ${U}`)).toBe(true);
-      expect(await run(`${src}$d.("a").^effective == number`)).toBe(true);
+      expect(await run(`${src}$d["a"].^type == ${U}`)).toBe(true);
+      expect(await run(`${src}$d["a"].^effective == number`)).toBe(true);
       expect(await run(`${src}$d.a.^type == ${U}`)).toBe(true);
     });
 

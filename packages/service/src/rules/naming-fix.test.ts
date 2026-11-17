@@ -167,7 +167,7 @@ describe('NAMING_SNAKE_CASE fix: withheld on ambiguous binding identity', () => 
 
 describe('NAMING_SNAKE_CASE fix: dict key withheld on dynamic field access', () => {
   it('withholds the fix when the script has computed field access anywhere', () => {
-    const source = 'dict[camelKey: 1] => $c\n"camelKey" => $k\n$c.($k)\n';
+    const source = 'dict[camelKey: 1] => $c\n"camelKey" => $k\n$c[$k]\n';
     const parsed = parse(source);
 
     const result = runRules(parsed, source, createDefaultConfig(), [
@@ -194,6 +194,36 @@ describe('NAMING_SNAKE_CASE fix: dict key withheld on dynamic field access', () 
     );
     expect(dictKeyDiagnostic).toBeDefined();
     expect(dictKeyDiagnostic?.fix).toBeNull();
+  });
+});
+
+describe('NAMING_SNAKE_CASE fix: dict key withheld on existence probe', () => {
+  function dictKeyFix(source: string) {
+    const result = runRules(parse(source), source, createDefaultConfig(), [
+      namingSnakeCase,
+    ]);
+    const diagnostic = result.find((d) => d.message.includes('Dict key'));
+    expect(diagnostic).toBeDefined();
+    return diagnostic?.fix;
+  }
+
+  it('withholds the fix when the key is probed with .?camelKey', () => {
+    expect(dictKeyFix('dict[camelKey: 1] => $c\n$c.?camelKey\n')).toBeNull();
+  });
+
+  it('withholds the fix when a bracket probe .?[expr] computes the key', () => {
+    const source = 'dict[camelKey: 1] => $c\n"camelKey" => $k\n$c.?[$k]\n';
+    expect(dictKeyFix(source)).toBeNull();
+  });
+
+  it('keeps the fix when only a static number index is used', () => {
+    const source = 'dict[camelKey: 1] => $c\nlist[1, 2] => $l\n$l[0]\n';
+    expect(dictKeyFix(source)).not.toBeNull();
+  });
+
+  it('withholds the fix when a string-literal bracket selects the key', () => {
+    const source = 'dict[camelKey: 1] => $c\n$c["camelKey"]\n';
+    expect(dictKeyFix(source)).toBeNull();
   });
 });
 

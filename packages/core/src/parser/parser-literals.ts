@@ -658,14 +658,19 @@ Parser.prototype.parseDict = function (
   start: SourceLocation
 ): DictNode {
   const entries: DictEntryNode[] = [];
-  entries.push(parseDictEntryOrSpread(this));
+  const seenKeys = new Set<string>();
+  const first = parseDictEntryOrSpread(this);
+  rejectDuplicateKey(seenKeys, first, 'dict');
+  entries.push(first);
   skipNewlines(this.state);
 
   while (check(this.state, TOKEN_TYPES.COMMA)) {
     const comma = advance(this.state);
     skipNewlines(this.state);
     rejectTrailingComma(this.state, comma, 'dict');
-    entries.push(parseDictEntryOrSpread(this));
+    const next = parseDictEntryOrSpread(this);
+    rejectDuplicateKey(seenKeys, next, 'dict');
+    entries.push(next);
     skipNewlines(this.state);
   }
 
@@ -687,14 +692,8 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   const start = current(this.state).span.start;
 
   // Parse key: identifier, string, number, boolean, variable, computed, or list literal (multi-key)
-  let key:
-    | string
-    | number
-    | boolean
-    | ListLiteralNode
-    | DictKeyVariable
-    | DictKeyComputed;
-  let keyForm: 'identifier' | 'string' | undefined = undefined;
+  let key: string | ListLiteralNode | DictKeyVariable | DictKeyComputed;
+  let keyForm: DictEntryNode['keyForm'] = undefined;
 
   if (check(this.state, TOKEN_TYPES.DOLLAR)) {
     // Parse variable key: $variableName
@@ -771,19 +770,23 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     // Parse negative number as key: -NUMBER
     advance(this.state); // consume MINUS
     const numToken = advance(this.state); // consume NUMBER
-    key = -Number(numToken.value);
+    key = `-${numToken.value}`;
+    keyForm = 'number';
   } else if (check(this.state, TOKEN_TYPES.NUMBER)) {
     // Parse number as key
     const keyToken = advance(this.state);
-    key = Number(keyToken.value);
+    key = keyToken.value;
+    keyForm = 'number';
   } else if (check(this.state, TOKEN_TYPES.TRUE)) {
     // Parse boolean true as key
     advance(this.state);
-    key = true;
+    key = 'true';
+    keyForm = 'bool';
   } else if (check(this.state, TOKEN_TYPES.FALSE)) {
     // Parse boolean false as key
     advance(this.state);
-    key = false;
+    key = 'false';
+    keyForm = 'bool';
   } else if (check(this.state, TOKEN_TYPES.IDENTIFIER)) {
     // Parse identifier as string key
     const keyToken = advance(this.state);
@@ -904,25 +907,26 @@ function parseSpreadOperand(parser: Parser): {
 }
 
 /**
- * Track seen keys for dict/ordered literals to enforce key uniqueness.
- * Returns the string form of a key for comparison purposes.
+ * Raise RILL-P027 when an identifier, string, number, or boolean key repeats
+ * within one dict or ordered literal. Number and boolean keys are already
+ * stored as the string of their source spelling, so all four forms compare
+ * as strings. Spread, variable, computed, and multi-key entries carry no
+ * keyForm and are never checked.
  */
-function keyToString(key: DictEntryNode['key']): string {
-  if (
-    typeof key === 'string' ||
-    typeof key === 'number' ||
-    typeof key === 'boolean'
-  ) {
-    return String(key);
+function rejectDuplicateKey(
+  seenKeys: Set<string>,
+  entry: DictEntryNode,
+  collection: 'dict' | 'ordered'
+): void {
+  if (entry.keyForm === undefined || typeof entry.key !== 'string') return;
+  if (seenKeys.has(entry.key)) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P027,
+      `Duplicate key '${entry.key}' in ${collection}`,
+      entry.span.start
+    );
   }
-  if ('kind' in key && key.kind === 'variable') {
-    return `$${key.variableName}`;
-  }
-  if ('kind' in key && key.kind === 'computed') {
-    return '(computed)';
-  }
-  // TupleNode key — use type tag to avoid collisions; uniqueness not enforced for tuple keys
-  return '(tuple-key)';
+  seenKeys.add(entry.key);
 }
 
 /**
@@ -1082,15 +1086,7 @@ function parseCollectionLiteral(
       }
 
       const entry = this.parseDictEntry();
-      const keyStr = keyToString(entry.key);
-      if (seenKeys.has(keyStr)) {
-        throw new ParseError(
-          ERROR_IDS.RILL_P004,
-          `duplicate key '${keyStr}' in ${collectionType} literal`,
-          entryStart
-        );
-      }
-      seenKeys.add(keyStr);
+      rejectDuplicateKey(seenKeys, entry, collectionType);
       entries.push(entry);
       skipNewlines(this.state);
     }

@@ -26,10 +26,16 @@ r[dispatch.ordered] A pipe into an ordered selects by key
 `sel -> $o` MUST select as `$o[sel]` does, for an ordered `$o`.
 
 r[dispatch.path] A list piped into nested collections descends one level per element
-`list["a", "b"] -> $d` MUST select `"a"` in `$d`, then `"b"` in that result.
+`list["a", "b"] -> $d` MUST select `"a"` in `$d`, then `"b"` in that result. Each step MUST select as `[k]` does on that receiver, so a number indexes an ordered value or a tuple, and a key the receiver rejects halts with the bracket read's message.
+
+r[dispatch.miss-message] A dispatch miss reads as the bracket read's
+A missing key in `k -> $d`, in a dispatch table `k -> dict[...]`, and in a hierarchical step MUST halt with the error id and message `$d[k]` raises for the same miss on the same receiver: RILL-R009 `Undefined dict key: k` on a dict, `Undefined ordered key: k` on an ordered, and `{Kind} index out of bounds: n` on a list, tuple, or ordered. `??` recovers each genuine miss.
 
 r[dispatch.multi-key] A dict entry MAY list several keys
 `dict[["a", "b"]: v]` MUST yield `v` for the selector `"a"` and for `"b"`.
+
+r[dispatch.multi-key-string] A multi-key list holds strings
+Every element of a multi-key list MUST be a string, in a dict literal, an ordered literal, and a dispatch table. Any other element, or an empty list, MUST halt with RILL-R002 naming its type, because a number such as `0.50` evaluates before it is a key and loses its spelling. A dispatch table MUST validate the key list of every entry before it matches, so a malformed table halts whatever the input and whichever entry would match, and before the selector type is checked.
 
 r[dispatch.block] A selected block runs with the key bound
 A block held by a dict entry MUST run with `$` bound to the selector.
@@ -54,6 +60,7 @@ A block held by a map entry MUST run with `$` bound to the key.
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | A non-number piped into a list | RILL-R002 | Yes |
+| A multi-key list element is not a string | RILL-R002 | Yes |
 
 ## Examples
 

@@ -17,8 +17,7 @@ import type { Carried } from '../../types/declared.js';
 import type { RillValue, TypeStructure } from '../../types/structures.js';
 import type { RillCallable } from '../../callable.js';
 import { declaredParams, isCallable } from '../../callable.js';
-import { formatValue, inferType } from '../../types/registrations.js';
-import { isOrdered, isPlainDict, isTuple } from '../../types/guards.js';
+import { isOrdered, isTuple } from '../../types/guards.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { TypeHaltSite } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
@@ -27,10 +26,11 @@ import { invokeCallable } from './closures.js';
 import { evaluateBodyExpression } from './control-flow.js';
 import { matchesErrorId } from './core.js';
 import { selectByBracketKey } from './variables.js';
+import type { FieldKey } from './field-access.js';
 import {
-  isFieldKey,
+  bracketKey,
   projectLocated,
-  throwFieldMiss,
+  throwBracketMiss,
   locateOrRecover,
 } from './field-access.js';
 
@@ -47,13 +47,14 @@ import {
  *
  * A list key must be a number and a fractional one halts. A miss resolves to
  * `defaultValue` when given, otherwise halts. Only an absent string key or an
- * out-of-range list index recovers: a number or bool key on a dict, and a key
- * that is not a string, number or bool, halt even with a default. With `resolve` set to `'keep'` a
- * selected callable is returned as stored for the caller to resolve; otherwise
- * it is invoked with `key` as its input.
+ * out-of-range list index recovers: a non-string key on a dict halts even with
+ * a default. With `resolve` set to `'keep'` a selected callable is returned as
+ * stored for the caller to resolve; otherwise it is invoked with `key` as its
+ * input.
  *
  * @param collection - Plain dict, list, tuple or ordered value to select from
- * @param key - Dispatch key (dict field or typed key; list, tuple or ordered position)
+ * @param key - Dispatch key (string dict field; list, tuple or ordered
+ *   position)
  * @param declared - Declared type of `collection`, if any
  * @param defaultValue - Default body for a miss, or null
  * @param location - Source location for error reporting
@@ -72,7 +73,6 @@ export async function selectElement(
   location: SourceLocation | undefined,
   resolve: 'invoke' | 'keep'
 ): Promise<Carried> {
-  const isList = Array.isArray(collection);
   const site: TypeHaltSite = {
     location,
     sourceId: s.ctx.sourceId,
@@ -92,38 +92,20 @@ export async function selectElement(
       declared: undefined,
     };
   }
-  if (isList && typeof key !== 'number') {
-    throwCatchableHostHalt(
-      site,
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `List dispatch requires number index, got ${typeof key}`,
-      { input: key, expectedType: 'number' }
-    );
-  }
-
-  const haltDispatchMiss = (): never =>
-    throwCatchableHostHalt(
-      site,
-      ERROR_ATOMS[ERROR_IDS.RILL_R009],
-      `Dict dispatch: key '${formatValue(key)}' not found`,
-      { key }
-    );
-  // A key that cannot address a field is a wrong key, not a missing one.
-  if (!isFieldKey(key)) return haltDispatchMiss();
+  // A wrong-typed key is not a missing one and halts ahead of the lookup,
+  // with the bracket read's message.
+  const fieldKey: FieldKey = bracketKey(collection, key, site);
   const found = locateOrRecover(
     collection,
-    key,
+    fieldKey,
     defaultValue !== null,
-    (miss) =>
-      // A fractional or list-position miss names its own container; any
-      // other miss on a dict names the dispatch key.
-      miss === 'non-integer' || isList
-        ? throwFieldMiss(collection, key, miss, site)
-        : haltDispatchMiss()
+    (miss) => throwBracketMiss(collection, fieldKey, miss, site)
   );
   if (found === undefined) {
     // locateOrRecover recovers only when a default was supplied.
-    if (defaultValue === null) return haltDispatchMiss();
+    if (defaultValue === null) {
+      return throwBracketMiss(collection, fieldKey, 'absent', site);
+    }
     return {
       value: await evaluateBodyExpression(s, defaultValue),
       declared: undefined,
@@ -246,10 +228,10 @@ export async function evaluateHierarchicalDispatch(
 /**
  * Execute single path step: select `key` from the current value.
  *
- * A string key selects from a dict and a number key from a list; any other
- * combination is a type error. A non-terminal closure is resolved via
- * resolveIntermediateClosure. A terminal closure is left for the caller,
- * which invokes it with $ = key.
+ * A plain dict or stream takes a string key (any other type halts as a dict key type
+ * mismatch) and a list a number key; any other combination is a type error.
+ * A non-terminal closure is resolved via resolveIntermediateClosure. A
+ * terminal closure is left for the caller, which invokes it with $ = key.
  */
 async function traversePathStep(
   s: EvalState,
@@ -259,46 +241,25 @@ async function traversePathStep(
   location?: SourceLocation
 ): Promise<Carried> {
   const value = current.value;
-  if (
-    (isPlainDict(value) && typeof key === 'string') ||
-    (Array.isArray(value) && !isTuple(value) && typeof key === 'number')
-  ) {
-    const result = await selectElement(
-      s,
-      value,
-      key,
-      current.declared,
-      null, // No default value for intermediate steps
-      location,
-      'keep' // Closures are resolved here, not by selection
-    );
-    if (!isTerminal && isCallable(result.value)) {
-      return {
-        value: await resolveIntermediateClosure(s, result.value, location),
-        declared: undefined,
-      };
-    }
-    return result;
-  }
-
-  // Type mismatch: throw error
-  const currentType = Array.isArray(value)
-    ? isTuple(value)
-      ? 'tuple'
-      : 'list'
-    : inferType(value);
-  const keyType = typeof key;
-
-  return throwCatchableHostHalt(
-    {
-      location,
-      sourceId: s.ctx.sourceId,
-      fn: 'traversePathStep',
-    },
-    ERROR_ATOMS[ERROR_IDS.RILL_R002],
-    `Hierarchical dispatch type mismatch: cannot use ${keyType} key with ${currentType} value`,
-    { currentType, keyType, key }
+  // Every value selects as the bracket read does, so a key the receiver
+  // rejects, or a receiver that cannot be indexed, halts with the bracket
+  // read's message.
+  const result = await selectElement(
+    s,
+    value,
+    key,
+    current.declared,
+    null, // No default value for intermediate steps
+    location,
+    'keep' // Closures are resolved here, not by selection
   );
+  if (!isTerminal && isCallable(result.value)) {
+    return {
+      value: await resolveIntermediateClosure(s, result.value, location),
+      declared: undefined,
+    };
+  }
+  return result;
 }
 
 /**

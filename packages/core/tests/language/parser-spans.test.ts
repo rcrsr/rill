@@ -6,16 +6,12 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '@rcrsr/rill';
 import type {
-  FieldAccessComputed,
   FieldAccessLiteral,
   FieldAccessVariable,
   VariableNode,
 } from '@rcrsr/rill';
 
-type SpannedAccess =
-  | FieldAccessLiteral
-  | FieldAccessVariable
-  | FieldAccessComputed;
+type SpannedAccess = FieldAccessLiteral | FieldAccessVariable;
 
 function findVariable(node: unknown, name: string): VariableNode | null {
   if (!node || typeof node !== 'object') return null;
@@ -829,24 +825,24 @@ describe('Parser Spans', () => {
       expect(sliceSpan(source, barAccess!.span)).toBe('.bar');
     });
 
-    it('computed segment span covers the dot through the closing parenthesis', () => {
-      const source = '$foo.($x -> .upper).bar';
+    it('bracket segment span covers the opening through the closing bracket', () => {
+      const source = '$foo[$x -> .upper].bar';
       const ast = parse(source);
 
       const variable = findVariable(ast, 'foo');
       expect(variable).toBeTruthy();
       expect(variable!.accessChain.length).toBe(2);
 
-      const [computedAccess, barAccess] = variable!
+      const [bracketAccess, barAccess] = variable!
         .accessChain as SpannedAccess[];
 
-      expect(computedAccess).toHaveProperty('kind', 'computed');
-      expect(sliceSpan(source, computedAccess!.span)).toBe('.($x -> .upper)');
+      expect(bracketAccess).toHaveProperty('accessKind', 'bracket');
+      expect(sliceSpan(source, bracketAccess!.span)).toBe('[$x -> .upper]');
       expect(sliceSpan(source, barAccess!.span)).toBe('.bar');
     });
 
     it('every field-access segment span is non-empty and bounded by the token range', () => {
-      const source = '$foo.bar.$key.($x)';
+      const source = '$foo.bar.$key[$x]';
       const ast = parse(source);
 
       const variable = findVariable(ast, 'foo');
@@ -856,7 +852,7 @@ describe('Parser Spans', () => {
         expect(access.span.start.offset).toBeLessThan(access.span.end.offset);
         const text = sliceSpan(source, access.span);
         expect(text.length).toBeGreaterThan(0);
-        expect(text.startsWith('.')).toBe(true);
+        expect(/^[.[]/.test(text)).toBe(true);
       }
     });
   });

@@ -244,6 +244,16 @@ describe('SPACING_BRACKETS', () => {
     });
   });
 
+  it('fires on an existence-check bracket with inner spaces', () => {
+    const source = 'dict[a: 1] => $x\n$x.?[ "a" ]\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [spacingBrackets]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ code: 'SPACING_BRACKETS' });
+  });
+
   it('does not fire on tight bracket access', () => {
     const source = '$x[0]\n';
     const parsed = toParseResult(source);
@@ -307,6 +317,42 @@ describe('SPACING_MEMBER', () => {
     });
   });
 
+  it('fires on a space before the .? of a bracket probe', () => {
+    const source = '$x .?["a"]\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [spacingMember]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'SPACING_MEMBER',
+      message: "No space before '.?': write '.?['",
+      location: { line: 1, column: 4 },
+    });
+  });
+
+  it('fires on a space after the .? of a bracket probe', () => {
+    const source = '$x.? ["a"]\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [spacingMember]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'SPACING_MEMBER',
+      message: "No space after '.?': write '.?['",
+    });
+  });
+
+  it('does not fire on a tight bracket probe or a leading-dot continuation', () => {
+    for (const source of ['$x.?["a"]\n', '$x\n  .?["a"]\n']) {
+      const parsed = toParseResult(source);
+      expect(runRules(parsed, source, makeConfig(), [spacingMember])).toEqual(
+        []
+      );
+    }
+  });
+
   it('names the .? operator rather than the bare dot', () => {
     const source = '$obj.? field\n';
     const parsed = toParseResult(source);
@@ -334,7 +380,7 @@ describe('SPACING_MEMBER', () => {
   });
 
   it('does not fire on tight member access', () => {
-    const source = '$obj.field\n$a.b.c\n$obj.?field\n$obj.$key\n$obj.("k")\n';
+    const source = '$obj.field\n$a.b.c\n$obj.?field\n$obj.$key\n$obj["k"]\n';
     const parsed = toParseResult(source);
 
     expect(runRules(parsed, source, makeConfig(), [spacingMember])).toEqual([]);

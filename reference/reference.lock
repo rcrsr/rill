@@ -221,7 +221,7 @@ defaults.type-match b099e1f33efb
 destruct.bind 53370e79daaa capture.bind@771562a46f74 capture.rebind@d0ae2424696b type-lock.halt@33dbd80723fe
 destruct.keyed-source 6d00545c764d
 destruct.length a5d51a624d57
-destruct.missing-field 6e90b1c2153d
+destruct.missing-field ddf5557bf806
 destruct.nest-positional e96b46807526
 destruct.nested 0ef94b8b884c
 destruct.no-mix ea90305e9283
@@ -230,20 +230,20 @@ destruct.result 979409b161ac
 destruct.skip 86168bbe3c38
 destruct.target 7cc2b884121b
 destruct.typed 1fb13796760d capture.mismatch@616241654040 type-lock.halt@33dbd80723fe
-dict 8b0ce5804e2d type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
+dict 04f432573a3e type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
 dict.any 71a5cc6bd21a
 dict.empty-parens c8b91cfc3a0e
-dict.entries-type d2fc8dda2113
+dict.entries-type 1694a66fcd0a
 dict.field-default 2d46c2d66ea8
 dict.field-equality 59a0c468bdd0
 dict.field-inner cd37b043f41b
 dict.field-print 8d9ff802effb
 dict.field-type f1601698eb92
 dict.fields b8c3432bfe22
-dict.key-duplicate 24852b51c473
+dict.key-duplicate b6d0d4b31a32
 dict.key-print 1a4cf8a625cf
 dict.key-spelling 009f9a053949
-dict.key-string 768e6f41d4ee
+dict.key-string e24f644a5bdc
 dict.named-membership bf387b3cf3d5
 dict.no-outer 62f0b3f59f69
 dict.no-uniform b86b80e51011
@@ -254,9 +254,11 @@ dispatch.block-list 1e9e1042a47d
 dispatch.block-literal 1a2de8ce51d4
 dispatch.fn b3dfba5720a1
 dispatch.map-block 234ca92e09b6
+dispatch.miss-message fa10b117b81a
 dispatch.multi-key f319180e4904
+dispatch.multi-key-string c83da5281238
 dispatch.ordered 3922f001c122
-dispatch.path 5a324e95d596
+dispatch.path c29bfb0fca3e
 dispatch.select b43bf6dece5b
 dispatch.tuple 2908349a89b3
 duration be0a73c69ff5 equality.no-overlap@39f213f599cf
@@ -313,15 +315,17 @@ error.halt 47e4fdc51d64
 error.interpolation d6109c97e3c9
 error.non-catchable 5384696a5840 halt.non-catchable@8eb8c26644b7
 error.string ad262088c62d
-existence.bracket b64ea6053798
+existence.bracket 34f6bc46ea46
 existence.chain 2782e18dc1fa
 existence.found e543db21d88e
 existence.index 2a5509ce5f92
 existence.integer 7852fe326328
+existence.key-type 7d9a40f81361 selection.key-type@29d9a1316d3a
 existence.map 854f46e4ae13
 existence.map-type 84cd4987a7be
-existence.missing 435682d3d526
+existence.missing 85ef8bf2308b existence.bracket@34f6bc46ea46 existence.variable@4c8cf41e5153
 existence.type 01f353140eb8
+existence.variable 4c8cf41e5153 selection.key-validation@ac6e7644d903
 fan 0cb320a7002c break.unsupported@2ea2eb802674 iteration.dollar@3aff6a0f1b89
 fan.concurrency da9c8948cfa0
 fan.concurrent b60dacd43a31
@@ -598,17 +602,18 @@ scope.parameter dd958f3cbfa5
 scope.read-outer 34cc09dd4252
 scope.recursion 2c74c0bb9aee
 scope.siblings b9765c9736cc
-selection 928b11ff9ee1 carried-type.element@708e75eb72f7
+selection 55c52498c054 carried-type.element@708e75eb72f7
 selection.at 7ee8cd577174
-selection.bracket-default 5312a42ee3e0
+selection.bracket-default 7ce3c0805d9c selection.key-no-mask@95ef94de5628 selection.key-type@29d9a1316d3a
 selection.computed 173483f7594b
 selection.default 40b9bbb857e8
-selection.default-last-step ac885bfdaa65 selection.bracket-default@5312a42ee3e0
+selection.default-last-step bd0009760a8c selection.key-no-mask@95ef94de5628
 selection.forms 39994787f2d5
 selection.index-integer c6a1fc84549e
 selection.index-type 299ce26a41f9
-selection.key-no-mask 74fe59dc2a82
-selection.key-type def96f05f81e
+selection.key-no-mask 95ef94de5628
+selection.key-type 29d9a1316d3a
+selection.key-validation ac6e7644d903
 selection.map-default 2d1f14ab57ae
 selection.map-forms c6046f0a321f
 selection.map-missing f2efc4c6a125
@@ -620,10 +625,11 @@ selection.missing 73f450e78615
 selection.negative ddf7750ffc21
 selection.no-mask 64a407be7b4e
 selection.no-name 8fc222705f4d
-selection.no-paren c92da2fdf244
+selection.no-paren 057386a9d912
 selection.range 9cb420804046
 selection.string 0b0752019113 pipe.variable-kind@d61d19325ad6
 selection.variable dff77378d874
+selection.variable-miss 0ca854f17eac destruct.missing-field@ddf5557bf806 dispatch.miss-message@fa10b117b81a
 seq 31d255ee1898 break.seq@e47b3a30461b
 seq.arguments 2d03d5190852
 seq.order cae8c8d7cea5 iteration.list@b614df3f4a13
@@ -822,7 +828,7 @@ vacancy 65b0e218fce5 carried-type.fallback@9a18ebc2b806 conditional.bool@e166d29
 vacancy.empty 93cdf5149efe
 vacancy.empty-probe 0604f14c1ffc
 vacancy.fallback a8ddb8c219f9
-vacancy.missing 037dd8f22fe9 selection.default@40b9bbb857e8 selection.default-last-step@ac885bfdaa65
+vacancy.missing 037dd8f22fe9 selection.default@40b9bbb857e8 selection.default-last-step@bd0009760a8c
 vacancy.vacant 93e05a6e4241
 vacancy.zero-false 62d3ba62eb32
 value.always 04f8d3b96b4e

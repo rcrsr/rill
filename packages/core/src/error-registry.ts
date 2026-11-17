@@ -65,6 +65,7 @@ export const ERROR_IDS = {
   RILL_P023: 'RILL-P023',
   RILL_P024: 'RILL-P024',
   RILL_P026: 'RILL-P026',
+  RILL_P027: 'RILL-P027',
   RILL_R001: 'RILL-R001',
   RILL_R002: 'RILL-R002',
   RILL_R003: 'RILL-R003',
@@ -670,6 +671,10 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
         description: '-> export pipe syntax removed',
         code: '"value" -> export  # Error: use last-expression result instead',
       },
+      {
+        description: 'Computed-selector dot forms removed',
+        code: 'dict[a: 1] => $d\n$d.("a")  # Error: use $d["a"], or $d.?["a"] to probe',
+      },
     ],
   },
   {
@@ -809,6 +814,25 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Keyed element followed by a skip',
         code: 'dict[a: 1] -> destruct<a: $x, _>',
+      },
+    ],
+  },
+  {
+    errorId: ERROR_IDS.RILL_P027,
+    category: 'parse',
+    description: 'Duplicate key in a dict or ordered literal',
+    messageTemplate: "Duplicate key '{key}' in {collection}",
+    cause:
+      'A dict or ordered literal spells the same literal key twice. Identifier, string, number, and boolean keys are compared as strings, so 1 and "1" are the same key.',
+    resolution: 'Remove the repeated key, or give each entry a distinct key.',
+    examples: [
+      {
+        description: 'Identifier key repeated',
+        code: 'dict[a: 1, a: 2]',
+      },
+      {
+        description: 'Number key and string key spell the same key',
+        code: 'dict[1: "x", "1": "y"]',
       },
     ],
   },
@@ -965,7 +989,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Key or index not found',
     messageTemplate: 'Property {property} not found on {type}',
     cause:
-      'A dict or ordered key, or a list, tuple or ordered index, does not exist in the value. Index access through [], .at, .(n), or list[...] dispatch raises it when the index is outside the valid range.',
+      'A dict or ordered key, or a list, tuple or ordered index, does not exist in the value. Index access through [], .at, or list[...] dispatch raises it when the index is outside the valid range.',
     resolution:
       'Check property name spelling, verify the property exists, or use null-coalescing (??) to provide default. For safe access, use .? operator.',
     examples: [
@@ -974,7 +998,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
         code: 'dict[name: "x"] -> .age  # age key not in dict',
       },
       {
-        description: 'Index out of bounds (also .at, .(n), list dispatch)',
+        description: 'Index out of bounds (also .at, list dispatch)',
         code: 'list[1, 2, 3] => $items\n$items[5]  # Only 3 elements (0-2)',
       },
       {

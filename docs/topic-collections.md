@@ -537,7 +537,7 @@ An empty stream returns `[]`.
 
 ### Dict and Ordered Form
 
-Dict sort returns an `ordered` collection. The default key is the entry key, compared by its own native type — number keys sort numerically (`1, 2, 10`) and string keys sort lexically (`"1", "10", "2"`). A dict whose keys mix types halts with `#TYPE_MISMATCH`, so sort mixed-type keys with an explicit key function.
+Dict sort returns an `ordered` collection. The default key is the entry key, a string sorted lexically, so number-spelled keys sort as `"1", "10", "2"`. See [Types](topic-types.md) for why dict keys are strings.
 
 ```rill
 # Default: sort by key (alphabetical)

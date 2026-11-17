@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 import { describe, it, expect } from 'vitest';
 import { parse } from '@rcrsr/rill';
 import type {
@@ -9,6 +10,7 @@ import type {
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
   describe('Variable keys', () => {
@@ -400,7 +402,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
           {
             code: 'RILL_R002',
             hostErrorId: 'RILL-R002',
-            messagePattern: /Dict key must be string, got boolean/i,
+            messagePattern: /Dict key must be string, got bool/i,
           }
         );
       });
@@ -416,7 +418,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
           {
             code: 'RILL_R002',
             hostErrorId: 'RILL-R002',
-            messagePattern: /Dict key must be string, got object/i,
+            messagePattern: /Dict key must be string, got list/i,
           }
         );
       });
@@ -432,7 +434,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
           {
             code: 'RILL_R002',
             hostErrorId: 'RILL-R002',
-            messagePattern: /Dict key must be string, got object/i,
+            messagePattern: /Dict key must be string, got dict/i,
           }
         );
       });
@@ -454,7 +456,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         await expectHalt(() => run('dict[_static: 0, (true): 1]'), {
           code: 'RILL_R002',
           hostErrorId: 'RILL-R002',
-          messagePattern: /Dict key evaluated to boolean, expected string/,
+          messagePattern: /Dict key evaluated to bool, expected string/,
         });
       });
 
@@ -463,7 +465,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         await expectHalt(() => run('dict[_static: 0, (list[1, 2]): 1]'), {
           code: 'RILL_R002',
           hostErrorId: 'RILL-R002',
-          messagePattern: /Dict key evaluated to object, expected string/,
+          messagePattern: /Dict key evaluated to list, expected string/,
         });
       });
 
@@ -568,34 +570,51 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
   });
 });
 
-describe('Dynamic field access on dicts with typed (number/boolean) keys', () => {
+describe('Dynamic field access on dicts with number-spelled keys', () => {
+  const { it: ruleIt } = rule('dict.key-string', 'selection.key-type');
+
   describe('Variable key ($d.$k)', () => {
-    it('resolves a number key through the typed-key sidecar', async () => {
+    ruleIt('resolves the string spelling of a number key', async () => {
       const code = `
         dict[1: "one"] => $d
-        1 => $k
+        "1" => $k
         $d.$k
       `;
       expect(await run(code)).toBe('one');
     });
 
-    it('resolves a boolean key through the typed-key sidecar', async () => {
+    ruleIt('resolves the string spelling of a boolean key', async () => {
       const code = `
         dict[true: "t"] => $b
-        true => $kb
+        "true" => $kb
         $b.$kb
       `;
       expect(await run(code)).toBe('t');
     });
 
-    it('existence check reports true for a present typed key', async () => {
+    ruleIt('halts #TYPE_MISMATCH for a number variable', async () => {
       const code = `
         dict[1: "one"] => $d
         1 => $k
+        $d.$k
+      `;
+      await expectHalt(() => run(code), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: /Dict key must be string, got number/,
+      });
+    });
+
+    ruleIt(
+      'existence check reports true for a present string spelling',
+      async () => {
+        const code = `
+        dict[1: "one"] => $d
+        "1" => $k
         $d.?$k
       `;
-      expect(await run(code)).toBe(true);
-    });
+        expect(await run(code)).toBe(true);
+      }
+    );
 
     it('keeps number-key list indexing unchanged', async () => {
       const code = `
@@ -606,10 +625,10 @@ describe('Dynamic field access on dicts with typed (number/boolean) keys', () =>
       expect(await run(code)).toBe(8);
     });
 
-    it('halts with the bracket-path missing-key error when the typed key is absent', async () => {
+    it('halts with the missing-key error when the key is absent', async () => {
       const code = `
         dict[1: "one"] => $d
-        2 => $k
+        "2" => $k
         $d.$k
       `;
       try {
@@ -621,10 +640,10 @@ describe('Dynamic field access on dicts with typed (number/boolean) keys', () =>
       }
     });
 
-    it('is guard-catchable when the typed key is absent', async () => {
+    it('is guard-catchable when the key is absent', async () => {
       const code = `
         dict[1: "one"] => $d
-        2 => $k
+        "2" => $k
         guard { $d.$k } => $result
         $result.!
       `;
@@ -632,27 +651,33 @@ describe('Dynamic field access on dicts with typed (number/boolean) keys', () =>
     });
   });
 
-  describe('Computed key ($d.(expr))', () => {
-    it('resolves a number key through the typed-key sidecar', async () => {
+  describe('Computed key ($d[expr])', () => {
+    ruleIt('resolves the string spelling of a number key', async () => {
       const code = `
         dict[1: "one"] => $d
-        $d.(1)
+        $d["1"]
       `;
       expect(await run(code)).toBe('one');
     });
 
-    it('resolves a boolean key through the typed-key sidecar', async () => {
-      const code = `
-        dict[true: "t"] => $b
-        $b.(true)
-      `;
-      expect(await run(code)).toBe('t');
+    ruleIt('halts #TYPE_MISMATCH for a number selector', async () => {
+      await expectHalt(() => run('dict[1: "one"] => $d\n$d[1]'), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: /Dict key must be string, got number/,
+      });
     });
 
-    it('halts with the bracket-path missing-key error when the typed key is absent', async () => {
+    ruleIt('halts #TYPE_MISMATCH for a boolean selector', async () => {
+      await expectHalt(() => run('dict[true: "t"] => $b\n$b[true]'), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: /Dict key must be string, got bool/,
+      });
+    });
+
+    it('halts with the missing-key error when the key is absent', async () => {
       const code = `
         dict[1: "one"] => $d
-        $d.(2)
+        $d["2"]
       `;
       try {
         await run(code);
@@ -663,10 +688,10 @@ describe('Dynamic field access on dicts with typed (number/boolean) keys', () =>
       }
     });
 
-    it('is guard-catchable when the typed key is absent', async () => {
+    it('is guard-catchable when the key is absent', async () => {
       const code = `
         dict[1: "one"] => $d
-        guard { $d.(2) } => $result
+        guard { $d["2"] } => $result
         $result.!
       `;
       expect(await run(code)).toBe(true);
@@ -674,14 +699,17 @@ describe('Dynamic field access on dicts with typed (number/boolean) keys', () =>
   });
 
   describe('Bracket access parity ($d[$k])', () => {
-    it('matches the dynamic-key result for the same dict and key', async () => {
-      const code = `
+    ruleIt(
+      'matches the dynamic-key result for the same dict and key',
+      async () => {
+        const code = `
         dict[1: "one"] => $d
-        1 => $k
+        "1" => $k
         $d[$k]
       `;
-      expect(await run(code)).toBe('one');
-    });
+        expect(await run(code)).toBe('one');
+      }
+    );
   });
 });
 
@@ -696,7 +724,7 @@ describe('Ordered literal variable and computed keys', () => {
       {
         code: 'RILL_R002',
         hostErrorId: 'RILL-R002',
-        messagePattern: /Dict key must be string, got object/,
+        messagePattern: /Dict key must be string, got list/,
       }
     );
   });
@@ -711,7 +739,7 @@ describe('Ordered literal variable and computed keys', () => {
       {
         code: 'RILL_R002',
         hostErrorId: 'RILL-R002',
-        messagePattern: /Dict key must be string, got object/,
+        messagePattern: /Dict key must be string, got dict/,
       }
     );
   });
@@ -740,7 +768,7 @@ describe('Ordered literal variable and computed keys', () => {
       {
         code: 'RILL_R002',
         hostErrorId: 'RILL-R002',
-        messagePattern: /Dict key evaluated to object, expected string/,
+        messagePattern: /Dict key evaluated to list, expected string/,
       }
     );
   });
@@ -789,9 +817,9 @@ describe('Ordered literal variable and computed keys', () => {
     ]);
   });
 
-  it('collapses a number and string key that stringify alike', async () => {
-    expect(await run('ordered[list[1, "1"]: 9] -> .keys')).toEqual(['1']);
-    expect(await run('ordered[list[1, "1"]: 9] -> .len')).toBe(1);
+  it('collapses repeated string keys in a multi-key list', async () => {
+    expect(await run('ordered[list["1", "1"]: 9] -> .keys')).toEqual(['1']);
+    expect(await run('ordered[list["1", "1"]: 9] -> .len')).toBe(1);
   });
 
   it('keeps the last value when a string variable key collides with a number key', async () => {

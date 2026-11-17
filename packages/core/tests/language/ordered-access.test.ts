@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: ordered, tuple, and iterator access
  *
@@ -12,6 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { createRuntimeContext, execute, parse } from '@rcrsr/rill';
+import { rule } from '../helpers/rule.js';
 
 /** Executes a script and returns its result value. */
 async function run(src: string): Promise<unknown> {
@@ -65,12 +67,20 @@ describe('ordered value access', () => {
     expect(await run(`${decl}$o.values`)).toEqual([1, 2]);
   });
 
-  it('$o.entries evaluates to list[["a", 1], ["b", 2]]', async () => {
-    expect(await run(`${decl}$o.entries`)).toEqual([
-      ['a', 1],
-      ['b', 2],
-    ]);
+  it('$o.entries evaluates to list[tuple["a", 1], tuple["b", 2]]', async () => {
+    expect(
+      await run(`${decl}$o.entries == list[tuple["a", 1], tuple["b", 2]]`)
+    ).toBe(true);
   });
+
+  rule('dict.entries-type').it(
+    '$o.entries has type list(tuple(string, number))',
+    async () => {
+      expect(
+        await run(`${decl}$o.entries.^type == list(tuple(string, number))`)
+      ).toBe(true);
+    }
+  );
 
   it('$o.len evaluates to 2', async () => {
     expect(await run(`${decl}$o.len`)).toBe(2);
@@ -107,24 +117,24 @@ describe('ordered value access', () => {
     expect(await run(`${decl}"x" => $k\n$o.?$k`)).toBe(false);
   });
 
-  it('$o.?("a") evaluates to true (computed existence check, existing key)', async () => {
-    expect(await run(`${decl}$o.?("a")`)).toBe(true);
+  it('$o.?["a"] evaluates to true (computed existence check, existing key)', async () => {
+    expect(await run(`${decl}$o.?["a"]`)).toBe(true);
   });
 
-  it('$o.?("x") evaluates to false (computed existence check, missing key)', async () => {
-    expect(await run(`${decl}$o.?("x")`)).toBe(false);
+  it('$o.?["x"] evaluates to false (computed existence check, missing key)', async () => {
+    expect(await run(`${decl}$o.?["x"]`)).toBe(false);
   });
 
-  it('$o.($i) evaluates to 2 for a valid numeric index', async () => {
-    expect(await run(`${decl}1 => $i\n$o.($i)`)).toBe(2);
+  it('$o[$i] evaluates to 2 for a valid numeric index', async () => {
+    expect(await run(`${decl}1 => $i\n$o[$i]`)).toBe(2);
   });
 
-  it('$o.($i) evaluates to 2 for a negative numeric index', async () => {
-    expect(await run(`${decl}-1 => $i\n$o.($i)`)).toBe(2);
+  it('$o[$i] evaluates to 2 for a negative numeric index', async () => {
+    expect(await run(`${decl}-1 => $i\n$o[$i]`)).toBe(2);
   });
 
-  it('$o.($i) halts with RILL-R009 for an out-of-bounds numeric index', async () => {
-    await expect(runOrThrow(`${decl}9 => $i\n$o.($i)`)).rejects.toHaveProperty(
+  it('$o[$i] halts with RILL-R009 for an out-of-bounds numeric index', async () => {
+    await expect(runOrThrow(`${decl}9 => $i\n$o[$i]`)).rejects.toHaveProperty(
       'errorId',
       'RILL-R009'
     );

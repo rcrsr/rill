@@ -63,9 +63,8 @@ export interface AstVisitor {
 
 /**
  * Yields child ASTNodes carried inside a span-less property-access segment.
- * Only `FieldAccessComputed.expression`, `FieldAccessBlock.block`, and
- * `BracketAccess.expression` carry ASTNode children; the remaining segment
- * kinds (`literal`, `variable`, `alternatives`, `annotation`) carry none.
+ * Only `BracketAccess.expression` carries an ASTNode child; the field-access
+ * kinds (`literal`, `variable`, `annotation`) carry none.
  * Ported from `@rcrsr/rill`'s `ast-walk.ts` `propertyAccessChildren` to
  * bring `getChildren` to parity with core's `astChildren`. The duplication
  * is accepted; the remedy is parity plus a guard test, not cross-package
@@ -77,13 +76,8 @@ function propertyAccessChildren(access: PropertyAccess): ASTNode[] {
     return [access.expression];
   }
   switch (access.kind) {
-    case 'computed':
-      return [access.expression];
-    case 'block':
-      return [access.block];
     case 'literal':
     case 'variable':
-    case 'alternatives':
     case 'annotation':
       return [];
     default: {
@@ -97,18 +91,14 @@ function propertyAccessChildren(access: PropertyAccess): ASTNode[] {
 
 /**
  * Yields child ASTNodes carried inside a `DictEntryNode.key`. Plain
- * `string | number | boolean` keys and `DictKeyVariable` carry no ASTNode
+ * string keys and `DictKeyVariable` carry no ASTNode
  * children. `DictKeyComputed` yields its expression. A `ListLiteralNode`
  * key is itself an ASTNode union member and is yielded directly. Ported
  * from core's `dictKeyChildren` - see the `propertyAccessChildren` comment
  * above.
  */
 function dictKeyChildren(key: DictEntryNode['key']): ASTNode[] {
-  if (
-    typeof key === 'string' ||
-    typeof key === 'number' ||
-    typeof key === 'boolean'
-  ) {
+  if (typeof key === 'string') {
     return [];
   }
   if (!('kind' in key)) {

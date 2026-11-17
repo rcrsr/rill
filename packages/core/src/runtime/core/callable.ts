@@ -60,7 +60,7 @@ import {
 } from './types/constructors.js';
 import { hasCollectionFields } from './values.js';
 import { selectUnionMember } from './types/unions.js';
-import { copyTypedKeys, setDictField } from './types/dict-keys.js';
+import { setDictField } from './types/dict-keys.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../error-registry.js';
 import { throwCatchableHostHalt, throwFatalHostHalt } from './types/halt.js';
 import { isValidAtomName } from './types/atom-registry.js';
@@ -417,9 +417,6 @@ export function hydrateStructure(
     const result: Record<string, RillValue> = policy.keepExtras
       ? { ...dictValue }
       : {};
-    if (policy.keepExtras) {
-      copyTypedKeys(dictValue, result);
-    }
     for (const [fieldName, fieldDef] of Object.entries(type.fields)) {
       const ownValue = Object.hasOwn(dictValue, fieldName)
         ? dictValue[fieldName]

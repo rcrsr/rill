@@ -80,7 +80,7 @@ Process a sequence of events through the machine:
 
 # Process events, accumulating state history
 $events -> fold("idle", {
-  $machine.($@).($)  # $@ is accumulator (current state), $ is event
+  $machine[$@][$]  # $@ is accumulator (current state), $ is event
 })
 # Result: "idle"
 ```
@@ -98,9 +98,9 @@ Track state history with `fold`:
 
 $events -> fold([current: "idle", history: []], {
   $ => $event
-  $machine.($@.current) => $stateConfig
+  $machine[$@.current] => $stateConfig
   $stateConfig -> .keys -> .has($event) ? {
-    $stateConfig.($event) => $next
+    $stateConfig[$event] => $next
     [current: $next, history: [...$@.history, $next]]
   } ! $@
 })
@@ -134,7 +134,7 @@ Use closures as guards to conditionally allow transitions:
 [state: "locked", coins: 2] => $ctx
 
 # Process coin event
-$machine.($ctx.state).coin => $transition
+$machine[$ctx.state].coin => $transition
 
 # Check guard if present
 $transition.?guard ? {
@@ -287,9 +287,9 @@ Group items by a computed key:
 ] => $employees
 
 $employees -> fold([], {
-  $@.?($$.dept) ? {
+  $@.?[$$.dept] ? {
     # Key exists - append to list
-    [...$@, ($$.dept): [...$@.($$.dept), $$.name]]
+    [...$@, ($$.dept): [...$@[$$.dept], $$.name]]
   } ! {
     # New key - create list
     [...$@, ($$.dept): [$$.name]]
@@ -522,7 +522,7 @@ Cache expensive computations:
 ```text
 # Build cache alongside computation
 |n, cache|{
-  $cache.?($n -> string) ? $cache.($n -> string) ! {
+  $cache.?[$n -> string] ? $cache[$n -> string] ! {
     # Compute fibonacci
     ($n <= 1) ? $n ! {
       $n - 1 -> |prev|{ |prev, cache|{ ... }($prev, $cache) } => $a  # Simplified
@@ -574,12 +574,12 @@ $schema.entries -> fold([valid: true, errors: []], {
   $[1] => $rules
 
   # Check required
-  ($rules.required && ($data.?($field) -> !)) ? {
+  ($rules.required && ($data.?[$field] -> !)) ? {
     [valid: false, errors: [...$@.errors, "{$field} is required"]]
   } ! {
     # Check type and constraints if field exists
-    $data.?($field) ? {
-      $data.($field) => $value
+    $data.?[$field] ? {
+      $data[$field] => $value
 
       # Type check
       (type($value) != $rules.type) ? {

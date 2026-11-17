@@ -23,8 +23,7 @@
  *
  * Extended by:
  * - access.ts: adds property chain evaluation to evaluateVariableAsync
- * - field-access.ts: evaluates variable-key, computed-key, and alternatives
- *   field access for evaluateVariableAsync
+ * - field-access.ts: variable-key field access and dictSelectorKey
  *
  * Error Handling:
  * - Undefined variables halt with a catchable RuntimeHaltSignal (RILL-R005)
@@ -46,7 +45,6 @@ import type { TypeStructure, RillValue } from '../../types/structures.js';
 import type { Carried } from '../../types/declared.js';
 import { declarationOf, pipeDeclaredOf } from '../../types/declared.js';
 import { inferType, inferTypeName } from '../../types/registrations.js';
-import { isOrdered, isTuple, isIterator } from '../../types/guards.js';
 import { formatStructure, structureMatches } from '../../types/operations.js';
 import {
   getVariable,
@@ -66,7 +64,7 @@ import type { TypeHaltSite } from '../../types/halt.js';
 import type { EvalState } from '../state.js';
 import { accessHaltGateFast } from './access.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import { getNodeLocation, isFieldReceiver } from '../shared.js';
+import { getNodeLocation } from '../shared.js';
 import { evaluateBody } from './control-flow.js';
 import { evaluatePipeChain } from './core.js';
 import {
@@ -74,18 +72,16 @@ import {
   evaluateMethod,
   evaluateAnnotationAccess,
 } from './closures.js';
-import { resolveTypeRef, assertType } from './types.js';
 import type { FieldKey } from './field-access.js';
+import { resolveTypeRef, assertType } from './types.js';
 import {
   evaluateFieldAccessVariable,
-  evaluateFieldAccessComputed,
-  evaluateFieldAccessAlternatives,
-  isFieldKey,
+  bracketKey,
+  throwBracketMiss,
   locateField,
   projectLocated,
   readField,
   locateOrRecover,
-  throwFieldMiss,
   throwNonIntegerIndex,
 } from './field-access.js';
 
@@ -264,7 +260,7 @@ export function evaluateVariable(s: EvalState, node: VariableNode): RillValue {
  * evaluated successfully, and a final lookup miss (an out-of-range index, or an
  * absent string key) resolves to null so the default applies.
  * Every other failure still halts: a wrong selector type, a number or
- * bool key on a dict (including a dict with typed keys), a non-integer index,
+ * bool key on a dict, a non-integer index,
  * and any error raised while evaluating the selector expression.
  */
 export async function applyBracketIndexCarried(
@@ -315,60 +311,14 @@ export function selectByBracketKey(
   allowMissing: boolean
 ): Carried {
   const key = bracketKey(receiver, indexValue, site);
-  const located = locateOrRecover(receiver, key, allowMissing, (miss) => {
-    // A dict names a missing key `Undefined dict key`, whatever the key type.
-    if (isFieldReceiver(receiver)) {
-      return throwCatchableHostHalt(
-        site,
-        ERROR_ATOMS[ERROR_IDS.RILL_R009],
-        `Undefined dict key: ${key}`
-      );
-    }
-    return throwFieldMiss(receiver, key, miss, site);
-  });
+  const located = locateOrRecover(receiver, key, allowMissing, (miss) =>
+    throwBracketMiss(receiver, key, miss, site)
+  );
   if (located === undefined) return { value: null, declared: undefined };
   return {
     value: located.value,
     declared: projectLocated(receiverDeclared, located),
   };
-}
-
-/**
- * Validate a bracket key against its receiver. Lists and tuples take a number,
- * ordered values a string or number, dicts a string, number or boolean; every
- * other receiver, and an iterator, cannot be indexed.
- */
-function bracketKey(
-  receiver: RillValue,
-  indexValue: RillValue,
-  site: TypeHaltSite
-): FieldKey {
-  const reject = (message: string): never =>
-    throwCatchableHostHalt(site, ERROR_ATOMS[ERROR_IDS.RILL_R002], message);
-  const got = inferType(indexValue);
-  if (Array.isArray(receiver)) {
-    return typeof indexValue === 'number'
-      ? indexValue
-      : reject(`List index must be number, got ${got}`);
-  }
-  if (isOrdered(receiver)) {
-    return typeof indexValue === 'string' || typeof indexValue === 'number'
-      ? indexValue
-      : reject(`Ordered index must be string or number, got ${got}`);
-  }
-  if (isTuple(receiver)) {
-    return typeof indexValue === 'number'
-      ? indexValue
-      : reject(`Tuple index must be number, got ${got}`);
-  }
-  // Must precede the dict case: an iterator is structurally a dict.
-  if (isIterator(receiver)) return reject('Cannot index iterator');
-  if (isFieldReceiver(receiver)) {
-    return isFieldKey(indexValue)
-      ? indexValue
-      : reject(`Dict key must be string, got ${got}`);
-  }
-  return reject(`Cannot index ${inferType(receiver)}`);
 }
 
 /**
@@ -410,7 +360,7 @@ export async function evaluateExistenceCheck(
   // `.?^key` reports whether a callable stores the annotation. Non-callables
   // (streams, type values, invalid values) carry none, so the answer is
   // false. Reads never fall back to defaults, so an unset key is false.
-  if (finalAccess.kind === 'annotation') {
+  if (!('accessKind' in finalAccess) && finalAccess.kind === 'annotation') {
     if (!isCallable(value)) return false;
     if (!Object.hasOwn(value.annotations, finalAccess.key)) return false;
     const stored = value.annotations[finalAccess.key];
@@ -423,10 +373,29 @@ export async function evaluateExistenceCheck(
     sourceId: s.ctx.sourceId,
     fn: 'evaluateExistenceCheck',
   };
+  // A spelled field name is a string and is never validated as a key. Any
+  // other selector is validated as a bracket read validates it, so a
+  // wrong-typed key halts on every receiver and only a miss answers false.
   let key: FieldKey;
-  if (finalAccess.kind === 'literal') {
+  if ('accessKind' in finalAccess) {
+    // Parsed inline while building a live access chain (never via the
+    // statement-level recovery path), so it only ever holds a PipeChainNode;
+    // PartialExpressionNode is reserved for parser error recovery.
+    if (!isPipeChainNode(finalAccess.expression)) {
+      throwFatalHostHalt(
+        site,
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
+        'Existence check bracket expression must be a pipe chain'
+      );
+    }
+    key = bracketKey(
+      value,
+      await evaluatePipeChain(s, finalAccess.expression),
+      site
+    );
+  } else if (finalAccess.kind === 'literal') {
     key = finalAccess.field;
-  } else if (finalAccess.kind === 'variable') {
+  } else {
     const keyValue =
       finalAccess.variableName === null
         ? (s.ctx.pipeValue ?? undefined)
@@ -438,46 +407,8 @@ export async function evaluateExistenceCheck(
         `Variable '${finalAccess.variableName ?? '$'}' is undefined`
       );
     }
-    if (!isFieldKey(keyValue)) {
-      // A key no receiver accepts only halts where a field read would.
-      if (!isFieldReceiver(value)) return false;
-      throwCatchableHostHalt(
-        site,
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        `Existence check key must be string, got ${inferType(keyValue)}`
-      );
-    }
-    key = keyValue;
-  } else if (finalAccess.kind === 'computed') {
-    // Parsed inline while building a live access chain (never via the
-    // statement-level recovery path), so it only ever holds a PipeChainNode;
-    // PartialExpressionNode is reserved for parser error recovery.
-    if (!isPipeChainNode(finalAccess.expression)) {
-      throwFatalHostHalt(
-        site,
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        'Existence check computed key expression must be a pipe chain'
-      );
-    }
-    const keyValue = await evaluatePipeChain(s, finalAccess.expression);
-    if (!isFieldKey(keyValue)) {
-      if (isOrdered(value)) return false;
-      throwCatchableHostHalt(
-        site,
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        `Existence check key evaluated to ${inferType(keyValue)}, expected string`
-      );
-    }
-    key = keyValue;
-  } else {
-    // Block and alternatives accesses are not existence-checkable.
-    return throwCatchableHostHalt(
-      site,
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `Existence check not yet supported for ${finalAccess.kind} access`
-    );
+    key = bracketKey(value, keyValue, site);
   }
-
   // Locate without reading: a property-style callable is never invoked.
   const located = locateField(value, key);
   if (!located.found) {
@@ -506,7 +437,7 @@ export async function evaluateVariableAsync(
  * Variable access that also reports the declared type of the result.
  *
  * The base `$` reads the guarded pipe slot and `$name` reads the owning
- * scope's lock. Bracket access, dict-field access, `.$k` and `.(expr)` locate
+ * scope's lock. Bracket access, dict-field access and `.$k` locate
  * the element with locateField and project its type from a declared
  * collection. `.^type` receives the
  * current declared type. Every other step, the `??` default and the `.?`
@@ -614,7 +545,7 @@ export async function evaluateVariableCarried(
     // Check if this is a bracket access
     if ('accessKind' in access) {
       // Bracket access: [expr]. Delegates to the shared applyBracketIndexCarried
-      // helper (list negative-index normalization, dict typed-key lookup,
+      // helper (list negative-index normalization, dict string-key lookup,
       // and the 'Cannot index <type>' fallback) so this path stays in sync
       // with the postfix expr[i] path in core.ts.
       const element = await applyBracketIndexCarried(
@@ -700,28 +631,6 @@ export async function evaluateVariableCarried(
       );
       value = read.value;
       declared = read.declared;
-    } else if (access.kind === 'computed') {
-      const read = await evaluateFieldAccessComputed(
-        s,
-        access,
-        value,
-        node,
-        recoverable,
-        receiverDeclared
-      );
-      value = read.value;
-      declared = read.declared;
-    } else if (access.kind === 'alternatives') {
-      const read = await evaluateFieldAccessAlternatives(
-        s,
-        access,
-        value,
-        node,
-        recoverable,
-        receiverDeclared
-      );
-      value = read.value;
-      declared = read.declared;
     } else if (access.kind === 'annotation') {
       // Annotation reflection: .^key
       // Delegates to evaluateAnnotationAccess from methods.ts
@@ -752,17 +661,6 @@ export async function evaluateVariableCarried(
           throw e;
         }
       }
-    } else {
-      // Other field access types (block)
-      throwCatchableHostHalt(
-        {
-          location: getNodeLocation(s, node),
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluateVariableAsync',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        `Field access kind '${access.kind}' not yet supported`
-      );
     }
   }
 

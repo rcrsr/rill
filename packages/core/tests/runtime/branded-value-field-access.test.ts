@@ -10,6 +10,7 @@ import {
   createRillStream,
   createVector,
   type RillFunction,
+  createTuple,
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
@@ -52,16 +53,12 @@ async function expectErrorId(source: string, errorId: string): Promise<void> {
 describe('type value internals are not readable', () => {
   const TYPE = '42.^type => $t\n';
 
-  it('rejects a quoted computed key on a type value', async () => {
-    await expectErrorId(`${TYPE}$t.("structure")`, 'RILL-R003');
-  });
-
   it('rejects a literal structure key on a type value', async () => {
     await expectErrorId(`${TYPE}$t.structure`, 'RILL-R003');
   });
 
   it('rejects a variable computed key on a type value', async () => {
-    await expectErrorId(`${TYPE}"structure" => $k\n$t.$k`, 'RILL-R003');
+    await expectErrorId(`${TYPE}"structure" => $k\n$t.$k`, 'RILL-R002');
   });
 
   it('rejects a method-style access to the structure field', async () => {
@@ -72,20 +69,16 @@ describe('type value internals are not readable', () => {
     await expectErrorId(`${TYPE}$t["structure"]`, 'RILL-R002');
   });
 
-  it('rejects alternate-key access that names the structure field', async () => {
-    await expectErrorId(`${TYPE}$t.(typeName || structure)`, 'RILL-R003');
-  });
-
-  it('reports the structure field as absent via a quoted existence check', async () => {
-    expect(await run(`${TYPE}$t.?("structure")`)).toBe(false);
+  it('rejects a quoted existence check of the structure field', async () => {
+    await expectErrorId(`${TYPE}$t.?["structure"]`, 'RILL-R002');
   });
 
   it('reports the structure field as absent via a literal existence check', async () => {
     expect(await run(`${TYPE}$t.?structure`)).toBe(false);
   });
 
-  it('falls back to the default when reading the structure field', async () => {
-    expect(await run(`${TYPE}$t.("structure") ?? "fb"`)).toBe('fb');
+  it('does not fall back to the default when bracket-reading the structure field', async () => {
+    await expectErrorId(`${TYPE}$t["structure"] ?? "fb"`, 'RILL-R002');
   });
 
   it('rejects converting a type value to a dict with internal fields', async () => {
@@ -114,15 +107,15 @@ describe('atom internals are not readable', () => {
   const ATOM = '#TIMEOUT => $a\n';
 
   it('rejects a variable computed key on an atom', async () => {
-    await expectErrorId(`${ATOM}"atom" => $k\n$a.$k`, 'RILL-R003');
+    await expectErrorId(`${ATOM}"atom" => $k\n$a.$k`, 'RILL-R002');
   });
 
-  it('rejects a quoted computed key on an atom', async () => {
-    await expectErrorId(`${ATOM}$a.("atom")`, 'RILL-R003');
+  it('rejects a bracket key on an atom', async () => {
+    await expectErrorId(`${ATOM}$a["atom"]`, 'RILL-R002');
   });
 
-  it('falls back to the default when reading atom internals', async () => {
-    expect(await run(`${ATOM}$a.("atom") ?? "fb"`)).toBe('fb');
+  it('does not fall back to the default when bracket-reading atom internals', async () => {
+    await expectErrorId(`${ATOM}$a["atom"] ?? "fb"`, 'RILL-R002');
   });
 
   it('rejects dot access to the atom record', async () => {
@@ -174,20 +167,16 @@ describe('vector internals are not readable or iterable', () => {
     await expectErrorId('make_vec() => $v\n$v.data', 'RILL-R003');
   });
 
-  it('rejects computed-key access to vector data', async () => {
-    await expectErrorId('make_vec() => $v\n$v.("data")', 'RILL-R003');
+  it('rejects bracket access to vector data', async () => {
+    await expectErrorId('make_vec() => $v\n$v["data"]', 'RILL-R002');
   });
 
   it('rejects a variable computed key on a vector', async () => {
-    await expectErrorId('make_vec() => $v\n"data" => $k\n$v.$k', 'RILL-R003');
+    await expectErrorId('make_vec() => $v\n"data" => $k\n$v.$k', 'RILL-R002');
   });
 
-  it('falls back to the default when reading vector internals', async () => {
-    expect(
-      await run('make_vec() => $v\n$v.("data") ?? "fb"', {
-        functions: FUNCTIONS,
-      })
-    ).toBe('fb');
+  it('does not fall back to the default when bracket-reading vector internals', async () => {
+    await expectErrorId('make_vec() => $v\n$v["data"] ?? "fb"', 'RILL-R002');
   });
 
   it('halts when iterating a vector with seq', async () => {
@@ -205,28 +194,28 @@ describe('vector internals are not readable or iterable', () => {
 describe('datetime internals are not readable', () => {
   const DT = 'datetime("2026-03-13T08:00:00Z") => $d\n';
 
-  it('rejects literal, variable and quoted internal keys', async () => {
+  it('rejects literal and variable internal keys', async () => {
     await expectErrorId(`${DT}$d.__rill_datetime`, 'RILL-R003');
-    await expectErrorId(`${DT}"__rill_datetime" => $k\n$d.$k`, 'RILL-R003');
-    await expectErrorId(`${DT}$d.("__rill_datetime")`, 'RILL-R003');
+    await expectErrorId(`${DT}"__rill_datetime" => $k\n$d.$k`, 'RILL-R002');
   });
 
-  it('falls back to the default when reading internal keys', async () => {
-    expect(await run(`${DT}$d.("__rill_datetime") ?? "fb"`)).toBe('fb');
+  it('rejects a bracket internal key, with no fallback', async () => {
+    await expectErrorId(`${DT}$d["__rill_datetime"]`, 'RILL-R002');
+    await expectErrorId(`${DT}$d["__rill_datetime"] ?? "fb"`, 'RILL-R002');
   });
 });
 
 describe('duration internals are not readable', () => {
   const DUR = 'duration("2mo") => $d\n';
 
-  it('rejects literal, variable and quoted internal keys', async () => {
+  it('rejects literal and variable internal keys', async () => {
     await expectErrorId(`${DUR}$d.__rill_duration`, 'RILL-R003');
-    await expectErrorId(`${DUR}"__rill_duration" => $k\n$d.$k`, 'RILL-R003');
-    await expectErrorId(`${DUR}$d.("__rill_duration")`, 'RILL-R003');
+    await expectErrorId(`${DUR}"__rill_duration" => $k\n$d.$k`, 'RILL-R002');
   });
 
-  it('falls back to the default when reading internal keys', async () => {
-    expect(await run(`${DUR}$d.("__rill_duration") ?? "fb"`)).toBe('fb');
+  it('rejects a bracket internal key, with no fallback', async () => {
+    await expectErrorId(`${DUR}$d["__rill_duration"]`, 'RILL-R002');
+    await expectErrorId(`${DUR}$d["__rill_duration"] ?? "fb"`, 'RILL-R002');
   });
 });
 
@@ -242,14 +231,14 @@ describe('stream internals are not readable', () => {
 
   it('falls back to the default when reading the stream resolve function', async () => {
     expect(
-      await run(`${STREAM}$s.("__rill_stream_resolve") ?? "fb"`, {
+      await run(`${STREAM}$s["__rill_stream_resolve"] ?? "fb"`, {
         functions: FUNCTIONS,
       })
     ).toBe('fb');
   });
 
   it('rejects computed-key access to the stream resolve function', async () => {
-    await expectErrorId(`${STREAM}$s.("__rill_stream_resolve")`, 'RILL-R009');
+    await expectErrorId(`${STREAM}$s["__rill_stream_resolve"]`, 'RILL-R009');
   });
 
   it('rejects literal access to the stream resolve function', async () => {
@@ -261,12 +250,12 @@ describe('stream internals are not readable', () => {
     '__rill_stream_chunk_type',
     '__rill_stream',
   ])('rejects computed-key access to the stream field %s', async (key) => {
-    await expectErrorId(`${STREAM}$s.("${key}")`, 'RILL-R009');
+    await expectErrorId(`${STREAM}$s["${key}"]`, 'RILL-R009');
   });
 
   it('reports the stream resolve field as absent via an existence check', async () => {
     expect(
-      await run(`${STREAM}$s.?("__rill_stream_resolve")`, {
+      await run(`${STREAM}$s.?["__rill_stream_resolve"]`, {
         functions: FUNCTIONS,
       })
     ).toBe(false);
@@ -329,7 +318,7 @@ describe('legitimate field access is preserved', () => {
     const S = 'make_stream() => $s\n';
     expect(await val(`${S}$s.done`)).toBe(false);
     expect(await val(`${S}$s.next() => $st\n$st.value`)).toBe(1);
-    expect(await val(`${S}$s.("done")`)).toBe(false);
+    expect(await val(`${S}$s["done"]`)).toBe(false);
     expect(await val(`${S}$s.?done`)).toBe(true);
     expect(await val(`${S}$s()`)).toBe('resolved');
   });
@@ -344,21 +333,20 @@ describe('legitimate field access is preserved', () => {
   it('reads a plain dict through every access form', async () => {
     const D = 'dict[a: 1, b: "x"] => $d\n';
     expect(await val(`${D}$d.a`)).toBe(1);
-    expect(await val(`${D}"b" => $k\n$d.($k)`)).toBe('x');
-    expect(await val(`${D}$d.("a")`)).toBe(1);
+    expect(await val(`${D}"b" => $k\n$d[$k]`)).toBe('x');
+    expect(await val(`${D}$d["a"]`)).toBe(1);
     expect(await val(`${D}$d.?a`)).toBe(true);
     expect(await val(`${D}$d.?z`)).toBe(false);
     expect(await val(`${D}$d.z ?? "fb"`)).toBe('fb');
-    expect(await val(`${D}$d.(z || a)`)).toBe(1);
-    expect(await val('dict[1: "one"] => $d\n$d[1]')).toBe('one');
+    expect(await val('dict[1: "one"] => $d\n$d["1"]')).toBe('one');
   });
 
   it('reads ordered values by key and entries', async () => {
     const O = 'ordered[a: 1, b: 2] => $o\n';
-    expect(await val(`${O}$o.("b")`)).toBe(2);
+    expect(await val(`${O}$o["b"]`)).toBe(2);
     expect(await val(`${O}$o.entries`)).toEqual([
-      ['a', 1],
-      ['b', 2],
+      createTuple(['a', 1]),
+      createTuple(['b', 2]),
     ]);
   });
 
@@ -418,21 +406,6 @@ describe('method-call and path forms reject blocked keys', () => {
     await expectErrorId(`${STREAM}$s.bogus()`, 'RILL-R009');
   });
 
-  it('skips a blocked stream key in alternatives and resolves a step key', async () => {
-    expect(
-      await run(`${STREAM}$s.(__rill_stream_resolve || done)`, {
-        functions: FUNCTIONS,
-      })
-    ).toBe(false);
-  });
-
-  it('halts as missing when every stream alternative is blocked', async () => {
-    await expectErrorId(
-      `${STREAM}$s.(__rill_stream_resolve || __rill_stream_dispose)`,
-      'RILL-R009'
-    );
-  });
-
   it('reports the stream resolve field as absent via a literal existence check', async () => {
     expect(
       await run(`${STREAM}$s.?__rill_stream_resolve`, { functions: FUNCTIONS })
@@ -441,14 +414,14 @@ describe('method-call and path forms reject blocked keys', () => {
 
   it('reports a variable-key existence check as absent on the stream resolve field', async () => {
     expect(
-      await run(`${STREAM}"__rill_stream_resolve" => $k\n$s.?($k)`, {
+      await run(`${STREAM}"__rill_stream_resolve" => $k\n$s.?[$k]`, {
         functions: FUNCTIONS,
       })
     ).toBe(false);
   });
 
-  it('reports a variable-key existence check as absent on a type value', async () => {
-    expect(await run(`${TYPE}"structure" => $k\n$t.?($k)`)).toBe(false);
+  it('rejects a variable-key existence check on a type value', async () => {
+    await expectErrorId(`${TYPE}"structure" => $k\n$t.?[$k]`, 'RILL-R002');
   });
 
   it('rejects keyed destructuring of a stream', async () => {

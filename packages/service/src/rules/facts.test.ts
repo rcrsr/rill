@@ -404,3 +404,73 @@ describe('mixedListVars and mixedDictVars', () => {
     expect(script.mixedListVars.size).toBe(0);
   });
 });
+
+// ============================================================
+// access-derived facts
+// ============================================================
+
+describe('access-derived facts', () => {
+  const script = (source: string) => collectFacts(parse(source)).script;
+
+  it('counts .$k as dynamic', () => {
+    expect(
+      script('dict[a: 1] => $d\n"a" => $k\n$d.$k\n').hasDynamicFieldAccess
+    ).toBe(true);
+  });
+
+  it('counts [expr] with a computed expression as dynamic', () => {
+    expect(
+      script('dict[a: 1] => $d\n"a" => $k\n$d[$k]\n').hasDynamicFieldAccess
+    ).toBe(true);
+  });
+
+  it('counts a string-literal bracket as dynamic', () => {
+    expect(script('dict[a: 1] => $d\n$d["a"]\n').hasDynamicFieldAccess).toBe(
+      true
+    );
+  });
+
+  it('counts a .?[expr] probe final access as dynamic', () => {
+    expect(
+      script('dict[a: 1] => $d\n"a" => $k\n$d.?[$k]\n').hasDynamicFieldAccess
+    ).toBe(true);
+  });
+
+  it('does not count a static number index as dynamic', () => {
+    expect(script('list[1, 2] => $l\n$l[0]\n').hasDynamicFieldAccess).toBe(
+      false
+    );
+  });
+
+  it('does not count a negative number index as dynamic', () => {
+    expect(script('list[1, 2] => $l\n$l[-1]\n').hasDynamicFieldAccess).toBe(
+      false
+    );
+  });
+
+  it('does not count a .?[0] probe as dynamic', () => {
+    expect(script('list[1, 2] => $l\n$l.?[0]\n').hasDynamicFieldAccess).toBe(
+      false
+    );
+  });
+
+  it('collects the field name of a .?field probe', () => {
+    expect([
+      ...script('dict[a: 1] => $d\n$d.?a\n').literalFieldAccessNames,
+    ]).toEqual(['a']);
+  });
+
+  it('sees .?len as a len field access', () => {
+    const source = 'list[1] => $l\n$l.?len\n';
+    const root = parse(source);
+    expect(collectFacts(root).bySubtree.get(root)?.hasLenFieldAccess).toBe(
+      true
+    );
+  });
+
+  it('sees .?[i] as a bracket access', () => {
+    const source = 'list[1] => $l\n$l.?[0]\n';
+    const root = parse(source);
+    expect(collectFacts(root).bySubtree.get(root)?.hasBracketAccess).toBe(true);
+  });
+});

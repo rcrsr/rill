@@ -111,7 +111,7 @@ Accessing a key that does not exist throws an error. rill has no `undefined` or 
 ```text
 [name: "alice"] => $person
 $person.age
-# Error: Key 'age' not found in dict
+# Error: Dict has no field 'age'
 ```
 
 **Fix:** Use `??` for a default value, or `.?key` to check existence.

@@ -592,30 +592,40 @@ Use a variable as key:
 $data.$key                       # "alice"
 ```
 
-### Computed Key `.($expr)`
+### Computed Key `[expr]`
 
-Use an expression as key. A numeric key indexes a list under the same rules as `[n]`.
-
-```text
-0 => $i
-["a", "b", "c"] => $list
-$list.($i + 1)                   # "b"
-```
-
-### Alternative Keys `.(a || b)`
-
-Try keys left-to-right:
-
-```text
-[nickname: "Al"] => $user
-$user.(name || nickname)         # "Al"
-```
-
-When every key is missing, the access halts with `RILL-R009`. Add `??` to supply a fallback:
+Use an expression as key. A numeric key indexes a list under the same rules as `[n]`. A dict key must be a string; see [Types](topic-types.md) for the rule.
 
 ```rill
-dict[age: 30] => $user
-$user.(name || nickname) ?? "unknown"
+["a", "b", "c"] => $list
+$list[0 + 1]
+# Result: "b"
+```
+
+### Computed Existence `.?[expr]`
+
+```rill
+dict[name: "Al"] => $user
+$user.?["name"]&string
+# Result: true
+```
+
+`.?[expr]` validates its selector as the bracket read `[expr]` does. Only a genuine miss, an absent key or an out-of-range index, yields `false`.
+
+A selector of the wrong type halts with the error the read raises, and `??` does not recover it. A non-string selector on a dict halts `#TYPE_MISMATCH`, and `list[1, 2].?["a"]`, `tuple[1].?[true]`, `ordered[a: 1].?[list[1]]`, and `"s".?["len"]` halt with the error the bracket read raises. See [Types](topic-types.md) for the key rule.
+
+```rill
+list["a", "b"] => $list
+$list.?[5]
+# Result: false
+```
+
+### Fallback Across Fields
+
+```rill
+# ?? chains try fields left-to-right
+dict[age: 30] => $u
+$u.name ?? $u.nickname ?? "unknown"
 # Result: "unknown"
 ```
 
@@ -734,7 +744,7 @@ $config.get_setting() ?? [:]     # default if method returns undefined
 
 Method calls evaluate fully before the default operator applies.
 
-`??` recovers only a miss on the last step of an access chain, for fields, annotations, and brackets. `$d.x.y ?? 0` with `.x` missing halts `RILL-R009`, as do `$d.b[1] ?? 0` with `.b` missing and `$d[$d.zz] ?? 0` with `.zz` missing. An existence check is the right-most step too, so `$d.x.?b ?? 0` with `.x` missing halts `RILL-R009`. A wrong key type still halts `RILL-R002`, and a number or bool key at a bracket on a dict halts `RILL-R009` even with `??`.
+`??` recovers only a miss on the last step of an access chain, for fields, annotations, and brackets. `$d.x.y ?? 0` with `.x` missing halts `RILL-R009`, as do `$d.b[1] ?? 0` with `.b` missing and `$d[$d.zz] ?? 0` with `.zz` missing. An existence check is the right-most step too, so `$d.x.?b ?? 0` with `.x` missing halts `RILL-R009`. A wrong key type on a list, tuple, or ordered receiver halts `RILL-R002`; a non-string selector on a dict or stream halts `#TYPE_MISMATCH` (see [Dict Keys Are Strings](topic-types.md)).
 
 ---
 
@@ -760,6 +770,19 @@ Returns boolean:
 $user.?name                      # true
 $user.?age                       # false
 ```
+
+### Variable Existence `.?$k`
+
+`.?$k` selects as `[$k]` does, so it is the probe of `$c.$k` and agrees with `.?[$k]`. Only a miss, an absent key or an out-of-range index, yields `false`.
+
+```rill
+list[1, 2] => $l
+5 => $k
+$l.?$k
+# Result: false
+```
+
+A string held in `$k` is a key, not a field name. On a list, tuple, string, number, atom, closure, iterator, or type value it halts with the error the bracket read raises, such as `List index must be number, got string`. `??` does not recover it, so `$l.$k ?? "d"` with `$k` holding `"a"` halts too. Spell a field name to probe it as one: `$user.?name`.
 
 ### Existence with Type `.?field&type`
 

@@ -118,10 +118,11 @@ Pipe a value to a dict to match keys:
     $val -> dict[apple: "fruit"] ?? "not found"                  # default if no match
     $method -> dict[list["GET","HEAD"]: "safe", list["POST","PUT"]: "unsafe"]   # multi-key
 
-Type-aware (key matched by value AND type):
+Dict keys are strings. A number or bool selector halts `#TYPE_MISMATCH` (`??` does not recover it); convert with `-> string`:
 
-    1 -> dict[1: "number", "1": "string"]              # "number"
-    "1" -> dict[1: "number", "1": "string"]            # "string"
+    "1" -> dict[1: "number", one: "word"]              # "number"
+    1 -> string -> dict[1: "number", one: "word"]      # "number"
+    1 -> dict[1: "number"]                             # halts #TYPE_MISMATCH
 
 ### List dispatch (index)
 

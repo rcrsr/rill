@@ -8,9 +8,10 @@
  * to a tight one, and nothing else in the toolchain reports it. This rule is
  * the only signal, which is why it is formatting/info rather than an error.
  *
- * Only `accessChain` entries carrying a source span are checked. The block,
- * alternatives, and annotation field-access kinds have no span, so a spaced
- * dot in `.{block}`, `.(a || b)`, and `.^key` goes unreported.
+ * Only `accessChain` entries carrying a source span are checked. The
+ * annotation field-access kind has no span, so a spaced dot in `.^key` goes
+ * unreported. The `.?` prefix of a bracket probe (`.?[expr]`) is checked from
+ * the bracket's span start, since a bracket span begins at `[`.
  */
 
 import type { ASTNode, FieldAccess } from '@rcrsr/rill';
@@ -65,7 +66,8 @@ export const spacingMember: Rule = {
         (a): a is FieldAccess =>
           !('accessKind' in a && a.accessKind === 'bracket')
       ),
-      ...(variableNode.existenceCheck?.finalAccess
+      ...(variableNode.existenceCheck?.finalAccess &&
+      !('accessKind' in variableNode.existenceCheck.finalAccess)
         ? [variableNode.existenceCheck.finalAccess]
         : []),
     ];
@@ -109,6 +111,52 @@ export const spacingMember: Rule = {
         context: extractContextLine(span.start.line, context.source),
         fix: null,
       });
+    }
+
+    // A bracket probe's span starts at `[`, so its `.?` prefix sits on the
+    // source line just before it and is checked from there.
+    const final = variableNode.existenceCheck?.finalAccess;
+    if (
+      final !== undefined &&
+      final !== null &&
+      'accessKind' in final &&
+      isValidSpan(final.span)
+    ) {
+      const before = textBeforeDotOnLine(
+        final.span.start.line,
+        final.span.start.column,
+        context.source
+      );
+      const match = /(\s*)\.(\s*)\?(\s*)$/.exec(before);
+      if (match !== null) {
+        const spaceBefore =
+          before.slice(0, match.index).trim().length > 0 &&
+          (match[1] ?? '').length > 0;
+        const spaceInside = (match[2] ?? '').length > 0;
+        const spaceAfter = (match[3] ?? '').length > 0;
+        if (spaceBefore || spaceInside || spaceAfter) {
+          const side =
+            spaceBefore && (spaceInside || spaceAfter)
+              ? 'No spaces around'
+              : spaceBefore
+                ? 'No space before'
+                : 'No space after';
+          const dotColumn = match.index + (match[1] ?? '').length + 1;
+          diagnostics.push({
+            code: 'SPACING_MEMBER',
+            message: `${side} '.?': write '.?['`,
+            severity: 'info',
+            location: {
+              line: final.span.start.line,
+              column: dotColumn,
+              offset:
+                final.span.start.offset - (before.length - (dotColumn - 1)),
+            },
+            context: extractContextLine(final.span.start.line, context.source),
+            fix: null,
+          });
+        }
+      }
     }
 
     return diagnostics;

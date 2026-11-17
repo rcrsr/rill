@@ -52,8 +52,8 @@ describe('Dict eq vs non-dict guard (#281)', () => {
       expect(await run('(dict[1: "a"] == dict[1: "a"])')).toBe(true);
     });
 
-    it('number key and string key stay distinct', async () => {
-      expect(await run('(dict[1: "a"] == dict["1": "a"])')).toBe(false);
+    it('number-spelled key equals the same string key', async () => {
+      expect(await run('(dict[1: "a"] == dict["1": "a"])')).toBe(true);
     });
   });
 });

@@ -41,7 +41,7 @@ For design principles, see [Design Principles](topic-design-principles.md).
 | Type | `:type` (assert), `:?type` (check), `:union(T1, T2)` (union assert/check) |
 | Member | `.field`, `[index]` |
 | Default | `?? value` |
-| Existence | `.?field`, `.?$var`, `.?($expr)`, `.?field&type`, `.?field&union(T1, T2)` (union), `.?field&list(T)` (parameterized) |
+| Existence | `.?field`, `.?$var`, `.?[expr]`, `.?field&type`, `.?field&union(T1, T2)` (union), `.?field&list(T)` (parameterized) |
 | Status probe | `.!` (bool: is the value invalid), `.!field` (sidecar field: `code`, `message`, `provider`, `trace`, or a `raw` key) |
 | Presence probe | `.?` (presence bool, current `$`) |
 
@@ -205,23 +205,22 @@ See [Variables](topic-variables.md) for detailed documentation.
 | `$data.field` | Literal field access |
 | `$data[0]`, `$data[-1]` | Index access |
 | `$data.$key` | Variable as key |
-| `$data.($i + 1)` | Computed key |
-| `$data.(a \|\| b)` | Alternative keys |
+| `$data[$i + 1]` | Computed key |
 | `$data.field ?? default`, `$data[i] ?? default` | Default if the final key or index is missing; a miss on an earlier step still halts `RILL-R009` |
 | `$data.?field` | Existence check (literal) |
 | `$data.?$key` | Existence check (variable) |
-| `$data.?($expr)` | Existence check (computed) |
+| `$data.?[expr]` | Existence check (computed) |
 | `$data.?field&type` | Existence + type check |
 | `$data.^key`, `$data.?^key` | Annotation reflection; `.?^key` is a presence check yielding bool |
 
 | Form | Reaches or halts |
 |------|------------------|
-| `.$k`, `.(expr)`, `.(a \|\| b)`, `.?` | Dict data fields, list and tuple positions, ordered entries |
-| Same forms on a type value | `name`, `signature`, `inner`, `outer`, `defaults`, where the type has them |
+| `.$k`, `[expr]`, `.?` | Dict data fields, list and tuple positions, ordered entries |
+| `.name`, `.?name`, and `-> .name` on a type value | `name`, `signature`, `inner`, `outer`, `defaults`, where the type has them; `.$k` and `[k]` halt RILL-R002 |
 | `.len`, `.keys`, closure `.params` | Work only as a written `.name` or a pipe method |
 | `.?len` | `false` |
-| `.("len")` | Halts RILL-R003 on a list, tuple, string, or closure; RILL-R009 on a dict or ordered |
-| `.?k` | `true` exactly when `.("k")` does not halt |
+| `["len"]` | Halts RILL-R002 on a list, tuple, string, or closure; RILL-R009 on a dict or ordered |
+| `.?k` | `true` exactly when `["k"]` does not halt |
 
 ```rill
 tuple[1, "a"] => $t
@@ -271,7 +270,7 @@ $config.?retry
 
 The same rule applies to `use<>` resource segments, so `use<host:pkg.error>` resolves `error` as a path segment, not a statement keyword.
 
-The 10 non-boolean reserved words are valid bare dict keys and parse as string keys, so `dict[error: 1]`, `dict[while: 1]`, and `dict[break: 1]` all work. `true` and `false` are bare keys too, but the parser treats them as boolean literal keys.
+The 10 non-boolean reserved words are valid bare dict keys and parse as string keys, so `dict[error: 1]`, `dict[while: 1]`, and `dict[break: 1]` all work. `true` and `false` are bare keys too; they store the strings `"true"` and `"false"`.
 
 ```rill
 dict[error: 1, while: 2, break: 3] => $d
@@ -279,16 +278,10 @@ $d.error
 # Result: 1
 ```
 
-A bare `true`/`false` key is a boolean literal key, distinct from the string key `"true"`/`"false"`. Member access (`.true`) reads the string key, so a boolean key is reached by dispatch instead:
+A bare `true`/`false` key names the string key `"true"`/`"false"`, so member access `.true` reads it. See [Types](topic-types.md) for dict keys.
 
 ```rill
 dict[true: 1] => $d
-true -> $d
-# Result: 1
-```
-
-```rill
-dict["true": 1] => $d
 $d.true
 # Result: 1
 ```
@@ -393,18 +386,7 @@ $value -> [apple: "fruit"] ?? "not found"        # Returns "not found" if no mat
 $method -> [["GET", "HEAD"]: "safe", list["POST", "PUT"]: "unsafe"]  # Multi-key dispatch
 ```
 
-**Type-Aware Dispatch:** Keys match by both value and type.
-
-| Input | Dict | Result |
-|-------|------|--------|
-| `1` | `[1: "one", 2: "two"]` | `"one"` |
-| `"1"` | `[1: "one", "1": "string"]` | `"string"` |
-| `true` | `[true: "yes", false: "no"]` | `"yes"` |
-| `"true"` | `[true: "bool", "true": "string"]` | `"string"` |
-| `1` | `[[1, "one"]: "match"]` | `"match"` |
-| `"one"` | `[[1, "one"]: "match"]` | `"match"` |
-
-Dict keys can be identifiers, numbers, or booleans. Multi-key syntax `[k1, k2]: value` maps multiple keys to the same value.
+Dict keys are strings and multi-key syntax `[k1, k2]: value` maps several keys to one value; see [Dict Keys Are Strings](topic-types.md).
 
 **Hierarchical Dispatch:** Navigate nested structures using a path list.
 
@@ -416,7 +398,7 @@ Dict keys can be identifiers, numbers, or booleans. Multi-key syntax `[k1, k2]: 
 | `[0, 1, ...] -> $list` | Sequential navigation through nested lists |
 | `[k, 0, k2] -> $mixed` | Mixed dict keys and list indexes |
 
-Path element types: string keys for dict lookup, number indexes for list access (negative indexes supported). A key of the wrong type for the current value (a string key on a list, or a boolean key on a dict) halts with `RILL-R002`; a missing key or an out-of-range index halts with `RILL-R009`.
+Path element types: string keys for dict lookup, number indexes for list access (negative indexes supported). A string key on a list halts `RILL-R002`; a non-string key on a dict follows [Dict Keys Are Strings](topic-types.md); a missing key or an out-of-range index halts `RILL-R009`.
 
 Terminal closures receive `$` bound to the final path key.
 
@@ -456,15 +438,15 @@ The index must be an integer; a non-integer number halts with `#INVALID_INPUT` a
 1 -> $items                           # "b"
 ```
 
-**Error Messages:**
+**Error Messages:** a miss reads the same in `$c[k]`, `.$k`, pipe selection, a dispatch table, hierarchical dispatch, and `destruct<k: $x>`.
 
 | Scenario | Code | Message |
 |----------|------|---------|
-| Dict key not found | RILL-R009 | `Dict dispatch: key '{key}' not found` |
+| Dict key not found | RILL-R009 | `Undefined dict key: {key}` |
+| Ordered key not found | RILL-R009 | `Undefined ordered key: {key}` |
 | List index out of range | RILL-R009 | `{Kind} index out of bounds: {index}` |
 | List index not an integer | `#INVALID_INPUT` | `{Kind} index must be an integer, got {index}` |
 | List dispatch with a non-number | RILL-R002 | `List index must be number, got {type}` |
-| Variable list dispatch with a non-number | RILL-R002 | `List dispatch requires number index, got {type}` |
 | Tuple dispatch with a non-number | RILL-R002 | `Tuple index must be number, got {type}` |
 | Pipe into a variable that holds no target | RILL-R002 | `cannot pipe into ${name}: it holds a {type}` |
 | Pipe into a value selected from a variable | RILL-R002 | `cannot pipe into a value selected from ${name}: it is a {type}` |
@@ -496,7 +478,7 @@ The index must be an integer; a non-integer number halts with `#INVALID_INPUT` a
 | `.has_all([values])` | List | Bool | Check if list contains all values from candidates |
 | `.keys` | Dict | List | All keys |
 | `.values` | Dict | List | All values |
-| `.entries` | Dict | List | Key-value pairs |
+| `.entries` | Dict | List | `tuple(string, V)` pairs |
 | `.params` | Closure | Dict | Parameter metadata (type, __annotations) |
 
 `.keys`, `.values`, and `.entries` halt `RILL-R003` on a non-dict receiver (tuple, stream, string, number, and so on); `??` and `guard` do not recover the halt, so check the receiver first. `ordered` values are accepted.

@@ -44,6 +44,7 @@
 
 import type {
   ASTNode,
+  BracketAccess,
   CaptureNode,
   ClosureCallNode,
   ClosureNode,
@@ -51,6 +52,7 @@ import type {
   DestructureNode,
   DictEntryNode,
   PipeChainNode,
+  PropertyAccess,
   SourceSpan,
 } from '@rcrsr/rill';
 
@@ -273,46 +275,64 @@ function isBreakBoundary(node: ASTNode): boolean {
   );
 }
 
-/** True for a Variable node whose access chain contains a literal `.len` field access. */
+/**
+ * Every access on a Variable in source order: the access chain plus the
+ * final access of a `.?` existence probe (`.?field`, `.?$k`, `.?[expr]`).
+ */
+function allAccessesSelf(node: ASTNode): PropertyAccess[] {
+  if (node.type !== 'Variable') return [];
+  const final = node.existenceCheck?.finalAccess;
+  return final === undefined || final === null
+    ? node.accessChain
+    : [...node.accessChain, final];
+}
+
+/** True for a Variable node with a literal `.len` field access, including `.?len`. */
 function hasLenFieldAccessSelf(node: ASTNode): boolean {
-  if (node.type !== 'Variable') return false;
-  return node.accessChain.some(
+  return allAccessesSelf(node).some(
     (access) =>
       'kind' in access && access.kind === 'literal' && access.field === 'len'
   );
 }
 
-/** True for a Variable node whose access chain contains a bracket-index access. */
+/** True for a Variable node with a bracket-index access, including `.?[i]`. */
 function hasBracketAccessSelf(node: ASTNode): boolean {
-  if (node.type !== 'Variable') return false;
-  return node.accessChain.some(
+  return allAccessesSelf(node).some(
     (access) => 'accessKind' in access && access.accessKind === 'bracket'
   );
 }
 
-/**
- * True for a Variable node whose access chain contains a dynamically-keyed
- * field access: `computed` (`.($expr)`), `variable` (`.$var`), or `block`
- * (`.{...}`) kind. Excludes `alternatives` (`.a|b|c`) deliberately - those
- * keys are static identifiers known at parse time, so they carry no dynamic
- * field name and are out of scope for this fact.
- */
-function hasDynamicFieldAccessSelf(node: ASTNode): boolean {
-  if (node.type !== 'Variable') return false;
-  return node.accessChain.some(
-    (access) =>
-      'kind' in access &&
-      (access.kind === 'computed' ||
-        access.kind === 'variable' ||
-        access.kind === 'block')
+/** True when a bracket expression is a static number: `0` or `-1`. */
+function isStaticNumberBracket(access: BracketAccess): boolean {
+  const expr = access.expression;
+  if (expr.type !== 'PipeChain' || expr.pipes.length > 0) return false;
+  let head = expr.head;
+  if (head.type === 'UnaryExpr' && head.op === '-') head = head.operand;
+  return (
+    head.type === 'PostfixExpr' &&
+    head.methods.length === 0 &&
+    head.primary.type === 'NumberLiteral'
   );
 }
 
-/** Literal (`.field`) field names accessed by a single Variable node's access chain. */
+/**
+ * True for a Variable node with a dynamically-keyed access: a `variable`
+ * field access (`.$var`) or a bracket access (`[expr]`, `.?[expr]`) whose
+ * expression is not a static number literal. A number bracket indexes a
+ * list or string and can never name a dict key.
+ */
+function hasDynamicFieldAccessSelf(node: ASTNode): boolean {
+  return allAccessesSelf(node).some((access) =>
+    'accessKind' in access
+      ? !isStaticNumberBracket(access)
+      : access.kind === 'variable'
+  );
+}
+
+/** Literal (`.field`) field names accessed by a Variable node, including `.?field`. */
 function literalFieldAccessNamesSelf(node: ASTNode): string[] {
-  if (node.type !== 'Variable') return [];
   const names: string[] = [];
-  for (const access of node.accessChain) {
+  for (const access of allAccessesSelf(node)) {
     if ('kind' in access && access.kind === 'literal') {
       names.push(access.field);
     }

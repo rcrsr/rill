@@ -404,7 +404,7 @@ function existenceCheckEquals(
   if (
     a.finalAccess !== null &&
     b.finalAccess !== null &&
-    !fieldAccessEquals(a.finalAccess, b.finalAccess)
+    !propertyAccessEquals(a.finalAccess, b.finalAccess)
   ) {
     return false;
   }
@@ -434,16 +434,6 @@ function fieldAccessEquals(a: FieldAccess, b: FieldAccess): boolean {
       return b.kind === 'literal' && a.field === b.field;
     case 'variable':
       return b.kind === 'variable' && a.variableName === b.variableName;
-    case 'computed':
-      return b.kind === 'computed' && astEquals(a.expression, b.expression);
-    case 'block':
-      return b.kind === 'block' && astEquals(a.block, b.block);
-    case 'alternatives':
-      return (
-        b.kind === 'alternatives' &&
-        a.alternatives.length === b.alternatives.length &&
-        a.alternatives.every((alt, i) => alt === b.alternatives[i])
-      );
     case 'annotation':
       return b.kind === 'annotation' && a.key === b.key;
   }
@@ -578,12 +568,6 @@ function dictEntryEquals(a: DictEntryNode, b: DictEntryNode): boolean {
   // Compare keys based on type
   if (typeof a.key === 'string' && typeof b.key === 'string') {
     // String keys: compare with ===
-    if (a.key !== b.key) return false;
-  } else if (typeof a.key === 'number' && typeof b.key === 'number') {
-    // Number keys: compare with ===
-    if (a.key !== b.key) return false;
-  } else if (typeof a.key === 'boolean' && typeof b.key === 'boolean') {
-    // Boolean keys: compare with ===
     if (a.key !== b.key) return false;
   } else if (typeof a.key === 'object' && typeof b.key === 'object') {
     // Check for DictKeyVariable or DictKeyComputed

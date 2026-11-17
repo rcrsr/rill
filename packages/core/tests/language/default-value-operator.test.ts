@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Default Value Operator (??)
  * Tests for the ?? operator that provides fallback values for missing fields
@@ -13,6 +14,7 @@ import {
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 import { isOrdered } from '../helpers/ordered.js';
 
 describe('Default Value Operator (??)', () => {
@@ -61,7 +63,7 @@ describe('Default Value Operator (??)', () => {
       const result = await run(`
         dict[field1: "a", field2: "b"] => $data
         3 => $n
-        $data.("field{$n}") ?? "missing"
+        $data["field{$n}"] ?? "missing"
       `);
       expect(result).toBe('missing');
     });
@@ -638,24 +640,35 @@ describe('Default Value Operator (??)', () => {
       await expectHalt(() => run(`${DICT}$d["b"]`), { code: 'RILL_R009' });
     });
 
-    it('halts on an absent number key on a dict even with a default', async () => {
-      await expectHalt(() => run(`${DICT}$d[1] ?? 0`), { code: 'RILL_R009' });
-    });
+    rule('selection.key-no-mask').it(
+      'halts #TYPE_MISMATCH on a number selector on a dict even with a default',
+      async () => {
+        await expectHalt(() => run(`${DICT}$d[1] ?? 0`), {
+          code: 'TYPE_MISMATCH',
+        });
+      }
+    );
 
-    it('halts on an absent bool key on a dict even with a default', async () => {
-      await expectHalt(() => run(`${DICT}$d[true] ?? 0`), {
-        code: 'RILL_R009',
-      });
-    });
+    rule('selection.key-no-mask').it(
+      'halts #TYPE_MISMATCH on a bool selector on a dict even with a default',
+      async () => {
+        await expectHalt(() => run(`${DICT}$d[true] ?? 0`), {
+          code: 'TYPE_MISMATCH',
+        });
+      }
+    );
 
-    it('halts on an absent number key on a typed-key dict even with a default', async () => {
-      await expectHalt(() => run('dict[1: "x"] => $d\n$d[2] ?? 0'), {
-        code: 'RILL_R009',
-      });
-    });
+    rule('selection.key-no-mask').it(
+      'halts #TYPE_MISMATCH on a number selector on a number-spelled-key dict even with a default',
+      async () => {
+        await expectHalt(() => run('dict[1: "x"] => $d\n$d[2] ?? 0'), {
+          code: 'TYPE_MISMATCH',
+        });
+      }
+    );
 
-    it('returns a present number key on a dict', async () => {
-      expect(await run('dict[1: "x"] => $d\n$d[1] ?? 0')).toBe('x');
+    it('returns a present number-spelled key by its string selector', async () => {
+      expect(await run('dict[1: "x"] => $d\n$d["1"] ?? 0')).toBe('x');
     });
 
     it('halts when the selector expression fails', async () => {

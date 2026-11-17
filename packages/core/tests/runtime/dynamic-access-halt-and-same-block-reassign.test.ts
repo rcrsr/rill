@@ -3,7 +3,7 @@
  *
  * Covers two behavioral guarantees:
  *
- * 1. Dynamic field access (`$d.$k`, `$d.(expr)`) on a missing key, and field
+ * 1. Dynamic field access (`$d.$k`, `$d[expr]`) on a missing key, and field
  *    access on a non-dict, HALT when there is no `??` default and no `.?`
  *    existence check — matching literal field access (`$d.zz`). They must
  *    never surface a raw null, which would violate the no-null principle.
@@ -72,7 +72,7 @@ describe('Dynamic access halts on missing key / non-dict', () => {
   it('halts on a missing computed key', async () => {
     const code = `
       dict[a: 1] => $d
-      $d.("zz")
+      $d["zz"]
     `;
     await expect(run(code)).rejects.toMatchObject({
       errorId: 'RILL-R009',
@@ -82,7 +82,7 @@ describe('Dynamic access halts on missing key / non-dict', () => {
   it('coalesces a missing computed key with ?? default', async () => {
     const code = `
       dict[a: 1] => $d
-      $d.("zz") ?? "x"
+      $d["zz"] ?? "x"
     `;
     expect(await run(code)).toBe('x');
   });
@@ -112,7 +112,7 @@ describe('Dynamic access halts on missing key / non-dict', () => {
       $n.$k
     `;
     await expect(run(code)).rejects.toMatchObject({
-      errorId: 'RILL-R003',
+      errorId: 'RILL-R002',
     });
   });
 

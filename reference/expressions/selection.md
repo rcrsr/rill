@@ -3,9 +3,9 @@ id: selection
 title: Selection
 status: normative
 since: 0.24.0
-issues: [576, 599, 607]
+issues: [599]
 grammar: []
-errors: [INVALID_INPUT, TYPE_MISMATCH, RILL-R002, RILL-R003, RILL-R005, RILL-R009]
+errors: [INVALID_INPUT, TYPE_MISMATCH, RILL-P012, RILL-R002, RILL-R003, RILL-R005, RILL-R009]
 depends: [dict, ordered, list, tuple, map, string, carried-type]
 tests: [property-access.test.ts, dynamic-field-access.test.ts, list-dispatch.test.ts, unified-dispatch.test.ts, ordered-access.test.ts, access-halt.test.ts, default-value-operator.test.ts]
 ---
@@ -44,9 +44,18 @@ r[selection.computed] A bracket selects by an expression's value
 r[selection.variable] The variable form is the bracket form with a variable
 `$c.$k` MUST select as `$c[$k]` does. An undefined `$k` MUST halt with RILL-R005.
 
-r[selection.no-paren] The parenthesized selector is removed {pending #607}
+r[selection.key-validation] Every selection form validates its key as the bracket form does
+`$c[sel]`, `$c.$k`, `$c.?[sel]`, `$c.?$k`, and pipe selection MUST reject a key the receiver does not accept with the same RILL-R002
+message, in every form, and `??` MUST NOT mask it. A string held in `$k` is a key, never a field name, so `$list.$k`, `$tuple.$k`,
+`$atom.$k`, `$closure.$k`, an iterator `.$k`, and a type value `.$k` with a string `$k` halt as `$c[$k]` does. A stream takes only a string key,
+so a number or bool key on a stream MUST halt with `Dict key must be string, got <type>`. A spelled field name (`$c.name`, `$c.?name`) is not a selector and is unchanged.
+
+r[selection.variable-miss] The variable form reports a miss as the bracket form does
+`$c.$k` MUST halt for a missing key or index with the error id and message `$c[$k]` raises, such as RILL-R009 `Undefined dict key: k` on a dict. `??` recovers the miss in both forms alike. `k -> $c`, a dispatch table, hierarchical dispatch, and `destruct<k: $x>` use the same message; see `dispatch.miss-message` and `destruct.missing-field`. A spelled `$c.name` keeps its own message, `Dict has no field 'name'`.
+
+r[selection.no-paren] The parenthesized selector is removed
 `$c.(expr)`, `$c.?(expr)`, the alternatives form `$c.(a || b)`, and the block form `$c.{ ... }`
-MUST be rejected at parse time, with a message naming `$c[expr]` and `$c.?[expr]`.
+MUST be rejected at parse time with RILL-P012, with a message naming `$c[expr]` and `$c.?[expr]`.
 
 r[selection.string] A string has no index form
 `$s[0]` and `$s.$k` MUST halt with RILL-R002, for a string `$s`. A pipe into `$s` halts as
@@ -78,22 +87,19 @@ r[selection.default] A fallback replaces a missing selection
 
 r[selection.bracket-default] A fallback replaces a missing bracket selection
 `$c[sel] ?? d` MUST yield `d` when `$c` and `sel` both evaluate and the final lookup misses. A miss is an
-out-of-range list, tuple, or ordered index, or an absent string key. A number or bool key on a dict or stream is a wrong
-key, not a missing one, so `dict[a: 1][1] ?? 0` and `$d[true] ?? 0` halt with RILL-R009, as they do without `??`. Through
-`.$k` or `.(expr)` on a plain dict the same key halts with RILL-R002, and a key that is not a field key (tuple, dict,
+out-of-range list, tuple, or ordered index, or an absent string key. A non-string selector on a dict is stated in `selection.key-type` and `selection.key-no-mask`. A key that is not a field key (tuple, dict,
 closure) in pipe selection halts. Variable, postfix, parenthesized, literal, and method-call receivers behave alike. A wrong
-key type still halts with RILL-R002. Only the future `map` type recovers a missing number key {pending #599}.
+key type on a list or tuple still halts with RILL-R002. Only the future `map` type recovers a missing number key {pending #599}.
 
 r[selection.default-last-step] A fallback recovers only the last step of a chain
 `??` MUST recover a miss only on the right-most step of an access chain, for fields, annotations, brackets, and existence checks.
 `$d.x.y ?? 0` with `.x` missing, `$d.b[1] ?? 0` with `.b` missing, and `$d[$d.zz] ?? 0` with `.zz` missing MUST halt with RILL-R009. `$d.x.?b ?? d` with `.x` missing MUST halt with RILL-R009 (RILL-R008 for a missing annotation),
-because the existence check is the right-most step and `??` never recovers an earlier one. A number or bool key on a dict or
-stream halts and is never recovered; see `selection.bracket-default`.
+because the existence check is the right-most step and `??` never recovers an earlier one. A non-string dict selector halts and is never recovered; see `selection.key-no-mask`.
 
-r[selection.key-type] A dict selector is a string {pending #576}
+r[selection.key-type] A dict selector is a string
 A dict selector that is not a string MUST halt with `#TYPE_MISMATCH`. Selection converts nothing.
 
-r[selection.key-no-mask] A fallback does not mask a wrong dict selector {pending #576}
+r[selection.key-no-mask] A fallback does not mask a wrong dict selector
 `??` MUST NOT mask the halt of a non-string dict selector.
 
 r[selection.map-forms] A map selects by its key type {pending #599}
@@ -130,7 +136,8 @@ Element typing follows `carried-type.element`. The existence check `.?` is state
 | `.name` or `.at` on a receiver that has none | RILL-R003 | Yes |
 | A variable selector is undefined | RILL-R005 | Yes |
 | An index is not an integer | `#INVALID_INPUT` | Yes |
-| A dict selector is not a string {pending #576} | `#TYPE_MISMATCH` | Yes |
+| A parenthesized or block selector is written | RILL-P012 | No |
+| A dict selector is not a string | `#TYPE_MISMATCH` | Yes |
 | A map selector has the wrong key type {pending #599} | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
@@ -168,7 +175,7 @@ $d.x.y ?? 0
 ```rill
 dict[a: 1] => $d
 $d[1] ?? 0
-# Error: RILL-R009
+# Error: #TYPE_MISMATCH
 ```
 
 ## Notes

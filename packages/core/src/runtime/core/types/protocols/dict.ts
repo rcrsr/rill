@@ -15,14 +15,7 @@
 import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
 import { isDict } from '../guards.js';
-import {
-  getTypedKeyMap,
-  typedKeyEntries,
-  orderedDictEntries,
-  setDictField,
-} from '../dict-keys.js';
-import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import { throwFatalHostHalt } from '../halt.js';
+import { orderedDictEntries, setDictField } from '../dict-keys.js';
 import { quoteRillString } from '../format-string.js';
 import {
   formatNested,
@@ -32,12 +25,12 @@ import {
 } from './shared.js';
 
 /**
- * Render a dict key for `formatValue`. Number and boolean keys render
- * unquoted (so `dict[1: "a"]` and `dict[true: "a"]` re-parse as typed keys).
- * String keys render as a bare identifier when they are a valid identifier
- * that is not `true`/`false` (which would otherwise re-parse as a boolean);
- * every other string key is quoted so the output round-trips. This keeps the
- * common identifier-keyed case (`dict[a: 1]`) byte-for-byte unchanged.
+ * Render a dict key for `formatValue`. Every key is a string. A key renders
+ * as a bare identifier when it is a valid identifier other than `true`/`false`
+ * (which would otherwise re-parse as a boolean); every other key, including
+ * numeric-looking strings such as "1", is quoted so the output round-trips.
+ * This keeps the common identifier-keyed case (`dict[a: 1]`) byte-for-byte
+ * unchanged.
  */
 const IDENTIFIER_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -46,16 +39,6 @@ function formatStringKey(key: string): string {
     return key;
   }
   return quoteRillString(key);
-}
-
-function formatDictKey(key: RillValue): string {
-  if (typeof key === 'string') return formatStringKey(key);
-  if (typeof key === 'number' || typeof key === 'boolean') return String(key);
-  return throwFatalHostHalt(
-    { fn: 'format-dict' },
-    ERROR_ATOMS[ERROR_IDS.RILL_R002],
-    'dict key must be a string, number, or boolean'
-  );
 }
 
 // ============================================================
@@ -67,7 +50,7 @@ function formatDict(v: RillValue): string {
     ? v
     : requireReceiver(v, isDict, { fn: 'format-dict' }, 'dict');
   const parts = orderedDictEntries(dict).map(({ key, value }) => {
-    const formattedKey = formatDictKey(key);
+    const formattedKey = formatStringKey(key);
     return `${formattedKey}: ${formatNested(value)}`;
   });
   return `dict[${parts.join(', ')}]`;
@@ -99,21 +82,6 @@ function eqDict(a: RillValue, b: RillValue): boolean {
       return false;
     }
   }
-  // Compare number/boolean keys by (type, value) identity. Two dicts are equal
-  // only when their typed-key sets match exactly, so dict[1: "a"] and
-  // dict["1": "a"] are unequal.
-  const aTyped = getTypedKeyMap(aDict);
-  const bTyped = getTypedKeyMap(bDict);
-  const aTypedSize = aTyped?.size ?? 0;
-  const bTypedSize = bTyped?.size ?? 0;
-  if (aTypedSize !== bTypedSize) return false;
-  if (aTyped !== undefined) {
-    for (const [encoded, aEntry] of aTyped) {
-      const bEntry = bTyped?.get(encoded);
-      if (bEntry === undefined) return false;
-      if (!compareByDeepEquals(aEntry.value, bEntry.value)) return false;
-    }
-  }
   return true;
 }
 
@@ -136,12 +104,6 @@ function serializeDict(v: RillValue): unknown {
   const result: Record<string, unknown> = {};
   for (const [k, val] of Object.entries(dict)) {
     setDictField(result, k, serializeListElement(val));
-  }
-  // JSON object field names are strings, so number/boolean keys serialize to
-  // their string form (number 1 -> field "1", boolean true -> field "true").
-  // A same-spelled string key, if present, is overwritten last-write-wins.
-  for (const { key, value } of typedKeyEntries(dict)) {
-    setDictField(result, String(key), serializeListElement(value));
   }
   return result;
 }
