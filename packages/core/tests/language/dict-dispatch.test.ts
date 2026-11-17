@@ -456,7 +456,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
       });
     });
 
-    it('throws RUNTIME_TYPE_ERROR when multi-key contains list', async () => {
+    it('halts with RILL-R002 when multi-key contains a list', async () => {
       // The list element is not a string, so key validation rejects it.
       await expectHalt(() => run('dict[list[list[1, 2], "valid"]: "value"]'), {
         code: 'RILL_R002',
@@ -466,7 +466,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
       });
     });
 
-    it('throws RUNTIME_TYPE_ERROR when multi-key contains dict', async () => {
+    it('halts with RILL-R002 when multi-key contains a dict', async () => {
       // Dict key validation rejects the dict element.
       await expectHalt(() => run('dict[list[dict[a: 1], "valid"]: "value"]'), {
         code: 'RILL_R002',
@@ -476,7 +476,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
       });
     });
 
-    it('throws RUNTIME_TYPE_ERROR when multi-key contains closure', async () => {
+    it('halts with RILL-R002 when multi-key contains a closure', async () => {
       // Dict key validation rejects the closure element.
       await expectHalt(() => run('dict[list[||{1}, "valid"]: "value"]'), {
         code: 'RILL_R002',
@@ -486,7 +486,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
       });
     });
 
-    it('throws when all keys in multi-key are non-primitives', async () => {
+    it('halts when no key in a multi-key list is a string', async () => {
       // All elements are lists (arrays), so first one triggers the error
       await expectHalt(
         () => run('dict[list[list[1, 2], list[3, 4]]: "value"]'),
@@ -596,11 +596,34 @@ describe('Rill Runtime: Dict Dispatch', () => {
       });
     });
 
-    it('halts for a non-string element in the entry that matches', async () => {
+    it('halts for a non-string element when the input matches no entry', async () => {
       await expectHalt(() => run('"b" -> dict[list["a", 1]: "x"]'), {
         code: 'RILL_R002',
         messagePattern:
           'Multi-key dict entry keys must be string, got number; quote the key',
+      });
+    });
+
+    it('halts for a malformed entry after a matching spelled entry', async () => {
+      await expectHalt(() => run('"a" -> dict[a: 1, list[1]: "x"]'), {
+        code: 'RILL_R002',
+        messagePattern:
+          'Multi-key dict entry keys must be string, got number; quote the key',
+      });
+    });
+
+    it('halts for a malformed entry whatever the input type', async () => {
+      await expectHalt(() => run('1 -> dict[list[1, 2]: "x"]'), {
+        code: 'RILL_R002',
+        messagePattern:
+          'Multi-key dict entry keys must be string, got number; quote the key',
+      });
+    });
+
+    it('halts for an empty multi-key list in a dispatch table', async () => {
+      await expectHalt(() => run('"a" -> dict[a: 1, list[]: "x"]'), {
+        code: 'RILL_R002',
+        messagePattern: 'Multi-key dict entry requires non-empty list',
       });
     });
 

@@ -134,7 +134,7 @@ describe('Unified Dispatch', () => {
           {
             code: 'RILL_R002',
             hostErrorId: 'RILL-R002',
-            messagePattern: /List dispatch requires number index/i,
+            messagePattern: /List index must be number, got string/i,
           }
         );
       });

@@ -216,7 +216,7 @@ See [Variables](topic-variables.md) for detailed documentation.
 | Form | Reaches or halts |
 |------|------------------|
 | `.$k`, `[expr]`, `.?` | Dict data fields, list and tuple positions, ordered entries |
-| `.$k` and `.?` on a type value | `name`, `signature`, `inner`, `outer`, `defaults`, where the type has them |
+| `.name`, `.?name`, and `-> .name` on a type value | `name`, `signature`, `inner`, `outer`, `defaults`, where the type has them; `.$k` and `[k]` halt RILL-R002 |
 | `.len`, `.keys`, closure `.params` | Work only as a written `.name` or a pipe method |
 | `.?len` | `false` |
 | `["len"]` | Halts RILL-R002 on a list, tuple, string, or closure; RILL-R009 on a dict or ordered |
@@ -446,7 +446,6 @@ The index must be an integer; a non-integer number halts with `#INVALID_INPUT` a
 | List index out of range | RILL-R009 | `{Kind} index out of bounds: {index}` |
 | List index not an integer | `#INVALID_INPUT` | `{Kind} index must be an integer, got {index}` |
 | List dispatch with a non-number | RILL-R002 | `List index must be number, got {type}` |
-| Variable list dispatch with a non-number | RILL-R002 | `List dispatch requires number index, got {type}` |
 | Tuple dispatch with a non-number | RILL-R002 | `Tuple index must be number, got {type}` |
 | Pipe into a variable that holds no target | RILL-R002 | `cannot pipe into ${name}: it holds a {type}` |
 | Pipe into a value selected from a variable | RILL-R002 | `cannot pipe into a value selected from ${name}: it is a {type}` |

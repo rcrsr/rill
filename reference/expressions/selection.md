@@ -44,6 +44,15 @@ r[selection.computed] A bracket selects by an expression's value
 r[selection.variable] The variable form is the bracket form with a variable
 `$c.$k` MUST select as `$c[$k]` does. An undefined `$k` MUST halt with RILL-R005.
 
+r[selection.key-validation] Every selection form validates its key as the bracket form does
+`$c[sel]`, `$c.$k`, `$c.?[sel]`, `$c.?$k`, and pipe selection MUST reject a key the receiver does not accept with the same RILL-R002
+message, in every form, and `??` MUST NOT mask it. A string held in `$k` is a key, never a field name, so `$list.$k`, `$tuple.$k`,
+`$atom.$k`, `$closure.$k`, an iterator `.$k`, and a type value `.$k` with a string `$k` halt as `$c[$k]` does. A stream takes only a string key,
+so a number or bool key on a stream MUST halt with `Dict key must be string, got <type>`. A spelled field name (`$c.name`, `$c.?name`) is not a selector and is unchanged.
+
+r[selection.variable-miss] The variable form reports a miss as the bracket form does
+`$c.$k` MUST halt for a missing key or index with the error id and message `$c[$k]` raises, such as RILL-R009 `Undefined dict key: k` on a dict. `??` recovers the miss in both forms alike. A spelled `$c.name` keeps its own message, `Dict has no field 'name'`.
+
 r[selection.no-paren] The parenthesized selector is removed
 `$c.(expr)`, `$c.?(expr)`, the alternatives form `$c.(a || b)`, and the block form `$c.{ ... }`
 MUST be rejected at parse time with RILL-P012, with a message naming `$c[expr]` and `$c.?[expr]`.

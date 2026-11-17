@@ -27,10 +27,13 @@ r[existence.found] The existence check finds a key
 `.?name` and `.?$k` MUST yield true when the selection exists.
 
 r[existence.bracket] The existence check takes a selector expression
-`$c.?[sel]` MUST validate `sel` as the read `$c[sel]` does, and MUST yield false only for a genuine miss: an absent key or an out-of-range index. A selector the read rejects MUST halt with the read's error, so `list[1, 2].?["a"]`, `tuple[1].?[true]`, and `ordered[a: 1].?[list[1]]` halt.
+`$c.?[sel]` MUST validate `sel` as the read `$c[sel]` does, and MUST yield false only for a genuine miss: an absent key or an out-of-range index. A selector the read rejects MUST halt with the read's error, so `list[1, 2].?["a"]`, `tuple[1].?[true]`, `ordered[a: 1].?[list[1]]`, and `"s".?["len"]` halt. A type value is not an exception.
+
+r[existence.variable] The variable existence check agrees with its read
+`$c.?$k` MUST validate `$k` as `$c.$k` and `$c[$k]` do, as `selection.key-validation` states, and MUST yield false only for a genuine miss. A string `$k` is a key, so `$list.?$k` with `$k` holding `"a"` halts.
 
 r[existence.missing] The existence check never halts for a missing key
-`.?name`, and `.?$k` with a string `$k`, MUST yield false, without halting, when the selection is missing or the receiver is a scalar. `.?$k` mirrors the read `.$k`, so a string key on a list is a field miss and yields false. `.?[sel]` and `.?$k` with a non-string key MUST halt on a scalar or any non-dict receiver, with the error the read raises, and `??` MUST NOT recover it.
+`.?name`, `.?$k`, and `.?[sel]` MUST yield false, without halting, when the selection is missing and the key is valid for the receiver. A spelled name on a scalar receiver is a miss and yields false. A key the receiver rejects is not a miss; see `existence.bracket` and `existence.variable`.
 
 r[existence.key-type] The existence check halts on a non-string dict selector
 `.?$k` and `.?[sel]` on a dict MUST halt with `#TYPE_MISMATCH` when the selector is not a string,

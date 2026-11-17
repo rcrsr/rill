@@ -112,7 +112,7 @@ describe('Dynamic access halts on missing key / non-dict', () => {
       $n.$k
     `;
     await expect(run(code)).rejects.toMatchObject({
-      errorId: 'RILL-R003',
+      errorId: 'RILL-R002',
     });
   });
 

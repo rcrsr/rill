@@ -45,7 +45,6 @@ import type { TypeStructure, RillValue } from '../../types/structures.js';
 import type { Carried } from '../../types/declared.js';
 import { declarationOf, pipeDeclaredOf } from '../../types/declared.js';
 import { inferType, inferTypeName } from '../../types/registrations.js';
-import { isTypeValue } from '../../types/guards.js';
 import { formatStructure, structureMatches } from '../../types/operations.js';
 import {
   getVariable,
@@ -65,7 +64,7 @@ import type { TypeHaltSite } from '../../types/halt.js';
 import type { EvalState } from '../state.js';
 import { accessHaltGateFast } from './access.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import { getNodeLocation, isFieldReceiver } from '../shared.js';
+import { getNodeLocation } from '../shared.js';
 import { evaluateBody } from './control-flow.js';
 import { evaluatePipeChain } from './core.js';
 import {
@@ -73,17 +72,16 @@ import {
   evaluateMethod,
   evaluateAnnotationAccess,
 } from './closures.js';
+import type { FieldKey } from './field-access.js';
 import { resolveTypeRef, assertType } from './types.js';
 import {
   evaluateFieldAccessVariable,
   bracketKey,
-  variableKey,
-  isFieldKey,
+  throwBracketMiss,
   locateField,
   projectLocated,
   readField,
   locateOrRecover,
-  throwFieldMiss,
   throwNonIntegerIndex,
 } from './field-access.js';
 
@@ -313,17 +311,9 @@ export function selectByBracketKey(
   allowMissing: boolean
 ): Carried {
   const key = bracketKey(receiver, indexValue, site);
-  const located = locateOrRecover(receiver, key, allowMissing, (miss) => {
-    // A dict names a missing key `Undefined dict key`, whatever the key type.
-    if (isFieldReceiver(receiver)) {
-      return throwCatchableHostHalt(
-        site,
-        ERROR_ATOMS[ERROR_IDS.RILL_R009],
-        `Undefined dict key: ${key}`
-      );
-    }
-    return throwFieldMiss(receiver, key, miss, site);
-  });
+  const located = locateOrRecover(receiver, key, allowMissing, (miss) =>
+    throwBracketMiss(receiver, key, miss, site)
+  );
   if (located === undefined) return { value: null, declared: undefined };
   return {
     value: located.value,
@@ -383,10 +373,11 @@ export async function evaluateExistenceCheck(
     sourceId: s.ctx.sourceId,
     fn: 'evaluateExistenceCheck',
   };
-  let selector: RillValue;
-  let form: 'bracket' | 'literal' | 'variable';
+  // A spelled field name is a string and is never validated as a key. Any
+  // other selector is validated as a bracket read validates it, so a
+  // wrong-typed key halts on every receiver and only a miss answers false.
+  let key: FieldKey;
   if ('accessKind' in finalAccess) {
-    form = 'bracket';
     // Parsed inline while building a live access chain (never via the
     // statement-level recovery path), so it only ever holds a PipeChainNode;
     // PartialExpressionNode is reserved for parser error recovery.
@@ -397,12 +388,14 @@ export async function evaluateExistenceCheck(
         'Existence check bracket expression must be a pipe chain'
       );
     }
-    selector = await evaluatePipeChain(s, finalAccess.expression);
+    key = bracketKey(
+      value,
+      await evaluatePipeChain(s, finalAccess.expression),
+      site
+    );
   } else if (finalAccess.kind === 'literal') {
-    selector = finalAccess.field;
-    form = 'literal';
+    key = finalAccess.field;
   } else {
-    form = 'variable';
     const keyValue =
       finalAccess.variableName === null
         ? (s.ctx.pipeValue ?? undefined)
@@ -414,19 +407,8 @@ export async function evaluateExistenceCheck(
         `Variable '${finalAccess.variableName ?? '$'}' is undefined`
       );
     }
-    selector = keyValue;
+    key = bracketKey(value, keyValue, site);
   }
-  // The probe validates the selector as a read does, so a wrong-typed key
-  // halts on every receiver; only a genuine miss answers false.
-  // A spelled field name is a string and is never validated as a key.
-  const key =
-    form === 'literal'
-      ? selector
-      : form === 'bracket' && !isTypeValue(value)
-        ? bracketKey(value, selector, site)
-        : variableKey(value, selector, site);
-  if (!isFieldKey(key)) return false;
-
   // Locate without reading: a property-style callable is never invoked.
   const located = locateField(value, key);
   if (!located.found) {

@@ -60,10 +60,10 @@ describe('#263: dict access does not reach Object.prototype', () => {
     );
   });
 
-  it('variable-key access of an inherited member halts as a missing field', async () => {
+  it('variable-key access of an inherited member halts as a missing key', async () => {
     await expectHalts(
       () => run('"constructor" => $k  dict[a: 1] => $d  $d.$k'),
-      /no field/
+      /Undefined dict key/
     );
   });
 

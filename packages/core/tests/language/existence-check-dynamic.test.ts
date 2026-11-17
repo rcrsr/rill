@@ -323,14 +323,16 @@ describe('Dynamic Existence Check', () => {
         ['list', 'list[1, 2, 3]', 'List index must be number, got string'],
       ];
       for (const [label, literal, message] of cases) {
-        it(`returns false for variable key on ${label}`, async () => {
-          expect(
-            await run(`
-              ${literal} => $value
-              "x" => $field
-              $value.?$field
-            `)
-          ).toBe(false);
+        it(`halts for variable key on ${label}`, async () => {
+          await expectHalt(
+            () =>
+              run(`
+                ${literal} => $value
+                "x" => $field
+                $value.?$field
+              `),
+            { code: 'RILL_R002', messagePattern: message }
+          );
         });
 
         it(`halts for computed key on ${label}`, async () => {
@@ -341,14 +343,20 @@ describe('Dynamic Existence Check', () => {
         });
       }
 
-      it('returns false for type-qualified check on non-dict', async () => {
-        expect(
-          await run(`
-            42 => $num
-            "x" => $field
-            $num.?$field&number
-          `)
-        ).toBe(false);
+      it('halts for type-qualified check on non-dict', async () => {
+        await expectHalt(
+          () =>
+            run(`
+              42 => $num
+              "x" => $field
+              $num.?$field&number
+            `),
+          { code: 'RILL_R002', messagePattern: 'Cannot index number' }
+        );
+      });
+
+      it('returns false for a spelled field name on a scalar', async () => {
+        expect(await run('42 => $num\n$num.?field')).toBe(false);
       });
 
       it('halts for a variable key that is not a string or number', async () => {

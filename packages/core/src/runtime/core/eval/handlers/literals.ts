@@ -422,6 +422,48 @@ async function evaluateDictEntryValue(
 }
 
 /**
+ * Evaluate a multi-key entry's key list and validate it: the list is
+ * non-empty and every element is a string. A number or bool is ambiguous
+ * (`0.50` evaluates to 0.5), so such a key is spelled as a string.
+ */
+async function evaluateMultiKeyStrings(
+  s: EvalState,
+  keyList: ListLiteralNode,
+  fn: string
+): Promise<string[]> {
+  const keys: RillValue[] = await evaluateListLiteralElements(
+    s,
+    keyList.elements
+  );
+  const site = {
+    location: keyList.span?.start,
+    sourceId: s.ctx.sourceId,
+    fn,
+  };
+  if (keys.length === 0) {
+    throwCatchableHostHalt(
+      site,
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      'Multi-key dict entry requires non-empty list'
+    );
+  }
+  const stringKeys: string[] = [];
+  for (const key of keys) {
+    if (typeof key !== 'string') {
+      const keyType = inferType(key);
+      throwCatchableHostHalt(
+        site,
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
+        `Multi-key dict entry keys must be string, got ${keyType}; quote the key`,
+        { got: keyType }
+      );
+    }
+    stringKeys.push(key);
+  }
+  return stringKeys;
+}
+
+/**
  * Evaluate multi-key dict entry from a ListLiteralNode key.
  */
 export async function evaluateDictMultiKeyFromList(
@@ -429,56 +471,14 @@ export async function evaluateDictMultiKeyFromList(
   keyList: ListLiteralNode,
   value: ExpressionNode
 ): Promise<Array<[string, RillValue]>> {
-  // Evaluate list elements to get keys
-  const keys: RillValue[] = await evaluateListLiteralElements(
+  const stringKeys = await evaluateMultiKeyStrings(
     s,
-    keyList.elements
+    keyList,
+    'evaluateDictMultiKeyFromList'
   );
-
-  // Validate non-empty
-  if (keys.length === 0) {
-    throwCatchableHostHalt(
-      {
-        location: keyList.span?.start,
-        sourceId: s.ctx.sourceId,
-        fn: 'evaluateDictMultiKeyFromList',
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      'Multi-key dict entry requires non-empty list'
-    );
-  }
-
-  // Every listed key must be a string: a number or bool is ambiguous
-  // (`0.50` evaluates to 0.5), so the key is spelled as a string.
-  const stringKeys: string[] = [];
-  for (const key of keys) {
-    if (typeof key === 'string') {
-      stringKeys.push(key);
-    } else {
-      const keyType = inferType(key);
-      throwCatchableHostHalt(
-        {
-          location: keyList.span?.start,
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluateDictMultiKeyFromList',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        `Multi-key dict entry keys must be string, got ${keyType}; quote the key`,
-        { got: keyType }
-      );
-    }
-  }
-
   // Evaluate value once
   const evaluatedValue = await evaluateDictEntryValue(s, value);
-
-  // Create entry for each key
-  const entries: Array<[string, RillValue]> = [];
-  for (const key of stringKeys) {
-    entries.push([key, evaluatedValue]);
-  }
-
-  return entries;
+  return stringKeys.map((key): [string, RillValue] => [key, evaluatedValue]);
 }
 
 /**
@@ -755,6 +755,32 @@ export async function evaluateDictDispatch(
   node: DictNode,
   input: RillValue
 ): Promise<RillValue> {
+  // Validate every entry's keys before matching, so a malformed table halts
+  // whatever the input and whichever entry would match.
+  const candidates: Array<readonly string[]> = [];
+  for (const entry of node.entries) {
+    if (typeof entry.key !== 'object') {
+      // Spelled key, always a string after parsing
+      candidates.push([entry.key]);
+    } else if ('kind' in entry.key) {
+      throwTypeHalt(
+        {
+          location: entry.span.start,
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateDictDispatch',
+        },
+        'INVALID_INPUT',
+        'Variable and computed dict keys not yet supported',
+        'runtime',
+        undefined,
+        'host'
+      );
+    } else {
+      candidates.push(
+        await evaluateMultiKeyStrings(s, entry.key, 'evaluateDictDispatch')
+      );
+    }
+  }
   // A non-string selector halts before any lookup, so the default cannot mask it.
   dictSelectorKey(input, {
     location: node.span?.start,
@@ -762,50 +788,10 @@ export async function evaluateDictDispatch(
     fn: 'evaluateDictDispatch',
   });
   // Search entries for matching key (process in order, return first match)
-  for (const entry of node.entries) {
-    let matchFound = false;
-
-    if (typeof entry.key === 'object') {
-      // Check for new key types (variable/computed keys)
-      if ('kind' in entry.key) {
-        throwTypeHalt(
-          {
-            location: entry.span.start,
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateDictDispatch',
-          },
-          'INVALID_INPUT',
-          'Variable and computed dict keys not yet supported',
-          'runtime',
-          undefined,
-          'host'
-        );
-      }
-      // ListLiteralNode key - evaluate to get list of candidates
-      const keyValue = await evaluateListLiteralElements(s, entry.key.elements);
-
-      // Every listed key must be a string, as in a dict literal. Validate the
-      // whole list before matching so the halt does not depend on the input.
-      for (const candidate of keyValue) {
-        if (typeof candidate !== 'string') {
-          const keyType = inferType(candidate);
-          throwCatchableHostHalt(
-            {
-              location: entry.span.start,
-              sourceId: s.ctx.sourceId,
-              fn: 'evaluateDictDispatch',
-            },
-            ERROR_ATOMS[ERROR_IDS.RILL_R002],
-            `Multi-key dict entry keys must be string, got ${keyType}; quote the key`,
-            { got: keyType }
-          );
-        }
-      }
-      matchFound = keyValue.some((candidate) => deepEquals(input, candidate));
-    } else {
-      // Spelled key, always a string after parsing
-      matchFound = deepEquals(input, entry.key);
-    }
+  for (const [index, entry] of node.entries.entries()) {
+    const matchFound = (candidates[index] ?? []).some((candidate) =>
+      deepEquals(input, candidate)
+    );
 
     if (matchFound) {
       // Found match - evaluate and return the value

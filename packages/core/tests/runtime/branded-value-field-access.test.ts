@@ -58,7 +58,7 @@ describe('type value internals are not readable', () => {
   });
 
   it('rejects a variable computed key on a type value', async () => {
-    await expectErrorId(`${TYPE}"structure" => $k\n$t.$k`, 'RILL-R003');
+    await expectErrorId(`${TYPE}"structure" => $k\n$t.$k`, 'RILL-R002');
   });
 
   it('rejects a method-style access to the structure field', async () => {
@@ -69,8 +69,8 @@ describe('type value internals are not readable', () => {
     await expectErrorId(`${TYPE}$t["structure"]`, 'RILL-R002');
   });
 
-  it('reports the structure field as absent via a quoted existence check', async () => {
-    expect(await run(`${TYPE}$t.?["structure"]`)).toBe(false);
+  it('rejects a quoted existence check of the structure field', async () => {
+    await expectErrorId(`${TYPE}$t.?["structure"]`, 'RILL-R002');
   });
 
   it('reports the structure field as absent via a literal existence check', async () => {
@@ -107,7 +107,7 @@ describe('atom internals are not readable', () => {
   const ATOM = '#TIMEOUT => $a\n';
 
   it('rejects a variable computed key on an atom', async () => {
-    await expectErrorId(`${ATOM}"atom" => $k\n$a.$k`, 'RILL-R003');
+    await expectErrorId(`${ATOM}"atom" => $k\n$a.$k`, 'RILL-R002');
   });
 
   it('rejects a bracket key on an atom', async () => {
@@ -172,7 +172,7 @@ describe('vector internals are not readable or iterable', () => {
   });
 
   it('rejects a variable computed key on a vector', async () => {
-    await expectErrorId('make_vec() => $v\n"data" => $k\n$v.$k', 'RILL-R003');
+    await expectErrorId('make_vec() => $v\n"data" => $k\n$v.$k', 'RILL-R002');
   });
 
   it('does not fall back to the default when bracket-reading vector internals', async () => {
@@ -196,7 +196,7 @@ describe('datetime internals are not readable', () => {
 
   it('rejects literal and variable internal keys', async () => {
     await expectErrorId(`${DT}$d.__rill_datetime`, 'RILL-R003');
-    await expectErrorId(`${DT}"__rill_datetime" => $k\n$d.$k`, 'RILL-R003');
+    await expectErrorId(`${DT}"__rill_datetime" => $k\n$d.$k`, 'RILL-R002');
   });
 
   it('rejects a bracket internal key, with no fallback', async () => {
@@ -210,7 +210,7 @@ describe('duration internals are not readable', () => {
 
   it('rejects literal and variable internal keys', async () => {
     await expectErrorId(`${DUR}$d.__rill_duration`, 'RILL-R003');
-    await expectErrorId(`${DUR}"__rill_duration" => $k\n$d.$k`, 'RILL-R003');
+    await expectErrorId(`${DUR}"__rill_duration" => $k\n$d.$k`, 'RILL-R002');
   });
 
   it('rejects a bracket internal key, with no fallback', async () => {
@@ -420,8 +420,8 @@ describe('method-call and path forms reject blocked keys', () => {
     ).toBe(false);
   });
 
-  it('reports a variable-key existence check as absent on a type value', async () => {
-    expect(await run(`${TYPE}"structure" => $k\n$t.?[$k]`)).toBe(false);
+  it('rejects a variable-key existence check on a type value', async () => {
+    await expectErrorId(`${TYPE}"structure" => $k\n$t.?[$k]`, 'RILL-R002');
   });
 
   it('rejects keyed destructuring of a stream', async () => {

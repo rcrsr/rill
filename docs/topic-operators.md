@@ -612,7 +612,7 @@ $user.?["name"]&string
 
 `.?[expr]` validates its selector as the bracket read `[expr]` does. Only a genuine miss, an absent key or an out-of-range index, yields `false`.
 
-A selector of the wrong type halts with the error the read raises. A non-string selector on a dict halts `#TYPE_MISMATCH`, and `list[1, 2].?["a"]`, `tuple[1].?[true]`, and `ordered[a: 1].?[list[1]]` halt the same way. See [Types](topic-types.md) for the key rule.
+A selector of the wrong type halts with the error the read raises, and `??` does not recover it. A non-string selector on a dict halts `#TYPE_MISMATCH`, and `list[1, 2].?["a"]`, `tuple[1].?[true]`, `ordered[a: 1].?[list[1]]`, and `"s".?["len"]` halt the same way. See [Types](topic-types.md) for the key rule.
 
 ```rill
 list["a", "b"] => $list
@@ -773,16 +773,16 @@ $user.?age                       # false
 
 ### Variable Existence `.?$k`
 
-`.?$k` mirrors the `.$k` read. A string key on a list is a field miss and yields `false`.
+`.?$k` selects as `[$k]` does, so it is the probe of `$c.$k` and agrees with `.?[$k]`. Only a miss, an absent key or an out-of-range index, yields `false`.
 
 ```rill
 list[1, 2] => $l
-"a" => $k
+5 => $k
 $l.?$k
 # Result: false
 ```
 
-A non-string key halts on every receiver with the error the bracket read raises. `??` does not recover it, so `$str.$k ?? "d"` with `$k` holding `1` halts.
+A string held in `$k` is a key, not a field name. On a list, tuple, string, number, atom, closure, iterator, or type value it halts with the error the bracket read raises, such as `List index must be number, got string`. `??` does not recover it, so `$l.$k ?? "d"` with `$k` holding `"a"` halts too. Spell a field name to probe it as one: `$user.?name`.
 
 ### Existence with Type `.?field&type`
 

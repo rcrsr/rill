@@ -282,7 +282,7 @@ Multi-key errors:
 [[0.50, 2]: "a"]        # Error: RILL-R002 Multi-key dict entry keys must be string, got number; quote the key
 ```
 
-Every element of a multi-key list must be a string. `[0.50, 2]` is a list of numbers, and `0.50` evaluates to `0.5`, so its spelling is lost. A dict literal, an ordered literal, and a dispatch table all apply this rule, and a dispatch table checks every element of an evaluated entry before it matches. Write `["0.50", "2"]`. A single key such as `1: x` or `true: x` still stores its spelling.
+Every element of a multi-key list must be a string. `[0.50, 2]` is a list of numbers, and `0.50` evaluates to `0.5`, so its spelling is lost. A dict literal, an ordered literal, and a dispatch table all apply this rule, and a dispatch table checks every key list in every entry before it matches. Write `["0.50", "2"]`. A single key such as `1: x` or `true: x` still stores its spelling.
 
 **Note:** Dot notation for a number spelling (`.1`) is not valid syntax; see [Operators](topic-operators.md) for access forms. Reach a number-spelled key with `["1"]`, and a boolean-spelled key with `["true"]` or `.true`.
 
@@ -310,7 +310,7 @@ dict[a: 1, a: 2]    # Error: RILL-P027 Duplicate key 'a' in dict
 dict[1: "a", "1": "b"]    # Error: RILL-P027 Duplicate key '1' in dict
 ```
 
-A selector that reads a plain dict must be a string. A number or bool selector halts catchable `#TYPE_MISMATCH` in bracket access, `.$k`, `.?$k`, `.?[expr]`, pipe dispatch, and hierarchical dispatch. `.$k` and `.?$k` with a non-string key also halt on a list, tuple, ordered, string, number, atom, closure, iterator, or type value, with the error the bracket read raises. `??` does not recover it, because the selector is wrong rather than absent. Elements of a multi-key list are not selectors; they must be strings.
+A selector that reads a plain dict must be a string. A number or bool selector halts catchable `#TYPE_MISMATCH` in bracket access, `.$k`, `.?$k`, `.?[expr]`, pipe dispatch, and hierarchical dispatch. Every key form selects as `[expr]` does, on every receiver: `.$k`, `.?$k`, and `.?[expr]` halt with the error the bracket read raises when the receiver rejects the key. That covers a string key on a list, tuple, string, number, atom, closure, iterator, or type value, and a number or bool key on a stream, which takes only a string. `??` does not recover it, because the selector is wrong rather than absent; only an absent key or an out-of-range index is a miss. `.$k` also reports a missing key as `[$k]` does (`Undefined dict key: k`). Spelled field names (`$v.name`, `$v.?name`, `$t.inner`) are not selectors and are unchanged. Elements of a multi-key list are not selectors; they must be strings.
 
 ```rill
 dict[a: 1] => $d

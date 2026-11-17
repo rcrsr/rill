@@ -106,20 +106,13 @@ export interface FieldReadRequest {
   readonly fn: string;
   /** Declared type of the receiver, used to project the element's type. */
   readonly receiverDeclared?: TypeStructure | undefined;
+  /** Report a miss with the bracket read's halt, for `.$k`. */
+  readonly bracketMiss?: boolean | undefined;
 }
 
 // ============================================================
 // LOCATE
 // ============================================================
-
-/** True for the value kinds that can key a field read. */
-export function isFieldKey(value: RillValue): value is FieldKey {
-  return (
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean'
-  );
-}
 
 /**
  * Validate a selector against a plain dict: only a string selects a field. Any
@@ -172,34 +165,11 @@ export function bracketKey(
   if (isIterator(receiver)) return reject('Cannot index iterator');
   if (isPlainDict(receiver)) return dictSelectorKey(indexValue, site);
   if (isFieldReceiver(receiver)) {
-    return isFieldKey(indexValue)
+    return typeof indexValue === 'string'
       ? indexValue
       : reject(`Dict key must be string, got ${got}`);
   }
   return reject(`Cannot index ${inferType(receiver)}`);
-}
-
-/**
- * Validate a variable-supplied key (`.$k`, `.?$k`). A plain dict takes only a
- * string. Any other receiver takes a string as a field name, and every other
- * key type is validated as the bracket read validates it, so a wrong-typed key
- * halts with the same message in every form.
- */
-export function variableKey(
-  receiver: RillValue,
-  keyValue: RillValue,
-  site: TypeHaltSite
-): RillValue {
-  // An iterator is structurally a dict, so it is checked first.
-  if (isIterator(receiver)) {
-    return typeof keyValue === 'string'
-      ? keyValue
-      : bracketKey(receiver, keyValue, site);
-  }
-  if (isPlainDict(receiver)) return dictSelectorKey(keyValue, site);
-  return typeof keyValue === 'string'
-    ? keyValue
-    : bracketKey(receiver, keyValue, site);
 }
 
 const NOT_FOUND = (miss: FieldMiss): FieldLocation => ({ found: false, miss });
@@ -390,6 +360,26 @@ export function throwFieldMiss(
   }
 }
 
+/**
+ * Halt for a miss in a bracket read. A dict names a missing key `Undefined
+ * dict key`, whatever the key type; any other receiver halts as throwFieldMiss.
+ */
+export function throwBracketMiss(
+  receiver: RillValue,
+  key: FieldKey,
+  miss: FieldMiss,
+  site: TypeHaltSite
+): never {
+  if (isFieldReceiver(receiver)) {
+    return throwCatchableHostHalt(
+      site,
+      ERROR_ATOMS[ERROR_IDS.RILL_R009],
+      `Undefined dict key: ${key}`
+    );
+  }
+  return throwFieldMiss(receiver, key, miss, site);
+}
+
 /** Declared type of a located element, projected from its receiver's type. */
 export function projectLocated(
   receiverDeclared: TypeStructure | undefined,
@@ -423,6 +413,9 @@ export async function readField(
     key,
     request.allowMissing,
     (miss) => {
+      if (request.bracketMiss === true) {
+        return throwBracketMiss(receiver, key, miss, site);
+      }
       if (miss === 'absent' && isTypeValue(receiver)) {
         return throwMissingTypeProperty(site, receiver, String(key));
       }
@@ -463,7 +456,8 @@ function siteFor(s: EvalState, node: VariableNode, fn: string): TypeHaltSite {
 /**
  * Evaluate field access using a variable as the key.
  * Resolves the variable by name and reads the resulting key from the
- * receiver. A plain dict accepts only a string key.
+ * receiver. The key is validated and a miss reported exactly as the
+ * bracket read `[$k]` does.
  *
  * @param s - Evaluator state
  * @param access - The field access node with variable name
@@ -510,19 +504,12 @@ export async function evaluateFieldAccessVariable(
     }
   }
 
-  const key = variableKey(value, keyValue, siteFor(s, node, fn));
-  if (isFieldKey(key)) {
-    return await readField(s, value, key, {
-      allowMissing,
-      location: getNodeLocation(s, node),
-      fn,
-      receiverDeclared,
-    });
-  }
-  // variableKey already halted on any other key; this narrows the type.
-  return throwCatchableHostHalt(
-    siteFor(s, node, fn),
-    ERROR_ATOMS[ERROR_IDS.RILL_R002],
-    `Key must be string or number, got ${inferType(keyValue)}`
-  );
+  const key = bracketKey(value, keyValue, siteFor(s, node, fn));
+  return await readField(s, value, key, {
+    allowMissing,
+    location: getNodeLocation(s, node),
+    fn,
+    receiverDeclared,
+    bracketMiss: true,
+  });
 }

@@ -18,12 +18,7 @@ import type { RillValue, TypeStructure } from '../../types/structures.js';
 import type { RillCallable } from '../../callable.js';
 import { declaredParams, isCallable } from '../../callable.js';
 import { formatValue, inferType } from '../../types/registrations.js';
-import {
-  isIterator,
-  isOrdered,
-  isPlainDict,
-  isTuple,
-} from '../../types/guards.js';
+import { isOrdered, isPlainDict, isTuple } from '../../types/guards.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { TypeHaltSite } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
@@ -34,9 +29,7 @@ import { matchesErrorId } from './core.js';
 import { selectByBracketKey } from './variables.js';
 import type { FieldKey } from './field-access.js';
 import {
-  dictSelectorKey,
   bracketKey,
-  isFieldKey,
   projectLocated,
   throwFieldMiss,
   locateOrRecover,
@@ -101,15 +94,6 @@ export async function selectElement(
       declared: undefined,
     };
   }
-  if (isList && typeof key !== 'number') {
-    throwCatchableHostHalt(
-      site,
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `List dispatch requires number index, got ${typeof key}`,
-      { input: key, expectedType: 'number' }
-    );
-  }
-
   const haltDispatchMiss = (): never =>
     throwCatchableHostHalt(
       site,
@@ -117,16 +101,9 @@ export async function selectElement(
       `Dict dispatch: key '${formatValue(key)}' not found`,
       { key }
     );
-  // A plain dict takes only a string key; any other type is a wrong key, not
-  // a missing one, and halts ahead of the lookup.
-  // An iterator is structurally a dict, so it reports the bracket read's error.
-  const fieldKey: FieldKey = isIterator(collection)
-    ? bracketKey(collection, key, site)
-    : isPlainDict(collection)
-      ? dictSelectorKey(key, site)
-      : isFieldKey(key)
-        ? key
-        : haltDispatchMiss();
+  // A wrong-typed key is not a missing one and halts ahead of the lookup,
+  // with the bracket read's message.
+  const fieldKey: FieldKey = bracketKey(collection, key, site);
   const found = locateOrRecover(
     collection,
     fieldKey,
@@ -306,6 +283,12 @@ async function traversePathStep(
     : inferType(value);
   const keyType = typeof key;
 
+  // A key the receiver rejects halts with the bracket read's message.
+  bracketKey(value, key, {
+    location,
+    sourceId: s.ctx.sourceId,
+    fn: 'traversePathStep',
+  });
   return throwCatchableHostHalt(
     {
       location,

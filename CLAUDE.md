@@ -239,6 +239,14 @@ Source Text → Lexer → Tokens → Parser → AST → Runtime → Result
 7. **No truthiness** — No boolean coercion. Conditions require explicit bool values.
 8. **Vanilla language** — Host provides all domain functions.
 
+### Consistency over scope
+
+When a change alters how one form of an operation behaves, bring every equivalent form into line in the same change, even when that goes past the stated scope. Leaving forms to disagree is a defect, not a smaller change.
+
+- A probe agrees with its read. `.?[expr]` validates its key exactly as `[expr]` does, and `.?$k` as `.$k` does. A key the read rejects halts in the probe too, and `??` recovers neither. Only a genuine miss (absent key, out-of-range index) is `false` or vacant.
+- Every place that takes the same construct applies the same rule. Dict literals, ordered literals, and dispatch tables share one key rule.
+- Sweep the equivalent forms before calling the change done, and name each extra behavior change in the PR description and `CHANGELOG.md`.
+
 ## Documentation
 
 Start at @docs/index.md for full navigation.

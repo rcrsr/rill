@@ -81,7 +81,10 @@ describe('Streams: bracket access with a default', () => {
         run('make_stream() => $s\n$s[1] ?? 0', {
           functions: { make_stream: makeStreamFn([1, 2]) },
         }),
-      { code: 'RILL_R009' }
+      {
+        code: 'RILL_R002',
+        messagePattern: 'Dict key must be string, got number',
+      }
     );
   });
 });

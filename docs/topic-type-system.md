@@ -955,13 +955,13 @@ $t.inner
 # Error: Type value has no property "inner"
 ```
 
-`.inner`, `.$k`, `-> .inner`, and `.?inner` agree on what a type value has. The general rule lives in [Language Reference](ref-language.md).
+`.inner`, `-> .inner`, and `.?inner` agree on what a type value has. A variable key is a selector, not a field name, so `$t.$k` and `$t.?$k` halt RILL-R002 `Cannot index type`, as `$t["inner"]` does. The general rule lives in [Language Reference](ref-language.md).
 
 ```rill
 string => $t
 "signature" => $k
-tuple[$t.$k, $t.name]
-# Result: tuple["string", "string"]
+$t.$k ?? "none"
+# Error: Cannot index type
 ```
 
 The removed `.^input`, `.^output`, and `.^chunk` probes halt and name their replacements. See [Removed Reflection Probes](ref-language.md#removed-reflection-probes) for the table.

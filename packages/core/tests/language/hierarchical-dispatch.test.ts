@@ -192,11 +192,9 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
   });
 
   describe('Error Cases', () => {
-    it('throws RUNTIME_TYPE_ERROR for string key on list (AC-9/EC-1)', async () => {
-      // AC-9/EC-1: String key on list throws type error
-      // Implementation uses unified error message at hierarchical dispatch level
+    it('halts a string key on a list with the bracket read message', async () => {
       await expect(run('list["0"] -> list[1, 2, 3]')).rejects.toThrow(
-        /cannot use string key with list value/
+        /List index must be number, got string/
       );
     });
 

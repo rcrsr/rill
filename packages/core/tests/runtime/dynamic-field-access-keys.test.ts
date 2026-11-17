@@ -133,14 +133,21 @@ describe('Dynamic field access keys', () => {
       });
     });
 
-    it('falls back with ?? when a string key targets a non-dict', async () => {
-      expect(await run('"str" => $d\n"a" => $k\n$d.$k ?? "dflt"')).toBe('dflt');
+    it('does not recover with ?? a string key that targets a non-dict', async () => {
+      await expectHalt(() => run('"str" => $d\n"a" => $k\n$d.$k ?? "dflt"'), {
+        code: 'RILL_R002',
+        messagePattern: 'Cannot index string',
+      });
     });
 
-    it('halts when a string key targets a non-dict', async () => {
+    it('halts when a string key targets a non-dict, as the bracket read does', async () => {
       await expectHalt(() => run('"str" => $d\n"a" => $k\n$d.$k'), {
-        code: 'RILL_R003',
-        messagePattern: "Cannot access field 'a' on non-dict",
+        code: 'RILL_R002',
+        messagePattern: 'Cannot index string',
+      });
+      await expectHalt(() => run('"str" => $d\n$d["a"]'), {
+        code: 'RILL_R002',
+        messagePattern: 'Cannot index string',
       });
     });
 
@@ -148,7 +155,7 @@ describe('Dynamic field access keys', () => {
       expect(await run('dict[a: 1] => $d\n"a" => $k\n$d.$k')).toBe(1);
       await expectHalt(() => run('dict[a: 1] => $d\n"b" => $k\n$d.$k'), {
         code: 'RILL_R009',
-        messagePattern: "Dict has no field 'b'",
+        messagePattern: 'Undefined dict key: b',
       });
       expect(await run('dict[a: 1] => $d\n"b" => $k\n$d.$k ?? "dflt"')).toBe(
         'dflt'

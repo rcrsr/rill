@@ -636,7 +636,7 @@ describe('Dynamic field access on dicts with number-spelled keys', () => {
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toHaveProperty('errorId', 'RILL-R009');
-        expect((err as Error).message).toMatch(/no field '2'/i);
+        expect((err as Error).message).toMatch(/Undefined dict key: 2/i);
       }
     });
 

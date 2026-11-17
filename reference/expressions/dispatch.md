@@ -32,7 +32,7 @@ r[dispatch.multi-key] A dict entry MAY list several keys
 `dict[["a", "b"]: v]` MUST yield `v` for the selector `"a"` and for `"b"`.
 
 r[dispatch.multi-key-string] A multi-key list holds strings
-Every element of a multi-key list MUST be a string, in a dict literal, an ordered literal, and a dispatch table. Any other element MUST halt with RILL-R002 naming its type, because a number such as `0.50` evaluates before it is a key and loses its spelling.
+Every element of a multi-key list MUST be a string, in a dict literal, an ordered literal, and a dispatch table. Any other element, or an empty list, MUST halt with RILL-R002 naming its type, because a number such as `0.50` evaluates before it is a key and loses its spelling. A dispatch table MUST validate the key list of every entry before it matches, so a malformed table halts whatever the input and whichever entry would match, and before the selector type is checked.
 
 r[dispatch.block] A selected block runs with the key bound
 A block held by a dict entry MUST run with `$` bound to the selector.

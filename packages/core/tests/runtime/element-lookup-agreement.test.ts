@@ -308,7 +308,7 @@ const MISSES: readonly Miss[] = [
     recovers: true,
     expected: {
       literal: R009("Dict has no field 'z'"),
-      'variable key': R009("Dict has no field 'z'"),
+      'variable key': R009('Undefined dict key: z'),
       bracket: R009('Undefined dict key: z'),
       'pipe method': R009("Dict has no field 'z'"),
       'pipe selection': R009("Dict dispatch: key 'z' not found"),
@@ -687,7 +687,6 @@ describe('element lookup: key identity', () => {
 describe('element lookup: type value receiver', () => {
   const FORMS: readonly string[] = [
     'string => $c\n$c.name',
-    'string => $c\n"name" => $k\n$c.$k',
     'string => $c\n$c -> .name',
   ];
 
@@ -695,9 +694,18 @@ describe('element lookup: type value receiver', () => {
     expect(await run(source)).toBe('string');
   });
 
-  it('answers .? from the same lookup', async () => {
-    expect(await run('string => $c\n$c.?["name"]')).toBe(true);
-    expect(await run('string => $c\n$c.?["bogus"]')).toBe(false);
+  it('does not index a type value by variable key or probe it by bracket', async () => {
+    for (const body of ['$c.$k', '$c.?$k', '$c.?["name"]', '$c.$k ?? "d"']) {
+      await expectHalt(() => run(`string => $c\n"name" => $k\n${body}`), {
+        code: 'RILL_R002',
+        messagePattern: 'Cannot index type',
+      });
+    }
+  });
+
+  it('answers a literal probe from the same lookup', async () => {
+    expect(await run('string => $c\n$c.?name')).toBe(true);
+    expect(await run('string => $c\n$c.?bogus')).toBe(false);
   });
 
   it('halts for a missing property in every read form', async () => {
