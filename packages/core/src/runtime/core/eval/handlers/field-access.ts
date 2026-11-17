@@ -140,6 +140,68 @@ export function dictSelectorKey(
   );
 }
 
+/**
+ * Validate a bracket key against its receiver. Lists and tuples take a number,
+ * ordered values a string or number, dicts a string; every other receiver, and
+ * an iterator, cannot be indexed.
+ */
+export function bracketKey(
+  receiver: RillValue,
+  indexValue: RillValue,
+  site: TypeHaltSite
+): FieldKey {
+  const reject = (message: string): never =>
+    throwCatchableHostHalt(site, ERROR_ATOMS[ERROR_IDS.RILL_R002], message);
+  const got = inferType(indexValue);
+  if (Array.isArray(receiver)) {
+    return typeof indexValue === 'number'
+      ? indexValue
+      : reject(`List index must be number, got ${got}`);
+  }
+  if (isOrdered(receiver)) {
+    return typeof indexValue === 'string' || typeof indexValue === 'number'
+      ? indexValue
+      : reject(`Ordered index must be string or number, got ${got}`);
+  }
+  if (isTuple(receiver)) {
+    return typeof indexValue === 'number'
+      ? indexValue
+      : reject(`Tuple index must be number, got ${got}`);
+  }
+  // Must precede the dict case: an iterator is structurally a dict.
+  if (isIterator(receiver)) return reject('Cannot index iterator');
+  if (isPlainDict(receiver)) return dictSelectorKey(indexValue, site);
+  if (isFieldReceiver(receiver)) {
+    return isFieldKey(indexValue)
+      ? indexValue
+      : reject(`Dict key must be string, got ${got}`);
+  }
+  return reject(`Cannot index ${inferType(receiver)}`);
+}
+
+/**
+ * Validate a variable-supplied key (`.$k`, `.?$k`). A plain dict takes only a
+ * string. Any other receiver takes a string as a field name, and every other
+ * key type is validated as the bracket read validates it, so a wrong-typed key
+ * halts with the same message in every form.
+ */
+export function variableKey(
+  receiver: RillValue,
+  keyValue: RillValue,
+  site: TypeHaltSite
+): RillValue {
+  // An iterator is structurally a dict, so it is checked first.
+  if (isIterator(receiver)) {
+    return typeof keyValue === 'string'
+      ? keyValue
+      : bracketKey(receiver, keyValue, site);
+  }
+  if (isPlainDict(receiver)) return dictSelectorKey(keyValue, site);
+  return typeof keyValue === 'string'
+    ? keyValue
+    : bracketKey(receiver, keyValue, site);
+}
+
 const NOT_FOUND = (miss: FieldMiss): FieldLocation => ({ found: false, miss });
 
 function locatePosition(
@@ -448,9 +510,7 @@ export async function evaluateFieldAccessVariable(
     }
   }
 
-  const key = isPlainDict(value)
-    ? dictSelectorKey(keyValue, siteFor(s, node, fn))
-    : keyValue;
+  const key = variableKey(value, keyValue, siteFor(s, node, fn));
   if (isFieldKey(key)) {
     return await readField(s, value, key, {
       allowMissing,
@@ -459,6 +519,7 @@ export async function evaluateFieldAccessVariable(
       receiverDeclared,
     });
   }
+  // variableKey already halted on any other key; this narrows the type.
   return throwCatchableHostHalt(
     siteFor(s, node, fn),
     ERROR_ATOMS[ERROR_IDS.RILL_R002],

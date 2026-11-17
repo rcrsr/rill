@@ -817,9 +817,9 @@ describe('Ordered literal variable and computed keys', () => {
     ]);
   });
 
-  it('collapses a number and string key that stringify alike', async () => {
-    expect(await run('ordered[list[1, "1"]: 9] -> .keys')).toEqual(['1']);
-    expect(await run('ordered[list[1, "1"]: 9] -> .len')).toBe(1);
+  it('collapses repeated string keys in a multi-key list', async () => {
+    expect(await run('ordered[list["1", "1"]: 9] -> .keys')).toEqual(['1']);
+    expect(await run('ordered[list["1", "1"]: 9] -> .len')).toBe(1);
   });
 
   it('keeps the last value when a string variable key collides with a number key', async () => {

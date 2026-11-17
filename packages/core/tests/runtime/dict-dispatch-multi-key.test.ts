@@ -19,21 +19,28 @@ describe('Dict dispatch with multi-key entries', () => {
       expect(await run(`${setup}"c" -> $d`)).toBe('c');
     });
 
-    it('dispatches the string spelling of each number key of a multi-key entry', async () => {
-      const setup = '[[1, 2]: "low", [3]: "mid"] => $d\n';
+    it('dispatches the quoted spelling of each number key of a multi-key entry', async () => {
+      const setup = '[["1", "2"]: "low", ["3"]: "mid"] => $d\n';
       expect(await run(`${setup}"1" -> $d`)).toBe('low');
       expect(await run(`${setup}"2" -> $d`)).toBe('low');
       expect(await run(`${setup}"3" -> $d`)).toBe('mid');
     });
 
+    it('halts when a number element is not quoted', async () => {
+      await expectHalt(() => run('[[1, 2]: "low"] => $d'), {
+        code: 'RILL_R002',
+        messagePattern: 'Multi-key dict entry keys must be string, got number',
+      });
+    });
+
     it('halts #TYPE_MISMATCH when a number input meets number-spelled keys', async () => {
-      await expectHalt(() => run('[[1, 2]: "low"] => $d\n2 -> $d'), {
+      await expectHalt(() => run('[["1", "2"]: "low"] => $d\n2 -> $d'), {
         code: 'TYPE_MISMATCH',
       });
     });
 
     it('auto-invokes a closure value with the input as $', async () => {
-      expect(await run('[[1, 2]: |x| "got {$x}"] => $d\n"2" -> $d')).toBe(
+      expect(await run('[["1", "2"]: |x| "got {$x}"] => $d\n"2" -> $d')).toBe(
         'got 2'
       );
     });
@@ -56,8 +63,11 @@ describe('Dict dispatch with multi-key entries', () => {
       expect(await run('"3" -> dict[list["1", "2"]: "x"] ?? "d"')).toBe('d');
     });
 
-    it('matches a boolean list key by its string spelling', async () => {
-      expect(await run('"true" -> dict[list[true, false]: "x"]')).toBe('x');
+    it('halts when a list key element is a bool', async () => {
+      await expectHalt(() => run('"true" -> dict[list[true, false]: "x"]'), {
+        code: 'RILL_R002',
+        messagePattern: 'Multi-key dict entry keys must be string, got bool',
+      });
     });
 
     it('returns the first matching entry', async () => {

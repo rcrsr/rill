@@ -78,6 +78,7 @@ In closure params (validates input structure):
     $data.?field&string             # exists AND is string
     $data.?$key&number              # variable existence + type check
     $data.?[$expr]&list             # computed existence + type check
+    $data.?[5]                      # absent key or out-of-range index is false; a wrong-typed selector halts like $data[5]
 
 The 8 dict method names are reserved and cannot be used as dict keys:
 

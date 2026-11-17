@@ -126,8 +126,11 @@ describe('Dynamic field access keys', () => {
       });
     });
 
-    it('falls back with ?? when a number key indexes a non-list', async () => {
-      expect(await run('"str" => $d\n1 => $k\n$d.$k ?? "dflt"')).toBe('dflt');
+    it('does not recover with ?? a number key that indexes a non-list', async () => {
+      await expectHalt(() => run('"str" => $d\n1 => $k\n$d.$k ?? "dflt"'), {
+        code: 'RILL_R002',
+        messagePattern: 'Cannot index string',
+      });
     });
 
     it('falls back with ?? when a string key targets a non-dict', async () => {

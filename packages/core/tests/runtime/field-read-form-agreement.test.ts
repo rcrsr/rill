@@ -70,6 +70,8 @@ interface Row {
   readonly postfix?: string;
   /** Existence answer where it departs from the read (documented exceptions). */
   readonly exists?: boolean;
+  /** A key the receiver rejects: the probe and `??` halt as the read does. */
+  readonly rejected?: boolean;
   /** A stream read with a number or bool key: `??` does not recover. */
   readonly strictKey?: boolean;
 }
@@ -131,6 +133,8 @@ const ROWS: readonly Row[] = [
     setup: TYPE,
     key: '0',
     read: { halt: 'RILL_R002', message: 'Cannot index type' },
+    rejected: true,
+    strictKey: true,
   },
   {
     label: 'string, method sugar key len',
@@ -350,6 +354,24 @@ function coalesceOutcome(read: Expected, strictKey?: boolean): Expected {
     : { value: SENTINEL };
 }
 
+/**
+ * Existence answer for a bracket key: a key the bracket read rejects halts the
+ * probe too; only a miss answers false.
+ */
+function bracketExistenceOutcome(row: Row): Expected {
+  // A type value's properties are probed by name, so it answers as `.$k` does.
+  if (row.setup === TYPE) {
+    return row.rejected === true
+      ? row.read
+      : existenceOutcome(row.read, row.exists);
+  }
+  const read = row.bracket ?? row.read;
+  if (isValue(read)) return { value: true };
+  return read.halt === 'RILL_R002' || isFractional(read)
+    ? read
+    : { value: false };
+}
+
 const LITERAL_ROWS = ROWS.filter((row) => row.name !== undefined);
 const METHOD_ROWS = ROWS.filter((row) => row.method !== undefined);
 const POSTFIX_ROWS = ROWS.filter((row) => row.postfix !== undefined);
@@ -378,14 +400,16 @@ describe('field read forms agree', () => {
     it('answers .? for a variable key from the read', async () => {
       await expectOutcome(
         `${keyed}$r.?$k`,
-        existenceOutcome(row.read, row.exists)
+        row.rejected === true
+          ? row.read
+          : existenceOutcome(row.read, row.exists)
       );
     });
 
-    it('answers .? for a bracket key from the read', async () => {
+    it('answers .? for a bracket key from the bracket read', async () => {
       await expectOutcome(
         `${row.setup}\n$r.?[${row.key}]`,
-        existenceOutcome(row.read, row.exists)
+        bracketExistenceOutcome(row)
       );
     });
 
@@ -598,5 +622,70 @@ describe('field read forms agree: stream keys under ??', () => {
         functions: FUNCTIONS,
       })
     ).toBe(SENTINEL);
+  });
+});
+
+describe('wrong-typed keys halt in every probe form', () => {
+  const R002 = 'RILL_R002';
+
+  describe.each([
+    ['iterator', 'range(0, 3) => $r', 'Cannot index iterator'],
+    ['atom', '#A => $r', 'Cannot index atom'],
+    ['closure', '|x| $x => $r', 'Cannot index closure'],
+    ['string', '"s" => $r', 'Cannot index string'],
+    ['list', 'list[1] => $r', 'List index must be number, got bool'],
+    ['tuple', 'tuple[1] => $r', 'Tuple index must be number, got bool'],
+    [
+      'ordered',
+      'ordered[a: 1] => $r',
+      'Ordered index must be string or number, got bool',
+    ],
+  ])('%s receiver', (_label, setup, message) => {
+    const key = _label === 'string' ? '1' : 'true';
+
+    it('halts a bracket probe with the bracket read message', async () => {
+      await expectHalt(() => run(`${setup}\n$r.?[${key}]`), {
+        code: R002,
+        messagePattern: message,
+      });
+    });
+
+    it('halts a variable-key probe with the same message', async () => {
+      await expectHalt(() => run(`${setup}\n${key} => $k\n$r.?$k`), {
+        code: R002,
+        messagePattern: message,
+      });
+    });
+
+    it('does not let ?? recover the wrong-typed variable key', async () => {
+      await expectHalt(() => run(`${setup}\n${key} => $k\n$r.$k ?? "d"`), {
+        code: R002,
+        messagePattern: message,
+      });
+    });
+  });
+
+  describe.each([
+    ['iterator', 'range(0, 3) => $r'],
+    ['atom', '#A => $r'],
+    ['closure', '|x| $x => $r'],
+  ])('%s receiver with a string key', (_label, setup) => {
+    it('answers false for a string variable key', async () => {
+      expect(await run(`${setup}\n"x" => $k\n$r.?$k`)).toBe(false);
+    });
+  });
+
+  it('halts an iterator number selector through pipe selection', async () => {
+    await expectHalt(() => run('range(0, 3) => $r\n0 -> $r'), {
+      code: R002,
+      messagePattern: 'Cannot index iterator',
+    });
+  });
+
+  it('halts an iterator string selector through pipe selection', async () => {
+    await expectHalt(() => run('range(0, 3) => $r\n"a" -> $r'), {
+      code: R002,
+      messagePattern: 'Cannot index iterator',
+    });
   });
 });

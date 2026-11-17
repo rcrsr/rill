@@ -31,6 +31,9 @@ r[dispatch.path] A list piped into nested collections descends one level per ele
 r[dispatch.multi-key] A dict entry MAY list several keys
 `dict[["a", "b"]: v]` MUST yield `v` for the selector `"a"` and for `"b"`.
 
+r[dispatch.multi-key-string] A multi-key list holds strings
+Every element of a multi-key list MUST be a string, in a dict literal, an ordered literal, and a dispatch table. Any other element MUST halt with RILL-R002 naming its type, because a number such as `0.50` evaluates before it is a key and loses its spelling.
+
 r[dispatch.block] A selected block runs with the key bound
 A block held by a dict entry MUST run with `$` bound to the selector.
 
@@ -54,6 +57,7 @@ A block held by a map entry MUST run with `$` bound to the key.
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | A non-number piped into a list | RILL-R002 | Yes |
+| A multi-key list element is not a string | RILL-R002 | Yes |
 
 ## Examples
 

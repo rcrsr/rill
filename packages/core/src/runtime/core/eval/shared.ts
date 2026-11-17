@@ -301,18 +301,6 @@ export function readOwnField(
 // eval/handlers/* call sites keep importing it from this module.
 export { setDictField } from '../types/dict-keys.js';
 
-/** A dict literal key after evaluation: only scalars can key a dict. */
-export type DictKeyScalar = string | number | boolean;
-
-/** Narrow a runtime value to a scalar usable as a dict key. */
-export function isDictKeyScalar(value: RillValue): value is DictKeyScalar {
-  return (
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean'
-  );
-}
-
 /** Join kind names as "a", "a or b", or "a, b, or c". */
 function joinKinds(kinds: readonly string[]): string {
   const last = kinds.at(-1);

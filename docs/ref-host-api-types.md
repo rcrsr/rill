@@ -573,7 +573,7 @@ interface DictEntryNode {
 }
 ```
 
-`keyForm` records how a string key appeared in source. A number or bool key is stored as the string of its spelling:
+`keyForm` records how a string key appeared in source. A single number or bool key is stored as the string of its spelling; a multi-key list element must already be a string:
 
 | Source form | `keyForm` |
 |-------------|-----------|

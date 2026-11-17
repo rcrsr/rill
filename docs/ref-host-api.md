@@ -389,7 +389,7 @@ type NativeValue =
 
 `rillTypeName` and `rillTypeSignature` describe the own type of the value, never a declared type.
 
-A dict converts to a plain object with string keys; a number or boolean key in the source literal is already the string of its spelling.
+A dict converts to a plain object with string keys; a single number or boolean key in the source literal is already the string of its spelling, and a multi-key list element is a string.
 
 ### Descriptor shapes for non-native types
 

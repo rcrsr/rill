@@ -255,6 +255,7 @@ dispatch.block-literal 1a2de8ce51d4
 dispatch.fn b3dfba5720a1
 dispatch.map-block 234ca92e09b6
 dispatch.multi-key f319180e4904
+dispatch.multi-key-string 31f3d58cdf5d
 dispatch.ordered 3922f001c122
 dispatch.path 5a324e95d596
 dispatch.select b43bf6dece5b
@@ -313,7 +314,7 @@ error.halt 47e4fdc51d64
 error.interpolation d6109c97e3c9
 error.non-catchable 5384696a5840 halt.non-catchable@8eb8c26644b7
 error.string ad262088c62d
-existence.bracket 12194e1ce0ab
+existence.bracket 93af835a22ad
 existence.chain 2782e18dc1fa
 existence.found e543db21d88e
 existence.index 2a5509ce5f92
@@ -321,7 +322,7 @@ existence.integer 7852fe326328
 existence.key-type 7d9a40f81361 selection.key-type@29d9a1316d3a
 existence.map 854f46e4ae13
 existence.map-type 84cd4987a7be
-existence.missing 435682d3d526
+existence.missing 3bef6468fca0
 existence.type 01f353140eb8
 fan 0cb320a7002c break.unsupported@2ea2eb802674 iteration.dollar@3aff6a0f1b89
 fan.concurrency da9c8948cfa0

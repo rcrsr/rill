@@ -75,13 +75,7 @@ import {
 } from '../../context.js';
 import { getEvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import {
-  getNodeLocation,
-  setDictField,
-  withChildScope,
-  isDictKeyScalar,
-  type DictKeyScalar,
-} from '../shared.js';
+import { getNodeLocation, setDictField, withChildScope } from '../shared.js';
 import { orderedDictEntries } from '../../types/dict-keys.js';
 import {
   evaluateExpression,
@@ -434,7 +428,7 @@ export async function evaluateDictMultiKeyFromList(
   s: EvalState,
   keyList: ListLiteralNode,
   value: ExpressionNode
-): Promise<Array<[DictKeyScalar, RillValue]>> {
+): Promise<Array<[string, RillValue]>> {
   // Evaluate list elements to get keys
   const keys: RillValue[] = await evaluateListLiteralElements(
     s,
@@ -454,13 +448,14 @@ export async function evaluateDictMultiKeyFromList(
     );
   }
 
-  // Validate all keys are primitives
-  const scalarKeys: DictKeyScalar[] = [];
+  // Every listed key must be a string: a number or bool is ambiguous
+  // (`0.50` evaluates to 0.5), so the key is spelled as a string.
+  const stringKeys: string[] = [];
   for (const key of keys) {
-    if (isDictKeyScalar(key)) {
-      scalarKeys.push(key);
+    if (typeof key === 'string') {
+      stringKeys.push(key);
     } else {
-      const keyType = typeof key;
+      const keyType = inferType(key);
       throwCatchableHostHalt(
         {
           location: keyList.span?.start,
@@ -468,7 +463,7 @@ export async function evaluateDictMultiKeyFromList(
           fn: 'evaluateDictMultiKeyFromList',
         },
         ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        `Dict key must be string, number, or boolean, got ${keyType}`,
+        `Multi-key dict entry keys must be string, got ${keyType}; quote the key`,
         { got: keyType }
       );
     }
@@ -477,10 +472,9 @@ export async function evaluateDictMultiKeyFromList(
   // Evaluate value once
   const evaluatedValue = await evaluateDictEntryValue(s, value);
 
-  // Create entry for each key, preserving the key's original type (callers
-  // stringify number and boolean keys).
-  const entries: Array<[DictKeyScalar, RillValue]> = [];
-  for (const key of scalarKeys) {
+  // Create entry for each key
+  const entries: Array<[string, RillValue]> = [];
+  for (const key of stringKeys) {
     entries.push([key, evaluatedValue]);
   }
 
@@ -592,7 +586,7 @@ export async function evaluateDict(
         () => entry.span.start,
         s.ctx.sourceId
       );
-      const pairs: [DictKeyScalar, RillValue][] = [];
+      const pairs: [string, RillValue][] = [];
       if (isOrdered(spreadValue)) {
         for (const pair of orderedValueEntries(spreadValue)) {
           pairs.push(pair);
@@ -620,9 +614,8 @@ export async function evaluateDict(
           () => entry.span.start,
           s.ctx.sourceId
         );
-        const stringKey = String(k);
-        assertUsableDictKey(s, stringKey, entry.span);
-        setDictField(result, stringKey, v);
+        assertUsableDictKey(s, k, entry.span);
+        setDictField(result, k, v);
       }
       continue;
     }
@@ -710,10 +703,9 @@ export async function evaluateDict(
         entry.value
       );
       for (const [key, value] of pairs) {
-        const stringKey = String(key);
-        assertUsableDictKey(s, stringKey, entry.span);
+        assertUsableDictKey(s, key, entry.span);
         // Apply last-write-wins semantics
-        setDictField(result, stringKey, value);
+        setDictField(result, key, value);
       }
       continue;
     }
@@ -792,17 +784,24 @@ export async function evaluateDictDispatch(
       // ListLiteralNode key - evaluate to get list of candidates
       const keyValue = await evaluateListLiteralElements(s, entry.key.elements);
 
-      // A number or bool element names a string key, as in a dict literal
+      // Every listed key must be a string, as in a dict literal. Validate the
+      // whole list before matching so the halt does not depend on the input.
       for (const candidate of keyValue) {
-        const key =
-          typeof candidate === 'number' || typeof candidate === 'boolean'
-            ? String(candidate)
-            : candidate;
-        if (deepEquals(input, key)) {
-          matchFound = true;
-          break;
+        if (typeof candidate !== 'string') {
+          const keyType = inferType(candidate);
+          throwCatchableHostHalt(
+            {
+              location: entry.span.start,
+              sourceId: s.ctx.sourceId,
+              fn: 'evaluateDictDispatch',
+            },
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
+            `Multi-key dict entry keys must be string, got ${keyType}; quote the key`,
+            { got: keyType }
+          );
         }
       }
+      matchFound = keyValue.some((candidate) => deepEquals(input, candidate));
     } else {
       // Spelled key, always a string after parsing
       matchFound = deepEquals(input, entry.key);

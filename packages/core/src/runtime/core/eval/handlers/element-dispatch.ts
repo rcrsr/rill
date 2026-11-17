@@ -18,7 +18,12 @@ import type { RillValue, TypeStructure } from '../../types/structures.js';
 import type { RillCallable } from '../../callable.js';
 import { declaredParams, isCallable } from '../../callable.js';
 import { formatValue, inferType } from '../../types/registrations.js';
-import { isOrdered, isPlainDict, isTuple } from '../../types/guards.js';
+import {
+  isIterator,
+  isOrdered,
+  isPlainDict,
+  isTuple,
+} from '../../types/guards.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { TypeHaltSite } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
@@ -30,6 +35,7 @@ import { selectByBracketKey } from './variables.js';
 import type { FieldKey } from './field-access.js';
 import {
   dictSelectorKey,
+  bracketKey,
   isFieldKey,
   projectLocated,
   throwFieldMiss,
@@ -113,11 +119,14 @@ export async function selectElement(
     );
   // A plain dict takes only a string key; any other type is a wrong key, not
   // a missing one, and halts ahead of the lookup.
-  const fieldKey: FieldKey = isPlainDict(collection)
-    ? dictSelectorKey(key, site)
-    : isFieldKey(key)
-      ? key
-      : haltDispatchMiss();
+  // An iterator is structurally a dict, so it reports the bracket read's error.
+  const fieldKey: FieldKey = isIterator(collection)
+    ? bracketKey(collection, key, site)
+    : isPlainDict(collection)
+      ? dictSelectorKey(key, site)
+      : isFieldKey(key)
+        ? key
+        : haltDispatchMiss();
   const found = locateOrRecover(
     collection,
     fieldKey,

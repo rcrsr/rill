@@ -45,13 +45,7 @@ import type { TypeStructure, RillValue } from '../../types/structures.js';
 import type { Carried } from '../../types/declared.js';
 import { declarationOf, pipeDeclaredOf } from '../../types/declared.js';
 import { inferType, inferTypeName } from '../../types/registrations.js';
-import {
-  isOrdered,
-  isPlainDict,
-  isTuple,
-  isIterator,
-  isStream,
-} from '../../types/guards.js';
+import { isTypeValue } from '../../types/guards.js';
 import { formatStructure, structureMatches } from '../../types/operations.js';
 import {
   getVariable,
@@ -80,10 +74,10 @@ import {
   evaluateAnnotationAccess,
 } from './closures.js';
 import { resolveTypeRef, assertType } from './types.js';
-import type { FieldKey } from './field-access.js';
 import {
   evaluateFieldAccessVariable,
-  dictSelectorKey,
+  bracketKey,
+  variableKey,
   isFieldKey,
   locateField,
   projectLocated,
@@ -338,45 +332,6 @@ export function selectByBracketKey(
 }
 
 /**
- * Validate a bracket key against its receiver. Lists and tuples take a number,
- * ordered values a string or number, dicts a string; every
- * other receiver, and an iterator, cannot be indexed.
- */
-function bracketKey(
-  receiver: RillValue,
-  indexValue: RillValue,
-  site: TypeHaltSite
-): FieldKey {
-  const reject = (message: string): never =>
-    throwCatchableHostHalt(site, ERROR_ATOMS[ERROR_IDS.RILL_R002], message);
-  const got = inferType(indexValue);
-  if (Array.isArray(receiver)) {
-    return typeof indexValue === 'number'
-      ? indexValue
-      : reject(`List index must be number, got ${got}`);
-  }
-  if (isOrdered(receiver)) {
-    return typeof indexValue === 'string' || typeof indexValue === 'number'
-      ? indexValue
-      : reject(`Ordered index must be string or number, got ${got}`);
-  }
-  if (isTuple(receiver)) {
-    return typeof indexValue === 'number'
-      ? indexValue
-      : reject(`Tuple index must be number, got ${got}`);
-  }
-  // Must precede the dict case: an iterator is structurally a dict.
-  if (isIterator(receiver)) return reject('Cannot index iterator');
-  if (isPlainDict(receiver)) return dictSelectorKey(indexValue, site);
-  if (isFieldReceiver(receiver)) {
-    return isFieldKey(indexValue)
-      ? indexValue
-      : reject(`Dict key must be string, got ${got}`);
-  }
-  return reject(`Cannot index ${inferType(receiver)}`);
-}
-
-/**
  * Evaluate an existence check (`.?field`) against an already-resolved
  * access-chain value, returning whether the final path element exists
  * (and, when `typeRef` is set, whether it matches that type).
@@ -429,7 +384,9 @@ export async function evaluateExistenceCheck(
     fn: 'evaluateExistenceCheck',
   };
   let selector: RillValue;
+  let form: 'bracket' | 'literal' | 'variable';
   if ('accessKind' in finalAccess) {
+    form = 'bracket';
     // Parsed inline while building a live access chain (never via the
     // statement-level recovery path), so it only ever holds a PipeChainNode;
     // PartialExpressionNode is reserved for parser error recovery.
@@ -443,7 +400,9 @@ export async function evaluateExistenceCheck(
     selector = await evaluatePipeChain(s, finalAccess.expression);
   } else if (finalAccess.kind === 'literal') {
     selector = finalAccess.field;
+    form = 'literal';
   } else {
+    form = 'variable';
     const keyValue =
       finalAccess.variableName === null
         ? (s.ctx.pipeValue ?? undefined)
@@ -457,19 +416,16 @@ export async function evaluateExistenceCheck(
     }
     selector = keyValue;
   }
-  // A key no receiver accepts only halts on a plain dict.
-  const key = isPlainDict(value) ? dictSelectorKey(selector, site) : selector;
-  if (!isFieldKey(key)) {
-    // A stream is a field receiver, so an unusable key halts there.
-    if (isStream(value)) {
-      throwCatchableHostHalt(
-        site,
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        `Cannot use ${typeof key} key to access a field on a stream`
-      );
-    }
-    return false;
-  }
+  // The probe validates the selector as a read does, so a wrong-typed key
+  // halts on every receiver; only a genuine miss answers false.
+  // A spelled field name is a string and is never validated as a key.
+  const key =
+    form === 'literal'
+      ? selector
+      : form === 'bracket' && !isTypeValue(value)
+        ? bracketKey(value, selector, site)
+        : variableKey(value, selector, site);
+  if (!isFieldKey(key)) return false;
 
   // Locate without reading: a property-style callable is never invoked.
   const located = locateField(value, key);

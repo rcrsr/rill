@@ -27,10 +27,10 @@ r[existence.found] The existence check finds a key
 `.?name` and `.?$k` MUST yield true when the selection exists.
 
 r[existence.bracket] The existence check takes a selector expression
-`$c.?[sel]` MUST check as `$c.?$k` does, with `$k` holding the value of `sel`.
+`$c.?[sel]` MUST validate `sel` as the read `$c[sel]` does, and MUST yield false only for a genuine miss: an absent key or an out-of-range index. A selector the read rejects MUST halt with the read's error, so `list[1, 2].?["a"]`, `tuple[1].?[true]`, and `ordered[a: 1].?[list[1]]` halt.
 
 r[existence.missing] The existence check never halts for a missing key
-`.?name` and `.?$k` MUST yield false, without halting, when the selection is missing or the receiver is a scalar.
+`.?name`, and `.?$k` with a string `$k`, MUST yield false, without halting, when the selection is missing or the receiver is a scalar. `.?$k` mirrors the read `.$k`, so a string key on a list is a field miss and yields false. `.?[sel]` and `.?$k` with a non-string key MUST halt on a scalar or any non-dict receiver, with the error the read raises, and `??` MUST NOT recover it.
 
 r[existence.key-type] The existence check halts on a non-string dict selector
 `.?$k` and `.?[sel]` on a dict MUST halt with `#TYPE_MISMATCH` when the selector is not a string,
@@ -63,6 +63,7 @@ r[existence.map-type] A map existence check needs the key type {pending #599}
 | A step before `.?` is missing | RILL-R009 | Yes |
 | An index is not an integer | `#INVALID_INPUT` | Yes |
 | A dict selector is not a string | `#TYPE_MISMATCH` | Yes |
+| A `.?[sel]` selector the read `[sel]` rejects | The read's error | Yes |
 | A map selector has the wrong key type {pending #599} | `#TYPE_MISMATCH` | Yes |
 
 ## Examples

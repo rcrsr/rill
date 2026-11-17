@@ -262,6 +262,12 @@ list[dict[$key: "active"], dict[($prefix -> "{$}_name"): "alice"]]
 ```
 
 ```rill
+# Quote number-like keys in a multi-key list
+dict[["0.50", "2"]: "a"] -> .keys
+# Result: list["0.50", "2"]
+```
+
+```rill
 # Multi-key dispatch
 [["GET", "HEAD"]: "safe", list["POST", "PUT"]: "unsafe"] => $methods
 "GET" -> $methods
@@ -272,8 +278,11 @@ Multi-key errors:
 
 ```text
 [[]: 1]            # Error: RILL-R002 Multi-key dict entry requires non-empty list
-[[list[1, 2], "a"]: 1]  # Error: RILL-R002 Dict key must be string, number, or boolean, got object
+[[list[1, 2], "a"]: 1]  # Error: RILL-R002 Multi-key dict entry keys must be string, got list; quote the key
+[[0.50, 2]: "a"]        # Error: RILL-R002 Multi-key dict entry keys must be string, got number; quote the key
 ```
+
+Every element of a multi-key list must be a string. `[0.50, 2]` is a list of numbers, and `0.50` evaluates to `0.5`, so its spelling is lost. A dict literal, an ordered literal, and a dispatch table all apply this rule, and a dispatch table checks every element of an evaluated entry before it matches. Write `["0.50", "2"]`. A single key such as `1: x` or `true: x` still stores its spelling.
 
 **Note:** Dot notation for a number spelling (`.1`) is not valid syntax; see [Operators](topic-operators.md) for access forms. Reach a number-spelled key with `["1"]`, and a boolean-spelled key with `["true"]` or `.true`.
 
@@ -289,7 +298,7 @@ $d.missing ?? ""
 
 ### Dict Keys Are Strings
 
-Every dict key is a string. A number or boolean key in a literal names the string of its spelling, so `[1: "one"]` and `["1": "one"]` are the same dict. Writing the same key twice halts at parse time with `RILL-P027`, including `[1: "a", "1": "b"]`.
+Every dict key is a string. A single number or boolean key in a literal names the string of its spelling, so `[1: "one"]` and `["1": "one"]` are the same dict. Writing the same key twice halts at parse time with `RILL-P027`, including `[1: "a", "1": "b"]`.
 
 ```rill
 [1: "one", true: "yes"] -> .keys
@@ -301,7 +310,7 @@ dict[a: 1, a: 2]    # Error: RILL-P027 Duplicate key 'a' in dict
 dict[1: "a", "1": "b"]    # Error: RILL-P027 Duplicate key '1' in dict
 ```
 
-A selector that reads a plain dict must be a string. A number or bool selector halts catchable `#TYPE_MISMATCH` in bracket access, `.$k`, `.?$k`, `.?[expr]`, pipe dispatch, and hierarchical dispatch. `??` does not recover it, because the selector is wrong rather than absent.
+A selector that reads a plain dict must be a string. A number or bool selector halts catchable `#TYPE_MISMATCH` in bracket access, `.$k`, `.?$k`, `.?[expr]`, pipe dispatch, and hierarchical dispatch. `.$k` and `.?$k` with a non-string key also halt on a list, tuple, ordered, string, number, atom, closure, iterator, or type value, with the error the bracket read raises. `??` does not recover it, because the selector is wrong rather than absent. Elements of a multi-key list are not selectors; they must be strings.
 
 ```rill
 dict[a: 1] => $d
@@ -384,7 +393,7 @@ dict(^("A person's name") name: string, ^("Age in years") age: number)
 
 ## Ordered
 
-`ordered` is a first-class container produced by the `ordered[...]` literal syntax. It preserves key insertion order. When `sort` is applied to a dict, it returns `ordered[[key, value]]` — an ordered collection of key-value entry tuples. Variable and computed keys follow the same rules as `dict` keys: the value must be a string, and any other type halts with `RILL-R002`. A `list[...]` key expands to one entry per key, as in `dict`, and keys that collide after stringification collapse to one entry whose last value wins.
+`ordered` is a first-class container produced by the `ordered[...]` literal syntax. It preserves key insertion order. When `sort` is applied to a dict, it returns `ordered[[key, value]]` — an ordered collection of key-value entry tuples. Variable and computed keys follow the same rules as `dict` keys: the value must be a string, and any other type halts with `RILL-R002`. A `list[...]` key expands to one entry per key, as in `dict`, and every element must be a string. Keys that repeat collapse to one entry whose last value wins.
 
 ```rill
 ordered[a: 1, b: "hello"] => $o

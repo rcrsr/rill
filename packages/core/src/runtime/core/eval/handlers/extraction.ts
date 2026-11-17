@@ -42,11 +42,7 @@ import { setVariable, evaluateVariable } from './variables.js';
 import { evaluateExpression } from './core.js';
 import { accessHaltGateFast } from './access.js';
 import { isKeyedSource } from './collections.js';
-import {
-  setDictField,
-  type DictKeyScalar,
-  throwSourceKindHalt,
-} from '../shared.js';
+import { setDictField, throwSourceKindHalt } from '../shared.js';
 import { orderedDictEntries } from '../../types/dict-keys.js';
 import {
   assertUsableDictKey,
@@ -598,9 +594,8 @@ export async function evaluateListLiteralElements(
 
 /**
  * Evaluate dict/ordered literal entries, returning [key, value] pairs. Keys are
- * returned as strings; number and boolean keys from multi-key lists are
- * stringified. Variable and computed keys must resolve to strings, as in
- * dict literals; any other value halts.
+ * returned as strings. Multi-key list elements, variable keys and computed
+ * keys must be strings, as in dict literals; any other value halts.
  * Spread entries (...$other) expand inline (dict keys merged).
  */
 async function evaluateDictLiteralEntries(
@@ -613,7 +608,7 @@ async function evaluateDictLiteralEntries(
   // being appended again at the end.
   const merged = new Map<string, [string, RillValue]>();
   const setMergedEntry = (
-    key: DictKeyScalar,
+    key: string,
     value: RillValue,
     location: SourceLocation | undefined
   ): void => {
@@ -623,8 +618,7 @@ async function evaluateDictLiteralEntries(
       () => location,
       s.ctx.sourceId
     );
-    const stringKey = String(key);
-    merged.set(stringKey, [stringKey, gated]);
+    merged.set(key, [key, gated]);
   };
 
   for (const entry of entries) {
@@ -707,7 +701,7 @@ async function evaluateDictLiteralEntries(
         // Multi-key entry (ListLiteralNode key): one entry per listed key.
         const pairs = await evaluateDictMultiKeyFromList(s, key, entry.value);
         for (const [k, v] of pairs) {
-          assertUsableDictKey(s, String(k), entry.span);
+          assertUsableDictKey(s, k, entry.span);
           setMergedEntry(k, v, entry.span?.start);
         }
         continue;

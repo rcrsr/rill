@@ -290,7 +290,7 @@ describe('Dynamic Existence Check', () => {
     describe('AC-15: Existence check on empty dict', () => {
       it('returns false for variable key on empty dict', async () => {
         const result = await run(`
-          list[] => $empty
+          dict[] => $empty
           "x" => $field
           $empty.?$field
         `);
@@ -299,7 +299,7 @@ describe('Dynamic Existence Check', () => {
 
       it('returns false for computed key on empty dict', async () => {
         const result = await run(`
-          list[] => $empty
+          dict[] => $empty
           $empty.?["x"]
         `);
         expect(result).toBe(false);
@@ -307,7 +307,7 @@ describe('Dynamic Existence Check', () => {
 
       it('returns false for type-qualified check on empty dict', async () => {
         const result = await run(`
-          list[] => $empty
+          dict[] => $empty
           "x" => $field
           $empty.?$field&number
         `);
@@ -316,81 +316,84 @@ describe('Dynamic Existence Check', () => {
     });
 
     describe('AC-16: Existence check on non-dict', () => {
-      it('returns false for variable key on string', async () => {
-        const result = await run(`
-          "string" => $str
-          "x" => $field
-          $str.?$field
-        `);
-        expect(result).toBe(false);
-      });
+      const cases: ReadonlyArray<[string, string, string]> = [
+        ['string', '"string"', 'Cannot index string'],
+        ['number', '42', 'Cannot index number'],
+        ['boolean', 'true', 'Cannot index bool'],
+        ['list', 'list[1, 2, 3]', 'List index must be number, got string'],
+      ];
+      for (const [label, literal, message] of cases) {
+        it(`returns false for variable key on ${label}`, async () => {
+          expect(
+            await run(`
+              ${literal} => $value
+              "x" => $field
+              $value.?$field
+            `)
+          ).toBe(false);
+        });
 
-      it('returns false for computed key on string', async () => {
-        const result = await run(`
-          "string" => $str
-          $str.?["x"]
-        `);
-        expect(result).toBe(false);
-      });
-
-      it('returns false for variable key on number', async () => {
-        const result = await run(`
-          42 => $num
-          "x" => $field
-          $num.?$field
-        `);
-        expect(result).toBe(false);
-      });
-
-      it('returns false for computed key on number', async () => {
-        const result = await run(`
-          42 => $num
-          $num.?["x"]
-        `);
-        expect(result).toBe(false);
-      });
-
-      it('returns false for variable key on boolean', async () => {
-        const result = await run(`
-          true => $bool
-          "x" => $field
-          $bool.?$field
-        `);
-        expect(result).toBe(false);
-      });
-
-      it('returns false for computed key on boolean', async () => {
-        const result = await run(`
-          false => $bool
-          $bool.?["x"]
-        `);
-        expect(result).toBe(false);
-      });
-
-      it('returns false for variable key on list', async () => {
-        const result = await run(`
-          list[1, 2, 3] => $list
-          "x" => $field
-          $list.?$field
-        `);
-        expect(result).toBe(false);
-      });
-
-      it('returns false for computed key on list', async () => {
-        const result = await run(`
-          list[1, 2, 3] => $list
-          $list.?["x"]
-        `);
-        expect(result).toBe(false);
-      });
+        it(`halts for computed key on ${label}`, async () => {
+          await expectHalt(() => run(`${literal} => $value\n$value.?["x"]`), {
+            code: 'RILL_R002',
+            messagePattern: message,
+          });
+        });
+      }
 
       it('returns false for type-qualified check on non-dict', async () => {
-        const result = await run(`
-          42 => $num
-          "x" => $field
-          $num.?$field&number
-        `);
-        expect(result).toBe(false);
+        expect(
+          await run(`
+            42 => $num
+            "x" => $field
+            $num.?$field&number
+          `)
+        ).toBe(false);
+      });
+
+      it('halts for a variable key that is not a string or number', async () => {
+        await expectHalt(
+          () => run('list[1, 2] => $list\nlist[1] => $k\n$list.?$k'),
+          {
+            code: 'RILL_R002',
+            messagePattern: 'List index must be number, got list',
+          }
+        );
+      });
+
+      it('returns false for an out-of-range list index', async () => {
+        expect(await run('list[1, 2].?[5]')).toBe(false);
+      });
+
+      it('halts for a non-number selector on a list', async () => {
+        await expectHalt(() => run('list[1, 2].?["a"]'), {
+          code: 'RILL_R002',
+          messagePattern: 'List index must be number, got string',
+        });
+        await expectHalt(() => run('list[1, 2].?[list[1]]'), {
+          code: 'RILL_R002',
+          messagePattern: 'List index must be number, got list',
+        });
+      });
+
+      it('halts for a non-number selector on a tuple', async () => {
+        await expectHalt(() => run('tuple[1].?[true]'), {
+          code: 'RILL_R002',
+          messagePattern: 'Tuple index must be number, got bool',
+        });
+      });
+
+      it('halts for a list selector on an ordered value', async () => {
+        await expectHalt(() => run('ordered[a: 1].?[list[1]]'), {
+          code: 'RILL_R002',
+          messagePattern: 'Ordered index must be string or number, got list',
+        });
+      });
+
+      it('probes an ordered value with the keys its read accepts', async () => {
+        expect(await run('ordered[a: 1].?["a"]')).toBe(true);
+        expect(await run('ordered[a: 1].?["b"]')).toBe(false);
+        expect(await run('ordered[a: 1].?[0]')).toBe(true);
       });
     });
   });
