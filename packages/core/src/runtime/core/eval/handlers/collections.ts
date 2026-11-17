@@ -134,8 +134,8 @@ export async function getIterableElements(
     return input.entries.map(([key, value]) => ({ key, value }));
   }
   if (isPlainDict(input)) {
-    // Dict iteration: canonical key order (sorted string keys, then number
-    // keys ascending, then boolean keys), each element is { key, value }.
+    // Dict iteration: canonical key order (string keys sorted by UTF-16 code
+    // unit), each element is { key, value }.
     return orderedDictEntries(input).map((e) => ({
       key: e.key,
       value: e.value,

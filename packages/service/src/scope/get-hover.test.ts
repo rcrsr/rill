@@ -60,6 +60,24 @@ $items[0] -> log
     expect(hover?.range?.start.character).not.toBe(0);
   });
 
+  it('hovers a `.?[expr]` existence-check bracket segment on its own sub-token span', () => {
+    const source = `dict[a: 1] => $d
+$d.?["a"] -> log
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const offset = source.indexOf('["a"]') + 2;
+    const hover = getHover(parsed, offset);
+
+    expect(hover).not.toBeNull();
+    expect(hover?.contents).toBe('index access');
+    expect(hover?.range).toEqual({
+      start: { line: 1, character: 4 },
+      end: { line: 1, character: 9 },
+    });
+  });
+
   it('hovers a bare variable base of a `.method()` chain on just `$name`, not the whole chain', () => {
     const source = `"hi" => $x
 $x.upper() -> log

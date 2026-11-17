@@ -610,6 +610,14 @@ $user.?["name"]&string
 # Result: true
 ```
 
+A non-string selector on a dict halts `#TYPE_MISMATCH`. An out-of-range list index returns `false`. See [Types](topic-types.md) for the key rule.
+
+```rill
+list["a", "b"] => $list
+$list.?[5]
+# Result: false
+```
+
 ### Fallback Across Fields
 
 ```rill

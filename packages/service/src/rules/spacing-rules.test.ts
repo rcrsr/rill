@@ -244,6 +244,16 @@ describe('SPACING_BRACKETS', () => {
     });
   });
 
+  it('fires on an existence-check bracket with inner spaces', () => {
+    const source = 'dict[a: 1] => $x\n$x.?[ "a" ]\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [spacingBrackets]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ code: 'SPACING_BRACKETS' });
+  });
+
   it('does not fire on tight bracket access', () => {
     const source = '$x[0]\n';
     const parsed = toParseResult(source);

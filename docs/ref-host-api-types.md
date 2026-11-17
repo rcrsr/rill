@@ -564,27 +564,27 @@ interface DictEntryNode {
   readonly type: 'DictEntry';
   readonly key:
     | string
-    | number
-    | boolean
     | ListLiteralNode
     | DictKeyVariable
     | DictKeyComputed;
   readonly value: ExpressionNode;
-  readonly keyForm?: 'identifier' | 'string';
+  readonly keyForm?: 'identifier' | 'string' | 'number' | 'bool';
   // ...standard BaseNode span/location fields
 }
 ```
 
-`keyForm` records how a string key appeared in source:
+`keyForm` records how a string key appeared in source. A number or bool key is stored as the string of its spelling:
 
 | Source form | `keyForm` |
 |-------------|-----------|
 | `dict[name: 1]` (bare identifier) | `'identifier'` |
 | `dict["name": 1]` (quoted string) | `'string'` |
-| Number, boolean, computed, variable, or list keys | `undefined` |
+| `dict[1: "x"]` (number, stored as `"1"`) | `'number'` |
+| `dict[true: "x"]` (boolean, stored as `"true"`) | `'bool'` |
+| Computed, variable, or list keys | `undefined` |
 | Internal `'...'` spread sentinel | `undefined` |
 
-`keyForm` is parser metadata only. Runtime semantics are unchanged: `dict[a: 1]` and `dict["a": 1]` are AST- and value-equal. Use `keyForm` in linting and analysis tools that want to treat quoted keys as an intentional escape for foreign API names (for example a `snake_case` rule that allows `dict["maxResults": ...]` while flagging `dict[maxResults: ...]`).
+`keyForm` is parser metadata only. Runtime semantics are unchanged: `dict[a: 1]` and `dict["a": 1]` are AST- and value-equal. Use `keyForm` in linting and analysis tools that want to tell bare identifier, quoted, number, and bool keys apart, for example to treat quoted keys as an intentional escape for foreign API names (for example a `snake_case` rule that allows `dict["maxResults": ...]` while flagging `dict[maxResults: ...]`).
 
 ### `RecoveryErrorNode`
 

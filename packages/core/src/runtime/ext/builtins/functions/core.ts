@@ -117,8 +117,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
         return input.map((value, index) => ({ index, value }));
       }
       if (isDict(input)) {
-        // Canonical key order: sorted string keys, then number keys
-        // ascending, then boolean keys (false before true).
+        // Canonical key order: string keys sorted by UTF-16 code unit.
         return orderedDictEntries(input).map((e, index) => ({
           index,
           key: e.key,

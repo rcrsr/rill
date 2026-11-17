@@ -25,12 +25,12 @@ import {
 } from './shared.js';
 
 /**
- * Render a dict key for `formatValue`. Number and boolean keys render
- * unquoted (so `dict[1: "a"]` and `dict[true: "a"]` re-parse as typed keys).
- * String keys render as a bare identifier when they are a valid identifier
- * that is not `true`/`false` (which would otherwise re-parse as a boolean);
- * every other string key is quoted so the output round-trips. This keeps the
- * common identifier-keyed case (`dict[a: 1]`) byte-for-byte unchanged.
+ * Render a dict key for `formatValue`. Every key is a string. A key renders
+ * as a bare identifier when it is a valid identifier other than `true`/`false`
+ * (which would otherwise re-parse as a boolean); every other key, including
+ * numeric-looking strings such as "1", is quoted so the output round-trips.
+ * This keeps the common identifier-keyed case (`dict[a: 1]`) byte-for-byte
+ * unchanged.
  */
 const IDENTIFIER_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/;
 

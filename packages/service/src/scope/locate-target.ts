@@ -221,7 +221,11 @@ function findBracketAccessSegmentAt(
   let found: AccessSegmentMatch | null = null;
   walkAst(container, (node) => {
     if (found !== null || node.type !== 'Variable') return;
-    for (const access of node.accessChain) {
+    const finalAccess = node.existenceCheck?.finalAccess;
+    const accesses = finalAccess
+      ? [...node.accessChain, finalAccess]
+      : node.accessChain;
+    for (const access of accesses) {
       if (isBracketAccess(access) && spanContainsOffset(access.span, offset)) {
         found = { span: access.span, description: accessDescription(access) };
         return;
