@@ -304,10 +304,19 @@ describe('timeout<idle:> restarts on activity', () => {
               earliest = entry;
             }
           }
-          if (earliest === undefined) break;
+          if (earliest === undefined) {
+            throw new Error(
+              `virtual clock stalled at ${now}ms: no timers remain and the script has not settled`
+            );
+          }
           timers.delete(earliest[0]);
           now = earliest[1].at;
           earliest[1].fn();
+        }
+        if (!settled) {
+          throw new Error(
+            `virtual clock stalled at ${now}ms: the script did not settle after 1000 timer steps`
+          );
         }
         return pending;
       },
