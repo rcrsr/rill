@@ -822,12 +822,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         keyed.map(({ el }): [string, RillValue] => {
           const entry = isDict(el) ? el : {};
           const entryKey = entry['key'];
-          const keyText =
-            typeof entryKey === 'string' ||
-            typeof entryKey === 'number' ||
-            typeof entryKey === 'boolean'
-              ? String(entryKey)
-              : '';
+          const keyText = typeof entryKey === 'string' ? entryKey : '';
           return [keyText, entry['value'] ?? null];
         })
       );

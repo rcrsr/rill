@@ -79,6 +79,7 @@ Built-in atom literals. The core error set is every built-in atom except #ok and
                                    #       `sort` `key_fn` not callable,
                                    #       tuple comparison length/type mismatch,
                                    #       start_when/stop_when predicate non-bool,
+                                   #       non-string selector on a dict or stream,
                                    #       non-number component in duration(...dict[...]),
                                    #       wrong-typed argument to datetime() or datetime/duration methods,
                                    #       non-vector argument to .similarity/.dot/.distance,
@@ -143,7 +144,7 @@ A value is **vacant** when empty (`""`, `0`, `false`, `list[]`, `dict[]`) or inv
     $d.missing ?? "default"         # "default"
     $d.a ?? "default"               # 1
 
-`??` recovers only a miss on the last step of an access chain: an out-of-range list index or an absent string key. A non-string selector on a dict is a wrong key and halts `#TYPE_MISMATCH` at a bracket (`dict[a: 1][1] ?? 0`), through `.$k`, and in pipe selection (`1 -> $d ?? 0`); convert it with `-> string`. A miss on an earlier step still halts `RILL-R009`: `$d.x.y ?? 0` with `.x` missing, `$d.b[1] ?? 0` with `.b` missing. `$d.x.?b ?? 0` with `.x` missing halts too. A wrong key type still halts `RILL-R002`.
+`??` recovers only a miss on the last step of an access chain: an out-of-range list index or an absent string key. A non-string selector on a dict is a wrong key and halts `#TYPE_MISMATCH` at a bracket (`dict[a: 1][1] ?? 0`), through `.$k`, and in pipe selection (`1 -> $d ?? 0`); convert it with `-> string`. A miss on an earlier step still halts `RILL-R009`: `$d.x.y ?? 0` with `.x` missing, `$d.b[1] ?? 0` with `.b` missing. `$d.x.?b ?? 0` with `.x` missing halts too. A wrong key type on a list, tuple, or ordered receiver halts `RILL-R002`; on a dict or stream it halts `#TYPE_MISMATCH`.
 
     guard { "x":number } => $out
     $out ?? "fallback"              # "fallback" (invalid is vacant)

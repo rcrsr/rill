@@ -118,7 +118,7 @@ describe('trace-frame fn names the function that raised the halt', () => {
     [
       'a hierarchical type mismatch',
       'dict[a: 1] => $d\nguard { list["a", "b"] -> $d }',
-      'traversePathStep',
+      'selectElement',
     ],
     [
       'a hierarchical miss',

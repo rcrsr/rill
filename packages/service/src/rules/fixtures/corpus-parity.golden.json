@@ -23940,7 +23940,7 @@
         },
         "severity": "error",
         "code": "NAMING_SNAKE_CASE",
-        "message": "Dict key 'toString' should use snake_case (e.g., 'to_string'). For foreign API keys you don't own, use the quoted-key form: [\"toString\": ...]",
+        "message": "Dict key 'toString' should use snake_case (e.g., 'to_string'). For foreign API keys you don't own, use the quoted-key form: dict[\"toString\": ...]",
         "context": "dict[toString: 1] => $d",
         "fix": null
       },
@@ -24056,7 +24056,7 @@
         },
         "severity": "error",
         "code": "NAMING_SNAKE_CASE",
-        "message": "Dict key 'hasOwnProperty' should use snake_case (e.g., 'has_own_property'). For foreign API keys you don't own, use the quoted-key form: [\"hasOwnProperty\": ...]",
+        "message": "Dict key 'hasOwnProperty' should use snake_case (e.g., 'has_own_property'). For foreign API keys you don't own, use the quoted-key form: dict[\"hasOwnProperty\": ...]",
         "context": "dict[hasOwnProperty: 5] -> :?dict(hasOwnProperty: number)",
         "fix": {
           "description": "Rename 'hasOwnProperty' to 'has_own_property'",

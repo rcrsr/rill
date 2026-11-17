@@ -82,7 +82,7 @@ describe('Streams: bracket access with a default', () => {
           functions: { make_stream: makeStreamFn([1, 2]) },
         }),
       {
-        code: 'RILL_R002',
+        code: 'TYPE_MISMATCH',
         messagePattern: 'Dict key must be string, got number',
       }
     );

@@ -37,7 +37,7 @@ describe('NAMING_SNAKE_CASE', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.message).toBe(
-      "Dict key 'userName' should use snake_case (e.g., 'user_name'). For foreign API keys you don't own, use the quoted-key form: [\"userName\": ...]"
+      "Dict key 'userName' should use snake_case (e.g., 'user_name'). For foreign API keys you don't own, use the quoted-key form: dict[\"userName\": ...]"
     );
   });
 
@@ -141,6 +141,20 @@ describe('USE_EACH', () => {
         "Use 'seq' for collection iteration instead of while loops: collection -> seq({ body })",
       fix: null,
     });
+  });
+
+  it('fires when the condition probes .?len', () => {
+    const source = 'while ($i < 3 && $items.?len) do { $i + 1 }\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [useEach])).toHaveLength(1);
+  });
+
+  it('fires when the body probes a bracket index with .?[i]', () => {
+    const source = 'while ($i < 3) do { $items.?[$i] ? ($i + 1) ! $i }\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [useEach])).toHaveLength(1);
   });
 
   it('does not fire for a plain counter loop', () => {

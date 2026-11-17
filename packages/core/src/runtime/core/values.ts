@@ -215,7 +215,6 @@ export const RESERVED_BRAND_KEYS = [
   '__rill_stream_dispose',
   '__rill_stream_chunk_type',
   '__rill_stream_ret_type',
-  '__rill_typed_keys',
   '__rill_field_descriptor',
 ] as const;
 

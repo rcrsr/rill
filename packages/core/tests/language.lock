@@ -39,7 +39,7 @@ bd60116f35f0acaaee4e194193680ecf6625ccc1b361484ef7ec5b4f861933a3  packages/core/
 dfd3e84f20ed5f58e3358fa8834ed385b1544d3f2a1092529ca57fffb3226a07  packages/core/tests/language/dict-dispatch.test.ts
 ee792b853c002918fc6cdde9a788af66d88b2d8a91aeddb629f70d55b46219bc  packages/core/tests/language/dict-field-annotations.test.ts
 7bdd4b4dfdf66e909023ffa890a9fe0625a123c26044da9732eca20ee2187fc1  packages/core/tests/language/dict-key-form.test.ts
-4e9737141e40dbd707baea10b2a81f1da674f1b011fc1d1c2b0ea5412e9c61b2  packages/core/tests/language/dict-variable-keys.test.ts
+939ef1ba4650461437e7f2e6460ed53f82843c817adf687eff3a7255dbf82123  packages/core/tests/language/dict-variable-keys.test.ts
 6265bb0a7b6af057d2983f4145ed1d45efb6c0026811137c7c763178d86e8204  packages/core/tests/language/dict.test.ts
 77821fcb2aaeffbb508a1065a781151714e39cafef24ac6ec27383f3410b8980  packages/core/tests/language/duration.test.ts
 90d8b187dc7737244a7a33e9f1157334c53150fe3280df429be78b8a9dfb451e  packages/core/tests/language/dynamic-field-access.test.ts
@@ -74,7 +74,7 @@ ed87174b9632676d8ad45cc056198407a0986755bf4e0b53235bc524aaf07a6a  packages/core/
 5fff667b75a16fb72868d01d07621db6cc1b05e582eebdc38d2e64ba9744c38e  packages/core/tests/language/parameterized-existence.test.ts
 ddfab8792de6a77b9b36f918fad7d4653dba751eb3baf3f893c64dd07e358453  packages/core/tests/language/parser-recovery.test.ts
 96785b274e6129e92ee8dda4b59e82e6a6ae115dd7c3d5bf1efabdb501304722  packages/core/tests/language/parser-spans.test.ts
-b61c0667821ee859d3c5be43bffdfb5c1f8663107ef7b8216403bbfa98e75b2d  packages/core/tests/language/parser-syntax-errors.test.ts
+6278324b1e343077d65f21a7e2a8ce320436a6e8fa81dcfaaad4be0bafd5c581  packages/core/tests/language/parser-syntax-errors.test.ts
 4a37887e53947e96cd77b1484d0a3f70147d7b3afc10611d3e32bba19af436c6  packages/core/tests/language/pass-async.test.ts
 67522b18df07a9512d095a77732e31365bea256465d67559efa8a15171916f78  packages/core/tests/language/pass-parsing.test.ts
 7b151474103b83e354aea75978226e14f2efb5917312fc7729d89e7d8983633f  packages/core/tests/language/pass.test.ts
@@ -87,8 +87,8 @@ f6d434693bc1ff8d866a3572bc537030e18e51f3435e1425a26a93b418c4ecf4  packages/core/
 0928c23385451e6aa9192ebaccd812ad31e0e2a7a8c643cbe5f69ac999c1e95d  packages/core/tests/language/statement-boundaries.test.ts
 e40bcd948d58b2e0a9468e7a5a36b88c1192ea774358965a6b17f9407e6e680e  packages/core/tests/language/status-probe.test.ts
 4c4e2d91c4d5c33fa3f87b1b6224a92f32d7d0daef21f90e0f8d711cf790bffc  packages/core/tests/language/stream-type-parsing.test.ts
-ba3ca4f586c6fcc53260107c1bd9856693b426c0f7b6dbce14b484dee015dce5  packages/core/tests/language/streams.test.ts
-7d7599f6d3cb31a3b782a1d24adb7bdc7f32f6dd36b35ec1e2e4383dbd02e845  packages/core/tests/language/string-dict-keys.test.ts
+439ac5403abd130e80b4f488a6fc64cc47aaf8929ff133aa4045417b91ed9528  packages/core/tests/language/streams.test.ts
+29801c69f2fd9d73b0d06cb2fb0730eddbdbb7b2019ba407b89d3b5ee4314e2f  packages/core/tests/language/string-dict-keys.test.ts
 2a754f6286ad6b7676f732143028425899eeb9dac181b03a12cc8003c8e103c7  packages/core/tests/language/strings.test.ts
 755e620beae9625dce82e015187b01489a95624897d4ddefc30aca5dbaec6a62  packages/core/tests/language/structural-type-boundaries.test.ts
 4e6a36fb195591e22bb9070c034e347455a693b4b9aa60e15a42ae6688df048f  packages/core/tests/language/structural-type-defaults.test.ts

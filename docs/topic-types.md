@@ -310,8 +310,6 @@ dict[a: 1, a: 2]    # Error: RILL-P027 Duplicate key 'a' in dict
 dict[1: "a", "1": "b"]    # Error: RILL-P027 Duplicate key '1' in dict
 ```
 
-A selector that reads a plain dict must be a string. A number or bool selector halts catchable `#TYPE_MISMATCH` in bracket access, `.$k`, `.?$k`, `.?[expr]`, pipe dispatch, and hierarchical dispatch. Every key form selects as `[expr]` does, on every receiver: `.$k`, `.?$k`, and `.?[expr]` halt with the error the bracket read raises when the receiver rejects the key. That covers a string key on a list, tuple, string, number, atom, closure, iterator, or type value, and a number or bool key on a stream, which takes only a string. `??` does not recover it, because the selector is wrong rather than absent; only an absent key or an out-of-range index is a miss. `.$k` also reports a missing key as `[$k]` does (`Undefined dict key: k`). Spelled field names (`$v.name`, `$v.?name`, `$t.inner`) are not selectors and are unchanged. Elements of a multi-key list are not selectors; they must be strings.
-
 ```rill
 dict[a: 1] => $d
 guard { $d[1] } => $r
@@ -319,11 +317,33 @@ $r.!message
 # Result: "Dict key must be string, got number"
 ```
 
+A selector that reads a plain dict or a stream must be a string. A number or bool selector halts catchable `#TYPE_MISMATCH` in every form:
+
+| Form | Example |
+|------|---------|
+| Bracket access | `$d[1]` |
+| Variable key | `.$k` |
+| Existence probes | `.?$k`, `.?[expr]` |
+| Pipe selection | `1 -> $d` |
+| Dispatch | dispatch tables, hierarchical dispatch |
+
+Every key form selects as `[expr]` does: `.$k`, `.?$k`, and `.?[expr]` halt with the error the bracket read raises when the receiver rejects the key.
+
+| Receiver | Wrong key | Halts |
+|----------|-----------|-------|
+| dict, stream | number or bool | `#TYPE_MISMATCH` |
+| list, tuple, ordered | wrong-typed key | `RILL-R002` |
+| string, number, atom, closure, iterator, vector, type value | any key | `RILL-R002`, message `Cannot index <type>` |
+
+`??` does not recover these halts, because the selector is wrong rather than absent. Only an absent key or an out-of-range index is a miss.
+
 ```rill
 dict[a: 1] => $d
 $d[1] ?? 0
 # Error: #TYPE_MISMATCH
 ```
+
+`.$k` reports a missing key as `[$k]` does (`Undefined dict key: k`). Spelled field names (`$v.name`, `$v.?name`, `$t.inner`) are not selectors and are unchanged. Elements of a multi-key list must be strings; a non-string element halts `RILL-R002`.
 
 Convert a number or bool selector with `-> string`:
 

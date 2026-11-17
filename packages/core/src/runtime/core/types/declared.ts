@@ -53,7 +53,7 @@ export function declarationOf(
  */
 export function projectElement(
   collection: TypeStructure | undefined,
-  key: string | number | boolean
+  key: string | number
 ): TypeStructure | undefined {
   if (collection === undefined) return undefined;
   if (isStructureKind(collection, 'list')) {

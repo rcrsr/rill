@@ -17,8 +17,7 @@ import type { Carried } from '../../types/declared.js';
 import type { RillValue, TypeStructure } from '../../types/structures.js';
 import type { RillCallable } from '../../callable.js';
 import { declaredParams, isCallable } from '../../callable.js';
-import { inferType } from '../../types/registrations.js';
-import { isOrdered, isPlainDict, isTuple } from '../../types/guards.js';
+import { isOrdered, isTuple } from '../../types/guards.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { TypeHaltSite } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
@@ -229,7 +228,7 @@ export async function evaluateHierarchicalDispatch(
 /**
  * Execute single path step: select `key` from the current value.
  *
- * A plain dict takes a string key (any other type halts as a dict key type
+ * A plain dict or stream takes a string key (any other type halts as a dict key type
  * mismatch) and a list a number key; any other combination is a type error.
  * A non-terminal closure is resolved via resolveIntermediateClosure. A
  * terminal closure is left for the caller, which invokes it with $ = key.
@@ -242,56 +241,25 @@ async function traversePathStep(
   location?: SourceLocation
 ): Promise<Carried> {
   const value = current.value;
-  // Every collection selects as the bracket read does, so a key the receiver
-  // rejects halts with the bracket read's message.
-  if (
-    isPlainDict(value) ||
-    Array.isArray(value) ||
-    isTuple(value) ||
-    isOrdered(value)
-  ) {
-    const result = await selectElement(
-      s,
-      value,
-      key,
-      current.declared,
-      null, // No default value for intermediate steps
-      location,
-      'keep' // Closures are resolved here, not by selection
-    );
-    if (!isTerminal && isCallable(result.value)) {
-      return {
-        value: await resolveIntermediateClosure(s, result.value, location),
-        declared: undefined,
-      };
-    }
-    return result;
-  }
-
-  // Type mismatch: throw error
-  const currentType = Array.isArray(value)
-    ? isTuple(value)
-      ? 'tuple'
-      : 'list'
-    : inferType(value);
-  const keyType = typeof key;
-
-  // A key the receiver rejects halts with the bracket read's message.
-  bracketKey(value, key, {
+  // Every value selects as the bracket read does, so a key the receiver
+  // rejects, or a receiver that cannot be indexed, halts with the bracket
+  // read's message.
+  const result = await selectElement(
+    s,
+    value,
+    key,
+    current.declared,
+    null, // No default value for intermediate steps
     location,
-    sourceId: s.ctx.sourceId,
-    fn: 'traversePathStep',
-  });
-  return throwCatchableHostHalt(
-    {
-      location,
-      sourceId: s.ctx.sourceId,
-      fn: 'traversePathStep',
-    },
-    ERROR_ATOMS[ERROR_IDS.RILL_R002],
-    `Hierarchical dispatch type mismatch: cannot use ${keyType} key with ${currentType} value`,
-    { currentType, keyType, key }
+    'keep' // Closures are resolved here, not by selection
   );
+  if (!isTerminal && isCallable(result.value)) {
+    return {
+      value: await resolveIntermediateClosure(s, result.value, location),
+      declared: undefined,
+    };
+  }
+  return result;
 }
 
 /**

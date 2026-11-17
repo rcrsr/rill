@@ -299,7 +299,7 @@ export const namingSnakeCase: Rule = {
               'Dict key',
               context,
               fix,
-              `For foreign API keys you don't own, use the quoted-key form: ["${key}": ...]`
+              `For foreign API keys you don't own, use the quoted-key form: dict["${key}": ...]`
             ),
           ];
         }

@@ -51,7 +51,7 @@ declare module './parser.js' {
   }
 }
 
-function removedSelectorError(
+export function removedSelectorError(
   form: '.(' | '.{' | '.?(' | '.?{',
   at: SourceLocation
 ): ParseError {

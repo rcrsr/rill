@@ -452,6 +452,21 @@ describe('Parser Syntax Errors', () => {
       }
     );
 
+    rule('selection.no-paren').it(
+      'rejects the removed .( and .{ selectors after a pipe with RILL-P012',
+      () => {
+        for (const source of ['$d -> .("a")', '$d -> .{ "a" }']) {
+          try {
+            parse(source);
+            expect.fail('Should have thrown ParseError');
+          } catch (err) {
+            expect((err as ParseError).errorId).toBe('RILL-P012');
+            expect((err as ParseError).message).toContain('[expr]');
+          }
+        }
+      }
+    );
+
     rule('existence.bracket').it(
       'parses $d.?["a"] to an existence check with a bracket final access',
       () => {

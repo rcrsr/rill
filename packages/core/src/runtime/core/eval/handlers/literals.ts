@@ -421,6 +421,58 @@ async function evaluateDictEntryValue(
   );
 }
 
+/** Key lists made only of plain string literals, computed once per AST node. */
+const LITERAL_KEY_LISTS = new WeakMap<
+  ListLiteralNode,
+  readonly string[] | null
+>();
+
+/**
+ * The keys of a non-empty list made only of plain (non-interpolated) string
+ * literals, or undefined when any element needs evaluation. Such a list is
+ * valid by construction and always yields the same keys, so it is computed once
+ * per node instead of on every dispatch.
+ */
+function literalStringKeys(
+  keyList: ListLiteralNode
+): readonly string[] | undefined {
+  const cached = LITERAL_KEY_LISTS.get(keyList);
+  if (cached !== undefined) return cached ?? undefined;
+  const keys: string[] = [];
+  let allLiteral = keyList.elements.length > 0;
+  for (const element of keyList.elements) {
+    const text = plainStringLiteralText(element);
+    if (text === undefined) {
+      allLiteral = false;
+      break;
+    }
+    keys.push(text);
+  }
+  LITERAL_KEY_LISTS.set(keyList, allLiteral ? keys : null);
+  return allLiteral ? keys : undefined;
+}
+
+/** Text of a bare, non-interpolated string literal expression, else undefined. */
+function plainStringLiteralText(
+  element: ListLiteralNode['elements'][number]
+): string | undefined {
+  if (element.type !== 'PipeChain') return undefined;
+  if (element.pipes.length > 0 || element.terminator !== null) return undefined;
+  const head = element.head;
+  if (head.type !== 'PostfixExpr' || head.methods.length > 0) return undefined;
+  if (head.defaultValue !== null || (head.existenceCheck ?? null) !== null) {
+    return undefined;
+  }
+  const primary = head.primary;
+  if (primary.type !== 'StringLiteral') return undefined;
+  let text = '';
+  for (const part of primary.parts) {
+    if (typeof part !== 'string') return undefined;
+    text += part;
+  }
+  return text;
+}
+
 /**
  * Evaluate a multi-key entry's key list and validate it: the list is
  * non-empty and every element is a string. A number or bool is ambiguous
@@ -430,7 +482,9 @@ async function evaluateMultiKeyStrings(
   s: EvalState,
   keyList: ListLiteralNode,
   fn: string
-): Promise<string[]> {
+): Promise<readonly string[]> {
+  const literalKeys = literalStringKeys(keyList);
+  if (literalKeys !== undefined) return literalKeys;
   const keys: RillValue[] = await evaluateListLiteralElements(
     s,
     keyList.elements
@@ -495,7 +549,7 @@ export function assertStringVariableKey(
     throwCatchableHostHalt(
       { location: span.start, sourceId: s.ctx.sourceId, fn },
       ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `Dict key must be string, got ${typeof value}`
+      `Dict key must be string, got ${inferType(value)}`
     );
   }
 }
@@ -514,7 +568,7 @@ export function assertStringComputedKey(
     throwCatchableHostHalt(
       { location: span.start, sourceId: s.ctx.sourceId, fn },
       ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `Dict key evaluated to ${typeof value}, expected string`
+      `Dict key evaluated to ${inferType(value)}, expected string`
     );
   }
 }
@@ -806,11 +860,15 @@ export async function evaluateDictDispatch(
   }
 
   // No match and no default: the miss reads as a bracket read's
-  return throwUndefinedDictKey(inputKey, {
-    location: node.span?.start,
-    sourceId: s.ctx.sourceId,
-    fn: 'evaluateDictDispatch',
-  });
+  return throwUndefinedDictKey(
+    inputKey,
+    {
+      location: node.span?.start,
+      sourceId: s.ctx.sourceId,
+      fn: 'evaluateDictDispatch',
+    },
+    { key: inputKey }
+  );
 }
 
 /**

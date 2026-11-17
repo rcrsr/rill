@@ -43,7 +43,6 @@ import { inferType } from '../../types/registrations.js';
 import {
   isIterator,
   isOrdered,
-  isPlainDict,
   isTuple,
   isTypeValue,
 } from '../../types/guards.js';
@@ -70,7 +69,7 @@ import { invokeCallable } from './closures.js';
 // ============================================================
 
 /** A key that can address a field or position. */
-export type FieldKey = string | number | boolean;
+export type FieldKey = string | number;
 
 /** Why a lookup found nothing. */
 export type FieldMiss =
@@ -145,30 +144,25 @@ export function bracketKey(
 ): FieldKey {
   const reject = (message: string): never =>
     throwCatchableHostHalt(site, ERROR_ATOMS[ERROR_IDS.RILL_R002], message);
-  const got = inferType(indexValue);
+  const got = (): string => inferType(indexValue);
   if (Array.isArray(receiver)) {
     return typeof indexValue === 'number'
       ? indexValue
-      : reject(`List index must be number, got ${got}`);
+      : reject(`List index must be number, got ${got()}`);
   }
   if (isOrdered(receiver)) {
     return typeof indexValue === 'string' || typeof indexValue === 'number'
       ? indexValue
-      : reject(`Ordered index must be string or number, got ${got}`);
+      : reject(`Ordered index must be string or number, got ${got()}`);
   }
   if (isTuple(receiver)) {
     return typeof indexValue === 'number'
       ? indexValue
-      : reject(`Tuple index must be number, got ${got}`);
+      : reject(`Tuple index must be number, got ${got()}`);
   }
   // Must precede the dict case: an iterator is structurally a dict.
   if (isIterator(receiver)) return reject('Cannot index iterator');
-  if (isPlainDict(receiver)) return dictSelectorKey(indexValue, site);
-  if (isFieldReceiver(receiver)) {
-    return typeof indexValue === 'string'
-      ? indexValue
-      : reject(`Dict key must be string, got ${got}`);
-  }
+  if (isFieldReceiver(receiver)) return dictSelectorKey(indexValue, site);
   return reject(`Cannot index ${inferType(receiver)}`);
 }
 
@@ -214,31 +208,22 @@ export function locateField(receiver: RillValue, key: FieldKey): FieldLocation {
   }
   if (isOrdered(receiver)) {
     const entries = receiver.entries;
-    if (typeof key === 'string') {
-      const entry = entries.find(([name]) => name === key);
-      return entry === undefined
-        ? NOT_FOUND('absent')
-        : { found: true, value: entry[1], key };
-    }
     if (typeof key === 'number') {
       return locatePosition(key, entries.length, (i) => entries[i]?.[1]);
     }
-    return NOT_FOUND('not-indexable');
+    const entry = entries.find(([name]) => name === key);
+    return entry === undefined
+      ? NOT_FOUND('absent')
+      : { found: true, value: entry[1], key };
   }
   if (Array.isArray(receiver)) {
     if (typeof key === 'string') return NOT_FOUND('no-fields');
-    if (typeof key === 'number') {
-      return locatePosition(key, receiver.length, (i) => receiver[i]);
-    }
-    return NOT_FOUND('not-indexable');
+    return locatePosition(key, receiver.length, (i) => receiver[i]);
   }
   if (isTuple(receiver)) {
     const entries = receiver.entries;
     if (typeof key === 'string') return NOT_FOUND('no-fields');
-    if (typeof key === 'number') {
-      return locatePosition(key, entries.length, (i) => entries[i]);
-    }
-    return NOT_FOUND('not-indexable');
+    return locatePosition(key, entries.length, (i) => entries[i]);
   }
   if (isFieldReceiver(receiver)) {
     if (typeof key === 'string') return locateOwnField(receiver, key);
@@ -258,7 +243,7 @@ export function locateField(receiver: RillValue, key: FieldKey): FieldLocation {
  * miss goes to `onMiss`, which must halt.
  *
  * A miss recovers unless it is a fractional index, or the receiver is a dict
- * or stream read with a number or bool key. Such a key is a wrong key, not an
+ * or stream read with a number key. Such a key is a wrong key, not an
  * absent one, so only an absent string key recovers on those receivers.
  */
 export function locateOrRecover(
@@ -324,7 +309,8 @@ export function throwFieldMiss(
   receiver: RillValue,
   key: FieldKey,
   miss: FieldMiss,
-  site: TypeHaltSite
+  site: TypeHaltSite,
+  raw?: Record<string, unknown>
 ): never {
   const target = indexTarget(receiver);
   switch (miss) {
@@ -352,7 +338,8 @@ export function throwFieldMiss(
       return throwCatchableHostHalt(
         site,
         ERROR_ATOMS[ERROR_IDS.RILL_R009],
-        message
+        message,
+        raw ?? { key }
       );
     }
     default:
@@ -360,15 +347,20 @@ export function throwFieldMiss(
   }
 }
 
-/** Halt for an absent dict key, as the bracket read words it. */
+/**
+ * Halt for an absent dict key, as the bracket read words it. `raw` is the
+ * halt's structured context; it defaults to the missing key.
+ */
 export function throwUndefinedDictKey(
   key: FieldKey,
-  site: TypeHaltSite
+  site: TypeHaltSite,
+  raw?: Record<string, unknown>
 ): never {
   return throwCatchableHostHalt(
     site,
     ERROR_ATOMS[ERROR_IDS.RILL_R009],
-    `Undefined dict key: ${key}`
+    `Undefined dict key: ${key}`,
+    raw ?? { key }
   );
 }
 
@@ -381,10 +373,11 @@ export function throwBracketMiss(
   receiver: RillValue,
   key: FieldKey,
   miss: FieldMiss,
-  site: TypeHaltSite
+  site: TypeHaltSite,
+  raw?: Record<string, unknown>
 ): never {
-  if (isFieldReceiver(receiver)) return throwUndefinedDictKey(key, site);
-  return throwFieldMiss(receiver, key, miss, site);
+  if (isFieldReceiver(receiver)) return throwUndefinedDictKey(key, site, raw);
+  return throwFieldMiss(receiver, key, miss, site, raw);
 }
 
 /** Declared type of a located element, projected from its receiver's type. */

@@ -117,11 +117,22 @@ export async function evaluateDestructure(
       // not satisfy a destructure key.
       const located = locateField(input, elem.key);
       if (!located.found) {
-        throwBracketMiss(input, elem.key, located.miss, {
-          location: elem.span.start,
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluateDestructure',
-        });
+        throwBracketMiss(
+          input,
+          elem.key,
+          located.miss,
+          {
+            location: elem.span.start,
+            sourceId: s.ctx.sourceId,
+            fn: 'evaluateDestructure',
+          },
+          {
+            key: elem.key,
+            availableKeys: isOrdered(input)
+              ? orderedValueEntries(input).map(([k]) => k)
+              : Object.keys(input),
+          }
+        );
       }
 
       const dictResolved =

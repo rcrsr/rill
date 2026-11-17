@@ -402,7 +402,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
           {
             code: 'RILL_R002',
             hostErrorId: 'RILL-R002',
-            messagePattern: /Dict key must be string, got boolean/i,
+            messagePattern: /Dict key must be string, got bool/i,
           }
         );
       });
@@ -418,7 +418,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
           {
             code: 'RILL_R002',
             hostErrorId: 'RILL-R002',
-            messagePattern: /Dict key must be string, got object/i,
+            messagePattern: /Dict key must be string, got list/i,
           }
         );
       });
@@ -434,7 +434,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
           {
             code: 'RILL_R002',
             hostErrorId: 'RILL-R002',
-            messagePattern: /Dict key must be string, got object/i,
+            messagePattern: /Dict key must be string, got dict/i,
           }
         );
       });
@@ -456,7 +456,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         await expectHalt(() => run('dict[_static: 0, (true): 1]'), {
           code: 'RILL_R002',
           hostErrorId: 'RILL-R002',
-          messagePattern: /Dict key evaluated to boolean, expected string/,
+          messagePattern: /Dict key evaluated to bool, expected string/,
         });
       });
 
@@ -465,7 +465,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         await expectHalt(() => run('dict[_static: 0, (list[1, 2]): 1]'), {
           code: 'RILL_R002',
           hostErrorId: 'RILL-R002',
-          messagePattern: /Dict key evaluated to object, expected string/,
+          messagePattern: /Dict key evaluated to list, expected string/,
         });
       });
 
@@ -724,7 +724,7 @@ describe('Ordered literal variable and computed keys', () => {
       {
         code: 'RILL_R002',
         hostErrorId: 'RILL-R002',
-        messagePattern: /Dict key must be string, got object/,
+        messagePattern: /Dict key must be string, got list/,
       }
     );
   });
@@ -739,7 +739,7 @@ describe('Ordered literal variable and computed keys', () => {
       {
         code: 'RILL_R002',
         hostErrorId: 'RILL-R002',
-        messagePattern: /Dict key must be string, got object/,
+        messagePattern: /Dict key must be string, got dict/,
       }
     );
   });
@@ -768,7 +768,7 @@ describe('Ordered literal variable and computed keys', () => {
       {
         code: 'RILL_R002',
         hostErrorId: 'RILL-R002',
-        messagePattern: /Dict key evaluated to object, expected string/,
+        messagePattern: /Dict key evaluated to list, expected string/,
       }
     );
   });

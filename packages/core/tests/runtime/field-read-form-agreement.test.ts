@@ -284,7 +284,7 @@ const ROWS: readonly Row[] = [
     label: 'stream, number key',
     setup: 'make_stream() => $r',
     key: '0',
-    read: { halt: 'RILL_R002', message: DICT_KEY_NUMBER },
+    read: { halt: 'TYPE_MISMATCH', message: DICT_KEY_NUMBER },
   },
 ];
 
@@ -573,7 +573,7 @@ describe('field read forms agree: stream keys under ??', () => {
         run(`make_stream() => $r\n$r[0] ?? "${SENTINEL}"`, {
           functions: FUNCTIONS,
         }),
-      { code: 'RILL_R002', messagePattern: DICT_KEY_NUMBER }
+      { code: 'TYPE_MISMATCH', messagePattern: DICT_KEY_NUMBER }
     );
   });
 
@@ -583,7 +583,7 @@ describe('field read forms agree: stream keys under ??', () => {
     for (const body of ['$r[true]', '$r.$k', '$r.?[true]', '$r.?$k']) {
       await expectHalt(
         () => run(`${setup}${body} ?? "${SENTINEL}"`, { functions: FUNCTIONS }),
-        { code: 'RILL_R002', messagePattern: message }
+        { code: 'TYPE_MISMATCH', messagePattern: message }
       );
     }
   });
