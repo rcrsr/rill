@@ -219,6 +219,14 @@ describe('comparison overlap gate', () => {
     });
   });
 
+  it('names the kind, never the value, of an undeclared operand', async () => {
+    const setup = '"a" => $s:union("a", "b")\n';
+    await expectHalt(() => run(setup + '$s == "sk-SECRET-TOKEN-123"'), {
+      code: 'TYPE_MISMATCH',
+      messagePattern: /^Cannot compare union\("a", "b"\) with string using ==$/,
+    });
+  });
+
   it('halts catchably', async () => {
     expect(
       await run('(guard { 1 == "a" } => $r).!code == #TYPE_MISMATCH')

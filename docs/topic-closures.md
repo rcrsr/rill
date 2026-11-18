@@ -291,7 +291,7 @@ The block `{ $ + 1 }` produces a closure. When invoked, `$` is bound to the argu
 | Form | Params | `isProperty` | Behavior |
 |------|--------|-------------|----------|
 | `{ body }` (block-closure) | `[{ name: "$" }]` | `false` | Requires argument |
-| `\|\|{ body }` (zero-param) | `[]` | `true` | Auto-invokes on dict access |
+| `\|\|{ body }` (zero-param) | `[]` | `true` | Auto-invokes on property access; dispatch returns it uncalled |
 
 ```rill
 { $ * 2 } => $double
@@ -543,6 +543,8 @@ Closures stored in dicts have `$` late-bound to the containing dict at invocatio
 
 $obj.summary    # "toolkit: 3 items" (auto-invoked on access)
 ```
+
+Property access runs a zero-arg closure. Dispatch does not: `"summary" -> $obj` returns the closure uncalled, so call it with `$()`.
 
 ### Accessing Sibling Fields
 

@@ -400,7 +400,7 @@ Dict keys are strings and multi-key syntax `[k1, k2]: value` maps several keys t
 
 Path element types: string keys for dict lookup, number indexes for list access (negative indexes supported). A string key on a list halts `RILL-R002`; a non-string key on a dict follows [Dict Keys Are Strings](topic-types.md); a missing key or an out-of-range index halts `RILL-R009`.
 
-Terminal closures receive `$` bound to the final path key.
+Terminal block-closures receive `$` bound to the final path key. A zero-parameter `|| { ... }` closure is returned unevaluated; call it with `$()`.
 
 ```text
 ["name", "given"] -> [name: dict[given: "Alice"]]              # "Alice" (dict path)

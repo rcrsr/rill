@@ -184,10 +184,9 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
       expect(result).toBe(42);
     });
 
-    it('invokes closure at terminal for single-element path (AC-22)', async () => {
-      // AC-22: Single-element path with closure
+    it('returns a zero-param closure at the terminal of a single-element path', async () => {
       const result = await run('list["fn"] -> dict[fn: ||("value")]');
-      expect(result).toBe('value');
+      expect(result).toMatchObject({ __type: 'callable', kind: 'script' });
     });
   });
 
@@ -245,13 +244,10 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
       );
     });
 
-    it('propagates closure body errors (EC-10)', async () => {
-      // EC-10: Closure body error propagates to caller
-      // Note: ||{ error "boom" } is zero-param closure with error in body
-      // ||({ error "boom" }) would return block-closure as value
+    it('propagates closure body errors when the returned closure is called', async () => {
       await expect(
         run(
-          'list["fn", "nested"] -> dict[fn: dict[nested: ||{ error "boom" }]]'
+          'list["fn", "nested"] -> dict[fn: dict[nested: ||{ error "boom" }]] -> $()'
         )
       ).rejects.toThrow(/boom/);
     });

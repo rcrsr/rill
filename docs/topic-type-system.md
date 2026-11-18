@@ -591,7 +591,7 @@ A type member matches by type. A literal member matches by equality. A closed se
 # Result: "c"
 ```
 
-A comparison against a value outside the set halts `#TYPE_MISMATCH`, so a misspelled member cannot pass as false. See [Operators](topic-operators.md) for the comparison forms.
+A comparison between a declared set and a literal outside it halts `#TYPE_MISMATCH`, so a misspelled member cannot pass as false. Closed-set checks apply only when an operand carries a declared set. See [Operators](topic-operators.md) for the comparison forms.
 
 ```rill
 #wired => $kind:union(#wired, #wireless)

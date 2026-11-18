@@ -147,7 +147,7 @@ describe('Rill Language: equality gate', () => {
       async (_op, expr) => {
         await expectHalt(() => run(setup + expr), {
           code: 'TYPE_MISMATCH',
-          messagePattern: 'wirless',
+          messagePattern: 'with atom',
         });
       }
     );

@@ -41,24 +41,20 @@ describe('Unified Dispatch', () => {
   });
 
   describe('Closure Auto-Invocation', () => {
-    it('auto-invokes closure value in dict dispatch (AC-9)', async () => {
-      // AC-9: Closure value is auto-invoked when dispatched
-      // Zero-param closure invoked with args=[], pipeValue="fn", returns "result"
+    it('returns a zero-param closure value in dict dispatch unevaluated', async () => {
       const result = await run(`
         dict[fn: ||{ "result" }] => $dict
         "fn" -> $dict
       `);
-      expect(result).toBe('result');
+      expect(result).toMatchObject({ __type: 'callable', kind: 'script' });
     });
 
-    it('auto-invokes closure value in list dispatch (AC-10)', async () => {
-      // AC-10: Closure value is auto-invoked when indexed
-      // Zero-param closure invoked with args=[], pipeValue=0
+    it('returns a zero-param closure value in list dispatch unevaluated', async () => {
       const result = await run(`
         list[||{ "first" }] => $list
         0 -> $list
       `);
-      expect(result).toBe('first');
+      expect(result).toMatchObject({ __type: 'callable', kind: 'script' });
     });
   });
 
@@ -435,14 +431,12 @@ describe('Unified Dispatch', () => {
       expect(result).toBe(1);
     });
 
-    it('propagates closure body runtime error during dispatch (EC-9)', async () => {
-      // EC-9: Closure body runtime error should propagate with original error code
-      // Zero-param closures receive $ binding and execute their body correctly
+    it('propagates closure body runtime error when the returned closure is called', async () => {
       await expectHalt(
         () =>
           run(`
           list[||{ $undefined }] => $list
-          0 -> $list
+          0 -> $list -> $()
         `),
         {
           code: 'RILL_R005',

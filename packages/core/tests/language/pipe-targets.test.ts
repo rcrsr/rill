@@ -654,6 +654,17 @@ $h(1, 2) }`;
         3,
       ],
       ['a block with a guard reading $', '3 -> { guard { $ } }', 3],
+      ['a block with a piped conditional', 'true -> { ? "a" ! "b" }', 'a'],
+      [
+        'a block with a while loop seeded from $',
+        '5 -> { while (false) do { $ + 1 } }',
+        5,
+      ],
+      [
+        'a block with a do-while loop seeded from $',
+        '5 -> { do { $ + 1 } while (false) }',
+        6,
+      ],
     ])('accepts %s', async (_label, source, expected) => {
       expect(await run(source)).toEqual(expected);
     });

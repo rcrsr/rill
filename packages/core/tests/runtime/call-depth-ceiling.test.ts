@@ -79,11 +79,10 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
   });
 
   it('bounds recursion driven through the no-call-site auto-invoke dispatch path', async () => {
-    // `$f` is never called with `(...)` here; every recursive step is a
-    // dispatch-selected zero-param closure reference, which routes through
-    // invokeCallable's no-location dispatch branch exclusively.
+    // Dispatch of a zero-param script closure returns it unevaluated, so the
+    // recursion is driven by a block-closure that dispatch invokes with the key.
     const script = `
-      || { "a" -> dict[a: $f] } => $f
+      { "a" -> dict[a: $f] } => $f
       "a" -> dict[a: $f]
     `;
     await expectHalt(() => run(script, { maxCallDepth: 50 }), {

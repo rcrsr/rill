@@ -119,8 +119,8 @@ describe('Rill Language: String Literal Dict Keys', () => {
       expect(result).toBe('is blocked');
     });
 
-    it('dispatches with string keys and closure values', async () => {
-      const result = await run('"status" -> dict["status": ||{ $ -> .upper }]');
+    it('dispatches with string keys and block-closure values', async () => {
+      const result = await run('"status" -> dict["status": { $ -> .upper }]');
       expect(result).toBe('STATUS');
     });
 
@@ -176,7 +176,7 @@ describe('Rill Language: String Literal Dict Keys', () => {
         $type -> dict[
           "blocked": ||{ "blocked" -> .upper },
           "error": ||{ "error" -> .len }
-        ]
+        ] -> $()
       `;
       const result = await run(script);
       expect(result).toBe(5);

@@ -410,7 +410,9 @@ export function walkAst(root: ASTNode, visit: (node: ASTNode) => void): void {
  *
  * `written` counts a pipe variable (`$`, `$.x`, the implicit receiver of a
  * leading `.method`, the phantom receiver of `.?x`, a bare `...` spread).
- * `used` adds `pass` and `pass { }`. A call with no arguments does not count.
+ * Unseeded `while` and `do-while` loops and a conditional with no condition
+ * also count, since each reads `$` implicitly. `used` adds `pass` and
+ * `pass { }`. A call with no arguments does not count.
  *
  * The walk does not enter a closure, a block other than a construct body that
  * inherits `$` (conditional branches and guard, retry, timeout, and pass
@@ -456,7 +458,16 @@ export function readsPipeValue(
         inheriting.add(node.body);
         children = astChildren(node);
         break;
+      case 'WhileLoop':
+        // A while loop seeds its accumulator from the piped value.
+        return true;
+      case 'DoWhileLoop':
+        if (node.input === null) return true;
+        children = astChildren(node);
+        break;
       case 'Conditional':
+        // The piped form `? a ! b` takes `$` as its condition.
+        if (node.condition === null && node.input === null) return true;
         inheriting.add(node.thenBranch);
         if (node.elseBranch !== null) inheriting.add(node.elseBranch);
         children = astChildren(node);

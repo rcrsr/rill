@@ -232,6 +232,21 @@ export function carriedListElement(
 }
 
 /**
+ * The structure to print for an operand. An undeclared scalar was wrapped as
+ * a literal only to be judged; print its kind so the halt never carries the
+ * value itself.
+ */
+function messageStructure(
+  operand: Carried,
+  structure: TypeStructure
+): TypeStructure {
+  if (operand.declared === undefined && isStructureKind(structure, 'literal')) {
+    return { kind: inferType(operand.value) };
+  }
+  return structure;
+}
+
+/**
  * Halt `#TYPE_MISMATCH` (catchable) when the operands' types cannot overlap.
  * When either operand carries a declared type, a dict key present on one side
  * only passes, as it does when the value is matched against that type.
@@ -256,8 +271,8 @@ export function requireOverlap(
     left.declared !== undefined
   );
   if (overlaps(l, r, lenient)) return;
-  const lt = formatStructure(l);
-  const rt = formatStructure(r);
+  const lt = formatStructure(messageStructure(left, l));
+  const rt = formatStructure(messageStructure(right, r));
   throwTypeHalt(
     site,
     'TYPE_MISMATCH',
