@@ -142,10 +142,8 @@ export function rejectParameterizedClosure(
 }
 
 /**
- * Resolve a callable selected by dispatch. A callable with params receives the
- * key as its argument. A zero-param script closure is returned unevaluated, as
- * the `fn {}` form does: dispatch binds no implied `$` for it. A zero-param
- * host callable still runs, with the key as `$`.
+ * Invoke a callable selected by dispatch. A callable with params receives the
+ * key as its argument; a zero-param callable runs with the key as `$`.
  */
 export async function invokeSelected(
   s: EvalState,
@@ -161,7 +159,6 @@ export async function invokeSelected(
   if (hasParams) {
     return await invokeCallable(s, callable, [key], location);
   }
-  if (callable.kind === 'script') return callable;
   const savedPipeValue = s.ctx.pipeValue;
   s.ctx.pipeValue = key;
   try {
@@ -317,8 +314,7 @@ async function resolveIntermediateClosure(
  *
  * Behavior:
  * - Block-closures (params.length > 0, first param is '$'): invoke with args = [finalKey]
- * - Zero-param script closures: returned unevaluated
- * - Zero-param host callables: invoke with pipeValue = finalKey
+ * - Zero-param closures: invoke with pipeValue = finalKey
  * - Parameterized closures: throw error (dispatch does not provide args)
  * - Non-callable: return unchanged
  *

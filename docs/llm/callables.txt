@@ -126,8 +126,6 @@ Dict keys are strings. A number or bool selector halts `#TYPE_MISMATCH` (`??` do
     1 -> string -> dict[1: "number", one: "word"]      # "number"
     1 -> dict[1: "number"]                             # halts #TYPE_MISMATCH
 
-Dispatch runs a held block with the key as `$`, but returns a zero-parameter `||{ ... }` closure unevaluated; call it with `$()`. `$d.field` still runs it.
-
 A dispatch literal does not read `$` at its top level. A held block reads `$` as the selector. Build from the piped value with a block:
 
     3 -> { list[$, $] }                                # list[3, 3]

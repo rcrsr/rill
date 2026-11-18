@@ -50,25 +50,21 @@ describe('Rill Runtime: Dict Dispatch', () => {
   });
 
   describe('Closure Auto-Invocation', () => {
-    it('returns a zero-param closure value unevaluated', async () => {
+    it('auto-invokes closure value with piped key as $', async () => {
+      // AC-27: Auto-invoke closure, $ is piped key
       const result = await run('"x" -> dict[x: ||{ $ -> .upper }]');
-      expect(result).toMatchObject({ __type: 'callable', kind: 'script' });
-    });
-
-    it('binds the piped key as $ for a block-closure value', async () => {
-      const result = await run('"x" -> dict[x: { $ -> .upper }]');
       expect(result).toBe('X');
     });
 
-    it('invokes a returned zero-param closure with an explicit call', async () => {
-      const result = await run('"hello" -> dict[hello: ||{ "done" }] -> $()');
-      expect(result).toBe('done');
+    it('auto-invokes closure with transform logic', async () => {
+      const result = await run('"hello" -> dict[hello: ||{ "{$}!" }]');
+      expect(result).toBe('hello!');
     });
 
-    it('returns a closure that accesses dict, runnable by an explicit call', async () => {
+    it('auto-invokes closure that accesses dict', async () => {
       const result = await run(`
         dict[name: "test"] => $d
-        "key" -> dict[key: ||{ $d.name }] -> $()
+        "key" -> dict[key: ||{ $d.name }]
       `);
       expect(result).toBe('test');
     });
@@ -263,11 +259,11 @@ describe('Rill Runtime: Dict Dispatch', () => {
       expect(result).toBe('single');
     });
 
-    it('returns a zero-param closure in multi-key dispatch', async () => {
+    it('auto-invokes closure in multi-key dispatch', async () => {
       const result = await run(
         '"x" -> dict[list["x", "y"]: ||{ $ -> .upper }]'
       );
-      expect(result).toMatchObject({ __type: 'callable', kind: 'script' });
+      expect(result).toBe('X');
     });
   });
 

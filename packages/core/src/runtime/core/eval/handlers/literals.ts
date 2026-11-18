@@ -872,9 +872,9 @@ export async function evaluateDictDispatch(
 }
 
 /**
- * Resolve dispatch value: a block-closure is invoked with the input as `$`,
- * a zero-param script closure is returned unevaluated, and any other value is
- * returned as-is. Closures with user-named params throw.
+ * Resolve dispatch value: auto-invoke if closure, otherwise return as-is.
+ * Zero-param closures (block-closures) are invoked with args = [] and pipeValue = input.
+ * Parameterized closures (1+ params) throw error.
  */
 async function resolveDispatchValue(
   s: EvalState,
