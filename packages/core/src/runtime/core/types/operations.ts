@@ -168,10 +168,9 @@ export function formatRillLiteral(value: RillValue): string {
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (value === null) return 'null';
 
-  // List: bare bracket form [elem, ...]
+  // List: list[elem, ...]
   if (Array.isArray(value)) {
-    if (value.length === 0) return '[]';
-    return `[${value.map(formatRillLiteral).join(', ')}]`;
+    return `list[${value.map(formatRillLiteral).join(', ')}]`;
   }
 
   // Tuple: tuple[elem, ...]
@@ -201,14 +200,12 @@ export function formatRillLiteral(value: RillValue): string {
   // Atom: #name
   if (isAtom(value)) return `#${value.atom.name}`;
 
-  // Dict: bare bracket form [key: val, ...] or [:] for empty
+  // Dict: dict[key: val, ...]; dict[] for empty
   if (isDict(value)) {
-    const entries = Object.entries(value);
-    if (entries.length === 0) return '[:]';
-    const inner = entries
+    const inner = Object.entries(value)
       .map(([k, v]) => `${formatFieldKey(k)}: ${formatRillLiteral(v)}`)
       .join(', ');
-    return `[${inner}]`;
+    return `dict[${inner}]`;
   }
 
   return registryFormatValue(value);

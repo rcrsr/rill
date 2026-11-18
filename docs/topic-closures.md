@@ -647,7 +647,7 @@ A typed closure may use a body without braces, such as `|x: number| $x` or `|x: 
 
 ```rill
 [1, 2, 3] -> fan(|x: number| $x, dict[concurrency: 2])
-# Result: [1, 2, 3]
+# Result: list[1, 2, 3]
 ```
 
 ```rill

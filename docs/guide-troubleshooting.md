@@ -212,7 +212,7 @@ List spread requires a list or tuple operand. Dict spread requires a dict operan
 ```rill
 "hello" -> .split("") => $chars
 [...$chars]
-# Result: ["h", "e", "l", "l", "o"]
+# Result: list["h", "e", "l", "l", "o"]
 ```
 
 ## Closure Parameter Count
@@ -286,7 +286,7 @@ Insert `:type` assertions at pipe boundaries to catch unexpected types early.
 
 ```rill
 [1, 2, 3] -> :list(number) -> fan({ $ * 2 })
-# Result: [2, 4, 6]
+# Result: list[2, 4, 6]
 ```
 
 ## Stream Pitfalls

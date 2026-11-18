@@ -61,14 +61,14 @@ Pipes chain naturally:
 
 ```rill
 "  hello world  " -> .trim -> .split(" ")
-# Result: ["hello", "world"]
+# Result: list["hello", "world"]
 ```
 
 Methods can also chain directly without `->`:
 
 ```rill
 "  hello world  ".trim.split(" ")
-# Result: ["hello", "world"]
+# Result: list["hello", "world"]
 ```
 
 Each `->` passes its left side to its right side. The result flows through the chain.
@@ -160,13 +160,13 @@ Methods are called with `.name()` syntax. The pipe value becomes the implicit fi
 
 ```rill
 "hello world" -> .split(" ")
-# Result: ["hello", "world"]
+# Result: list["hello", "world"]
 
 "hello" -> .contains("ell")
 # Result: true
 
 [1, 2, 3] -> fan(|x|($x * 2))
-# Result: [2, 4, 6]
+# Result: list[2, 4, 6]
 ```
 
 Common string methods: `.len`, `.trim`, `.split()`, `.contains()`, `.match()`, `.is_match()`, `.lower`, `.upper`, `.replace()`, `.replace_all()`
@@ -223,7 +223,7 @@ Iterate over a list with `seq({ body })`:
 
 ```rill
 [1, 2, 3] -> seq({ $ * 2 })
-# Result: [2, 4, 6]
+# Result: list[2, 4, 6]
 ```
 
 Inside the loop body, `$` is the current element. The loop collects all body results into a new list.
@@ -250,7 +250,7 @@ Use `break` to exit a loop early:
   ($ == 3) ? break
   $
 })
-# Result: [1, 2]
+# Result: list[1, 2]
 ```
 
 ## Closures (Functions)
@@ -264,7 +264,7 @@ Define reusable logic with closure syntax `|params| body`. See [Closures](topic-
 # Result: 10
 
 [1, 2, 3] -> fan($double)
-# Result: [2, 4, 6]
+# Result: list[2, 4, 6]
 ```
 
 ### Multiple Parameters

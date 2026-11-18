@@ -177,7 +177,7 @@ The `$` inside `$inc($)` is a top-level `$` in the argument list of `$double`, s
 
 ```rill
 [[active: true, name: "a"], [active: false, name: "b"], [active: true, name: "c"]] -> filter({ $.active })
-# Result: [[active: true, name: "a"], [active: true, name: "c"]]
+# Result: list[dict[active: true, name: "a"], dict[active: true, name: "c"]]
 ```
 
 The `$` inside `{ $.active }` is inside a closure boundary. The scanner stops there and finds no top-level `$`. Auto-prepend activates: the list is prepended as the first argument to `filter`, and the closure is passed as the second argument. Inside the closure body, `$` is late-bound to each element during iteration.
@@ -186,7 +186,7 @@ The `$` inside `{ $.active }` is inside a closure boundary. The scanner stops th
 
 ```rill
 [[1, 2, 3], [4, 5, 6]] -> seq({ $ -> seq({ $ * 2 }) })
-# Result: [[2, 4, 6], [8, 10, 12]]
+# Result: list[list[2, 4, 6], list[8, 10, 12]]
 ```
 
 Both the outer `{ $ -> ... }` and the inner `{ $ * 2 }` use late-bound `$`. Neither counts toward the pipe-site scan for the top-level `seq` call. Auto-prepend places the list as the first argument.
@@ -690,7 +690,7 @@ Pipe a list path to a target structure. Path elements are applied sequentially:
 
 ```rill
 [] -> [name: "test"]
-# Result: [name: "test"] (unchanged)
+# Result: dict[name: "test"]
 ```
 
 ### Error Handling

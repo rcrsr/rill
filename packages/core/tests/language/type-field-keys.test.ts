@@ -83,6 +83,40 @@ describe('Rill Language: Type Field Keys', () => {
     });
   });
 
+  describe('printing defaults', () => {
+    it.each([
+      [
+        'dict(a: dict(x: number) = dict[x: 1])',
+        'dict(a: dict(x: number) = dict[x: 1])',
+      ],
+      ['dict(a: dict() = dict[])', 'dict(a: dict = dict[])'],
+      [
+        'dict(a: list(number) = list[1, 2])',
+        'dict(a: list(number) = list[1, 2])',
+      ],
+      ['dict(a: list = list[])', 'dict(a: list = list[])'],
+      [
+        'dict(a: dict("b c": number) = dict["b c": 1])',
+        'dict(a: dict("b c": number) = dict["b c": 1])',
+      ],
+    ])('prints %s as %s', async (src, printed) => {
+      expect(await run(`${src}.signature`)).toBe(printed);
+    });
+
+    it.each([
+      'dict(a: dict(x: number) = dict[x: 1])',
+      'dict(a: dict() = dict[])',
+      'dict(a: list(number) = list[1, 2])',
+      'dict(a: list = list[])',
+    ])(
+      'parses the printed signature of %s back to an equal type',
+      async (src) => {
+        const printed = await run(`${src}.signature`);
+        expect(await run(`${printed} == ${src}`)).toBe(true);
+      }
+    );
+  });
+
   describe('other constructors', () => {
     it.each(['tuple("a": number)', 'list("a": number)'])(
       'keeps %s a parse error other than RILL-P027',

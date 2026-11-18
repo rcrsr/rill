@@ -35,19 +35,19 @@ All operators chain with `->`. Error contracts apply identically to list and str
 
 ```rill
 range(1, 11) -> take(5)
-# Result: [1, 2, 3, 4, 5]
+# Result: list[1, 2, 3, 4, 5]
 ```
 
 ```rill
 # take from a list
 [10, 20, 30, 40, 50] -> take(3)
-# Result: [10, 20, 30]
+# Result: list[10, 20, 30]
 ```
 
 ```rill
 # take more than available — returns all elements
 [1, 2, 3] -> take(10)
-# Result: [1, 2, 3]
+# Result: list[1, 2, 3]
 ```
 
 ### With cycle
@@ -56,7 +56,7 @@ range(1, 11) -> take(5)
 
 ```rill
 [1, 2, 3] -> cycle -> take(6)
-# Result: [1, 2, 3, 1, 2, 3]
+# Result: list[1, 2, 3, 1, 2, 3]
 ```
 
 ### Edge Cases and Errors
@@ -91,19 +91,19 @@ $r.!code -> string
 
 ```rill
 range(1, 11) -> skip(3)
-# Result: [4, 5, 6, 7, 8, 9, 10]
+# Result: list[4, 5, 6, 7, 8, 9, 10]
 ```
 
 ```rill
 # skip from a list
 [10, 20, 30, 40, 50] -> skip(2)
-# Result: [30, 40, 50]
+# Result: list[30, 40, 50]
 ```
 
 ```rill
 # skip more than available — returns empty
 [1, 2, 3] -> skip(10)
-# Result: []
+# Result: list[]
 ```
 
 ### Combining take and skip
@@ -113,7 +113,7 @@ Use `skip` then `take` to extract a slice by position.
 ```rill
 # Elements at positions 3-5 (0-indexed)
 range(1, 11) -> skip(3) -> take(3)
-# Result: [4, 5, 6]
+# Result: list[4, 5, 6]
 ```
 
 ### Edge Cases and Errors
@@ -139,19 +139,19 @@ range(1, 11) -> skip(-1)
 
 ```rill
 [1, 2, 3] -> cycle -> take(6)
-# Result: [1, 2, 3, 1, 2, 3]
+# Result: list[1, 2, 3, 1, 2, 3]
 ```
 
 ```rill
 # Repeat a single element
 ["x"] -> cycle -> take(4)
-# Result: ["x", "x", "x", "x"]
+# Result: list["x", "x", "x", "x"]
 ```
 
 ```rill
 # Use in a pipeline
 [1, 2] -> cycle -> take(5) -> seq({ $ * 10 })
-# Result: [10, 20, 10, 20, 10]
+# Result: list[10, 20, 10, 20, 10]
 ```
 
 ### Iteration Ceiling
@@ -168,7 +168,7 @@ Pair `cycle` with `take(n)` to stay within bounds. `seq` also pulls from `cycle`
 
 ```rill
 [1, 2, 3] -> cycle -> seq({ ($ == 3) ? break ! $ })
-# Result: [1, 2]
+# Result: list[1, 2]
 ```
 
 A `seq` body that never calls `break` still halts with `#RILL_R010` at 10,000 elements.
@@ -179,7 +179,7 @@ A `seq` body that never calls `break` still halts with `#RILL_R010` at 10,000 el
 
 ```rill
 [] -> cycle -> take(5)
-# Result: []
+# Result: list[]
 ```
 
 ---
@@ -192,12 +192,12 @@ A `seq` body that never calls `break` still halts with `#RILL_R010` at 10,000 el
 
 ```rill
 range(1, 11) -> batch(3)
-# Result: [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10]]
+# Result: list[list[1, 2, 3], list[4, 5, 6], list[7, 8, 9], list[10]]
 ```
 
 ```rill
 range(1, 7) -> batch(2)
-# Result: [[1, 2], [3, 4], [5, 6]]
+# Result: list[list[1, 2], list[3, 4], list[5, 6]]
 ```
 
 ### Dropping the Partial Chunk
@@ -206,7 +206,7 @@ Pass `dict[drop_partial: true]` to discard any trailing chunk shorter than `n`.
 
 ```rill
 range(1, 11) -> batch(3, dict[drop_partial: true])
-# Result: [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+# Result: list[list[1, 2, 3], list[4, 5, 6], list[7, 8, 9]]
 ```
 
 ### Combining with Collection Operators
@@ -215,7 +215,7 @@ Each chunk is a list. Chain `seq` or `fold` to process chunks.
 
 ```rill
 range(1, 10) -> batch(3) -> seq({ $ -> fold(0, { $@ + $ }) })
-# Result: [6, 15, 24]
+# Result: list[6, 15, 24]
 ```
 
 ### Idle Flush (`idle_flush: duration`)
@@ -250,7 +250,7 @@ When the idle timer expires and the buffer is non-empty, the partial batch flush
 
 ```rill
 [] -> batch(3)
-# Result: []
+# Result: list[]
 ```
 
 ```text
@@ -268,13 +268,13 @@ When the idle timer expires and the buffer is non-empty, the partial batch flush
 
 ```rill
 range(1, 7) -> window(3)
-# Result: [[1, 2, 3], [4, 5, 6]]
+# Result: list[list[1, 2, 3], list[4, 5, 6]]
 ```
 
 ```rill
 # Overlapping windows: step smaller than n
 range(1, 7) -> window(3, 2)
-# Result: [[1, 2, 3], [3, 4, 5], [5, 6]]
+# Result: list[list[1, 2, 3], list[3, 4, 5], list[5, 6]]
 ```
 
 ### Step Behaviors
@@ -288,7 +288,7 @@ range(1, 7) -> window(3, 2)
 ```rill
 # step > n: gaps between windows
 range(1, 11) -> window(2, 4)
-# Result: [[1, 2], [5, 6], [9, 10]]
+# Result: list[list[1, 2], list[5, 6], list[9, 10]]
 ```
 
 ### Partial Windows at the End
@@ -308,7 +308,7 @@ When the remaining elements are fewer than `n`, they form a partial window. Use 
 
 ```rill
 [1, 2] -> window(5)
-# Result: [[1, 2]]
+# Result: list[list[1, 2]]
 ```
 
 ```text
@@ -326,12 +326,12 @@ When the remaining elements are fewer than `n`, they form a partial window. Use 
 
 ```rill
 range(1, 8) -> start_when({ $ > 4 })
-# Result: [5, 6, 7]
+# Result: list[5, 6, 7]
 ```
 
 ```rill
 ["a", "b", "START", "c", "d"] -> start_when({ $ == "START" })
-# Result: ["START", "c", "d"]
+# Result: list["START", "c", "d"]
 ```
 
 ### Using a Named Closure
@@ -339,7 +339,7 @@ range(1, 8) -> start_when({ $ > 4 })
 ```rill
 |x| ($x > 3) => $threshold
 range(1, 8) -> start_when($threshold)
-# Result: [4, 5, 6, 7]
+# Result: list[4, 5, 6, 7]
 ```
 
 ### When the Predicate Never Matches
@@ -348,7 +348,7 @@ If no element satisfies the predicate, `start_when` returns an empty result.
 
 ```rill
 [1, 2, 3] -> start_when({ $ > 100 })
-# Result: []
+# Result: list[]
 ```
 
 ### Combining with stop_when
@@ -357,7 +357,7 @@ Chain `start_when` and `stop_when` to extract a slice gated by content condition
 
 ```rill
 range(1, 11) -> start_when({ $ >= 3 }) -> stop_when({ $ >= 7 })
-# Result: [3, 4, 5, 6, 7]
+# Result: list[3, 4, 5, 6, 7]
 ```
 
 ### Error Contracts
@@ -383,12 +383,12 @@ range(1, 11) -> start_when({ $ >= 3 }) -> stop_when({ $ >= 7 })
 
 ```rill
 range(1, 11) -> stop_when({ $ >= 5 })
-# Result: [1, 2, 3, 4, 5]
+# Result: list[1, 2, 3, 4, 5]
 ```
 
 ```rill
 ["a", "b", "STOP", "c", "d"] -> stop_when({ $ == "STOP" })
-# Result: ["a", "b", "STOP"]
+# Result: list["a", "b", "STOP"]
 ```
 
 ### The Matching Element is Included
@@ -401,7 +401,7 @@ If no element satisfies the predicate, `stop_when` returns all elements.
 
 ```rill
 [1, 2, 3] -> stop_when({ $ > 100 })
-# Result: [1, 2, 3]
+# Result: list[1, 2, 3]
 ```
 
 ### Using a Named Closure
@@ -409,7 +409,7 @@ If no element satisfies the predicate, `stop_when` returns all elements.
 ```rill
 |x| ($x == 5) => $atFive
 range(1, 11) -> stop_when($atFive)
-# Result: [1, 2, 3, 4, 5]
+# Result: list[1, 2, 3, 4, 5]
 ```
 
 ### Error Contracts
@@ -578,7 +578,7 @@ All body forms discard the body's result. The value before `pass` continues down
 
 ```rill
 range(1, 4) -> seq({ $ * 10 }) -> pass { log($) }
-# Result: [10, 20, 30]
+# Result: list[10, 20, 30]
 ```
 
 ### Error Suppression
@@ -617,7 +617,7 @@ These are three distinct constructs:
 ```rill
 # Bare pass in expression — references the piped value inside a conditional
 [1, -2, 3, -4] -> fan({ ($ > 0) ? pass ! 0 })
-# Result: [1, 0, 3, 0]
+# Result: list[1, 0, 3, 0]
 ```
 
 ```rill
@@ -638,7 +638,7 @@ These are three distinct constructs:
 
 ```rill
 range(1, 6) -> filter({ ($ % 2) == 0 }) -> pass { log($) } -> seq({ $ * 100 })
-# Result: [200, 400]
+# Result: list[200, 400]
 ```
 
 ### Async Fire-and-Forget (`pass<async: true>`)

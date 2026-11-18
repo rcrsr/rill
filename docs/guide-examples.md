@@ -142,7 +142,7 @@ Pipeline operators for fan, fold, seq, filter, and aggregate patterns.
   ($ == 3) ? break
   $ * 2
 }) => $result
-# Result: [2, 4]
+# Result: list[2, 4]
 ```
 
 `seq` catches the break signal and returns the partial results list. Elements processed before break are included; the element that triggered break is not.
@@ -150,7 +150,7 @@ Pipeline operators for fan, fold, seq, filter, and aggregate patterns.
 ```rill
 # Use filter to find matching elements
 [1, 2, 3, 4, 5] -> filter({ .gt(3) })
-# Result: [4, 5]
+# Result: list[4, 5]
 ```
 
 ### Aggregate/Sum

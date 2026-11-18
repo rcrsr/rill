@@ -104,7 +104,7 @@ $events -> fold([current: "idle", history: []], {
     [current: $next, history: [...$@.history, $next]]
   } ! $@
 })
-# Result: [current: "running", history: ["running", "paused", "running"]]
+# Result: dict[current: "running", history: list["running", "paused", "running"]]
 ```
 
 ### Guard Conditions
@@ -152,7 +152,7 @@ $transition.?guard ? {
     ! $ctx
   -> [...$, state: $transition.next]
 }
-# Result: [state: "unlocked", coins: 1]
+# Result: dict[state: "unlocked", coins: 1]
 ```
 
 ### Hierarchical State Machine
@@ -192,7 +192,7 @@ $state -> .split(".") => $path
 
 # Navigate to current state config
 $path -> fold($machine, { $@.$  })
-# Result: [pause: "paused", slow: "playing.slow", fast: "playing.fast"]
+# Result: dict[fast: "playing.fast", pause: "paused", slow: "playing.slow"]
 ```
 
 ## Dispatch Patterns
@@ -213,7 +213,7 @@ Route values through different processors based on type or content:
 "{\"name\": \"test\"}" => $body
 
 $contentType -> $parsers -> |parser|{ $parser($body) }
-# Result: [name: "test"]
+# Result: dict[name: "test"]
 ```
 
 ### Multi-Key Dispatch
@@ -229,7 +229,7 @@ Map multiple inputs to the same handler:
 ] => $routes
 
 "POST" -> $routes
-# Result: [handler: "write", safe: false]
+# Result: dict[handler: "write", safe: false]
 ```
 
 ### Default Handlers
@@ -270,7 +270,7 @@ $values -> fold([sum: 0, count: 0, min: 999999, max: -999999], {
 }) => $stats
 
 [...$stats, avg: $stats.sum / $stats.count]
-# Result: [sum: 326, count: 7, min: 12, max: 89, avg: 46.57...]
+# Result: dict[sum: 326, count: 7, min: 12, max: 89, avg: 46.57...]
 ```
 
 ### Grouping
@@ -295,7 +295,7 @@ $employees -> fold([], {
     [...$@, ($$.dept): [$$.name]]
   }
 })
-# Result: [Engineering: ["Alice", "Carol"], Sales: ["Bob", "Dave"]]
+# Result: dict[Engineering: list["Alice", "Carol"], Sales: list["Bob", "Dave"]]
 ```
 
 ### Deduplication
@@ -309,7 +309,7 @@ $items -> fold([seen: [], result: []], {
   $ => $item
   $@.seen -> .has($item) ? [seen: $@.seen, result: $@.result] ! dict[seen: [...$@.seen, $item], result: list[...$@.result, $item]]
 }) -> .result
-# Result: ["a", "b", "c", "d"]
+# Result: list["a", "b", "c", "d"]
 ```
 
 ## Control Flow Patterns
@@ -327,7 +327,7 @@ $formData -> {
   ($.age < 18) ? ([valid: false, err: "Must be 18+"] -> return)
   [valid: true, data: $]
 }
-# Result: [valid: false, err: "Username required"]
+# Result: dict[err: "Username required", valid: false]
 ```
 
 ### Retry with Backoff
@@ -349,7 +349,7 @@ Retry an operation with exponential backoff:
 } => $final
 
 $final.?ok ? $final ! [ok: false, err: "Max retries exceeded"]
-# Result: [ok: true, data: "Success"]
+# Result: dict[data: "Success", ok: true]
 ```
 
 ### Pipeline with Short-Circuit
@@ -383,7 +383,7 @@ $pipelineInput -> {
   $step3($r2.value) => $r3
   $r3
 }
-# Result: [ok: false, err: "Must contain HELLO"]
+# Result: dict[err: "Must contain HELLO", ok: false]
 ```
 
 ## Data Transformation
@@ -398,7 +398,7 @@ Flatten arbitrarily nested lists:
 
 # Flatten one level
 $nested -> fold([], { [...$@, ...$] })
-# Result: [1, 2, 3, 4, 5, 6]
+# Result: list[1, 2, 3, 4, 5, 6]
 ```
 
 ### Transpose Matrix
@@ -415,7 +415,7 @@ Convert rows to columns:
 range(0, $matrix[0] -> .len) -> fan(|col|{
   $matrix -> fan(|row|{ $row[$col] })
 })
-# Result: [[1, 4, 7], [2, 5, 8], [3, 6, 9]]
+# Result: list[list[1, 4, 7], list[2, 5, 8], list[3, 6, 9]]
 ```
 
 ### Zip Lists
@@ -429,7 +429,7 @@ Combine parallel lists into dicts:
 range(0, $zipKeys -> .len) -> fan(|i|{
   [key: $zipKeys[$i], value: $zipValues[$i]]
 })
-# Result: [[key: "a", value: 1], [key: "b", value: 2], [key: "c", value: 3]]
+# Result: list[dict[key: "a", value: 1], dict[key: "b", value: 2], dict[key: "c", value: 3]]
 ```
 
 Converting to a dict requires dict spread (not yet implemented):
@@ -439,7 +439,7 @@ Converting to a dict requires dict spread (not yet implemented):
 range(0, $zipKeys -> .len) -> fold([], |i|{
   [...$@, ($zipKeys[$i]): $zipValues[$i]]
 })
-# Result: [a: 1, b: 2, c: 3]
+# Result: dict[a: 1, b: 2, c: 3]
 ```
 
 ## String Processing
@@ -473,7 +473,7 @@ $input
     $ -> .split("=") -> destruct<$key, $value>
     [...$@, ($key): $value]
   })
-# Result: [name: "Alice", age: "30", city: "Seattle"]
+# Result: dict[name: "Alice", age: "30", city: "Seattle"]
 ```
 
 ### Word Frequency
@@ -492,7 +492,7 @@ $text
       ? [...$@, ($): $@.$ + 1]
       ! [...$@, ($): 1]
   })
-# Result: [the: 3, quick: 1, brown: 1, fox: 2, jumps: 1, over: 1, lazy: 1, dog: 1]
+# Result: dict[the: 3, quick: 1, brown: 1, fox: 2, jumps: 1, over: 1, lazy: 1, dog: 1]
 ```
 
 ## Closure Patterns
@@ -597,7 +597,7 @@ $schema.entries -> fold([valid: true, errors: []], {
     } ! $@
   }
 })
-# Result: [valid: false, errors: ["age above maximum"]]
+# Result: dict[valid: false, errors: list["age above maximum"]]
 ```
 
 ## Extension Binding
@@ -885,7 +885,7 @@ Process a list in fixed-size chunks, applying an operation to each batch:
 
 ```rill
 range(1, 11) -> batch(3) -> seq({ log($) })
-# Result: [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10]]
+# Result: list[list[1, 2, 3], list[4, 5, 6], list[7, 8, 9], list[10]]
 ```
 
 `batch(3)` groups the 10-element range into chunks of 3. The trailing chunk `[10]` is kept because `drop_partial` defaults to `false`. Each chunk arrives as a list inside `seq`.
@@ -894,7 +894,7 @@ To discard the trailing short chunk, pass `drop_partial: true`:
 
 ```rill
 range(1, 11) -> batch(3, [drop_partial: true]) -> seq({ $ })
-# Result: [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+# Result: list[list[1, 2, 3], list[4, 5, 6], list[7, 8, 9]]
 ```
 
 ---
@@ -905,7 +905,7 @@ Repeat a pattern a fixed number of times by combining `cycle` with `take`:
 
 ```rill
 [1, 2, 3] -> cycle -> take(6)
-# Result: [1, 2, 3, 1, 2, 3]
+# Result: list[1, 2, 3, 1, 2, 3]
 ```
 
 `cycle` turns the list into an infinite iterator. `take(6)` extracts 6 elements before stopping. The source list length does not need to divide evenly into the count.
@@ -914,7 +914,7 @@ Use this to fill fixed-length slots with a repeating value set:
 
 ```rill
 ["a", "b"] -> cycle -> take(5)
-# Result: ["a", "b", "a", "b", "a"]
+# Result: list["a", "b", "a", "b", "a"]
 ```
 
 ---
@@ -927,21 +927,21 @@ Gate a stream to begin after a threshold:
 
 ```rill
 range(1, 8) -> start_when(|x| ($x > 3))
-# Result: [4, 5, 6, 7]
+# Result: list[4, 5, 6, 7]
 ```
 
 Gate a stream to stop at a threshold (the matching element is included):
 
 ```rill
 range(1, 8) -> stop_when(|x| ($x > 3))
-# Result: [1, 2, 3, 4]
+# Result: list[1, 2, 3, 4]
 ```
 
 Combine both to extract a bounded window from a larger stream:
 
 ```rill
 range(1, 20) -> start_when(|x| ($x >= 5)) -> stop_when(|x| ($x >= 10))
-# Result: [5, 6, 7, 8, 9, 10]
+# Result: list[5, 6, 7, 8, 9, 10]
 ```
 
 `start_when` discards elements before the first match. `stop_when` stops after the first match. Chaining them gives a precise range gate.
@@ -965,7 +965,7 @@ This pattern is useful when audit or observability calls must not interrupt the 
 range(1, 4) -> seq({
   $ -> pass<on_error: #IGNORE> { log($) }
 })
-# Result: [1, 2, 3]
+# Result: list[1, 2, 3]
 ```
 
 Each element is logged, then passed through to `seq`'s result list. A logging failure on any element does not abort the iteration.
@@ -974,7 +974,7 @@ Each element is logged, then passed through to `seq`'s result list. A logging fa
 ### Fibonacci via iterate
 ```rill
 iterate(dict[a: 0, b: 1], { dict[a: $.b, b: ($.a + $.b)] }) -> take(8) -> seq({ $.a })
-# Result: [0, 1, 1, 2, 3, 5, 8, 13]
+# Result: list[0, 1, 1, 2, 3, 5, 8, 13]
 ```
 The closure advances the Fibonacci pair at each step; `seq` extracts `$.a` from each emitted state.
 ### Timeout Recovery via `??`
