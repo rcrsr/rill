@@ -16,7 +16,7 @@ import {
 } from '@rcrsr/rill';
 import type { SchemeResolver, ResolverResult, RillValue } from '@rcrsr/rill';
 
-import { expectHalt } from '../helpers/halt.js';
+import { expectHalt, expectRuntimeError } from '../helpers/halt.js';
 import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
@@ -279,14 +279,17 @@ describe('Rill Language: use<> Expressions', () => {
         expect(result).toBe('invoked:hello');
       });
 
-      it('exposes the pipe value as $ to a resolved zero-param script closure', async () => {
-        const result = await run('"hello" -> use<module:greeter>', {
-          resolvers: {
-            module: sourceResolver('|| { "got:{$}" }'),
-          },
-          parseSource,
-        });
-        expect(result).toBe('got:hello');
+      it('halts when a resolved zero-param script closure receives the pipe value', async () => {
+        await expectRuntimeError(
+          () =>
+            run('"hello" -> use<module:greeter>', {
+              resolvers: {
+                module: sourceResolver('|| { "got:{$}" }'),
+              },
+              parseSource,
+            }),
+          { code: 'RILL-R045', messagePattern: /expects 0 arguments, got 1/ }
+        );
       });
 
       it('returns a non-callable resolved value unchanged', async () => {

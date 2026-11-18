@@ -65,6 +65,7 @@ describe('Rill Runtime: Variables', () => {
         await run(`
           "outer" => $x
           "" -> {
+            $
             $x -> .upper
           }
         `)
@@ -84,7 +85,7 @@ describe('Rill Runtime: Variables', () => {
 
     it('=> in loop body is per-iteration', async () => {
       expect(
-        await run('list[1, 2, 3] -> seq({ $ => $curr -> { $curr * 2 } })')
+        await run('list[1, 2, 3] -> seq({ $ => $curr -> { $ * 2 } })')
       ).toEqual([2, 4, 6]);
     });
   });
@@ -159,13 +160,11 @@ describe('Rill Runtime: Variables', () => {
     });
 
     it('updates $ per pipe stage', async () => {
-      expect(await run('"a" -> { "b" } -> { $ }')).toBe('b');
+      expect(await run('"a" -> .upper -> { $ }')).toBe('A');
     });
 
     it('$ reflects current pipe value in chain', async () => {
-      expect(await run('"first" -> { "second" } -> { "third" } -> { $ }')).toBe(
-        'third'
-      );
+      expect(await run('"first" -> .upper -> .lower -> { $ }')).toBe('first');
     });
 
     it('$ is undefined at script level without host context', async () => {

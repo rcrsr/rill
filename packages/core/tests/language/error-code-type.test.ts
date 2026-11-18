@@ -166,5 +166,22 @@ describe('Rill Language: error_code type', () => {
         code: 'RILL_R001',
       });
     });
+
+    it('compares .!code with #ok as a bool', async () => {
+      expect(await run('"x".!code == #ok')).toBe(true);
+    });
+
+    it('halts comparing .!code with an atom outside the set', async () => {
+      await expectHalt(() => run('"x".!code == #TIMEUOT'), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
+    it('lets guard catch the halt from a misspelled code comparison', async () => {
+      const result = (await run(
+        'guard { "x".!code == #TIMEUOT } => $r\n$r.!code'
+      )) as unknown;
+      expect(result).toEqual(atom('TYPE_MISMATCH'));
+    });
   });
 });

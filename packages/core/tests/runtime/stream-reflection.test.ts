@@ -341,6 +341,7 @@ describe('Scope Exit Cleanup', () => {
     await run(
       `
         "x" -> {
+          $
           make_stream("first") => $s1
           make_stream("second") => $s2
           "done"

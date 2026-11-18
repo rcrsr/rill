@@ -116,7 +116,7 @@ describe('Rill Language: Error Statement', () => {
     });
 
     it('throws from nested blocks (AC-BOUND-3)', async () => {
-      await expect(run('"" -> { "" -> { error "deep" } }')).rejects.toThrow(
+      await expect(run('"" -> { $ -> { $\nerror "deep" } }')).rejects.toThrow(
         'deep'
       );
     });

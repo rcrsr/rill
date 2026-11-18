@@ -50,8 +50,8 @@ assertion.position 2e7c23efe386
 assertion.short-form 7918b0e30fad
 assertion.unchanged d5063326e3a7
 assertion.variable fed79d94d6d4 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
-atom 2397e0528c8a equality.no-overlap@39f213f599cf
-atom.closed-set 786427d5625b
+atom 229131f0ba75 equality.no-overlap@39f213f599cf
+atom.closed-set 5d9f1de02ab8
 atom.comment ba74cf5b3c40
 atom.equality f2187e956a26
 atom.free 19d891531ef9
@@ -109,7 +109,7 @@ carried-type.own-element 1613e0cd4bce equality.no-overlap@39f213f599cf inference
 carried-type.replace 92d0ac2c5056 assertion.any@c486fea6b8eb
 carried-type.reserved-key 482d6a7d0ebf
 carried-type.type-probe eaad72137ace
-code-block a4e6c8169004 break.return-body@23c89e6d85e2 dispatch.fn@b3dfba5720a1 fn.bare-literal@a391a34699ca fn.block-outer@be72ae142ad7 fn.block-type@93aee32dd6d0 pipe.uses-value@7cda1d3bff5d statement.result@4c84cfa0816c
+code-block a4e6c8169004 break.return-body@23c89e6d85e2 dispatch.fn@b3dfba5720a1 fn.bare-literal@a391a34699ca fn.block-outer@be72ae142ad7 fn.block-type@93aee32dd6d0 pipe.uses-value@6d99d27f2588 statement.result@4c84cfa0816c
 code-block.access ecc52b36f876
 code-block.access-target cd3b87998d88
 code-block.assert ddf153eb53d5 assertion.mismatch@9dc0075657b2 assertion.pass@1a0a1da3896c
@@ -149,10 +149,10 @@ construct-options.timeout-idle-activity ff699ac8a2cf
 construct-options.timeout-limits 48fae22e61a1
 construct-options.values 4e5fac4f2791
 conversion.any d639008176d6
-conversion.deep 4b215ac24283
+conversion.deep f7f36025251e
 conversion.dict-ordered b07caa56f8ab
 conversion.drop 9f8ca15eb05b
-conversion.failure 9014464da5b3
+conversion.failure c10f6a9ea803
 conversion.fill 0cc06ccbc6f2 defaults.fill@1c3e396558aa defaults.required@704c2fe56b2e
 conversion.list-tuple ef801da23c73
 conversion.missing f98bb007434c
@@ -282,8 +282,9 @@ duration.string-malformed 8b2174fd7ba0
 duration.unknown-key 69aa6a35ba5d
 duration.value 27f61a90f6a3
 duration.years 9867c2f5c9ca
-equality 4ec09699ff9d carried-type.equality@e57cad672ddc
+equality 94e444e83928 carried-type.equality@e57cad672ddc
 equality.atom 505ad5a65ec2
+equality.closed-set 8173ab218988 structural-typing.overlap-literal@ab0a5013ddfd
 equality.content 654a7056b375
 equality.declared-dict 3b93b31757d2 carried-type.carriage@619f46dafff7 structural-typing.overlap-fields@10ec669ce02c
 equality.function 780a229ffda3
@@ -298,7 +299,7 @@ equality.number d303dcc3beae
 equality.ordered-seq d60dae30c2f4
 equality.stream dd58ae03884a
 equality.type 60a503a172ef
-error-code.closed-compare f161fbe1492d
+error-code.closed-compare 80644f3eab52
 error-code.is-atom c64648a51a90
 error-code.members 549fe0b16782
 error-code.membership 3ee685af67bd
@@ -569,12 +570,12 @@ pass.halts 0d9009ce6827
 pass.identity daaa2d6b9355
 pass.ignore 255923507376
 pass.target-body 03087cb442a9
-pipe fd4ad0281d8b conditional.piped@933b1fa68341 loop.seed@ece9a46ff7a0
+pipe faaad1e8e067 conditional.piped@933b1fa68341 loop.seed@ece9a46ff7a0
 pipe.block 00f69bfcf9d1 code-block.pipe-target@10cd486fec05
-pipe.call-dollar 8d7657f4dc08
+pipe.call-dollar 1e84710e8b4d
 pipe.call-operand f1a1b2193c9f
 pipe.data faa3632d051e
-pipe.data-no-dollar 8778493a4ab2
+pipe.data-no-dollar 01c20a7be3b8
 pipe.function ea38371266ad
 pipe.grouped f6270fcf7eb8
 pipe.left-to-right ffb07af4ec06
@@ -583,9 +584,10 @@ pipe.no-literal 2292a8733c47
 pipe.script-operand 6cce33562a21 pipe.call-operand@f1a1b2193c9f
 pipe.string e11eeeaf2f49
 pipe.type 8555462e2497
-pipe.uses-value 7cda1d3bff5d
+pipe.uses-value 6d99d27f2588
 pipe.variable 6f95dc9aaa5e
 pipe.variable-kind d61d19325ad6 pipe.data@faa3632d051e
+pipe.zero-param 932c1c0e59a4
 retry.attempts 082c9ee5c2b9
 retry.attempts-name 626b546e297d
 retry.exhaust f6b05f39b670
@@ -736,6 +738,7 @@ structural-typing.missing 9f65eada49ab
 structural-typing.overlap-fields 10ec669ce02c
 structural-typing.overlap-kind 8188af254ccc
 structural-typing.overlap-list 466e616ddd88
+structural-typing.overlap-literal ab0a5013ddfd
 structural-typing.overlap-scalar 1a7f2b54468e
 structural-typing.overlap-union daece0e2cc16
 structural-typing.present-typed 8e32e38e694b

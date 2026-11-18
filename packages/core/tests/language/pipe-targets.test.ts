@@ -7,8 +7,12 @@ import type { RillFunction, RillValue } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { createLogCollector, run } from '../helpers/runtime.js';
-import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
-import { anyTypeValue } from '@rcrsr/rill';
+import {
+  expectHalt,
+  expectHaltMessage,
+  expectRuntimeError,
+} from '../helpers/halt.js';
+import { anyTypeValue, parseWithRecovery } from '@rcrsr/rill';
 
 describe('Rill Runtime: Pipe Targets', () => {
   describe('Invoke Pipe Target (-> $())', () => {
@@ -234,9 +238,9 @@ list[1, 2, 3] -> seq({ $double() })`;
     });
 
     it('multiple inline captures', async () => {
-      const script = `"a" => $x -> "b" => $y
+      const script = `"a" => $x -> .upper => $y
 list[$x, $y]`;
-      expect(await run(script)).toEqual(['a', 'b']);
+      expect(await run(script)).toEqual(['a', 'A']);
     });
 
     it('inline capture preserves value for chaining', async () => {
@@ -298,8 +302,29 @@ $val -> |x| { $x -> .len }`;
       expect(await run(script)).toBe(4);
     });
 
-    it('inline closure with zero params uses pipe value via $', async () => {
-      expect(await run('7 -> || { $ * 3 }')).toBe(21);
+    it('inline closure with zero params halts on the piped argument', async () => {
+      await expectRuntimeError(() => run('7 -> || { $ * 3 }'), {
+        code: 'RILL-R045',
+        messagePattern: /expects 0 arguments, got 1/,
+      });
+    });
+
+    it('zero-param closure variable as pipe target halts on the piped argument', async () => {
+      await expectRuntimeError(() => run('|| { 1 } => $f\n3 -> $f'), {
+        code: 'RILL-R045',
+        messagePattern: /expects 0 arguments, got 1/,
+      });
+    });
+
+    it('calling a zero-param closure with an argument halts with the same id', async () => {
+      await expectRuntimeError(() => run('|| { 1 } => $f\n$f(3)'), {
+        code: 'RILL-R045',
+        messagePattern: /expects 0 arguments, got 1/,
+      });
+    });
+
+    it('block closure variable as pipe target still receives the operand', async () => {
+      expect(await run('{ $ + 1 } => $f\n3 -> $f')).toBe(4);
     });
   });
 
@@ -382,15 +407,19 @@ $fn(3)`;
       expect(await run(script)).toEqual([3, 5]);
     });
 
-    it('does not prepend to a zero-param closure', async () => {
+    it('prepends to a zero-param closure and halts on the excess argument', async () => {
       const script = `|| { "none" } => $h
 3 -> $h()`;
-      expect(await run(script)).toBe('none');
+      await expectRuntimeError(() => run(script), {
+        code: 'RILL-R045',
+        messagePattern: /expects 0 arguments, got 1/,
+      });
     });
 
     it('uses only written arguments for a call in primary position', async () => {
       const script = `|a, b| { list[$a, $b] } => $h
-5 -> { $h(1, 2) }`;
+5 -> { $
+$h(1, 2) }`;
       expect(await run(script)).toEqual([1, 2]);
     });
   });
@@ -507,13 +536,12 @@ $fn(3)`;
       ]);
     });
 
-    it('AC-PIPE-8: zero-param callable — pipe value silently dropped, fn runs normally', async () => {
-      // $val -> fn where fn takes 0 params runs fn(); no halt
+    it('AC-PIPE-8: zero-param callable receives the pipe value and halts on the excess argument', async () => {
       const zeroParam = makeZeroParam();
-      const result = await run('"dropped" -> zeroParam', {
-        functions: { zeroParam },
-      });
-      expect(result).toBe('zero-param-result');
+      await expectRuntimeError(
+        () => run('"dropped" -> zeroParam', { functions: { zeroParam } }),
+        { code: 'RILL-R045', messagePattern: /expects 0 arguments, got 1/ }
+      );
     });
 
     it('AC-BOUND-4: zero-param callable with explicit $ — arity error (manual places 1 arg, fn accepts 0)', async () => {
@@ -589,6 +617,80 @@ $fn(3)`;
         functions: { collect2 },
       });
       expect(result).toBe('piped');
+    });
+  });
+
+  describe('Block and string targets must read the piped value', () => {
+    it.each([
+      ['a string with no interpolation', '5 -> "x"'],
+      ['a string that interpolates another variable', '5 -> "x{$a}"'],
+      ['a block that never reads $', '3 -> { 5 }'],
+      [
+        'a block whose only $ sits in a later pipe target',
+        '3 -> { list[1] -> seq({ $ }) }',
+      ],
+    ])('rejects %s with RILL-P031', async (_label, source) => {
+      await expect(run(source)).rejects.toMatchObject({ errorId: 'RILL-P031' });
+    });
+
+    it.each([
+      ['a string interpolating $', '5 -> "x{$}"', 'x5'],
+      ['a block reading $', '3 -> { $ + 1 }', 4],
+      ['a block with a leading method', '"a" -> { .upper }', 'A'],
+      ['a block with pass', '5 -> { pass }', 5],
+      [
+        'a block with a conditional reading $',
+        '3 -> { true ? { $ } ! { 0 } }',
+        3,
+      ],
+      ['a block with a guard reading $', '3 -> { guard { $ } }', 3],
+    ])('accepts %s', async (_label, source, expected) => {
+      expect(await run(source)).toEqual(expected);
+    });
+
+    it('reports RILL-P031 through parseWithRecovery', () => {
+      const result = parseWithRecovery('5 -> "x"');
+      expect(result.errors.map((e) => e.errorId)).toContain('RILL-P031');
+    });
+  });
+
+  describe('List and dict literal targets cannot read $ at the top level', () => {
+    it('rejects a list literal reading $ and names the block form', async () => {
+      await expect(run('3 -> list[$, $]')).rejects.toMatchObject({
+        errorId: 'RILL-P030',
+        message: expect.stringContaining('3 -> { list[$, $] }'),
+      });
+    });
+
+    it.each([
+      ['an expression over $', '0 -> list[$ + 1, 9]'],
+      ['a dict field', '"a" -> dict[a: $]'],
+      ['a nested list', '3 -> list[list[$]]'],
+    ])('rejects %s with RILL-P030', async (_label, source) => {
+      await expect(run(source)).rejects.toMatchObject({ errorId: 'RILL-P030' });
+    });
+
+    it('accepts a $ wrapped in a block inside a dict field', async () => {
+      expect(await run('"a" -> dict[a: { $ }]')).toBe('a');
+    });
+
+    it('does not walk the literal default', async () => {
+      expect(await run('3 -> list[1, 2] ?? $')).toBe(3);
+    });
+  });
+
+  describe('Operand placement in a call argument', () => {
+    it('prepends the operand when $ sits only in a later pipe target', async () => {
+      const script = `|a, b| { list[$a, $b] } => $f
+|x| { $x * 10 } => $g
+5 -> $f(2 -> $g($))`;
+      expect(await run(script)).toEqual([5, 20]);
+    });
+
+    it('does not prepend when $ sits in a conditional branch', async () => {
+      const script = `|a| { $a } => $f
+5 -> $f(true ? { $ } ! { 0 })`;
+      expect(await run(script)).toBe(5);
     });
   });
 });

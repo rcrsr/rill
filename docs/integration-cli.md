@@ -164,9 +164,11 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `TUPLE_ONE_POSITION` | types | info | `tuple(T)` names exactly one position |
 | `TEMPORAL_LITERAL` | types | warning | `duration("...")` or `datetime("...")` with a string literal that cannot parse, so the call halts `#INVALID_INPUT` |
 | `EQUALITY_NO_OVERLAP` | types | warning | `==`, `!=`, `.eq`, or `.ne` (operator or pipe form), or `.has`, `.has_any`, or `.has_all` on a list literal of scalar literals, between operands whose types never overlap, so the comparison halts `#TYPE_MISMATCH` |
+| `PIPE_CONVERTS_INNER` | types | info | Pipe into `list(T)`, `dict(...)`, or `tuple(...)` of a statically known source with elements of another scalar kind, so `->` converts them; write `-> :T` to check without converting |
+| `PIPE_ZERO_PARAM_TARGET` | closures | warning | Pipe target closure with no parameters, so the call halts `RILL-R045` |
 | `MIXED_ELEMENT_TYPE_READ` | types | info | `.^type` or `.^effective` read from a list literal of distinct compound shapes, or from the result of iterating a dict literal of distinct value shapes, where the read reports a union element type |
 | `ATOM_CASE_MISMATCH` | errors | warning | Atom differs from a builtin only by case |
-| `ATOM_NOT_ERROR_CODE` | errors | warning | `.!code` compared to an atom that is not `#ok` or a core error code |
+| `ATOM_NOT_ERROR_CODE` | errors | warning | `.!code` compared with `==`, `!=`, `.eq`, or `.ne` (operator, method, or pipe form) to an atom that is not `#ok` or a core error code, so the comparison halts `#TYPE_MISMATCH` |
 | `ATOM_DISCARDED` | anti-patterns | warning | Bare atom as a discarded statement; a comment needs a space after `#` |
 | `ON_LIST_SINGLE` | errors | info | `on: list[#X]` holds one code; write `on: #X` |
 | `GUARD_BARE` | errors | info | Bare `guard` catches every error |

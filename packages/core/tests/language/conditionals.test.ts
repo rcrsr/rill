@@ -180,7 +180,7 @@ describe('Rill Runtime: Conditionals', () => {
     });
 
     it('rejects empty closure body on invocation (RILL-R043)', async () => {
-      await expect(run('|| { } => $fn\n"x" -> $fn')).rejects.toHaveProperty(
+      await expect(run('|| { } => $fn\n$fn()')).rejects.toHaveProperty(
         'errorId',
         'RILL-R043'
       );

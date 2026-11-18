@@ -406,6 +406,88 @@ export function walkAst(root: ASTNode, visit: (node: ASTNode) => void): void {
 }
 
 /**
+ * Returns true when `root` reads the piped value `$`.
+ *
+ * `written` counts a pipe variable (`$`, `$.x`, the implicit receiver of a
+ * leading `.method`, the phantom receiver of `.?x`, a bare `...` spread).
+ * `used` adds `pass`, `pass { }`, and a call written with no arguments, to
+ * (a host, closure, postfix, or dict-member call), to which the runtime
+ * supplies `$`.
+ *
+ * The walk does not enter a closure, a block other than a construct body that
+ * inherits `$` (conditional branches and guard, retry, timeout, and pass
+ * bodies), or any pipe target after a chain's head. `root` itself is never a
+ * boundary.
+ */
+export function readsPipeValue(
+  root: ASTNode,
+  mode: 'written' | 'used'
+): boolean {
+  const inheriting = new Set<ASTNode>([root]);
+  const stack: ASTNode[] = [root];
+  for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
+    let children: ASTNode[];
+    switch (node.type) {
+      case 'Closure':
+        continue;
+      case 'Block':
+        if (!inheriting.has(node)) continue;
+        children = astChildren(node);
+        break;
+      case 'Variable':
+        if (node.isPipeVar) return true;
+        children = astChildren(node);
+        break;
+      case 'PostfixExpr':
+        // A leading `.method` has the piped value as its implicit receiver.
+        if (node.primary.type === 'MethodCall') return true;
+        children = astChildren(node);
+        break;
+      case 'Pass':
+        if (mode === 'used') return true;
+        children = [];
+        break;
+      case 'PassBlock':
+        if (mode === 'used') return true;
+        inheriting.add(node.body);
+        children = astChildren(node);
+        break;
+      case 'GuardBlock':
+      case 'RetryBlock':
+      case 'TimeoutBlock':
+        inheriting.add(node.body);
+        children = astChildren(node);
+        break;
+      case 'Conditional':
+        inheriting.add(node.thenBranch);
+        if (node.elseBranch !== null) inheriting.add(node.elseBranch);
+        children = astChildren(node);
+        break;
+      case 'PipeChain':
+        children = [node.head];
+        break;
+      case 'HostCall':
+      case 'ClosureCall':
+      case 'Invoke':
+        if (mode === 'used' && node.args.length === 0) return true;
+        children = astChildren(node);
+        break;
+      case 'MethodCall':
+        // A dict receiver supplies `$` to an empty-paren member call.
+        if (mode === 'used' && node.hasParens && node.args.length === 0) {
+          return true;
+        }
+        children = astChildren(node);
+        break;
+      default:
+        children = astChildren(node);
+    }
+    for (const child of children) stack.push(child);
+  }
+  return false;
+}
+
+/**
  * Returns true if `offset` falls within `span` using half-open
  * containment: `span.start.offset <= offset && offset < span.end.offset`.
  * An empty span (`start.offset === end.offset`) contains nothing.

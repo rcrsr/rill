@@ -110,9 +110,76 @@ describe('Rill Language: equality gate', () => {
     expect(
       await run('(guard { "1x" -> atom } => $r).!code == #RILL_R082')
     ).toBe(false);
-    expect(await run('(guard { "1x" -> atom } => $r).!code == #CUSTOM')).toBe(
-      false
+  });
+
+  it('halts comparing a status code with an atom outside the set', async () => {
+    await expectHalt(
+      () => run('(guard { "1x" -> atom } => $r).!code == #CUSTOM'),
+      { code: 'TYPE_MISMATCH' }
     );
+  });
+
+  describe('closed atom sets', () => {
+    const decl =
+      'list[#wired, #wireless] => $l:list(union(#wired, #wireless))\n';
+    const bad: [string, string][] = [
+      ['==', '$s == #wirless'],
+      ['!=', '$s != #wirless'],
+      ['.eq', '$s -> .eq(#wirless)'],
+      ['.ne', '$s -> .ne(#wirless)'],
+      ['.has', '$l -> .has(#wirless)'],
+      ['.has_any', '$l -> .has_any(list[#wirless])'],
+      ['.has_all', '$l -> .has_all(list[#wirless])'],
+    ];
+    const good: [string, string, boolean][] = [
+      ['==', '$s == #wireless', true],
+      ['!=', '$s != #wireless', false],
+      ['.eq', '$s -> .eq(#wireless)', true],
+      ['.ne', '$s -> .ne(#wireless)', false],
+      ['.has', '$l -> .has(#wireless)', true],
+      ['.has_any', '$l -> .has_any(list[#wireless])', true],
+      ['.has_all', '$l -> .has_all(list[#wireless])', true],
+    ];
+    const setup = `${decl}#wireless => $s:union(#wired, #wireless)\n`;
+
+    it.each(bad)(
+      'halts %s with an atom outside the declared set',
+      async (_op, expr) => {
+        await expectHalt(() => run(setup + expr), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: 'wirless',
+        });
+      }
+    );
+
+    it.each(good)(
+      'returns a bool for %s with a member atom',
+      async (_op, expr, expected) => {
+        expect(await run(setup + expr)).toBe(expected);
+      }
+    );
+
+    it('halts filtering a declared list against an atom outside the set', async () => {
+      await expectHalt(() => run(`${decl}$l -> filter({ $ == #wirless })`), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
+    it('compares a member atom in filter without halting', async () => {
+      expect(await run(`${decl}$l -> filter({ $ == #wireless }) -> .len`)).toBe(
+        1
+      );
+    });
+
+    it('keeps two undeclared atoms comparable', async () => {
+      expect(await run('#TIMEOUT == #TIMEUOT')).toBe(false);
+    });
+
+    it('halts a declared string literal union compared with an outside value', async () => {
+      await expectHalt(() => run('"c" => $u:union("c", "f")\n$u == "x"'), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
   });
 
   rule('equality.no-overlap', 'structural-typing.overlap-fields').it(

@@ -389,7 +389,7 @@ $obj.str    # "toolkit: 3 items" (auto-invoked)
 
 ### Uniform Value Type
 
-`dict(T)` asserts that every value in the dict matches type T. The dict itself is returned unchanged.
+`-> dict(T)` converts every value to type T. `:dict(T)` checks every value and returns the dict unchanged. See the [conversion table](topic-type-system.md#extra-and-missing-dict-fields).
 
 ```rill
 [a: 1, b: 2] -> dict(number)
@@ -472,7 +472,7 @@ Key order in `ordered` is the insertion order. `dict` has no insertion order to 
 
 ### Uniform Value Type
 
-`ordered(T)` asserts that every entry value in the ordered container matches type T. The container is returned unchanged.
+`-> ordered(T)` converts every entry value to type T. `:ordered(T)` checks every value and returns the container unchanged. See the [conversion table](topic-type-system.md#extra-and-missing-dict-fields).
 
 ```rill
 ordered[x: 1, y: 2] -> ordered(number)

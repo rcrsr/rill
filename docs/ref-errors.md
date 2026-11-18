@@ -14,7 +14,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 **Navigation:**
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
-- [Parse Errors (RILL-P001 - RILL-P027)](#parse-errors)
+- [Parse Errors (RILL-P001 - RILL-P031)](#parse-errors)
 - [Runtime Errors (RILL-R001 - RILL-R091)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 
@@ -553,6 +553,46 @@ dict[a: 1, a: 2]
 
 # Number key and string key spell the same key
 dict[1: "x", "1": "y"]
+```
+
+---
+
+### rill-p030
+
+**Description:** List or dict literal pipe target reads '$'
+
+**Cause:** A list or dict literal used as a pipe target builds a new value and is not handed the piped value, so a '$' at its top level has nothing to read.
+
+**Resolution:** Wrap the literal in a block so '$' reads the piped value, as in '3 -> { list[$, $] }'.
+
+**Example:**
+
+```text
+# List literal target reading '$'
+3 -> list[$, $]
+
+# Dict literal target reading '$'
+"a" -> dict[a: $]
+```
+
+---
+
+### rill-p031
+
+**Description:** Block or string target ignores the piped value
+
+**Cause:** A block or string used as a pipe target discards the piped value when its body never reads '$', so the pipe has no effect on the result.
+
+**Resolution:** Reference '$' in the block or string, as in '5 -> "x{$}"', or drop the pipe and write the value directly.
+
+**Example:**
+
+```text
+# String target that ignores the piped value
+5 -> "x"
+
+# Block target that ignores the piped value
+3 -> { 5 }
 ```
 
 ---

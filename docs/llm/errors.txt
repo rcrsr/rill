@@ -76,6 +76,7 @@ Built-in atom literals. The core error set is every built-in atom except #ok and
     #TYPE_MISMATCH                 # failed `:type` assertion or typed capture or typed destructure element failing its type;
                                    # also: `sort` key extractor mixed types,
                                    #       ==, !=, .eq, .ne, .has, .has_any, .has_all between operands whose types cannot overlap,
+                                   #       including a declared closed set (union of literals) against a value outside it,
                                    #       `sort` `key_fn` not callable,
                                    #       tuple comparison length/type mismatch,
                                    #       start_when/stop_when predicate non-bool,
@@ -90,7 +91,7 @@ Built-in atom literals. The core error set is every built-in atom except #ok and
 
 `.!code` reports `#ok` on valid values. `#ok` is a sentinel, not an error code, but it is writable as a literal. `$v.!code == #ok` tests for a valid value; `.!` is shorter.
 
-The core error set is closed: every built-in atom except `#ok` and `#IGNORE`. Hosts cannot add codes; they report a domain failure with the nearest core code and put the detail in `raw`. `error_code` is the type of that set.
+The core error set is closed: every built-in atom except `#ok` and `#IGNORE`. Hosts cannot add codes; they report a domain failure with the nearest core code and put the detail in `raw`. `error_code` is the type of that set. Comparing `.!code` with an atom outside the set halts `#TYPE_MISMATCH`, so a misspelled code fails loudly instead of yielding `false`.
 
 ## Guard
 

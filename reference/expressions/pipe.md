@@ -3,11 +3,11 @@ id: pipe
 title: Pipe
 status: normative
 since: 0.24.0
-issues: [567]
+issues: []
 grammar: [pipe-chain]
-errors: [RILL-P001, RILL-R002, RILL-R005]
+errors: [RILL-P001, RILL-P030, RILL-P031, RILL-R002, RILL-R005, RILL-R045]
 depends: [statement, dispatch, conversion, assertion]
-tests: [pipe-targets.test.ts, unified-dispatch.test.ts, conversion.test.ts, closure-semantics.test.ts, late-bound-closures.test.ts]
+tests: [pipe-targets.test.ts, unified-dispatch.test.ts, conversion.test.ts, closure-semantics.test.ts, late-bound-closures.test.ts, use-expr.test.ts]
 ---
 
 # Pipe
@@ -32,16 +32,20 @@ pipe-chain = value-expr , [ "?" , body , [ "!" , body ] ] , { ( "->" , ( pipe-ta
 r[pipe.no-literal] A number, a bool, or an atom is not a target
 A number, bool, or atom literal after `->` MUST be rejected with RILL-P001.
 
-r[pipe.uses-value] A target uses the piped value {pending #567}
+r[pipe.uses-value] A target uses the piped value
 A code block whose body does not read the pipe value and a string that does not interpolate `$`
-MUST be rejected as targets before the script runs. A body reads the pipe value when it writes
-`$`, starts a chain with a method such as `.upper`, or uses `pass`. A pipe into a function of no
-parameters MUST halt when it runs.
+MUST be rejected with RILL-P031 before the script runs. A body reads the pipe value when it writes
+`$`, starts a chain with a method such as `.upper`, calls with no arguments, or uses `pass`.
+`5 -> "x"` and `3 -> { 5 }` MUST be rejected.
 
-r[pipe.data-no-dollar] A data literal target does not read $ {pending #567}
-A list, dict, tuple, or ordered literal used as a target MUST NOT read `$` at its top level. The
-message MUST name the block form, such as `3 -> { list[$, $] }`. A `$` inside a nested block
-does not count.
+r[pipe.zero-param] A function of no parameters halts when piped into
+`v -> $f` MUST halt with RILL-R045 when `$f` is a function of no parameters, because the value
+is an excess argument. A block closure, which takes the value as `$`, is not such a function.
+
+r[pipe.data-no-dollar] A data literal target does not read $
+A list or dict literal used as a target MUST NOT read `$` at its top level, and MUST be rejected
+with RILL-P030 before the script runs. The message MUST name the block form, such as
+`3 -> { list[$, $] }`. A `$` inside a nested block does not count.
 
 ## Evaluation
 
@@ -73,7 +77,9 @@ function `f`.
 
 r[pipe.call-dollar] A written $ argument replaces the prepended operand
 When an argument of a call target is a top-level `$`, the value MUST NOT be prepended, and
-each such `$` MUST be `v`. `5 -> range(0, $)` MUST equal `range(0, 5)`.
+each such `$` MUST be `v`. `5 -> range(0, $)` MUST equal `range(0, 5)`. A `$` inside a conditional,
+guard, retry, timeout, or pass body in an argument counts as written. A `$` inside a nested
+pipe target in an argument does not, so `5 -> f(2 -> g($))` prepends `5`.
 
 r[pipe.script-operand] A script function target receives the value first
 `v -> $h(args)` MUST call `$h` with `v` prepended to `args`, as `pipe.call-operand` states. A spread
@@ -106,6 +112,9 @@ chain binds and passes the value on (`capture`). A function target binds its arg
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | A number, bool, or atom literal is a target | RILL-P001 | No |
+| A list or dict literal target reads `$` at its top level | RILL-P030 | No |
+| A block or string target does not read the piped value | RILL-P031 | No |
+| A function of no parameters is a target | RILL-R045 | No |
 | A variable target is undefined | RILL-R005 | Yes |
 | A variable target holds no target kind | RILL-R002 | Yes |
 
@@ -137,6 +146,22 @@ list[1, 2, 3] -> take(2)
 ```
 
 ```rill
+# Error: RILL-P031 the string never reads the piped value
+5 -> "x"
+```
+
+```rill
+# Error: RILL-P030 a literal target cannot read $
+3 -> list[$, $]
+```
+
+```rill
+|| { 1 } => $zero
+# Error: RILL-R045 Function expects 0 arguments, got 1
+5 -> $zero
+```
+
+```rill
 3 => $n
 # Error: cannot pipe into $n
 5 -> $n
@@ -145,6 +170,7 @@ list[1, 2, 3] -> take(2)
 ## Notes
 
 On 0.23.0 a target that ignores the value runs: `5 -> "x"` yields `"x"` and `3 -> { 5 }` yields
-5. `3 -> list[$, $]` builds `list[3, 3]` and indexes it with 3, halting RILL-R009. A script
-function does not receive the operand: `3 -> $h(4)` halts RILL-R044, and `3 -> $h($, 4)` works.
+5. `3 -> list[$, $]` builds `list[3, 3]` and indexes it with 3, halting RILL-R009. A function of no
+parameters drops the value or binds it to `$`. A script function does not receive the operand:
+`3 -> $h(4)` halts RILL-R044, and `3 -> $h($, 4)` works.
 On 0.23.0 `5 -> $n` for a number `$n` halts RILL-R002 `Cannot dispatch to number`.

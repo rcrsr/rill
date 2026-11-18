@@ -339,7 +339,7 @@ describe('ref-llms-full: Control Flow', () => {
   });
 
   it('cond ? then (no else returns current $)', async () => {
-    expect(await run('5 -> { false ? "yes" }')).toBe(5);
+    expect(await run('5 -> { $\nfalse ? "yes" }')).toBe(5);
   });
 
   it('cond ? then (no else, unbound $ halts)', async () => {

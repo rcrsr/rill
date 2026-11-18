@@ -214,7 +214,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
       let depth2 = 0;
       let depth3 = 0;
 
-      await run('level1() -> level2() -> level3()', {
+      await run('level1()\nlevel2()\nlevel3()', {
         functions: {
           level3: {
             returnType: anyTypeValue,

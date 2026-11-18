@@ -27,7 +27,7 @@ describe('Rill Runtime: Expressions', () => {
     });
 
     it('chains pipes with transformations', async () => {
-      expect(await run('"hello" -> { "world" } -> { $ }')).toBe('world');
+      expect(await run('"hello" -> .upper -> { $ }')).toBe('HELLO');
     });
 
     it('preserves value through identity chain', async () => {

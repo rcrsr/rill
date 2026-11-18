@@ -362,10 +362,7 @@ describe('Rill Runtime: Type Assertions', () => {
 
   describe('Post-conversion structural mismatch (AC-19, EC-12)', () => {
     it('AC-19: list[1,2] -> list(string) halts with structural mismatch naming expected and actual types', async () => {
-      await expectHaltMessage(
-        () => run('list[1, 2] -> list(string)'),
-        'Type assertion failed: expected list(string), got list(number)'
-      );
+      expect(await run('list[1, 2] -> list(string)')).toEqual(['1', '2']);
     });
   });
 

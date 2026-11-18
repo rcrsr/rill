@@ -30,7 +30,11 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import { callableLiteral, run } from '../helpers/runtime.js';
-import { expectAbortHalt, expectHaltMessage } from '../helpers/halt.js';
+import {
+  expectAbortHalt,
+  expectHaltMessage,
+  expectRuntimeError,
+} from '../helpers/halt.js';
 import { isClosureStructure } from '../helpers/structure.js';
 
 describe('Rill Runtime: Host Integration', () => {
@@ -1481,23 +1485,13 @@ describe('Zero-parameter callable() factory delivery', () => {
     expect(receivedArgs).toEqual({});
   });
 
-  it('callable() factory pipe-invoked with value works', async () => {
-    // When a zero-param callable is pipe-invoked (`"piped" -> $myFn`), the runtime
-    // treats it as zero-param style: the pipe value is accessible via ctx.pipeValue,
-    // not via args (which remains empty for zero-param style invocation).
-    let capturedPipe: RillValue = null;
+  it('callable() factory pipe-invoked with value halts on the excess argument', async () => {
+    const fn = callable((_args, ctx) => ctx.pipeValue);
 
-    const fn = callable((_args, ctx) => {
-      capturedPipe = ctx.pipeValue;
-      return ctx.pipeValue;
-    });
-
-    const result = await run('"piped" -> $myFn', {
-      variables: { myFn: fn },
-    });
-
-    expect(result).toBe('piped');
-    expect(capturedPipe).toBe('piped');
+    await expectRuntimeError(
+      () => run('"piped" -> $myFn', { variables: { myFn: fn } }),
+      { code: 'RILL-R045', messagePattern: /expects 0 arguments, got 1/ }
+    );
   });
 
   describe('Datetime Host Interop', () => {

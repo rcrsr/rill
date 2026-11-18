@@ -66,6 +66,8 @@ export const ERROR_IDS = {
   RILL_P024: 'RILL-P024',
   RILL_P026: 'RILL-P026',
   RILL_P027: 'RILL-P027',
+  RILL_P030: 'RILL-P030',
+  RILL_P031: 'RILL-P031',
   RILL_R001: 'RILL-R001',
   RILL_R002: 'RILL-R002',
   RILL_R003: 'RILL-R003',
@@ -833,6 +835,48 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Number key and string key spell the same key',
         code: 'dict[1: "x", "1": "y"]',
+      },
+    ],
+  },
+  {
+    errorId: ERROR_IDS.RILL_P030,
+    category: 'parse',
+    description: "List or dict literal pipe target reads '$'",
+    messageTemplate:
+      "Literal pipe target cannot read '$' at its top level; wrap the literal in a block, as in '3 -> { list[$, $] }'",
+    cause:
+      "A list or dict literal used as a pipe target builds a new value and is not handed the piped value, so a '$' at its top level has nothing to read.",
+    resolution:
+      "Wrap the literal in a block so '$' reads the piped value, as in '3 -> { list[$, $] }'.",
+    examples: [
+      {
+        description: "List literal target reading '$'",
+        code: '3 -> list[$, $]',
+      },
+      {
+        description: "Dict literal target reading '$'",
+        code: '"a" -> dict[a: $]',
+      },
+    ],
+  },
+  {
+    errorId: ERROR_IDS.RILL_P031,
+    category: 'parse',
+    description: 'Block or string target ignores the piped value',
+    messageTemplate:
+      "Block pipe target does not read the piped value; reference '$' in it",
+    cause:
+      "A block or string used as a pipe target discards the piped value when its body never reads '$', so the pipe has no effect on the result.",
+    resolution:
+      "Reference '$' in the block or string, as in '5 -> \"x{$}\"', or drop the pipe and write the value directly.",
+    examples: [
+      {
+        description: 'String target that ignores the piped value',
+        code: '5 -> "x"',
+      },
+      {
+        description: 'Block target that ignores the piped value',
+        code: '3 -> { 5 }',
       },
     ],
   },

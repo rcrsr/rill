@@ -35,10 +35,10 @@ const rows: [string, TypeStructure, TypeStructure, boolean][] = [
     true,
   ],
   [
-    'distinct literals of one kind overlap',
+    'distinct literals of one kind do not overlap',
     { kind: 'literal', value: 'a' },
     { kind: 'literal', value: 'b' },
-    true,
+    false,
   ],
   [
     'literal of another kind does not overlap',

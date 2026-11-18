@@ -43,11 +43,7 @@ import {
   isPlainDict,
 } from '../../types/guards.js';
 import { inferType } from '../../types/registrations.js';
-import {
-  declaredParams,
-  isCallable,
-  isScriptCallable,
-} from '../../callable.js';
+import { isCallable, isScriptCallable } from '../../callable.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
 import { invalidate, getStatus } from '../../types/status.js';
 import { createTraceFrame } from '../../types/trace.js';
@@ -578,8 +574,9 @@ export async function evaluatePrimary(
 
 /**
  * Invoke a callable that is the target of a pipe.
- * Callables with params receive the input as their argument; zero-param
- * callables run with the input as the pipe value `$`.
+ * Every callable receives the input as its argument, so a callable that
+ * declares no parameters halts on the excess argument. Property-style
+ * application callables run with the input as the pipe value `$`.
  */
 async function invokePipeCallable(
   s: EvalState,
@@ -588,14 +585,10 @@ async function invokePipeCallable(
   location: ReturnType<typeof getNodeLocation>,
   functionName = 'callable'
 ): Promise<RillValue> {
-  const hasParams =
-    (value.kind === 'script' && value.params.length > 0) ||
-    (value.kind === 'application' &&
-      declaredParams(value, functionName, location).length > 0 &&
-      !value.isProperty);
-
-  if (hasParams) {
-    return invokeCallable(s, value, argsOf(input), location);
+  if (!(value.kind === 'application' && value.isProperty)) {
+    return value.kind === 'application'
+      ? invokeCallable(s, value, argsOf(input), location, functionName)
+      : invokeCallable(s, value, argsOf(input), location);
   }
 
   const savedPipeValue = s.ctx.pipeValue;
@@ -780,31 +773,12 @@ async function evaluatePipeTargetValue(
       // Inline closure: create and invoke
       const closure = await createClosure(s, target);
 
-      // Per closure-semantics spec: check params.length to determine invocation style
-      if (closure.params.length > 0) {
-        // Has params: invoke with input as first argument
-        return invokeCallable(
-          s,
-          closure,
-          argsOf(carried),
-          getNodeLocation(s, target)
-        );
-      } else {
-        // Zero-param closure: invoke with args = [] and pipeValue = input
-        const savedPipeValue = s.ctx.pipeValue;
-        const savedPipeDeclared = s.ctx.pipeDeclared;
-        setPipe(s.ctx, input, carried.declared);
-        try {
-          return await invokeCallable(
-            s,
-            closure,
-            [],
-            getNodeLocation(s, target)
-          );
-        } finally {
-          restorePipe(s.ctx, savedPipeValue, savedPipeDeclared);
-        }
-      }
+      return invokePipeCallable(
+        s,
+        closure,
+        carried,
+        getNodeLocation(s, target)
+      );
     }
 
     case 'StringLiteral': {

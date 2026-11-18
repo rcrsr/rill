@@ -265,7 +265,7 @@ describe('Rill Runtime: Closures', () => {
 
     it('$fn() does not receive $ when args are explicit', async () => {
       expect(
-        await run('|x| { $x } => $fn\n"ignored" -> { $fn("explicit") }')
+        await run('|x| { $x } => $fn\n"ignored" -> { $\n$fn("explicit") }')
       ).toBe('explicit');
     });
   });

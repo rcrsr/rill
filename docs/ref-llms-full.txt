@@ -265,6 +265,25 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
     Right: list[dict[a: 1], dict[b: 2]] => $l:list(dict)
            $l -> seq({ $ == dict[a: 1] })      # list[true, false]
 
+    Wrong: $r.!code == #MY_ERROR           # halts #TYPE_MISMATCH: not in the core error set
+    Right: $r.!code == #NOT_FOUND
+
+## Pipe targets
+
+    Wrong: 3 -> list[$, $]                 # RILL-P030: literal target cannot read $
+    Right: 3 -> { list[$, $] }
+
+    Wrong: $x -> "label"                   # RILL-P031: string target ignores the value
+    Right: $x -> "label {$}"
+
+    Wrong: 42 -> $zero                     # RILL-R045: zero-parameter closure gets an argument
+    Right: $zero()
+
+## Conversion versus assertion
+
+    Wrong: $data -> dict(name: string)     # converts and fills, does not validate
+    Right: $data -> :dict(name: string)    # asserts the shape
+
 ## Loops
 
     Wrong: for item in list { ... }
@@ -701,6 +720,7 @@ Built-in atom literals. The core error set is every built-in atom except #ok and
     #TYPE_MISMATCH                 # failed `:type` assertion or typed capture or typed destructure element failing its type;
                                    # also: `sort` key extractor mixed types,
                                    #       ==, !=, .eq, .ne, .has, .has_any, .has_all between operands whose types cannot overlap,
+                                   #       including a declared closed set (union of literals) against a value outside it,
                                    #       `sort` `key_fn` not callable,
                                    #       tuple comparison length/type mismatch,
                                    #       start_when/stop_when predicate non-bool,
@@ -715,7 +735,7 @@ Built-in atom literals. The core error set is every built-in atom except #ok and
 
 `.!code` reports `#ok` on valid values. `#ok` is a sentinel, not an error code, but it is writable as a literal. `$v.!code == #ok` tests for a valid value; `.!` is shorter.
 
-The core error set is closed: every built-in atom except `#ok` and `#IGNORE`. Hosts cannot add codes; they report a domain failure with the nearest core code and put the detail in `raw`. `error_code` is the type of that set.
+The core error set is closed: every built-in atom except `#ok` and `#IGNORE`. Hosts cannot add codes; they report a domain failure with the nearest core code and put the detail in `raw`. `error_code` is the type of that set. Comparing `.!code` with an atom outside the set halts `#TYPE_MISMATCH`, so a misspelled code fails loudly instead of yielding `false`.
 
 ## Guard
 
@@ -870,6 +890,14 @@ Members may be scalar literals (string, number, bool, atom).
     "x" -> :union("c", "f")         # halts #TYPE_MISMATCH
     union(#wired, #wireless) => $lan   # union type in a variable
 
+A declared set is closed. A value outside it halts; an undeclared value never does.
+
+    "c" => $kind:union("c", "f")
+    $kind == "c"                    # true
+    $kind == "f"                    # false
+    $kind == "x"                    # halts #TYPE_MISMATCH: "x" is outside the set
+    "x" == "c"                      # false: neither side is declared
+
 `|` is not a type separator, and a bare literal after `:` is a parse error. Write `union("c")`.
 
 ## Parameterized constructors
@@ -943,6 +971,15 @@ Explicit conversion between compatible types. Halts with `RILL-R036` on invalid 
     list[1, 2] -> tuple             # tuple[1, 2]
     tuple[1, 2] -> list             # list[1, 2]
     ordered[a: 1] -> dict           # dict[a: 1]
+
+A parameterized target converts each element or field. A failing part halts `RILL-R038` or `RILL-R036` and names the part.
+
+    list[1, 2] -> list(string)      # list["1", "2"]
+    list["1", "x"] -> list(number)  # halts RILL-R038 naming element 1
+    dict[a: 1] -> dict(a: string)   # dict[a: "1"]
+    list[1, 2] -> :list(string)     # halts #TYPE_MISMATCH: `:` checks, never converts
+
+To validate a shape write `-> :dict(a: string)`, never `-> dict(a: string)`.
 
 ### Conversion matrix
 
@@ -1051,7 +1088,7 @@ When `->` targets a callable, the runtime decides how to bind the piped value. T
 
 Closures stop the scan. A `$` inside a closure literal (`{ ... }`) is late-bound when the closure runs per-element. It does NOT count as a top-level `$`. Sub-expressions ARE scanned, so `$` inside `g($)` does count.
 
-**Zero-parameter callables.** When auto-prepend is selected but the callable declares zero parameters, the piped value is silently dropped. The callable runs with no arguments. Execution does not halt.
+**Zero-parameter callables.** When auto-prepend is selected and the callable declares zero parameters, the piped value is an excess argument and the call halts RILL-R045, the same as `$f(3)`.
 
 | Call form | Effective call | Notes |
 |---|---|---|
@@ -1062,7 +1099,9 @@ Closures stop the scan. A `$` inside a closure literal (`{ ... }`) is late-bound
 | `$val -> fn(1, $, $)` | `fn(1, $val, $val)` | Both `$` resolve to piped value |
 | `$val -> fn(g($))` | `fn(g($val))` | Sub-expr `$` counts |
 | `$list -> filter({ $.active })` | `filter($list, { $.active })` | Closure `$` is late-bound |
-| `$val -> zero_param_fn` | `zero_param_fn()` | Piped value silently dropped |
+| `$val -> zero_param_fn` | `zero_param_fn($val)` | Halts RILL-R045 (excess argument) |
+
+A block or string target must read `$`: `5 -> { 3 }` and `5 -> "label"` halt `RILL-P031` at parse time. A list or dict literal target cannot read `$` at its top level: `3 -> list[$, $]` halts `RILL-P030`. A `$` inside a conditional, guard, retry, timeout, or pass body in an argument counts as written, so nothing is prepended. A `$` inside a nested pipe target in an argument, as in `5 -> f(2 -> g($))`, does not count, so the operand is prepended.
 
 This is why `[1,2,3] -> fold(0, { $@ + $ })` works: the list auto-prepends because no top-level `$` appears in `(0, { $@ + $ })`. The `$` inside the closure body is late-bound per element.
 
@@ -1163,6 +1202,11 @@ Dict keys are strings. A number or bool selector halts `#TYPE_MISMATCH` (`??` do
     "1" -> dict[1: "number", one: "word"]              # "number"
     1 -> string -> dict[1: "number", one: "word"]      # "number"
     1 -> dict[1: "number"]                             # halts #TYPE_MISMATCH
+
+A dispatch literal does not read `$` at its top level. A held block reads `$` as the selector. Build from the piped value with a block:
+
+    3 -> { list[$, $] }                                # list[3, 3]
+    3 -> list[$, $]                                    # halts RILL-P030
 
 ### List dispatch (index)
 

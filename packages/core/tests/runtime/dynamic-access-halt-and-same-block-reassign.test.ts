@@ -141,6 +141,7 @@ describe('Same-block same-type reassignment', () => {
   it('allows re-capturing a same-block variable of the same type', async () => {
     const code = `
       "" -> {
+        $
         1 => $x
         2 => $x
         $x
@@ -152,6 +153,7 @@ describe('Same-block same-type reassignment', () => {
   it('re-capture reflects the latest value to later siblings', async () => {
     const code = `
       "" -> {
+        $
         1 => $x
         2 => $x
         3 => $x
@@ -172,6 +174,7 @@ describe('Same-block same-type reassignment', () => {
   it('still halts on a different-type same-block re-capture (type lock)', async () => {
     const code = `
       "" -> {
+        $
         1 => $x
         "two" => $x
         $x

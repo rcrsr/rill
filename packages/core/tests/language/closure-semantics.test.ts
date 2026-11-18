@@ -411,7 +411,8 @@ describe('Rill Runtime: Closure Semantics', () => {
       // displaced. Fails (binds 5 instead of 1) if that guard is loosened.
       const script = `
         dict[g: |a|{ $a + 1 }] => $d
-        5 -> { $d.g(1) }
+        5 -> { $
+$d.g(1) }
       `;
       expect(await run(script)).toBe(2);
     });
@@ -423,7 +424,8 @@ describe('Rill Runtime: Closure Semantics', () => {
       // explicitly later.
       const typeScript = `
         dict[flag: { $ + 1 }] => $app
-        5 -> { $app.flag } => $captured
+        5 -> { $
+$app.flag } => $captured
         $captured.^type
       `;
       const typeResult = (await run(typeScript)) as any;
@@ -431,7 +433,8 @@ describe('Rill Runtime: Closure Semantics', () => {
 
       const invokeScript = `
         dict[flag: { $ + 1 }] => $app
-        5 -> { $app.flag } => $captured
+        5 -> { $
+$app.flag } => $captured
         10 -> $captured
       `;
       expect(await run(invokeScript)).toBe(11);

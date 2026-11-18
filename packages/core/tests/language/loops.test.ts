@@ -112,8 +112,8 @@ describe('Rill Runtime: Loops', () => {
       // With scope isolation, bare `return` returns the block's inherited $
       // (not the previous sibling's result). Use explicit return value instead.
       const script = `
-        "" -> {
-          "first" => $a
+        "first" -> {
+          $ => $a
           $a -> return
           "second" => $b
           $b
@@ -125,8 +125,8 @@ describe('Rill Runtime: Loops', () => {
 
     it('exits block with explicit return value', async () => {
       const script = `
-        "" -> {
-          "first" => $a
+        "first" -> {
+          $ => $a
           "returned" -> return
           "never reached"
         }
@@ -136,8 +136,8 @@ describe('Rill Runtime: Loops', () => {
 
     it('return in conditional exits containing block', async () => {
       const script = `
-        "" -> {
-          "value" => $v
+        "value" -> {
+          $ => $v
           $v -> .eq("value") ? ("matched" -> return)
           "not matched"
         }

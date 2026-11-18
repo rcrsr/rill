@@ -33,7 +33,7 @@ For design principles, see [Design Principles](topic-design-principles.md).
 | Comparison | `==`, `!=`, `<`, `>`, `<=`, `>=` |
 | Comparison | `.eq`, `.ne`, `.lt`, `.gt`, `.le`, `.ge` methods |
 | Logical | `!` (unary), `&&`, `\|\|` |
-| Pipe | `->` — auto-fill rule: no `$` in args → piped value prepended; explicit `$` rule: `$` in args → manual placement, no auto-prepend; zero-parameter callable → piped value silently dropped |
+| Pipe | `->` — auto-fill rule: no `$` in args → piped value prepended; explicit `$` rule: `$` in args → manual placement, no auto-prepend; zero-parameter callable → piped value is an excess argument, halts `RILL-R045`; block or string target must read `$` (`RILL-P031`); list or dict literal target must not read `$` at top level (`RILL-P030`) |
 | Capture | `=>` |
 | Spread | `...` (list/tuple spread), `ordered[...]` spread |
 | Extraction | `destruct<>` (destructure), `slice<>` (slice) |

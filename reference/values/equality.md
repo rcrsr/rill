@@ -20,6 +20,14 @@ r[equality.no-overlap] Equality halts when the types do not overlap
 `a == b` and `a != b` MUST halt with `#TYPE_MISMATCH` when the types the operands carry do not
 overlap (`structural-typing`). Each operand is judged on its carried type (`carried-type`).
 
+r[equality.closed-set] A declared set of literals halts on a value outside it
+When an operand carries a type from an assertion or a declaration that is a union of literals,
+and the other operand is a literal that is not a member, `==`, `!=`, `.eq`, `.ne`, `.has`,
+`.has_any`, and `.has_all` MUST halt with `#TYPE_MISMATCH`, as `structural-typing.overlap-literal`
+states. Two declared sets with no common member MUST halt. `.has`, `.has_any`, and `.has_all`
+MUST judge each sought value. Two operands that carry only inferred types are never narrowed, so
+`"a" == "b"` and `#TIMEOUT == #TIMEUOT` MUST yield false. The set holds strings, numbers, bools, or atoms.
+
 r[equality.declared-dict] A declared operand lets a one-sided dict key pass
 When either operand of `==`, `!=`, `.eq`, `.ne`, `.has`, `.has_any`, or `.has_all` carries a type
 from an assertion or a declaration (`carried-type.carriage`), a dict key that only one side names
@@ -89,6 +97,7 @@ A carried type decides whether a comparison halts, never its result (`carried-ty
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | The operands' types do not overlap | `#TYPE_MISMATCH` | Yes |
+| A declared literal set is compared with a literal outside it | `#TYPE_MISMATCH` | Yes |
 | An operand is a stream | RILL-R002 | Yes |
 
 ## Examples
@@ -124,6 +133,18 @@ dict[a: 1] == dict[a: 1, b: 2]
 ```rill
 # Error: #TYPE_MISMATCH
 list[dict[a: 1], dict[b: 2]] -> seq({ $ == dict[a: 1] })
+```
+
+```rill
+"c" => $unit:union("c", "f")
+$unit == "f"
+# Result: false
+```
+
+```rill
+# Error: #TYPE_MISMATCH "x" is outside the declared set
+"c" => $unit:union("c", "f")
+$unit == "x"
 ```
 
 ```rill

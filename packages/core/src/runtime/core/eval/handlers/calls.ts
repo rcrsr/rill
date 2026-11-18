@@ -47,7 +47,7 @@ import { locateField } from './field-access.js';
 /**
  * Bind the piped value as the first argument of a call target.
  *
- * No-op when there is no piped value or the callable takes no parameters.
+ * No-op when there is no piped value or the caller says to skip the operand.
  * In pipe-target position the value is prepended unless a top-level `$`
  * already places it; in primary position it is inserted only when no
  * arguments were written.
@@ -58,9 +58,9 @@ function bindPipeOperand(
   operand: RillValue | null,
   declared: TypeStructure | undefined,
   inPipeTarget: boolean,
-  zeroParams: boolean
+  skipOperand: boolean
 ): void {
-  if (operand === null || zeroParams) return;
+  if (operand === null || skipOperand) return;
   const shouldPrepend = inPipeTarget
     ? !hasTopLevelDollarInAST(argNodes)
     : args.length === 0;
@@ -147,7 +147,7 @@ export async function evaluateHostCall(
     s.ctx.pipeValue,
     pipeDeclaredOf(s.ctx),
     inPipeTarget,
-    declaredParams(fn, node.name).length === 0
+    skipsPipeOperand(fn, inPipeTarget, node.name)
   );
   s.ctx.observability.onHostCall?.({ name: node.name, args });
   const startTime = performance.now();
@@ -262,9 +262,28 @@ export async function evaluateClosureCallWithPipe(
     inPipeTarget,
     // A primary-position call with written args never prepends; skip the
     // parameter inspection so an undeclared callable halts at invocation.
-    (!inPipeTarget && args.length > 0) || declaresZeroParams(closure)
+    (!inPipeTarget && args.length > 0) ||
+      skipsPipeOperand(closure, inPipeTarget)
   );
   return invokeCallable(s, closure, args, node.span.start, fullPath);
+}
+
+/**
+ * True when a call must not receive the piped operand: a property-style
+ * callable always, and a zero-parameter callable outside pipe-target position.
+ * In pipe-target position a zero-parameter callable still receives the
+ * operand, so the excess-argument check halts it.
+ */
+function skipsPipeOperand(
+  value: RillCallable,
+  inPipeTarget: boolean,
+  functionName?: string
+): boolean {
+  if (isApplicationCallable(value) && value.isProperty) return true;
+  if (inPipeTarget) return false;
+  return isApplicationCallable(value)
+    ? declaredParams(value, functionName).length === 0
+    : declaresZeroParams(value);
 }
 
 /**

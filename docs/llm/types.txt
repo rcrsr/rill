@@ -39,6 +39,14 @@ Members may be scalar literals (string, number, bool, atom).
     "x" -> :union("c", "f")         # halts #TYPE_MISMATCH
     union(#wired, #wireless) => $lan   # union type in a variable
 
+A declared set is closed. A value outside it halts; an undeclared value never does.
+
+    "c" => $kind:union("c", "f")
+    $kind == "c"                    # true
+    $kind == "f"                    # false
+    $kind == "x"                    # halts #TYPE_MISMATCH: "x" is outside the set
+    "x" == "c"                      # false: neither side is declared
+
 `|` is not a type separator, and a bare literal after `:` is a parse error. Write `union("c")`.
 
 ## Parameterized constructors
@@ -112,6 +120,15 @@ Explicit conversion between compatible types. Halts with `RILL-R036` on invalid 
     list[1, 2] -> tuple             # tuple[1, 2]
     tuple[1, 2] -> list             # list[1, 2]
     ordered[a: 1] -> dict           # dict[a: 1]
+
+A parameterized target converts each element or field. A failing part halts `RILL-R038` or `RILL-R036` and names the part.
+
+    list[1, 2] -> list(string)      # list["1", "2"]
+    list["1", "x"] -> list(number)  # halts RILL-R038 naming element 1
+    dict[a: 1] -> dict(a: string)   # dict[a: "1"]
+    list[1, 2] -> :list(string)     # halts #TYPE_MISMATCH: `:` checks, never converts
+
+To validate a shape write `-> :dict(a: string)`, never `-> dict(a: string)`.
 
 ### Conversion matrix
 
