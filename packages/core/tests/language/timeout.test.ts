@@ -225,7 +225,7 @@ describe('timeout<idle:> restarts on activity', () => {
   ruleIt('re-arms the idle timer each time a host call returns', async () => {
     const recording = makeRecordingScheduler();
     const result = await run(
-      'timeout<idle: duration("50ms")> { quick() -> quick() -> quick() }',
+      'timeout<idle: duration("50ms")> { quick()\nquick()\nquick() }',
       { functions: { quick: returnsAtOnce }, scheduler: recording.scheduler }
     );
     expect(result).toBe('ok');

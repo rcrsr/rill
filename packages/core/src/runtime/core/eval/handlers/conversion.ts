@@ -63,10 +63,12 @@ import { BUILT_IN_TYPES } from '../../types/registrations.js';
 
 import type { EvalState } from '../state.js';
 import type { RillTypeName } from '../../../../types.js';
+import { isRillTypeName } from '../../../../types.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getStatus } from '../../types/status.js';
 import { getNodeLocation } from '../shared.js';
 import { assertType } from './types.js';
+import { structureMatches, formatStructure } from '../../types/operations.js';
 
 /**
  * Convert a value to a resolved type target. The single conversion path for
@@ -101,9 +103,135 @@ export function convertToType(
   if (isStructureKind(structure, 'tuple') && structure.elements !== undefined) {
     return convertToTupleWithSig(s, input, structure.elements, node);
   }
+  if (
+    isStructureKind(structure, 'list') ||
+    isStructureKind(structure, 'dict') ||
+    isStructureKind(structure, 'ordered')
+  ) {
+    return convertPart(s, input, structure, node);
+  }
   const result = applyConversion(s, input, target.typeName, node);
   assertType(s, result, structure, node.span.start);
   return result;
+}
+
+/** Append the failing part (`element 1`, `field 'a'`) to a halt message. */
+function withPart(message: string, part: string | undefined): string {
+  return part === undefined ? message : `${message} (${part})`;
+}
+
+/** Extend the enclosing part with the part inside it (`element 1, field 'a'`). */
+function joinPart(outer: string | undefined, inner: string): string {
+  return outer === undefined ? inner : `${outer}, ${inner}`;
+}
+
+/**
+ * Convert one part of a parameterized target (an element, field, value, or
+ * position) to its declared structure. Containers recurse; a nested `any`
+ * passes unchanged; a nested union, literal, or closure signature is checked
+ * structurally and a miss halts RILL-R036 naming the part.
+ */
+function convertPart(
+  s: EvalState,
+  value: RillValue,
+  structure: TypeStructure,
+  node: ASTNode,
+  part?: string
+): RillValue {
+  if (structure.kind === 'any') {
+    return value;
+  }
+  if (isStructureKind(structure, 'dict') && structure.valueType === undefined) {
+    if (structure.fields !== undefined) {
+      return convertToDictWithSig(s, value, structure.fields, node, part);
+    }
+  }
+  if (
+    isStructureKind(structure, 'ordered') &&
+    structure.valueType === undefined &&
+    structure.fields !== undefined
+  ) {
+    return convertToOrderedWithSig(s, value, structure.fields, node, part);
+  }
+  if (isStructureKind(structure, 'tuple') && structure.elements !== undefined) {
+    return convertToTupleWithSig(s, value, structure.elements, node, part);
+  }
+  if (isStructureKind(structure, 'list')) {
+    const outer = applyConversion(s, value, 'list', node, part);
+    if (structure.element === undefined || !Array.isArray(outer)) {
+      return outer;
+    }
+    const elementType = structure.element;
+    return outer.map((item, i) =>
+      convertPart(s, item, elementType, node, `element ${i}`)
+    );
+  }
+  if (isStructureKind(structure, 'dict') && structure.valueType) {
+    const outer = applyConversion(s, value, 'dict', node, part);
+    if (!isPlainDict(outer)) {
+      return outer;
+    }
+    const valueType = structure.valueType;
+    const result: Record<string, RillValue> = {};
+    for (const { key, value: item } of orderedDictEntries(outer)) {
+      setDictField(
+        result,
+        key,
+        convertPart(s, item, valueType, node, `field '${key}'`)
+      );
+    }
+    return result;
+  }
+  if (isStructureKind(structure, 'ordered') && structure.valueType) {
+    const outer = applyConversion(s, value, 'ordered', node, part);
+    if (!isOrdered(outer)) {
+      return outer;
+    }
+    const valueType = structure.valueType;
+    return createOrdered(
+      outer.entries.map(([key, item]): [string, RillValue] => [
+        key,
+        convertPart(s, item, valueType, node, `field '${key}'`),
+      ])
+    );
+  }
+  if (
+    structure.kind === 'union' ||
+    structure.kind === 'literal' ||
+    (isStructureKind(structure, 'closure') &&
+      (structure.params !== undefined || structure.ret !== undefined))
+  ) {
+    const hydrated = hydrateNested(s, value, structure, node);
+    if (!structureMatches(hydrated, structure)) {
+      throwCatchableHostHalt(
+        {
+          location: getNodeLocation(s, node),
+          sourceId: s.ctx.sourceId,
+          fn: 'convertType',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R036],
+        withPart(
+          `cannot convert ${inferType(value)} to ${formatStructure(structure)}`,
+          part
+        ),
+        { source: inferType(value), target: structure.kind }
+      );
+    }
+    return hydrated;
+  }
+  if (!isRillTypeName(structure.kind)) {
+    return throwCatchableHostHalt(
+      {
+        location: getNodeLocation(s, node),
+        sourceId: s.ctx.sourceId,
+        fn: 'convertType',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R036],
+      withPart(`cannot convert ${inferType(value)} to ${structure.kind}`, part),
+      { source: inferType(value), target: structure.kind }
+    );
+  }
+  return applyConversion(s, value, structure.kind, node, part);
 }
 
 const PROTOCOL_CONVERSION_ATOMS: ReadonlySet<string> = new Set([
@@ -138,7 +266,8 @@ export function applyConversion(
   s: EvalState,
   input: RillValue,
   targetType: RillTypeName,
-  node: ASTNode
+  node: ASTNode,
+  part?: string
 ): RillValue {
   const sourceType = inferTypeName(input);
 
@@ -169,7 +298,10 @@ export function applyConversion(
         fn: 'convertType',
       },
       ERROR_ATOMS[ERROR_IDS.RILL_R037],
-      'dict to ordered conversion requires structural type signature'
+      withPart(
+        'dict to ordered conversion requires structural type signature',
+        part
+      )
     );
   }
 
@@ -186,7 +318,7 @@ export function applyConversion(
           fn: 'convertType',
         },
         ERROR_ATOMS[ERROR_IDS.RILL_R036],
-        d.message,
+        withPart(d.message, part),
         d.raw
       );
     }
@@ -204,7 +336,7 @@ export function applyConversion(
         fn: 'convertType',
       },
       ERROR_ATOMS[ERROR_IDS.RILL_R036],
-      `cannot convert ${sourceType} to ${targetType}`,
+      withPart(`cannot convert ${sourceType} to ${targetType}`, part),
       { source: sourceType, target: targetType }
     );
   }
@@ -248,7 +380,7 @@ export function applyConversion(
           fn: 'convertType',
         },
         ERROR_ATOMS[ERROR_IDS.RILL_R038],
-        message,
+        withPart(message, part),
         { value: input }
       );
     }
@@ -262,7 +394,7 @@ export function applyConversion(
         fn: 'convertType',
       },
       ERROR_ATOMS[ERROR_IDS.RILL_R036],
-      `cannot convert ${sourceType} to ${targetType}`,
+      withPart(`cannot convert ${sourceType} to ${targetType}`, part),
       { source: sourceType, target: targetType }
     );
   }
@@ -366,7 +498,8 @@ function convertToOrderedWithSig(
   s: EvalState,
   input: RillValue,
   resolvedFields: readonly RillFieldDef[],
-  node: ASTNode
+  node: ASTNode,
+  part?: string
 ): RillValue {
   let dictInput: Record<string, RillValue>;
   if (isOrdered(input)) {
@@ -381,7 +514,7 @@ function convertToOrderedWithSig(
         fn: 'convertToOrderedWithSig',
       },
       ERROR_ATOMS[ERROR_IDS.RILL_R036],
-      `cannot convert ${inferType(input)} to ordered`,
+      withPart(`cannot convert ${inferType(input)} to ordered`, part),
       { source: inferType(input), target: 'ordered' }
     );
   }
@@ -413,10 +546,16 @@ function convertToOrderedWithSig(
       : undefined;
 
     if (presentValue !== undefined) {
-      let fieldValue: RillValue = presentValue;
-      fieldValue = hydrateNested(s, fieldValue, field.type, node);
-      assertType(s, fieldValue, field.type, node.span.start);
-      entries.push([fieldName, fieldValue]);
+      entries.push([
+        fieldName,
+        convertPart(
+          s,
+          presentValue,
+          field.type,
+          node,
+          joinPart(part, `field '${fieldName}'`)
+        ),
+      ]);
     } else if (field.defaultValue !== undefined) {
       entries.push([
         fieldName,
@@ -449,7 +588,8 @@ function convertToDictWithSig(
   s: EvalState,
   input: RillValue,
   resolvedFields: Readonly<Record<string, RillFieldDef>>,
-  node: ASTNode
+  node: ASTNode,
+  part?: string
 ): RillValue {
   let dictInput: Record<string, RillValue>;
   if (isOrdered(input)) {
@@ -464,7 +604,7 @@ function convertToDictWithSig(
         fn: 'convertToDictWithSig',
       },
       ERROR_ATOMS[ERROR_IDS.RILL_R036],
-      `cannot convert ${inferType(input)} to dict`,
+      withPart(`cannot convert ${inferType(input)} to dict`, part),
       { source: inferType(input), target: 'dict' }
     );
   }
@@ -479,14 +619,17 @@ function convertToDictWithSig(
       : undefined;
 
     if (presentValue !== undefined) {
-      const fieldValue = hydrateNested(
-        s,
-        presentValue,
-        resolvedField.type,
-        node
+      setDictField(
+        result,
+        fieldName,
+        convertPart(
+          s,
+          presentValue,
+          resolvedField.type,
+          node,
+          joinPart(part, `field '${fieldName}'`)
+        )
       );
-      assertType(s, fieldValue, resolvedField.type, node.span.start);
-      setDictField(result, fieldName, fieldValue);
     } else if (resolvedField.defaultValue !== undefined) {
       setDictField(
         result,
@@ -539,7 +682,8 @@ function convertToTupleWithSig(
   s: EvalState,
   input: RillValue,
   resolvedElements: readonly RillFieldDef[],
-  node: ASTNode
+  node: ASTNode,
+  part?: string
 ): RillValue {
   const isTupleInput = isTuple(input);
   const isListInput =
@@ -552,7 +696,7 @@ function convertToTupleWithSig(
         fn: 'convertToTupleWithSig',
       },
       ERROR_ATOMS[ERROR_IDS.RILL_R036],
-      `cannot convert ${inferType(input)} to tuple`,
+      withPart(`cannot convert ${inferType(input)} to tuple`, part),
       { source: inferType(input), target: 'tuple' }
     );
   }
@@ -568,9 +712,15 @@ function convertToTupleWithSig(
 
     if (inputEntry !== undefined) {
       // Element present in input: recurse into nested types
-      const elementValue = hydrateNested(s, inputEntry, element.type, node);
-      assertType(s, elementValue, element.type, node.span.start);
-      result.push(elementValue);
+      result.push(
+        convertPart(
+          s,
+          inputEntry,
+          element.type,
+          node,
+          joinPart(part, `position ${i}`)
+        )
+      );
     } else if (element.defaultValue !== undefined) {
       // Missing trailing element with default: deep copy and hydrate
       result.push(

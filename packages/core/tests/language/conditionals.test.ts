@@ -180,7 +180,7 @@ describe('Rill Runtime: Conditionals', () => {
     });
 
     it('rejects empty closure body on invocation (RILL-R043)', async () => {
-      await expect(run('|| { } => $fn\n"x" -> $fn')).rejects.toHaveProperty(
+      await expect(run('|| { } => $fn\n$fn()')).rejects.toHaveProperty(
         'errorId',
         'RILL-R043'
       );
@@ -219,10 +219,10 @@ describe('Rill Runtime: Conditionals', () => {
     });
   });
 
-  describe('Bare Function Calls in Branches', () => {
-    it('passes $ implicitly to bare function in then branch', async () => {
+  describe('Function Calls in Branches', () => {
+    it('passes $ explicitly to function in then branch', async () => {
       const result = await run(
-        '"ERROR" -> .contains("ERROR") ? handle ! "ok"',
+        '"ERROR" -> .contains("ERROR") ? handle($) ! "ok"',
         {
           functions: {
             handle: {
@@ -243,9 +243,9 @@ describe('Rill Runtime: Conditionals', () => {
       expect(result).toBe('handled:ERROR');
     });
 
-    it('passes $ implicitly to bare function in else branch', async () => {
+    it('passes $ explicitly to function in else branch', async () => {
       const result = await run(
-        '"OK" -> .contains("ERROR") ? "error" ! process',
+        '"OK" -> .contains("ERROR") ? "error" ! process($)',
         {
           functions: {
             process: {
@@ -266,9 +266,9 @@ describe('Rill Runtime: Conditionals', () => {
       expect(result).toBe('processed:OK');
     });
 
-    it('passes $ implicitly to namespaced function in then branch', async () => {
+    it('passes $ explicitly to function in then (second) branch', async () => {
       const result = await run(
-        '"ERROR" -> .contains("ERROR") ? flagError ! "ok"',
+        '"ERROR" -> .contains("ERROR") ? flagError($) ! "ok"',
         {
           functions: {
             flagError: {
@@ -289,9 +289,9 @@ describe('Rill Runtime: Conditionals', () => {
       expect(result).toBe('error:ERROR');
     });
 
-    it('passes $ implicitly to namespaced function in else branch', async () => {
+    it('passes $ explicitly to function in else (second) branch', async () => {
       const result = await run(
-        '"OK" -> .contains("ERROR") ? "error" ! processMsg',
+        '"OK" -> .contains("ERROR") ? "error" ! processMsg($)',
         {
           functions: {
             processMsg: {
@@ -312,9 +312,9 @@ describe('Rill Runtime: Conditionals', () => {
       expect(result).toBe('processed:OK');
     });
 
-    it('passes $ to both branches when both are bare functions', async () => {
+    it('passes $ to both branches when both are function calls', async () => {
       const result = await run(
-        '"ERROR data" -> .contains("ERROR") ? flagError ! processMsg',
+        '"ERROR data" -> .contains("ERROR") ? flagError($) ! processMsg($)',
         {
           functions: {
             flagError: {
@@ -347,9 +347,9 @@ describe('Rill Runtime: Conditionals', () => {
       expect(result).toBe('error:ERROR data');
     });
 
-    it('chains bare functions in else-if', async () => {
+    it('chains function calls in else-if', async () => {
       const result = await run(
-        '"warn" -> .eq("error") ? handleError ! .eq("warn") ? handleWarn ! handleInfo',
+        '"warn" -> .eq("error") ? handleError($) ! .eq("warn") ? handleWarn($) ! handleInfo($)',
         {
           functions: {
             handleError: {

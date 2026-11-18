@@ -19,8 +19,8 @@ import {
 } from './operations.js';
 import { RuntimeHaltSignal, throwTypeHalt, type TypeHaltSite } from './halt.js';
 import { setDictField } from './dict-keys.js';
-import { isStructureKind } from './guards.js';
-import { inferType } from './registrations.js';
+import { isAtom, isStructureKind } from './guards.js';
+import { deepEquals, inferType } from './registrations.js';
 import type { RillFieldDef, RillValue, TypeStructure } from './structures.js';
 
 /** A comparison operand: its value and the type it was declared with, if any. */
@@ -156,6 +156,9 @@ function overlaps(
 
   const kind = overlapKind(a);
   if (kind !== overlapKind(b)) return false;
+  if (isStructureKind(a, 'literal') && isStructureKind(b, 'literal')) {
+    return deepEquals(a.value, b.value);
+  }
 
   if (isStructureKind(a, 'list') && isStructureKind(b, 'list')) {
     return overlaps(
@@ -184,12 +187,27 @@ export function structureOverlaps(a: TypeStructure, b: TypeStructure): boolean {
   return overlaps(a, b, false);
 }
 
-/** The type a value carries: its declared type, else inferred, else its bare kind. */
+/**
+ * The type a value carries: its declared type, else inferred, else its bare
+ * kind. When the other operand is declared, an undeclared scalar (atom,
+ * string, number, bool) is judged by its own literal type, so a closed set
+ * rejects a value outside it.
+ */
 function carriedStructure(
   value: RillValue,
-  declared?: TypeStructure
+  declared?: TypeStructure,
+  otherDeclared: boolean = false
 ): TypeStructure {
   if (declared !== undefined) return declared;
+  if (
+    otherDeclared &&
+    (typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean' ||
+      isAtom(value))
+  ) {
+    return { kind: 'literal', value };
+  }
   try {
     return inferStructure(value);
   } catch (e) {
@@ -214,6 +232,21 @@ export function carriedListElement(
 }
 
 /**
+ * The structure to print for an operand. An undeclared scalar was wrapped as
+ * a literal only to be judged; print its kind so the halt never carries the
+ * value itself.
+ */
+function messageStructure(
+  operand: Carried,
+  structure: TypeStructure
+): TypeStructure {
+  if (operand.declared === undefined && isStructureKind(structure, 'literal')) {
+    return { kind: inferType(operand.value) };
+  }
+  return structure;
+}
+
+/**
  * Halt `#TYPE_MISMATCH` (catchable) when the operands' types cannot overlap.
  * When either operand carries a declared type, a dict key present on one side
  * only passes, as it does when the value is matched against that type.
@@ -227,11 +260,19 @@ export function requireOverlap(
   op: string,
   lenient: boolean = left.declared !== undefined || right.declared !== undefined
 ): void {
-  const l = carriedStructure(left.value, left.declared);
-  const r = carriedStructure(right.value, right.declared);
+  const l = carriedStructure(
+    left.value,
+    left.declared,
+    right.declared !== undefined
+  );
+  const r = carriedStructure(
+    right.value,
+    right.declared,
+    left.declared !== undefined
+  );
   if (overlaps(l, r, lenient)) return;
-  const lt = formatStructure(l);
-  const rt = formatStructure(r);
+  const lt = formatStructure(messageStructure(left, l));
+  const rt = formatStructure(messageStructure(right, r));
   throwTypeHalt(
     site,
     'TYPE_MISMATCH',

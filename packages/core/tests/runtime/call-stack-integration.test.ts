@@ -214,7 +214,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
       let depth2 = 0;
       let depth3 = 0;
 
-      await run('level1() -> level2() -> level3()', {
+      await run('level1()\nlevel2()\nlevel3()', {
         functions: {
           level3: {
             returnType: anyTypeValue,
@@ -274,7 +274,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
   describe('method calls', () => {
     it('pushes frame for dict-bound callable', async () => {
       let capturedStack: CallFrame[] = [];
-      await run('dict[fn: |x|{ capture() }].fn(42)', {
+      await run('dict[fn: |x|{ capture($x) }].fn(42)', {
         functions: {
           capture: {
             returnType: anyTypeValue,

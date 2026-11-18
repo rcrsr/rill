@@ -1387,7 +1387,7 @@ try {
 
 ## structureOverlaps
 
-`structureOverlaps` reports whether some value could satisfy two type structures. It is pure and symmetric, and it never throws. A literal is judged by the kind of its value. A dict key named on one side only must carry a default for the structures to overlap.
+`structureOverlaps` reports whether some value could satisfy two type structures. It is pure and symmetric, and it never throws. Two literals overlap only when they hold equal values, and a literal overlaps its scalar kind. A dict key named on one side only must carry a default for the structures to overlap.
 
 ```typescript
 function structureOverlaps(a: TypeStructure, b: TypeStructure): boolean;

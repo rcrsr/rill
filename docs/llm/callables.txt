@@ -11,7 +11,7 @@ When `->` targets a callable, the runtime decides how to bind the piped value. T
 
 Closures stop the scan. A `$` inside a closure literal (`{ ... }`) is late-bound when the closure runs per-element. It does NOT count as a top-level `$`. Sub-expressions ARE scanned, so `$` inside `g($)` does count.
 
-**Zero-parameter callables.** When auto-prepend is selected but the callable declares zero parameters, the piped value is silently dropped. The callable runs with no arguments. Execution does not halt.
+**Zero-parameter callables.** When auto-prepend is selected and the callable declares zero parameters, the piped value is an excess argument and the call halts RILL-R045, the same as `$f(3)`.
 
 | Call form | Effective call | Notes |
 |---|---|---|
@@ -22,7 +22,9 @@ Closures stop the scan. A `$` inside a closure literal (`{ ... }`) is late-bound
 | `$val -> fn(1, $, $)` | `fn(1, $val, $val)` | Both `$` resolve to piped value |
 | `$val -> fn(g($))` | `fn(g($val))` | Sub-expr `$` counts |
 | `$list -> filter({ $.active })` | `filter($list, { $.active })` | Closure `$` is late-bound |
-| `$val -> zero_param_fn` | `zero_param_fn()` | Piped value silently dropped |
+| `$val -> zero_param_fn` | `zero_param_fn($val)` | Halts RILL-R045 (excess argument) |
+
+A block or string target must read `$`: `5 -> { 3 }` and `5 -> "label"` halt `RILL-P031` at parse time. A list or dict literal target cannot read `$` at its top level: `3 -> list[$, $]` halts `RILL-P030`. A `$` inside a conditional, guard, retry, timeout, or pass body in an argument counts as written, so nothing is prepended. A `$` inside a nested pipe target in an argument, as in `5 -> f(2 -> g($))`, does not count, so the operand is prepended.
 
 This is why `[1,2,3] -> fold(0, { $@ + $ })` works: the list auto-prepends because no top-level `$` appears in `(0, { $@ + $ })`. The `$` inside the closure body is late-bound per element.
 
@@ -124,6 +126,11 @@ Dict keys are strings. A number or bool selector halts `#TYPE_MISMATCH` (`??` do
     1 -> string -> dict[1: "number", one: "word"]      # "number"
     1 -> dict[1: "number"]                             # halts #TYPE_MISMATCH
 
+A dispatch literal does not read `$` at its top level. A held block reads `$` as the selector. Build from the piped value with a block:
+
+    3 -> { list[$, $] }                                # list[3, 3]
+    3 -> list[$, $]                                    # halts RILL-P030
+
 ### List dispatch (index)
 
     0 -> list["first", "second"]                       # "first"
@@ -195,5 +202,7 @@ Slice (`slice<start:stop:step>`):
     use<ext:qdrant.search>             # load extension member
 
 `use<>` returns the resolved value (dict, closure, or any rill type). Hosts register resolvers; scripts cannot. A `guard` around `use<>` catches resolution failures only; halts inside the module propagate.
+
+`v -> use<...>` on a host-resolved value calls a callable, selects from a dict or list, or converts through a type; any other value halts `RILL-R002`. A source module's result, even a function, is returned as-is.
 
 See `control-flow` for iterators and lazy sequences.

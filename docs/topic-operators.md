@@ -44,6 +44,33 @@ The piped value is available as `$`:
 5 -> ($ * $ + $)               # 30
 ```
 
+### A Target Uses the Piped Value
+
+A block or string target must read `$`. A leading method such as `.upper` or `pass` counts as a read. A list or dict literal target must not read `$` at its top level. Wrap the literal in a block to use the value twice. A `$` inside a nested held block is fine. A call with no arguments does not count.
+
+```rill
+3 -> { list[$, $] }
+# Result: list[3, 3]
+```
+
+```rill
+# Error: RILL-P030
+3 -> list[$, $]
+```
+
+```rill
+# Error: RILL-P031
+5 -> "x"
+```
+
+Piping into a zero-parameter function halts `RILL-R045`, because the piped value is an excess argument.
+
+```rill
+||("constant") => $zero
+# Error: RILL-R045
+42 -> $zero
+```
+
 ### Method Syntax
 
 Method calls are sugar for pipes:
@@ -72,7 +99,7 @@ When `->` targets a callable, the runtime decides how to bind the piped value to
 
 **Rule 2 — Auto-prepend.** If no top-level `$` is found in the argument list, the piped value is prepended as the first argument automatically.
 
-**Zero-parameter callables.** When auto-prepend is selected but the callable declares zero parameters, the piped value is silently dropped. The callable runs with no arguments. Execution does not halt.
+**Zero-parameter callables.** Auto-prepend into a zero-parameter callable halts `RILL-R045`; see [A Target Uses the Piped Value](#a-target-uses-the-piped-value).
 
 **Closures stop the scan.** The scanner walks the immediate argument list but stops at closure boundaries (`{`). References to `$` inside a closure literal are not counted — they are late-bound when the callable invokes the closure per element. Only top-level `$` in the argument list triggers explicit placement.
 
@@ -84,7 +111,7 @@ When `->` targets a callable, the runtime decides how to bind the piped value to
 |-----------|------------------------|---------------|-------|
 | `$val -> fn` | n/a (no args) | `fn($val)` | Auto-prepend |
 | `$val -> fn()` | n/a (empty args) | `fn($val)` | Auto-prepend |
-| `$val -> fn` (fn takes 0 params) | n/a | `fn()` | `$val` silently dropped |
+| `$val -> fn` (fn takes 0 params) | n/a | `fn($val)` | Halts `RILL-R045`: excess argument |
 | `$val -> fn(1, 2)` | no | `fn($val, 1, 2)` | Auto-prepend |
 | `$val -> fn($)` | yes | `fn($val)` | Explicit: single `$` |
 | `$val -> fn(1, $, 0)` | yes | `fn(1, $val, 0)` | Explicit: middle position |
@@ -163,16 +190,6 @@ The `$` inside `{ $.active }` is inside a closure boundary. The scanner stops th
 ```
 
 Both the outer `{ $ -> ... }` and the inner `{ $ * 2 }` use late-bound `$`. Neither counts toward the pipe-site scan for the top-level `seq` call. Auto-prepend places the list as the first argument.
-
-#### Zero-parameter callable — piped value silently dropped
-
-```rill
-||("constant") => $zero
-42 -> $zero()
-# Result: "constant"
-```
-
-`$zero` takes zero parameters. The piped value `42` is silently discarded. `$zero` runs and returns `"constant"`. Execution does not halt.
 
 ---
 
@@ -280,7 +297,7 @@ All comparisons are by value, not reference:
 "hello" == "hello"                     # true
 ```
 
-`==` and `!=` halt with `#TYPE_MISMATCH` when the operand types cannot overlap. Values of overlapping types that differ in kind compare unequal. An element read from an undeclared list carries its own type, so `list[1, "a"] -> filter({ $ == "a" })` halts on `1`. Declare the list as `list(union(number, string))` to compare across its types. An empty list overlaps a list of numbers, so the comparison runs:
+`==` and `!=` halt with `#TYPE_MISMATCH` when the operand types cannot overlap, including a value outside a declared closed set of literals or atoms (see [Literal Members](topic-type-system.md#literal-members)). Values of overlapping types that differ in kind compare unequal. An element read from an undeclared list carries its own type, so `list[1, "a"] -> filter({ $ == "a" })` halts on `1`. Declare the list as `list(union(number, string))` to compare across its types. An empty list overlaps a list of numbers, so the comparison runs:
 
 ```rill
 list[] == list[1]
@@ -926,6 +943,8 @@ The `-> type` operator converts a value to the target type. Same-type conversion
 ⁵ `0` maps to `false`, `1` maps to `true`; all other values halt with `RILL-R036`.
 
 A closure, an iterator, or a vector has no `-> string` conversion, and neither has a list, dict, tuple, or ordered that holds one at any depth. Converting one, interpolating one in a string, or joining one with `.join` halts with `RILL-R036`. A datetime or a duration interpolates as its printed form, and `duration -> string` yields that form, but `-> string` on a datetime, or on a collection that holds a datetime or a duration, halts with `RILL-R036`.
+
+`-> list(T)`, `-> dict(...)`, `-> ordered(...)`, and `-> tuple(...)` convert every element, field, and position and halt `RILL-R036` or `RILL-R038` naming the part; see the [conversion table](topic-type-system.md#extra-and-missing-dict-fields).
 
 **Structural conversion with signatures:** `-> dict(sig)`, `-> ordered(sig)`, and `-> tuple(sig)` accept a structural type signature as the conversion target. The source value must match the target kind (dict-to-dict, tuple-to-tuple, or list-to-tuple). Fields present in the signature but absent from the source are hydrated with the signature's default values. See [Type System](topic-type-system.md) for structural type and default value documentation.
 

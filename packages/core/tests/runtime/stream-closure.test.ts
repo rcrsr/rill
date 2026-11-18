@@ -277,7 +277,7 @@ describe('Stream Closure Execution', () => {
     // all but the last and deadlocked; the FIFO queue must deliver every chunk.
     it('delivers every chunk when fan yields concurrently (no lost chunks, no deadlock)', async () => {
       const script = `
-        || { list[1, 2, 3] -> fan({ $ -> yield }) -> "ok" } :stream(number):string => $gen
+        || { list[1, 2, 3] -> fan({ $ -> yield }) => $_r\n"ok" } :stream(number):string => $gen
         $gen() -> seq({ $ })
       `;
       const result = (await withTimeout(
@@ -293,7 +293,7 @@ describe('Stream Closure Execution', () => {
 
     it('delivers every chunk for a larger concurrent fan', async () => {
       const script = `
-        || { list[1, 2, 3, 4, 5] -> fan({ $ -> yield }) -> "ok" } :stream(number):string => $gen
+        || { list[1, 2, 3, 4, 5] -> fan({ $ -> yield }) => $_r\n"ok" } :stream(number):string => $gen
         $gen() -> seq({ $ })
       `;
       const result = (await withTimeout(
@@ -311,7 +311,7 @@ describe('Stream Closure Execution', () => {
     // it runs to its resolution.
     it('resolves a partially consumed stream without hanging', async () => {
       const script = `
-        || { range(1, 6) -> seq({ $ -> yield }) -> "done" } :stream(number):string => $gen
+        || { range(1, 6) -> seq({ $ -> yield }) => $_r\n"done" } :stream(number):string => $gen
         $gen() => $s
         $s -> take(3) => $c
         $s()

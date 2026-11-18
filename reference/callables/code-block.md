@@ -126,6 +126,7 @@ r[code-block.assert-construct] A construct body accepts an assertion {pending #5
 
 ```rill
 3 -> {
+  $ => $n
   "big" -> return
   "after"
 } -> .upper
@@ -174,5 +175,5 @@ function: `{ 5 } => $x` binds a closure, `$d.a` returns one, and `3 -> { 5 }` yi
 assertion after a block tests the closure, so `3 -> { $ + 1 }:number` halts `#TYPE_MISMATCH`
 (got closure), `:?number` yields false, and `true ? { 5 }:number ! { 6 }` halts RILL-P001.
 
-Superseded: `code-block.ignores-input`, now stated by `pipe.uses-value`.
+Superseded: `code-block.ignores-input`, now built as `pipe.uses-value`.
 

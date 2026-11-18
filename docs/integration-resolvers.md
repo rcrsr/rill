@@ -78,7 +78,7 @@ See [SchemeResolver](ref-host-api.md#schemeresolver) and [ResolverResult](ref-ho
 
 ### Piping into `use<>`
 
-Piping into `use<>` invokes the resolved value when it is callable, like any callable pipe target. A callable with parameters receives the piped value as its argument; a zero-parameter callable sees it as `$`. A non-callable resolved value is returned unchanged.
+Piping into `use<>` treats a host-resolved value as a variable holding it would be treated. A callable with parameters receives the piped value as its argument; a zero-parameter callable halts `RILL-R045` on the excess argument. A dict or list selects by the piped key or index, and a type value converts the piped value. Any other value halts `RILL-R002`, as in `cannot pipe into use<host:value>: it holds a string`. A source module's result is the pipe's result, even when it is a function.
 
 ```text
 "hello" -> use<host:shout>

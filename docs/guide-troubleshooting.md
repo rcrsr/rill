@@ -418,17 +418,17 @@ list[1, 2] -> .len  # count
 
 A lone `#todo` on its own line runs silently as a discarded atom statement. The checker warns with `ATOM_DISCARDED`.
 
-## Why Does `#MY_CODE` Not Match?
+## Why Does Comparing `.!code` to `#MY_CODE` Halt?
 
-Atoms compare by name, and names are case-sensitive. `#MY_CODE` is a valid atom, but no halt carries a code outside the core error set, so a comparison against it is always false.
+Atoms compare by name, and names are case-sensitive. `#MY_CODE` is a valid atom, but no halt carries a code outside the core error set, so a comparison against it halts instead of returning false.
 
 ```rill
 guard { 1 / 0 } => $r
+# Error: #TYPE_MISMATCH
 ($r.!code == #MY_CODE)
-# Result: false
 ```
 
-**Cause:** `#MY_CODE` is not in the core error set. A misspelled or invented code in a `.!code` comparison never matches, and the script keeps running with the wrong branch. Inside `on:`, the same name is a parse error:
+**Cause:** `#MY_CODE` is not in the core error set, which `.!code` treats as closed. The comparison halts `#TYPE_MISMATCH`, so a misspelled or invented code cannot silently take the wrong branch. Inside `on:`, the same name is a parse error:
 
 ```text
 # Error: RILL-P004 '#MY_CODE' is not a core error code

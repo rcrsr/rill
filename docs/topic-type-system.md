@@ -75,7 +75,7 @@ tuple["x"] -> tuple(string, number = 0)
 
 Tuple defaults are restricted to trailing positions. You cannot place a defaulted field before a required field in a tuple constructor.
 
-The `:` assertion operator does not hydrate defaults. Only `-> type` conversion fills missing fields. Use `:` when you want strict validation with no field synthesis.
+The `:` assertion operator only checks and never converts. `-> T` converts every field, element, and position, and fills missing defaults.
 
 When a required field has no default and the input omits it, the runtime raises [RILL-R044](ref-errors.md). See [Operators](topic-operators.md) for the full `-> type` compatibility matrix.
 
@@ -189,8 +189,6 @@ list[1, "a"] -> :list(number)
 # Error: #TYPE_MISMATCH Type assertion failed
 ```
 
-An assertion to the bare `list` still passes, and `list[list[1], list["a"]] -> :?list(list)` is `true`.
-
 ### Metatype Fixed Point
 
 The `^type` of a type value is always `type`, and every type name is an expression that produces a type value, so `string.^type == type`. `type.^type` is `type`:
@@ -292,11 +290,26 @@ $val -> :dict -> .keys        # assert dict, then get keys
 
 The table shows how each operation treats a dict value whose keys differ from the dict type.
 
-| Operation | Extra fields | Missing field with a default | Missing field with no default |
-|-----------|--------------|------------------------------|-------------------------------|
-| `:T` / `:?T` | Accepted; value returned unchanged, extras kept | Accepted; not filled | `:` halts `#TYPE_MISMATCH`; `:?` returns false |
-| `-> T` | Dropped | Filled with the default | Halts RILL-R044, except a collection-typed field whose children all have defaults (see [Nested Collection Synthesis](#nested-collection-synthesis)) |
-| `.^type == T` (undeclared dict) | false | false | false |
+| Operation | Extra fields | Missing field with a default | Missing field with no default | Field or element of another type |
+|-----------|--------------|------------------------------|-------------------------------|----------------------------------|
+| `:T` / `:?T` | Accepted; value returned unchanged, extras kept | Accepted; not filled | `:` halts `#TYPE_MISMATCH`; `:?` returns false | `:T` halts `#TYPE_MISMATCH`; `:?` returns false |
+| `-> T` | Dropped | Filled with the default | Halts RILL-R044, except a collection-typed field whose children all have defaults (see [Nested Collection Synthesis](#nested-collection-synthesis)) | Converts; halts RILL-R036 or RILL-R038 naming the part |
+| `.^type == T` (undeclared dict) | false | false | false | false |
+
+```rill
+list[1, 2] -> list(string)
+# Result: list["1", "2"]
+```
+
+```rill
+# Error: RILL-R038
+list["1", "x"] -> list(number)
+```
+
+```rill
+# Error: #TYPE_MISMATCH
+list[1, 2] -> :list(string)
+```
 
 `.^type == T` requires the exact key set, field types, and default presence on the dict's own type.
 
@@ -489,10 +502,7 @@ Attempting to convert a non-stream value to a stream with `-> stream` halts exec
 ### In Pipe Chains
 
 ```rill
-# Assert typed list and continue processing
 [1, 2, 3] -> :list(number) -> seq({ $ * 2 })
-
-# Multiple assertions in chain
 "test" -> :string -> .len -> :number   # 4
 ```
 
@@ -579,6 +589,20 @@ A type member matches by type. A literal member matches by equality. A closed se
 ```rill
 "c" -> :union("c", "f")
 # Result: "c"
+```
+
+A comparison between a declared set and a literal outside it halts `#TYPE_MISMATCH`, so a misspelled member cannot pass as false. Closed-set checks apply only when an operand carries a declared set. See [Operators](topic-operators.md) for the comparison forms.
+
+```rill
+#wired => $kind:union(#wired, #wireless)
+$kind == #wireless
+# Result: false
+```
+
+```rill
+# Error: #TYPE_MISMATCH
+#wired => $kind:union(#wired, #wireless)
+$kind == #wirless
 ```
 
 The one-value type is `union("c")`. A bare literal after a colon is a parse error:
@@ -983,12 +1007,6 @@ $a.^type == $b.^type
 [1, 2] => $l
 $l.^type == list(number)
 # Result: true
-```
-
-```rill
-["a", "b"] => $strs
-$strs.^type == list(number)
-# Result: false
 ```
 
 ## See Also

@@ -3,11 +3,11 @@ id: atom
 title: Atoms
 status: normative
 since: 0.24.0
-issues: [564]
+issues: []
 grammar: [atom-literal]
 errors: [RILL-P024, RILL-R002, RILL-R036, INVALID_INPUT, TYPE_MISMATCH]
 depends: [notation, halt, type-value]
-tests: [atoms.test.ts, atom-comment-spelling.test.ts, typed-atom-migration.test.ts, type-assertions.test.ts]
+tests: [atoms.test.ts, atom-comment-spelling.test.ts, typed-atom-migration.test.ts, type-assertions.test.ts, equality-gate.test.ts]
 ---
 
 # Atoms
@@ -77,7 +77,7 @@ r[atom.unordered] Atoms have no order
 r[atom.no-arithmetic] An atom is not a number
 An arithmetic operator with an atom operand MUST halt with RILL-R002.
 
-r[atom.closed-set] A narrowed atom compared outside its set halts {pending #564}
+r[atom.closed-set] A narrowed atom compared outside its set halts
 `==` and `!=` between an operand whose carried type is a closed set of atoms and an atom
 outside that set MUST halt with `#TYPE_MISMATCH`. With `$kind` asserted as
 `union(#wired, #wireless)`, `$kind == #wirless` MUST halt, and `$kind == #wireless` MUST yield
@@ -96,7 +96,7 @@ An atom MUST satisfy `:atom`. A value of any other type MUST halt `:atom` with
 | An atom is ordered or used in arithmetic | RILL-R002 | Yes |
 | A value that is neither atom nor string is converted to atom | RILL-R036 | Yes |
 | A non-atom is asserted as `:atom` | `#TYPE_MISMATCH` | Yes |
-| A closed-set atom is compared outside its set {pending #564} | `#TYPE_MISMATCH` | Yes |
+| A closed-set atom is compared outside its set | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 
@@ -115,7 +115,7 @@ An atom MUST satisfy `:atom`. A value of any other type MUST halt `:atom` with
 # Result: "ok"
 ```
 
-```rill pending=564
+```rill
 # Error: #wirless is outside the asserted set
 #wired => $kind:union(#wired, #wireless)
 $kind == #wirless
@@ -123,4 +123,6 @@ $kind == #wirless
 
 ## Notes
 
-Until #564 lands, `==` between an atom and a value outside its asserted set yields false.
+On 0.23.0 `==` between an atom and a value outside its asserted set yields false.
+
+`equality.closed-set` states the same halt for strings, numbers, and bools.

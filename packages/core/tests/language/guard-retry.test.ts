@@ -49,6 +49,7 @@ import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
 import { createTraceFrame } from '../../src/runtime/core/types/trace.js';
 import { RuntimeHaltSignal } from '../../src/runtime/core/types/halt.js';
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 /**
  * Produce an invalid RillValue via parse-recovery. The selector in
@@ -481,8 +482,9 @@ describe('Guard and retry `on:` filter over the core error set', () => {
     expect(err.message).toContain('#NOT_A_CODE');
   });
 
-  it('a misspelled code in a comparison is false, not an error', async () => {
-    const result = await run('guard { 1 / 0 } => $r\n$r.!code == #TIMEUOT');
-    expect(result).toBe(false);
+  it('a misspelled code in a comparison halts #TYPE_MISMATCH', async () => {
+    await expectHalt(() => run('guard { 1 / 0 } => $r\n$r.!code == #TIMEUOT'), {
+      code: 'TYPE_MISMATCH',
+    });
   });
 });

@@ -9,7 +9,7 @@ import type {
   ExpressionNode,
   SpreadArgNode,
 } from '../../../../types.js';
-import { RillError, RuntimeError } from '../../../../types.js';
+import { RillError, RuntimeError, readsPipeValue } from '../../../../types.js';
 import type {
   RillCallable,
   ScriptCallable,
@@ -30,7 +30,7 @@ import type {
   TypeStructure,
 } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
-import { isObjectRecord, isStream } from '../../types/guards.js';
+import { isStream } from '../../types/guards.js';
 import { structureMatches, formatStructure } from '../../types/operations.js';
 import { isInternalFn, notifyActivity } from '../../activity.js';
 import { ControlSignal, YieldSignal } from '../../signals.js';
@@ -94,9 +94,9 @@ import {
  * isPipeVar === true) exists in the argument list, NOT counting occurrences
  * inside ClosureNode bodies (`|params| body`).
  *
- * The scanner descends into all sub-expressions but stops at `Closure`
- * node boundaries, because references to `$` inside closure literals are
- * late-bound and do not affect the outer pipe-binding decision.
+ * Delegates to the shared pipe-value walker in `written` mode, which stops
+ * at closure, block, and later-pipe-target boundaries because `$` inside
+ * them is late-bound and does not affect the outer pipe-binding decision.
  *
  * Implements the unified pipe-rule scanner.
  *
@@ -118,37 +118,7 @@ import {
 export function hasTopLevelDollarInAST(
   args: readonly (ExpressionNode | SpreadArgNode)[]
 ): boolean {
-  for (const arg of args) {
-    if (containsDollar(arg)) return true;
-  }
-  return false;
-}
-
-/**
- * Recursive descent helper for hasTopLevelDollarInAST.
- * Visits all AST node properties, stops at Closure and Block boundaries
- * because `$` inside either is late-bound and not a pipe placeholder.
- */
-function containsDollar(node: unknown): boolean {
-  if (!isObjectRecord(node) || Array.isArray(node)) return false;
-
-  // Stop at closure / block boundaries — `$` inside is late-bound
-  if (node['type'] === 'Closure' || node['type'] === 'Block') return false;
-
-  // Bare `$` pipe placeholder
-  if (node['type'] === 'Variable' && node['isPipeVar'] === true) return true;
-
-  // Recurse into child properties
-  for (const value of Object.values(node)) {
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        if (containsDollar(item)) return true;
-      }
-    } else if (typeof value === 'object' && value !== null) {
-      if (containsDollar(value)) return true;
-    }
-  }
-  return false;
+  return args.some((arg) => readsPipeValue(arg, 'written'));
 }
 
 /**

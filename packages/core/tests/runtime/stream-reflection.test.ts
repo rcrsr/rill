@@ -267,7 +267,7 @@ describe('Scope Exit Cleanup', () => {
     const result = await run(
       `
         "x" -> {
-          make_stream() => $s
+          make_stream($) => $s
           "block-done"
         }
       `,
@@ -305,7 +305,7 @@ describe('Scope Exit Cleanup', () => {
     const result = await run(
       `
         "x" -> {
-          make_stream() => $s
+          make_stream($) => $s
           "ok"
         }
       `,
@@ -341,6 +341,7 @@ describe('Scope Exit Cleanup', () => {
     await run(
       `
         "x" -> {
+          $
           make_stream("first") => $s1
           make_stream("second") => $s2
           "done"
@@ -382,7 +383,7 @@ describe('Scope Exit Cleanup', () => {
         run(
           `
             "x" -> {
-              make_stream() => $s
+              make_stream($) => $s
               "done"
             }
           `,

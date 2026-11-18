@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { expectHalt } from '../helpers/halt.js';
+import { expectHalt, expectRuntimeError } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Unified Dispatch', () => {
@@ -386,14 +386,15 @@ describe('Unified Dispatch', () => {
   });
 
   describe('Boundary Conditions', () => {
-    it('zero-param closure with pipeValue during dispatch (AC-16)', async () => {
-      // AC-16: Zero-param closure auto-invoked with args=[], pipeValue=input
-      // Zero-param closure invoked with args=[], pipeValue=5, returns 10
-      const result = await run(`
+    it('zero-param closure receives the piped argument during dispatch and halts (AC-16)', async () => {
+      await expectRuntimeError(
+        () =>
+          run(`
         list[||{ $ * 2 }] => $list
         5 -> $list[0]
-      `);
-      expect(result).toBe(10);
+      `),
+        { code: 'RILL-R045', messagePattern: /expects 0 arguments, got 1/ }
+      );
     });
 
     it('block-closure with args during dispatch (AC-17)', async () => {

@@ -121,7 +121,7 @@ describe('Rill Runtime: core handler error contracts', () => {
       const controller = new AbortController();
 
       await expectAbortHalt(() =>
-        run('"" -> { slow() -> slow() -> slow() }', {
+        run('"" -> { $ -> slow() -> slow() -> slow() }', {
           functions: {
             slow: {
               returnType: anyTypeValue,
@@ -247,7 +247,7 @@ describe('Rill Runtime: annotations handler error contracts', () => {
 
     it('propagates RuntimeError with correct error code from inner statement', async () => {
       try {
-        await run('^(limit: 5) "" -> { $missing }');
+        await run('^(limit: 5) "" -> { $\n$missing }');
         expect.fail('Should have thrown RuntimeError');
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
@@ -267,7 +267,9 @@ describe('Rill Runtime: annotations handler error contracts', () => {
     it('propagates errors from nested annotated statements', async () => {
       const script = `
         ^(limit: 100) "" -> {
+          $
           ^(limit: 50) "" -> {
+            $
             $nonexistent
           }
         }
@@ -441,7 +443,9 @@ describe('Rill Runtime: annotations handler error contracts', () => {
           },
         },
       });
-      const ast = parse('^(limit: 5) "" -> { probe() => $seen\n$undefined }');
+      const ast = parse(
+        '^(limit: 5) "" -> { $\nprobe() => $seen\n$undefined }'
+      );
 
       await expectHaltMessage(() => execute(ast, ctx), /Undefined variable/);
 
@@ -465,7 +469,8 @@ describe('Rill Runtime: annotations handler error contracts', () => {
       });
       const script = `
         ^(limit: 100) "" -> {
-          ^(limit: 10) "" -> { probe() => $seen\n$undefined }
+          $
+          ^(limit: 10) "" -> { $\nprobe() => $seen\n$undefined }
         }
       `;
       const ast = parse(script);

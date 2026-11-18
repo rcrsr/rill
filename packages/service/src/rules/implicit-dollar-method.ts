@@ -55,11 +55,9 @@ export const implicitDollarMethod: Rule = {
       return [];
     }
 
-    // Always keep explicit parens in the suggestion. Stripping them for a
-    // zero-arg call would change `$.method()` (hasParens: true, injects the
-    // pipe value into an eligible dict member) into `.method` (hasParens:
-    // false, never injects) - a behavior-changing edit disguised as a
-    // formatting one. See MethodCallNode.hasParens.
+    // Always keep explicit parens in the suggestion: a bare `.method` never
+    // invokes a dict field, so stripping them from a zero-arg call would
+    // change behavior. See MethodCallNode.hasParens.
     const suggestedCode = `.${methodNode.name}()`;
 
     return [

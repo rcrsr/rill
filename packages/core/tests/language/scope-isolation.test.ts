@@ -39,6 +39,7 @@ describe('Phase 0: Scope Isolation', () => {
     it('sibling results are discarded except last', async () => {
       const result = await run(`
         "x" -> {
+          $
           "first"
           "second"
           "third"
@@ -52,28 +53,28 @@ describe('Phase 0: Scope Isolation', () => {
     it('-> passes value to next element', async () => {
       const result = await run(`
         "hello" -> {
-          "world" -> { $ }
+          $ -> .upper -> { $ }
         }
       `);
-      expect(result).toBe('world');
+      expect(result).toBe('HELLO');
     });
 
     it('chained blocks receive piped value', async () => {
       const result = await run(`
-        "start" -> { "middle" } -> { $ }
+        "start" -> .upper -> { $ }
       `);
-      expect(result).toBe('middle');
+      expect(result).toBe('START');
     });
 
     it('nested chain works correctly', async () => {
       const result = await run(`
         "a" -> {
-          "b" -> {
-            "c" -> { $ }
+          $ -> {
+            $ -> .upper -> { $ }
           }
         }
       `);
-      expect(result).toBe('c');
+      expect(result).toBe('A');
     });
   });
 
@@ -107,6 +108,7 @@ describe('Phase 0: Scope Isolation', () => {
     it('returns last sibling value', async () => {
       const result = await run(`
         "x" -> {
+          $
           "first"
           "second"
           "third"
@@ -118,6 +120,7 @@ describe('Phase 0: Scope Isolation', () => {
     it('intermediate values are discarded', async () => {
       const result = await run(`
         "x" -> {
+          $
           "a" -> .upper
           "b" -> .upper
           "c"
@@ -133,6 +136,7 @@ describe('Phase 0: Scope Isolation', () => {
         run(`
         "outer" => $x
         "" -> {
+          $
           "inner" => $x
         }
       `)
@@ -143,6 +147,7 @@ describe('Phase 0: Scope Isolation', () => {
       const result = await run(`
         "hello" => $x
         "" -> {
+          $
           $x -> .upper
         }
       `);
@@ -154,6 +159,7 @@ describe('Phase 0: Scope Isolation', () => {
       await expect(
         run(`
         "" -> {
+          $
           "local" => $x
         }
         $x
@@ -192,6 +198,7 @@ describe('Phase 0: Scope Isolation', () => {
     it('multiple captures accumulate', async () => {
       const result = await run(`
         "hello" -> {
+          $
           "a" => $first
           "b" => $second
           "{$first}{$second}"
@@ -224,10 +231,10 @@ describe('Phase 0: Scope Isolation', () => {
     it('chain inside block works correctly', async () => {
       const result = await run(`
         "start" -> {
-          "a" -> "b" -> "c"
+          $ -> .upper -> .lower
         }
       `);
-      expect(result).toBe('c');
+      expect(result).toBe('start');
     });
   });
 

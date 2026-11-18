@@ -6,15 +6,11 @@
  */
 
 import { BUILTIN_ATOMS, ERROR_CODES } from '@rcrsr/rill';
-import type {
-  ASTNode,
-  AtomLiteralNode,
-  BinaryExprNode,
-  StatementNode,
-} from '@rcrsr/rill';
+import type { ASTNode, AtomLiteralNode, StatementNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { getInnerStatement } from './capture-chain.js';
 import { extractContextLine } from './helpers.js';
+import { unwrapBareLiteral } from './literal-shape.js';
 import { registeredRules } from './rules-registry.js';
 
 /** Builtin atoms keyed by lower-cased name, for case-insensitive lookup. */
@@ -32,18 +28,39 @@ function caseMismatchBuiltin(name: string): string | undefined {
 
 /** The atom of a bare `#NAME` operand (no methods), if the node is one. */
 function bareAtom(node: ASTNode): AtomLiteralNode | undefined {
-  if (node.type !== 'PostfixExpr') return undefined;
-  if (node.methods.length > 0) return undefined;
-  return node.primary.type === 'AtomLiteral' ? node.primary : undefined;
+  const inner = unwrapBareLiteral(node);
+  return inner.type === 'AtomLiteral' ? inner : undefined;
 }
 
-/** True when the node is a `.!code` probe operand. */
+/** True when the node is a bare `.!code` probe operand (no trailing methods). */
 function isCodeProbe(node: ASTNode): boolean {
-  return (
-    node.type === 'PostfixExpr' &&
-    node.primary.type === 'StatusProbe' &&
-    node.primary.field === 'code'
-  );
+  const inner = unwrapBareLiteral(node);
+  return inner.type === 'StatusProbe' && inner.field === 'code';
+}
+
+/** The two operands an `==`, `!=`, `.eq`, or `.ne` node compares, if it is one. */
+function comparedOperands(node: ASTNode): [ASTNode, ASTNode] | undefined {
+  if (node.type === 'BinaryExpr') {
+    return node.op === '==' || node.op === '!='
+      ? [node.left, node.right]
+      : undefined;
+  }
+  let call: ASTNode | undefined;
+  let receiver: ASTNode;
+  if (node.type === 'PostfixExpr' && node.methods.length === 1) {
+    call = node.methods[0];
+    receiver = node.primary;
+  } else if (node.type === 'PipeChain') {
+    call = node.pipes[0];
+    receiver = node.head;
+  } else {
+    return undefined;
+  }
+  if (call?.type !== 'MethodCall') return undefined;
+  if (call.name !== 'eq' && call.name !== 'ne') return undefined;
+  const arg = call.args[0];
+  if (call.args.length !== 1 || arg === undefined) return undefined;
+  return [receiver, arg];
 }
 
 export const atomCaseMismatch: Rule = {
@@ -72,19 +89,19 @@ export const atomCaseMismatch: Rule = {
 
 export const atomNotErrorCode: Rule = {
   code: 'ATOM_NOT_ERROR_CODE',
-  nodeTypes: ['BinaryExpr'],
+  nodeTypes: ['BinaryExpr', 'PostfixExpr', 'PipeChain'],
   defaultSeverity: 'warning',
   category: 'errors',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    if (node.type !== 'BinaryExpr') return [];
-    const binary: BinaryExprNode = node;
-    if (binary.op !== '==' && binary.op !== '!=') return [];
+    const operands = comparedOperands(node);
+    if (operands === undefined) return [];
+    const [left, right] = operands;
 
-    const atom = isCodeProbe(binary.right)
-      ? bareAtom(binary.left)
-      : isCodeProbe(binary.left)
-        ? bareAtom(binary.right)
+    const atom = isCodeProbe(right)
+      ? bareAtom(left)
+      : isCodeProbe(left)
+        ? bareAtom(right)
         : undefined;
     if (atom === undefined) return [];
     if (atom.name === 'ok' || ERROR_CODE_SET.has(atom.name)) return [];
@@ -95,7 +112,7 @@ export const atomNotErrorCode: Rule = {
         location: atom.span.start,
         severity: 'warning',
         code: 'ATOM_NOT_ERROR_CODE',
-        message: `Atom #${atom.name} is not an error code; .!code is #ok or a core error code.`,
+        message: `Atom #${atom.name} is not an error code; comparing it with .!code halts #TYPE_MISMATCH. .!code has type union(error_code, #ok).`,
         context: extractContextLine(atom.span.start.line, context.source),
         fix: null,
       },

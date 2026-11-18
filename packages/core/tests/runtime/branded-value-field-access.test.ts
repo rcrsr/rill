@@ -94,7 +94,7 @@ describe('type value internals are not readable', () => {
         run('dict[t: 42.^type] -> dict(t: dict(structure: dict))', {
           functions: FUNCTIONS,
         }),
-      { code: 'TYPE_MISMATCH' }
+      { code: 'RILL_R036' }
     );
   });
 
@@ -144,7 +144,7 @@ describe('atom internals are not readable', () => {
   it('rejects nested conversion of an atom into an ordered field', async () => {
     await expectHalt(
       () => run(`${ATOM}dict[o: $a] -> dict(o: ordered(atom: any))`),
-      { code: 'TYPE_MISMATCH' }
+      { code: 'RILL_R036' }
     );
   });
 

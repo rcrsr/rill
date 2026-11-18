@@ -35,10 +35,10 @@ const rows: [string, TypeStructure, TypeStructure, boolean][] = [
     true,
   ],
   [
-    'distinct literals of one kind overlap',
+    'distinct literals of one kind do not overlap',
     { kind: 'literal', value: 'a' },
     { kind: 'literal', value: 'b' },
-    true,
+    false,
   ],
   [
     'literal of another kind does not overlap',
@@ -216,6 +216,14 @@ describe('comparison overlap gate', () => {
     await expectHalt(() => run('1 == "a"'), {
       code: 'TYPE_MISMATCH',
       messagePattern: /^Cannot compare number with string using ==$/,
+    });
+  });
+
+  it('names the kind, never the value, of an undeclared operand', async () => {
+    const setup = '"a" => $s:union("a", "b")\n';
+    await expectHalt(() => run(setup + '$s == "sk-SECRET-TOKEN-123"'), {
+      code: 'TYPE_MISMATCH',
+      messagePattern: /^Cannot compare union\("a", "b"\) with string using ==$/,
     });
   });
 

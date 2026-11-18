@@ -73,6 +73,10 @@ A function value MUST have a function type only when its own type equals that ty
 r[structural-typing.overlap-scalar] Two scalar types overlap when they are the same kind
 `number` MUST overlap `number` and MUST NOT overlap `string`.
 
+r[structural-typing.overlap-literal] Two literal types overlap only when they are equal
+A literal type, such as `"a"`, `1`, or `#wired`, MUST overlap another literal type only when both
+hold equal values. `"a"` and `"b"` MUST NOT overlap, and a literal MUST overlap its scalar kind.
+
 r[structural-typing.overlap-list] Two list types overlap when their element types overlap
 `list(number)` and `list(string)` MUST NOT overlap. The type of `list[]` leaves its element
 unspecified, so `list[]` MUST overlap `list["a"]`.

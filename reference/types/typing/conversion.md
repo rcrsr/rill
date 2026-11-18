@@ -3,11 +3,11 @@ id: conversion
 title: Conversion
 status: normative
 since: 0.24.0
-issues: [566, 574]
+issues: [574]
 grammar: []
 errors: [RILL-R036, RILL-R037, RILL-R038, RILL-R044]
 depends: [type-value, structural-typing, any, union, defaults, carried-type, inference, list, dict, tuple, ordered]
-tests: [conversion.test.ts, structural-type-defaults.test.ts, vectors.test.ts]
+tests: [conversion.test.ts, structural-type-defaults.test.ts, vectors.test.ts, uniform-value-type.test.ts, type-assertions.test.ts]
 ---
 
 # Conversion
@@ -71,11 +71,11 @@ r[conversion.any] A pipe into any halts
 r[conversion.variable] A pipe into a variable that holds a type converts as that type does
 `v -> $T` MUST yield what `v -> T` yields, and halt as it halts, for the type `T` that `$T` holds.
 
-r[conversion.deep] Conversion converts each part of a parameterized target {pending #566}
+r[conversion.deep] Conversion converts each part of a parameterized target
 A conversion MUST convert each element, field, and position of a parameterized target by the same
 rule it applies at the top level. `list[1, 2] -> list(string)` ⇒ `list["1", "2"]`.
 
-r[conversion.failure] An inner failure reports a conversion error {pending #566}
+r[conversion.failure] An inner failure reports a conversion error
 A part that cannot convert MUST halt with RILL-R036 or RILL-R038, never as a failed assertion.
 The message MUST name the element or field.
 
@@ -103,7 +103,7 @@ The routes into `number`, `string`, `bool`, and `atom` MUST be those stated by `
 | `dict` converts to `ordered` with no signature | RILL-R037 | Yes |
 | A string that is not a number is converted to number | RILL-R038 | Yes |
 | The value omits a field or position with no default | RILL-R044 | Yes |
-| A part of a parameterized target fails to convert {pending #566} | RILL-R036, RILL-R038 | Yes |
+| A part of a parameterized target fails to convert | RILL-R036, RILL-R038 | Yes |
 
 ## Examples
 
@@ -129,6 +129,11 @@ dict[a: 1, c: 2] -> $T
 ```
 
 ```rill
+# Error: RILL-R038 element 1 is not a number
+list[1, "a"] -> list(number)
+```
+
+```rill
 # Error: cannot convert iterator to string
 range(0, 3) -> string
 ```
@@ -138,7 +143,7 @@ range(0, 3) -> string
 list[list[range(0, 3)]] -> string
 ```
 
-```rill pending=566
+```rill
 list[1, 2] -> list(string)
 # Result: list["1", "2"]
 ```
@@ -151,9 +156,9 @@ $v.^type -> .signature
 
 ## Notes
 
-Until #566 is built, a pipe into a parameterized type converts the outer kind and asserts the inner
-types, so `list[1, 2] -> list(string)` halts `#TYPE_MISMATCH`. Until #574 is built, a pipe into a
-union halts RILL-R036.
+On 0.23.0 a pipe into a parameterized type converts the outer kind and asserts the inner types, so
+`list[1, 2] -> list(string)` halts `#TYPE_MISMATCH`. Until #574 is built, a pipe into a union
+halts RILL-R036.
 
 On 0.23.0 a conversion through a variable skips fill and drop, and does not check field types.
 

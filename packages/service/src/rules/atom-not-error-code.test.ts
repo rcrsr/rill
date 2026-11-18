@@ -19,7 +19,7 @@ describe('ATOM_NOT_ERROR_CODE', () => {
       code: 'ATOM_NOT_ERROR_CODE',
       severity: 'warning',
       message:
-        'Atom #TIMEOUTT is not an error code; .!code is #ok or a core error code.',
+        'Atom #TIMEOUTT is not an error code; comparing it with .!code halts #TYPE_MISMATCH. .!code has type union(error_code, #ok).',
       fix: null,
     });
   });
@@ -29,6 +29,28 @@ describe('ATOM_NOT_ERROR_CODE', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.code).toBe('ATOM_NOT_ERROR_CODE');
+  });
+
+  it.each([
+    '$v.!code.eq(#WIRED)',
+    '$v.!code.ne(#WIRED)',
+    '$v.!code -> .eq(#WIRED)',
+    '$v.!code -> .ne(#WIRED)',
+    '#WIRED.eq($v.!code)',
+  ])('fires on the method form %s', (source) => {
+    const result = run(`${source}\n`);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.code).toBe('ATOM_NOT_ERROR_CODE');
+  });
+
+  it.each([
+    '$r.!code.upper == #X',
+    '$r.!code.upper.eq(#X)',
+    '$v.!code.eq(#TIMEOUT)',
+    '$v.!code -> .eq(#ok)',
+  ])('does not fire on %s', (source) => {
+    expect(run(`${source}\n`)).toEqual([]);
   });
 
   it.each(['$v.!code == #ok', '$v.!code == #TIMEOUT', '$v.!message == #WIRED'])(

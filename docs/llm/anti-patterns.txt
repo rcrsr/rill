@@ -72,6 +72,25 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
     Right: list[dict[a: 1], dict[b: 2]] => $l:list(dict)
            $l -> seq({ $ == dict[a: 1] })      # list[true, false]
 
+    Wrong: $r.!code == #MY_ERROR           # halts #TYPE_MISMATCH: not in the core error set
+    Right: $r.!code == #NOT_FOUND
+
+## Pipe targets
+
+    Wrong: 3 -> list[$, $]                 # RILL-P030: literal target cannot read $
+    Right: 3 -> { list[$, $] }
+
+    Wrong: $x -> "label"                   # RILL-P031: string target ignores the value
+    Right: $x -> "label {$}"
+
+    Wrong: 42 -> $zero                     # RILL-R045: zero-parameter closure gets an argument
+    Right: $zero()
+
+## Conversion versus assertion
+
+    Wrong: $data -> dict(name: string)     # converts and fills, does not validate
+    Right: $data -> :dict(name: string)    # asserts the shape
+
 ## Loops
 
     Wrong: for item in list { ... }

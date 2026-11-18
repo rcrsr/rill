@@ -80,35 +80,35 @@ describe('Rill Runtime: nested structural conversion halts on missing required f
 });
 
 describe('Rill Runtime: structural conversion field type mismatch halts', () => {
-  it('dict with wrong field type halts #TYPE_MISMATCH instead of passing through', async () => {
+  it('dict with wrong field type halts RILL-R038 instead of passing through', async () => {
     await expectHalt(() => run('dict[a: "x"] -> dict(a: number)'), {
-      code: 'TYPE_MISMATCH',
+      code: 'RILL_R038',
     });
   });
 
-  it('tuple with wrong element type halts #TYPE_MISMATCH', async () => {
+  it('tuple with wrong element type halts RILL-R038', async () => {
     await expectHalt(() => run('tuple["x", "y"] -> tuple(number, number)'), {
-      code: 'TYPE_MISMATCH',
+      code: 'RILL_R038',
     });
   });
 
-  it('ordered with wrong field type halts #TYPE_MISMATCH', async () => {
+  it('ordered with wrong field type halts RILL-R038', async () => {
     await expectHalt(
       () => run('dict[a: "x", b: 2] -> ordered(a: number, b: number)'),
-      { code: 'TYPE_MISMATCH' }
+      { code: 'RILL_R038' }
     );
   });
 
-  it('nested dict field with wrong scalar type halts #TYPE_MISMATCH', async () => {
+  it('nested dict field with wrong scalar type halts RILL-R038', async () => {
     await expectHalt(
       () => run('dict[a: dict[b: "x"]] -> dict(a: dict(b: number))'),
-      { code: 'TYPE_MISMATCH' }
+      { code: 'RILL_R038' }
     );
   });
 
-  it('nested list-typed field with wrong element type halts #TYPE_MISMATCH', async () => {
+  it('nested list-typed field with wrong element type halts RILL-R038', async () => {
     await expectHalt(() => run('dict[a: list["x"]] -> dict(a: list(number))'), {
-      code: 'TYPE_MISMATCH',
+      code: 'RILL_R038',
     });
   });
 
@@ -117,15 +117,15 @@ describe('Rill Runtime: structural conversion field type mismatch halts', () => 
     expect(result).toEqual({ a: 5 });
   });
 
-  it('uniform dict path still halts on type mismatch', async () => {
+  it('uniform dict path halts RILL-R038 on a bad value', async () => {
     await expectHalt(() => run('dict[a: "x"] -> dict(number)'), {
-      code: 'TYPE_MISMATCH',
+      code: 'RILL_R038',
     });
   });
 
-  it('uniform list path still halts on type mismatch', async () => {
+  it('uniform list path halts RILL-R038 on a bad element', async () => {
     await expectHalt(() => run('list["x"] -> list(number)'), {
-      code: 'TYPE_MISMATCH',
+      code: 'RILL_R038',
     });
   });
 });

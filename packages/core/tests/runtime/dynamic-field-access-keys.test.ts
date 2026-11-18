@@ -30,7 +30,7 @@ describe('Dynamic field access keys', () => {
     });
 
     it('uses the pipe value as the key for $d.$', async () => {
-      expect(await run('dict[a: 1] => $d\n"a" -> { $d.$ }')).toBe(1);
+      expect(await run('dict[a: 1] => $d\n"a" -> { $\n$d.$ }')).toBe(1);
     });
 
     it('reads a number-spelled key by its string spelling', async () => {

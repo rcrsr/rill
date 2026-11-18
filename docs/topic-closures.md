@@ -310,7 +310,7 @@ $obj.double(5)        # 10 (explicit call required)
 $obj.constant         # 42 (auto-invoked on access)
 ```
 
-Block-closures require an argument; zero-param closures do not.
+Piping a value into a zero-parameter closure halts RILL-R045; call it with `$constant()`.
 
 ### Type Checking
 

@@ -92,10 +92,9 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
 
   describe('Error cases for uniform assertions', () => {
     it('string value fails dict(closure) [AC-10, EC-3]', async () => {
-      await expectHaltMessage(
-        () => run('[name: "a", run: "b"] -> dict(closure)'),
-        'Type assertion failed'
-      );
+      await expectHalt(() => run('[name: "a", run: "b"] -> dict(closure)'), {
+        code: 'RILL_R036',
+      });
     });
 
     it('dict(closure, name: string) halts for mixed args [AC-11, EC-1]', async () => {
@@ -114,7 +113,7 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
 
     it('tuple["a", 1] fails tuple(number) on the first position', async () => {
       await expectHalt(() => run('tuple["a", 1] -> tuple(number)'), {
-        code: 'TYPE_MISMATCH',
+        code: 'RILL_R038',
       });
     });
 
@@ -131,16 +130,16 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
   // ============================================================
 
   describe('Error message format', () => {
-    it('failed dict(closure) assertion message contains "expected dict(closure)" [AC-9, EC-3]', async () => {
+    it('failed dict(closure) conversion message names the failing field [AC-9, EC-3]', async () => {
       await expectHaltMessage(
         () => run('[name: "a", run: "b"] -> dict(closure)'),
-        'expected dict(closure)'
+        "cannot convert string to closure (field 'name')"
       );
     });
 
-    it('failed dict(closure) assertion uses #TYPE_MISMATCH atom [EC-3]', async () => {
+    it('failed dict(closure) conversion uses RILL-R036 [EC-3]', async () => {
       await expectHalt(() => run('[name: "a", run: "b"] -> dict(closure)'), {
-        code: 'TYPE_MISMATCH',
+        code: 'RILL_R036',
       });
     });
   });

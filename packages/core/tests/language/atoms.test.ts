@@ -183,6 +183,10 @@ describe('Atoms are identified by name', () => {
     expect(await runScript(src)).toBe(true);
   });
 
+  it('a status code compared with an atom outside the closed set halts #TYPE_MISMATCH', async () => {
+    expect(await haltCode('"x".!code == #WIRED')).toBe('TYPE_MISMATCH');
+  });
+
   it('list[#WIRED] == list[#WIRED] is true', async () => {
     expect(await runScript('list[#WIRED] == list[#WIRED]')).toBe(true);
   });

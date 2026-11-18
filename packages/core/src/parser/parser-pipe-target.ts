@@ -50,7 +50,7 @@ import { parseScriptTypeRef, throwBareUnion } from './parser-types.js';
 import { atTypeConstructor } from './parser-shape.js';
 import { ERROR_IDS } from '../error-registry.js';
 import { removedSelectorError } from './parser-variables.js';
-import { isRillTypeName } from '../types.js';
+import { isRillTypeName, readsPipeValue } from '../types.js';
 import {
   postfixDispatchTable,
   type PostfixLoopState,
@@ -495,7 +495,7 @@ function attachPipeTargetPostfixChain(
   } satisfies PostfixExprNode;
 }
 
-Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
+function parseUncheckedPipeTarget(this: Parser): PipeTargetNode {
   // Legacy convert operator: -> :>type (retired; emit migration error RILL-R078)
   // Must precede the COLON entry in pipeTargetDispatchTable.
   if (
@@ -607,4 +607,43 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     `Expected pipe target, got: ${describeToken(current(this.state))}`,
     current(this.state).span.start
   );
+}
+
+/**
+ * Rejects pipe targets that ignore the piped value: a block or string that
+ * never reads it, and a list or dict literal that reads `$` at its top level
+ * (the literal is built from the piped value, not given it).
+ */
+function checkPipeTarget(target: PipeTargetNode): PipeTargetNode {
+  switch (target.type) {
+    case 'Block':
+    case 'StringLiteral':
+      if (!readsPipeValue(target, 'used')) {
+        throw new ParseError(
+          ERROR_IDS.RILL_P031,
+          `${target.type === 'Block' ? 'Block' : 'String'} pipe target does not read the piped value; reference '$' in it`,
+          target.span.start
+        );
+      }
+      return target;
+    case 'ListLiteral':
+    case 'Dict': {
+      const elements =
+        target.type === 'ListLiteral' ? target.elements : target.entries;
+      if (elements.some((element) => readsPipeValue(element, 'written'))) {
+        throw new ParseError(
+          ERROR_IDS.RILL_P030,
+          "Literal pipe target cannot read '$' at its top level; wrap the literal in a block, as in '3 -> { list[$, $] }'",
+          target.span.start
+        );
+      }
+      return target;
+    }
+    default:
+      return target;
+  }
+}
+
+Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
+  return checkPipeTarget(parseUncheckedPipeTarget.call(this));
 };

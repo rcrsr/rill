@@ -231,8 +231,8 @@ describe('Rill Runtime: Annotations', () => {
     it('inner annotations override outer', async () => {
       // Inner do<limit: 2> on the loop
       const script = `
-        "" -> {
-          0 -> while ($ < 10) do<limit: 2> { $ + 1 }
+        0 -> {
+          $ -> while ($ < 10) do<limit: 2> { $ + 1 }
         }
       `;
       await expect(run(script)).rejects.toThrow(/exceeded 2 iterations/);
@@ -241,8 +241,8 @@ describe('Rill Runtime: Annotations', () => {
     it('inner scope inherits outer annotations', async () => {
       // do<limit: 3> on the loop enforces the limit
       const script = `
-        "" -> {
-          0 -> while ($ < 10) do<limit: 3> { $ + 1 }
+        0 -> {
+          $ -> while ($ < 10) do<limit: 3> { $ + 1 }
         }
       `;
       await expect(run(script)).rejects.toThrow(/exceeded 3 iterations/);
@@ -252,8 +252,8 @@ describe('Rill Runtime: Annotations', () => {
       // After the annotated block, default limit should apply
       // Uses $ as accumulator
       const script = `
-        ^(limit: 1000) "" -> {
-          0 -> while ($ < 5) do { $ + 1 }
+        ^(limit: 1000) 0 -> {
+          $ -> while ($ < 5) do { $ + 1 }
         }
         0 -> while ($ < 100) do { $ + 1 }
       `;
@@ -280,6 +280,7 @@ describe('Rill Runtime: Annotations', () => {
     it('works with blocks', async () => {
       const script = `
         ^(limit: 5) "" -> {
+          $
           1 => $a
           2 => $b
           $a + $b

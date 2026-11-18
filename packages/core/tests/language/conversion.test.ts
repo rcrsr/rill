@@ -191,8 +191,61 @@ describe('Rill Language: -> Conversion Operator', () => {
       expect(result).toEqual({ a: 1 });
     });
 
-    it('asserts the inner field type through a held dict type', async () => {
+    it('converts the inner field type through a held dict type', async () => {
+      const result = await run('dict(a: string) => $t\ndict[a: 1] -> $t');
+      expect(result).toEqual({ a: '1' });
+    });
+
+    it('halts naming the failing field through a held dict type', async () => {
       await expectHalt(() => run('dict(a: number) => $t\ndict[a: "x"] -> $t'), {
+        code: 'RILL_R038',
+        messagePattern: /field 'a'/,
+      });
+    });
+
+    it('converts list elements to a parameterized list type', async () => {
+      expect(await run('list[1, 2] -> list(string)')).toEqual(['1', '2']);
+      expect(await run('list["1", "2"] -> list(number)')).toEqual([1, 2]);
+      expect(await run('list[list[1]] -> list(list(string))')).toEqual([['1']]);
+    });
+
+    it('converts a tuple to a parameterized list type', async () => {
+      expect(await run('tuple[1, 2] -> list(string)')).toEqual(['1', '2']);
+    });
+
+    it('converts positions of a tuple signature', async () => {
+      const result = await run('list[1, 2] -> tuple(string, string)');
+      expect(isTuple(result) ? result.entries : result).toEqual(['1', '2']);
+    });
+
+    it('converts dict fields and uniform values', async () => {
+      expect(await run('dict[a: 1] -> dict(a: string)')).toEqual({ a: '1' });
+      expect(await run('dict[a: 1] -> dict(string)')).toEqual({ a: '1' });
+    });
+
+    it('converts ordered fields', async () => {
+      const result = await run('ordered[a: 1] -> ordered(a: string)');
+      expect(isOrdered(result) ? orderedEntries(result) : result).toEqual([
+        ['a', '1'],
+      ]);
+    });
+
+    it('halts RILL-R038 naming the failing list element', async () => {
+      await expectHalt(() => run('list["1", "x"] -> list(number)'), {
+        code: 'RILL_R038',
+        messagePattern: /element 1/,
+      });
+    });
+
+    it('halts RILL-R038 naming the failing tuple position', async () => {
+      await expectHalt(() => run('tuple["x", 1] -> tuple(number, number)'), {
+        code: 'RILL_R038',
+        messagePattern: /position 0/,
+      });
+    });
+
+    it('still halts #TYPE_MISMATCH on the assertion path', async () => {
+      await expectHalt(() => run('list[1, 2] -> :list(string)'), {
         code: 'TYPE_MISMATCH',
       });
     });

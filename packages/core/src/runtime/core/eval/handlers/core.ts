@@ -21,6 +21,9 @@
  */
 
 import type {
+  ASTNode,
+  BodyNode,
+  UseExprNode,
   ExpressionNode,
   PipeChainNode,
   PostfixExprNode,
@@ -43,11 +46,7 @@ import {
   isPlainDict,
 } from '../../types/guards.js';
 import { inferType } from '../../types/registrations.js';
-import {
-  declaredParams,
-  isCallable,
-  isScriptCallable,
-} from '../../callable.js';
+import { isCallable, isScriptCallable } from '../../callable.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
 import { invalidate, getStatus } from '../../types/status.js';
 import { createTraceFrame } from '../../types/trace.js';
@@ -87,7 +86,7 @@ import {
   evaluateConditional,
   evaluateAssert,
 } from './control-flow.js';
-import { evaluateUseExpr } from './use.js';
+import { evaluateUseExpr, resolveUseExpr } from './use.js';
 import {
   evaluateTypeCheck,
   evaluateTypeConstructor,
@@ -578,8 +577,9 @@ export async function evaluatePrimary(
 
 /**
  * Invoke a callable that is the target of a pipe.
- * Callables with params receive the input as their argument; zero-param
- * callables run with the input as the pipe value `$`.
+ * Every callable receives the input as its argument, so a callable that
+ * declares no parameters halts on the excess argument. Property-style
+ * application callables run with the input as the pipe value `$`.
  */
 async function invokePipeCallable(
   s: EvalState,
@@ -588,14 +588,10 @@ async function invokePipeCallable(
   location: ReturnType<typeof getNodeLocation>,
   functionName = 'callable'
 ): Promise<RillValue> {
-  const hasParams =
-    (value.kind === 'script' && value.params.length > 0) ||
-    (value.kind === 'application' &&
-      declaredParams(value, functionName, location).length > 0 &&
-      !value.isProperty);
-
-  if (hasParams) {
-    return invokeCallable(s, value, argsOf(input), location);
+  if (!(value.kind === 'application' && value.isProperty)) {
+    return value.kind === 'application'
+      ? invokeCallable(s, value, argsOf(input), location, functionName)
+      : invokeCallable(s, value, argsOf(input), location);
   }
 
   const savedPipeValue = s.ctx.pipeValue;
@@ -634,25 +630,85 @@ export async function evaluatePipeTarget(
   if (target.type === 'Variable') {
     return evaluateVariablePipeTarget(s, target, carried);
   }
+  if (target.type === 'UseExpr') {
+    // A host value dispatches by kind like a variable; a source module's
+    // result is the pipe result and is never invoked.
+    const resolved = await resolveUseExpr(s, target);
+    if (resolved.kind === 'source') {
+      return { value: resolved.value, declared: undefined };
+    }
+    return evaluateHeldPipeTarget(
+      s,
+      { value: resolved.value, declared: undefined },
+      carried,
+      {
+        node: target,
+        defaultValue: null,
+        label: useTargetLabel(target),
+        selected: false,
+        callableName: 'callable',
+      }
+    );
+  }
   return {
     value: await evaluatePipeTargetValue(s, target, carried),
     declared: undefined,
   };
 }
 
+/** Where a held pipe-target value came from, for halts, labels and defaults. */
+interface HeldTargetSite {
+  readonly node: ASTNode;
+  readonly defaultValue: BodyNode | null;
+  readonly label: string;
+  readonly selected: boolean;
+  readonly callableName: string;
+}
+
 /**
- * Variable pipe target: invoke a callable, convert through a type value, or
- * select an element from a list, dict, tuple or ordered value. A selection carries the element's
- * declared type; invocation and conversion take their own type.
+ * Variable pipe target: read the variable, then dispatch on the value it holds.
  */
 async function evaluateVariablePipeTarget(
   s: EvalState,
   target: VariableNode,
   carried: Carried
 ): Promise<Carried> {
-  const data = await evaluateVariableCarried(s, target);
-  const value = data.value;
+  const held = await evaluateVariableCarried(s, target);
+  const name = `$${target.name ?? ''}`;
+  return evaluateHeldPipeTarget(s, held, carried, {
+    node: target,
+    defaultValue: target.defaultValue,
+    label: name,
+    selected: target.accessChain.length > 0,
+    callableName: name,
+  });
+}
+
+/** Label for a use<> target, derived from the written identifier. */
+function useTargetLabel(target: UseExprNode): string {
+  const { identifier } = target;
+  if (identifier.kind === 'static') {
+    return `use<${identifier.scheme}:${identifier.segments.join('.')}>`;
+  }
+  if (identifier.kind === 'variable') return `use<$${identifier.name}>`;
+  return 'use<(...)>';
+}
+
+/**
+ * Dispatch a held value as a pipe target: invoke a callable, convert through a
+ * type value, or select an element from a list, dict, tuple or ordered value.
+ * A selection carries the element's declared type; invocation and conversion
+ * take their own type. Shared by variable and use<> targets.
+ */
+async function evaluateHeldPipeTarget(
+  s: EvalState,
+  held: Carried,
+  carried: Carried,
+  site: HeldTargetSite
+): Promise<Carried> {
+  const value = held.value;
   const input = carried.value;
+  const location = getNodeLocation(s, site.node);
 
   // If value is callable, invoke it with the pipe input
   if (isCallable(value)) {
@@ -661,8 +717,8 @@ async function evaluateVariablePipeTarget(
         s,
         value,
         carried,
-        getNodeLocation(s, target),
-        `$${target.name ?? ''}`
+        location,
+        site.callableName
       ),
       declared: undefined,
     };
@@ -673,7 +729,7 @@ async function evaluateVariablePipeTarget(
   // precede the dict checks since RillTypeValue is a plain object.
   if (isTypeValue(value)) {
     return {
-      value: convertToType(s, input, value, target),
+      value: convertToType(s, input, value, site.node),
       declared: undefined,
     };
   }
@@ -683,19 +739,19 @@ async function evaluateVariablePipeTarget(
     if (Array.isArray(input)) {
       return await evaluateHierarchicalDispatch(
         s,
-        data,
+        held,
         input,
-        target.defaultValue ?? undefined,
-        getNodeLocation(s, target)
+        site.defaultValue ?? undefined,
+        location
       );
     }
     return await selectElement(
       s,
       value,
       input,
-      data.declared,
-      target.defaultValue,
-      getNodeLocation(s, target),
+      held.declared,
+      site.defaultValue,
+      location,
       'invoke'
     );
   }
@@ -707,9 +763,9 @@ async function evaluateVariablePipeTarget(
       s,
       value,
       input,
-      data.declared,
-      target.defaultValue,
-      getNodeLocation(s, target),
+      held.declared,
+      site.defaultValue,
+      location,
       'keep'
     );
   }
@@ -717,16 +773,14 @@ async function evaluateVariablePipeTarget(
   // Non-dispatchable value in pipe context
   const type = inferType(value);
   const article = /^[aeiou]/.test(type) ? 'an' : 'a';
-  const name = target.name ?? '';
-  const message =
-    target.accessChain.length > 0
-      ? `cannot pipe into a value selected from $${name}: it is ${article} ${type}`
-      : `cannot pipe into $${name}: it holds ${article} ${type}`;
+  const message = site.selected
+    ? `cannot pipe into a value selected from ${site.label}: it is ${article} ${type}`
+    : `cannot pipe into ${site.label}: it holds ${article} ${type}`;
   return throwCatchableHostHalt(
     {
-      location: getNodeLocation(s, target),
+      location,
       sourceId: s.ctx.sourceId,
-      fn: 'evaluateVariablePipeTarget',
+      fn: 'evaluateHeldPipeTarget',
     },
     ERROR_ATOMS[ERROR_IDS.RILL_R002],
     message
@@ -744,7 +798,7 @@ async function evaluatePipeTargetValue(
   switch (target.type) {
     case 'HostCall':
       // Pass inPipeTarget=true so the unified pipe-binding rule
-      // applies: auto-prepend fires when no top-level `$` is in args.
+      // applies: the operand is prepended when no top-level `$` is in args.
       return evaluateHostCall(s, target, true);
 
     case 'ClosureCall':
@@ -780,31 +834,12 @@ async function evaluatePipeTargetValue(
       // Inline closure: create and invoke
       const closure = await createClosure(s, target);
 
-      // Per closure-semantics spec: check params.length to determine invocation style
-      if (closure.params.length > 0) {
-        // Has params: invoke with input as first argument
-        return invokeCallable(
-          s,
-          closure,
-          argsOf(carried),
-          getNodeLocation(s, target)
-        );
-      } else {
-        // Zero-param closure: invoke with args = [] and pipeValue = input
-        const savedPipeValue = s.ctx.pipeValue;
-        const savedPipeDeclared = s.ctx.pipeDeclared;
-        setPipe(s.ctx, input, carried.declared);
-        try {
-          return await invokeCallable(
-            s,
-            closure,
-            [],
-            getNodeLocation(s, target)
-          );
-        } finally {
-          restorePipe(s.ctx, savedPipeValue, savedPipeDeclared);
-        }
-      }
+      return invokePipeCallable(
+        s,
+        closure,
+        carried,
+        getNodeLocation(s, target)
+      );
     }
 
     case 'StringLiteral': {
@@ -891,13 +926,6 @@ async function evaluatePipeTargetValue(
         await evaluateTypeConstructor(s, target),
         target
       );
-    }
-
-    case 'UseExpr': {
-      const resolved = await evaluateUseExpr(s, target);
-      return isCallable(resolved)
-        ? invokePipeCallable(s, resolved, carried, getNodeLocation(s, target))
-        : resolved;
     }
 
     case 'TimeoutBlock':

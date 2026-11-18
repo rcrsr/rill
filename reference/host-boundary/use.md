@@ -5,7 +5,7 @@ status: normative
 since: 0.24.0
 issues: [618]
 grammar: [use-expr, use-id]
-errors: [RILL-P007, RILL-P022, RILL-R005, RILL-R054, RILL-R055, RILL-R056, RILL-R058, TYPE_MISMATCH]
+errors: [RILL-P007, RILL-P022, RILL-R002, RILL-R005, RILL-R054, RILL-R055, RILL-R056, RILL-R058, TYPE_MISMATCH]
 depends: [pipe, scope]
 tests: [use-expr.test.ts]
 ---
@@ -51,8 +51,14 @@ The text before the first `:` MUST select the resolver the host registered for t
 and the rest MUST be passed to it as the resource. An unregistered scheme MUST halt with
 RILL-R054.
 
-r[use.value] A resolved value is the result
-When the resolver returns a value, `use<...>` MUST yield it.
+r[use.value] A resolved value is the result outside a pipe target
+When the resolver returns a value, `use<...>` MUST yield it outside a pipe target.
+
+r[use.pipe-target] A pipe into a resolved value acts on it as a variable does
+`v -> use<...>` MUST act on a host-resolved value as `pipe.variable` states for a variable
+holding it. A value of no target kind MUST halt with RILL-R002, and the message MUST name the
+use as written and the kind, as in `cannot pipe into use<host:value>: it holds a string`.
+A source module's result is the pipe's result.
 
 r[use.source] A resolved source runs as its own script
 When the resolver returns source text, `use<...>` MUST run it as a script in a scope of its
@@ -98,6 +104,7 @@ included.
 | A resource that uses itself | RILL-R055 | No |
 | The resolver fails, returns a non-rill value, or a source module does not parse | RILL-R056 | Yes |
 | A source module reads `$` with nothing piped | RILL-R005 | No |
+| A value is piped into a host-resolved value of no target kind | RILL-R002 | Yes |
 | The result does not have the type after `use<...>` {pending #618} | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
@@ -108,3 +115,8 @@ $app.search("rill")
 
 "hello" -> use<host:shout>
 ```
+
+## Notes
+
+On 0.23.0 a non-callable resolved value is returned unchanged, and a callable source-module
+result was called with the piped value.

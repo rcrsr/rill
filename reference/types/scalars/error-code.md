@@ -3,11 +3,11 @@ id: error-code
 title: The error_code type
 status: normative
 since: 0.24.0
-issues: [564]
+issues: []
 grammar: []
 errors: [INVALID_INPUT, TYPE_MISMATCH]
 depends: [notation, halt, type-value, atom, union]
-tests: [error-code-type.test.ts, status-probe.test.ts, typed-atom-migration.test.ts]
+tests: [error-code-type.test.ts, status-probe.test.ts, typed-atom-migration.test.ts, equality-gate.test.ts, guard-retry.test.ts]
 ---
 
 # The error_code type
@@ -60,7 +60,7 @@ r[error-code.status-value] The status probe is ok for a valid value
 r[error-code.status-lock] A capture of the status probe locks to its type
 A capture of `.!code` MUST lock the variable to `union(error_code, #ok)`.
 
-r[error-code.closed-compare] Comparing .!code outside the set halts {pending #564}
+r[error-code.closed-compare] Comparing .!code outside the set halts
 `==` and `!=` between a `.!code` value and an atom outside `union(error_code, #ok)` MUST halt
 with `#TYPE_MISMATCH`. `$r.!code == #TIMEUOT` MUST halt, and `$r.!code == #ok` MUST yield a
 bool.
@@ -71,7 +71,7 @@ bool.
 |-----------|-------|-----------|
 | `error_code` receives a type argument in a type position | `#INVALID_INPUT` | Yes |
 | A value outside the closed set is asserted as `:error_code` | `#TYPE_MISMATCH` | Yes |
-| `.!code` is compared with an atom outside its carried type {pending #564} | `#TYPE_MISMATCH` | Yes |
+| `.!code` is compared with an atom outside its carried type | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 
@@ -97,7 +97,7 @@ $r.!code.^type.signature
 # Result: "union(error_code, #ok)"
 ```
 
-```rill pending=564
+```rill
 # Error: #TIMEUOT is outside union(error_code, #ok)
 guard { 1 / 0 } => $r
 $r.!code == #TIMEUOT
@@ -106,6 +106,6 @@ $r.!code == #TIMEUOT
 ## Notes
 
 `error_code`, `.!code` typed as `union(error_code, #ok)`, and `error_code.inner` all behave as
-stated above. The comparison halt in `error-code.closed-compare` is the only part not built.
+stated above.
 
-Until #564 lands, `$r.!code == #TIMEUOT` yields false.
+On 0.23.0 `$r.!code == #TIMEUOT` yields false.

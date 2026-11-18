@@ -688,13 +688,28 @@ function requireCandidatesOverlap(
   location: SourceLocation | undefined,
   fn: string
 ): void {
-  const element = carriedListElement(candidates, carried?.[1]);
+  if (carried?.[1] === undefined) {
+    if (!Array.isArray(candidates)) return;
+    for (const candidate of candidates) {
+      requireElementOverlap(
+        receiver,
+        carried?.[0],
+        { value: candidate },
+        false,
+        ctx,
+        location,
+        fn
+      );
+    }
+    return;
+  }
+  const element = carriedListElement(candidates, carried[1]);
   if (element === undefined) return;
   requireElementOverlap(
     receiver,
-    carried?.[0],
+    carried[0],
     { value: null, declared: element },
-    carried?.[1] !== undefined,
+    true,
     ctx,
     location,
     fn

@@ -57,6 +57,7 @@ describe('Rill Runtime: Closure Hoist Validation', () => {
     it('resolves outer variable defined in surrounding block for map body', async () => {
       const script = `
         "" -> {
+          $
           4 => $multiplier
           list[1, 2, 3] -> fan({ $multiplier * $ })
         }
@@ -67,6 +68,7 @@ describe('Rill Runtime: Closure Hoist Validation', () => {
     it('resolves outer variable defined in surrounding block for each body', async () => {
       const script = `
         "" -> {
+          $
           4 => $multiplier
           list[1, 2, 3] -> seq({ $multiplier * $ })
         }
@@ -78,6 +80,7 @@ describe('Rill Runtime: Closure Hoist Validation', () => {
       const script = `
         2 => $base
         "" -> {
+          $
           5 => $multiplier
           list[1, 2, 3] -> fan({ ($multiplier * $) + $base })
         }
@@ -89,6 +92,7 @@ describe('Rill Runtime: Closure Hoist Validation', () => {
       const script = `
         2 => $base
         "" -> {
+          $
           5 => $multiplier
           list[1, 2, 3] -> seq({ ($multiplier * $) + $base })
         }

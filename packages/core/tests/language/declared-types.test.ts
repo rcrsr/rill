@@ -398,27 +398,29 @@ describe('Rill Language: declared types', () => {
     it('reports the own type for a $ param called with an equal undeclared value', async () => {
       expect(
         await run(
-          `${OUTER}$x -> { { $.^type } => $f\n$f(1) } => $t\n$t == number`
+          `${OUTER}$x -> { $\n{ $.^type } => $f\n$f(1) } => $t\n$t == number`
         )
       ).toBe(true);
     });
 
     it('locks a capture in a $ param body to the own type of an equal undeclared value', async () => {
       await expectLocked(
-        `${OUTER}$x -> { { $ => $y\n"s" => $y\n$y } => $f\n$f(1) }`
+        `${OUTER}$x -> { $\n{ $ => $y\n"s" => $y\n$y } => $f\n$f(1) }`
       );
     });
 
     it('reports the own type for an equal undeclared seed given to chain', async () => {
       expect(
-        await run(`${OUTER}$x -> { chain(1, { $.^type }) } => $t\n$t == number`)
+        await run(
+          `${OUTER}$x -> { $\nchain(1, { $.^type }) } => $t\n$t == number`
+        )
       ).toBe(true);
     });
 
     it('reports the own type for an equal undeclared seed given to iterate', async () => {
       expect(
         await run(
-          `${OUTER}$x -> { iterate(1, { ($.^type == number) ? 5 ! 7 }) -> take(2) -> seq({ $ }) }`
+          `${OUTER}$x -> { $\niterate(1, { ($.^type == number) ? 5 ! 7 }) -> take(2) -> seq({ $ }) }`
         )
       ).toEqual([1, 5]);
     });
