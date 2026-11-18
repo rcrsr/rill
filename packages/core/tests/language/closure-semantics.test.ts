@@ -352,56 +352,40 @@ describe('Rill Runtime: Closure Semantics', () => {
       );
     });
 
-    // The next 6 cases guard the fix for rcrsr/rill#131: a dict-member
-    // empty-paren call (`$app.flag()`) previously errored "Missing argument
-    // for parameter '$'" whenever it appeared outside direct pipe-target
-    // position (e.g. inside a ternary branch), even though a pipe value was
-    // in scope. The guard added by that fix is
-    // `node.hasParens && args.length === 0 && s.ctx.pipeValue !== null &&
-    // !declaresZeroParams(dictValue)` in evaluateMethod
-    // (runtime/core/eval/handlers/closures.ts). AC-13 above is one
-    // falsifying check for the `pipeValue !== null` clause: at statement top
-    // level `pipeValue` is null, so AC-13 still throws. Dropping that clause
-    // also fails "$person.greet() passes dict as receiver (first param)" in
-    // tests/runtime/host-integration.test.ts (AC-8), because every
-    // dict-stored callable's boundDict fallback in invokeFnCallable requires
-    // `args.length === 0`; injecting a null pipe value there defeats it.
-    // Confirmed empirically: removing the `pipeValue !== null` clause fails
-    // exactly those two tests and no others.
+    // A call with no arguments neither reads nor receives `$`. A dict-member
+    // empty-paren call (`$app.flag()`) outside a pipe-target position gets
+    // exactly the arguments written, so a member that declares a required
+    // parameter halts with a missing-argument error even when a pipe value
+    // is in scope, and a member with a default or no parameters runs with
+    // its own defaults. Only a call written as the pipe target
+    // (`5 -> $app.flag()`) receives the piped value.
 
-    it('AC-20: dict-member empty-paren call in ternary then-branch receives pipe value', async () => {
-      // Primary regression case for rcrsr/rill#131.
+    it('AC-20: dict-member empty-paren call in ternary then-branch receives no pipe value', async () => {
       const script = `
         dict[flag: { $ + 1 }] => $app
         5 -> (true) ? $app.flag() ! 0
       `;
-      expect(await run(script)).toBe(6);
+      await expectRuntimeError(() => run(script), {
+        code: 'RILL-R044',
+        messagePattern: /Missing argument for parameter/,
+      });
     });
 
-    it('AC-21: dict-member empty-paren call in bare ternary else-branch receives pipe value', async () => {
-      // Guards that both ternary branches bind the pipe value regardless of
-      // block/bare notation.
+    it('AC-21: dict-member empty-paren call in bare ternary else-branch receives no pipe value', async () => {
       const script = `
         dict[flag: { $ + 1 }] => $app
         5 -> (false) ? 0 ! $app.flag()
       `;
-      expect(await run(script)).toBe(6);
-    });
-
-    it('AC-22: dict-member empty-paren call inside a block body receives pipe value', async () => {
-      const script = `
-        dict[flag: { $ + 1 }] => $app
-        5 -> { $app.flag() }
-      `;
-      expect(await run(script)).toBe(6);
+      await expectRuntimeError(() => run(script), {
+        code: 'RILL-R044',
+        messagePattern: /Missing argument for parameter/,
+      });
     });
 
     it('AC-23: zero-param dict member is not injected with the pipe value', async () => {
-      // declaresZeroParams(dictValue) guards ||{ } members from receiving an
-      // unexpected argument. Fails with an arity error if that guard drops.
       const script = `
         dict[f: ||{ 42 }] => $d
-        5 -> { $d.f() }
+        5 -> (true) ? $d.f() ! 0
       `;
       expect(await run(script)).toBe(42);
     });
@@ -440,16 +424,12 @@ $app.flag } => $captured
       expect(await run(invokeScript)).toBe(11);
     });
 
-    it('AC-26: dict member with an all-optional param receives the piped value on an empty-paren call', async () => {
-      // Documented breaking change (CHANGELOG.md): a dict member whose sole
-      // parameter is optional with a default is no longer zero-param
-      // (declaresZeroParams is false), so an empty-paren call still injects
-      // the pipe value instead of falling back to the default.
+    it('AC-26: dict member with an all-optional param uses its default on an empty-paren call', async () => {
       const script = `
         dict[h: |a: number = 99|{ $a }] => $d
-        5 -> { $d.h() }
+        5 -> (true) ? $d.h() ! 0
       `;
-      expect(await run(script)).toBe(5);
+      expect(await run(script)).toBe(99);
     });
 
     // The next 3 cases guard against expanding the rcrsr/rill#131 fix beyond
@@ -642,9 +622,8 @@ $app.flag } => $captured
       expect(await run(script)).toBe(5);
     });
 
-    it('one-param closure with explicit empty parens receives pipe value', async () => {
-      // Regression guard: one-param closure called with empty parens
-      // should still receive pipe value (accumulator) in loop body
+    it('one-param closure with explicit empty parens receives no pipe value', async () => {
+      // A call with no arguments neither reads nor receives the accumulator.
       const script = `
         { $ + 10 } => $fn
 
@@ -652,9 +631,10 @@ $app.flag } => $captured
           $fn()
         } while ($ < 15)
       `;
-      // Loop: 0 -> $fn() receives 0, returns 10 -> check (10 < 15 is true) -> continue
-      //       10 -> $fn() receives 10, returns 20 -> check (20 < 15 is false) -> exits
-      expect(await run(script)).toBe(20);
+      await expectRuntimeError(() => run(script), {
+        code: 'RILL-R044',
+        messagePattern: /Missing argument for parameter/,
+      });
     });
 
     it('zero-param closure in while-loop with explicit call', async () => {

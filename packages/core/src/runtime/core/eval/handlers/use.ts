@@ -44,6 +44,12 @@ import { isObjectRecord } from '../../types/guards.js';
 import { ControlSignal } from '../../signals.js';
 import { brandExtensionValue } from '../../policy/identity.js';
 
+/** A resolved use<> value and whether it came from a value or a source module. */
+export type UseResolution = {
+  readonly value: RillValue;
+  readonly kind: 'value' | 'source';
+};
+
 /**
  * Evaluate a use<> expression.
  *
@@ -54,6 +60,18 @@ export async function evaluateUseExpr(
   s: EvalState,
   node: UseExprNode
 ): Promise<RillValue> {
+  return (await resolveUseExpr(s, node)).value;
+}
+
+/**
+ * Resolve a use<> expression and report which kind of resolver result
+ * produced the value, so a pipe target can dispatch host values by kind
+ * and leave source-module results untouched.
+ */
+export async function resolveUseExpr(
+  s: EvalState,
+  node: UseExprNode
+): Promise<UseResolution> {
   let scheme: string;
   let resource: string;
 
@@ -198,7 +216,7 @@ export async function evaluateUseExpr(
       // script picks. Policy matches on this brand, so renaming the
       // variable cannot move a method out from under its rule.
       brandExtensionValue(result.value, resource, site);
-      return result.value;
+      return { value: result.value, kind: 'value' };
     }
 
     // source: parse and execute in child scope
@@ -272,7 +290,7 @@ export async function evaluateUseExpr(
       }
       throw err;
     }
-    return execResult.result;
+    return { value: execResult.result, kind: 'source' };
   } finally {
     // Remove after resolver call and any source execution complete (or error)
     s.ctx.resolvingSchemes.delete(key);

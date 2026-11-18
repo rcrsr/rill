@@ -12,7 +12,12 @@ import {
   expectHaltMessage,
   expectRuntimeError,
 } from '../helpers/halt.js';
-import { anyTypeValue, parseWithRecovery } from '@rcrsr/rill';
+import {
+  anyTypeValue,
+  parse,
+  ParseError,
+  parseWithRecovery,
+} from '@rcrsr/rill';
 
 describe('Rill Runtime: Pipe Targets', () => {
   describe('Invoke Pipe Target (-> $())', () => {
@@ -177,7 +182,7 @@ $fn("x", "y")`;
 
     it('calls closure in for loop', async () => {
       const script = `|x| { ($x * 2) } => $double
-list[1, 2, 3] -> seq({ $double() })`;
+list[1, 2, 3] -> seq({ $double($) })`;
       expect(await run(script)).toEqual([2, 4, 6]);
     });
 
@@ -629,6 +634,11 @@ $h(1, 2) }`;
         'a block whose only $ sits in a later pipe target',
         '3 -> { list[1] -> seq({ $ }) }',
       ],
+      ['a block with a no-argument method call', '5 -> { "a".upper() }'],
+      ['a block with a no-argument host call', '5 -> { f() }'],
+      ['a block with a no-argument dict member call', '5 -> { $d.m() }'],
+      ['a block with a no-argument closure call', '5 -> { $f() }'],
+      ['a string with a no-argument call', '5 -> "x{f()}"'],
     ])('rejects %s with RILL-P031', async (_label, source) => {
       await expect(run(source)).rejects.toMatchObject({ errorId: 'RILL-P031' });
     });
@@ -651,6 +661,38 @@ $h(1, 2) }`;
     it('reports RILL-P031 through parseWithRecovery', () => {
       const result = parseWithRecovery('5 -> "x"');
       expect(result.errors.map((e) => e.errorId)).toContain('RILL-P031');
+    });
+
+    it('reports RILL-P031 for the block form through parseWithRecovery', () => {
+      const result = parseWithRecovery('5 -> { f() }');
+      expect(result.errors.map((e) => e.errorId)).toContain('RILL-P031');
+    });
+
+    it('rejects a block with a no-argument call at parse time, without executing', () => {
+      let thrown: unknown;
+      try {
+        parse('5 -> { f() }');
+      } catch (err) {
+        thrown = err;
+      }
+      expect(thrown).toBeInstanceOf(ParseError);
+      expect(thrown).toMatchObject({ errorId: 'RILL-P031' });
+    });
+
+    it('never invokes the host function of a rejected block', async () => {
+      let calls = 0;
+      const f: RillFunction = {
+        params: [],
+        returnType: anyTypeValue,
+        fn: (): RillValue => {
+          calls++;
+          return 0;
+        },
+      };
+      await expect(
+        run('5 -> { f() }', { functions: { f } })
+      ).rejects.toMatchObject({ errorId: 'RILL-P031' });
+      expect(calls).toBe(0);
     });
   });
 

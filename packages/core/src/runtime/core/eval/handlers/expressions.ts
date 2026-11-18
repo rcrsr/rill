@@ -8,13 +8,11 @@
  * - evaluateBinaryExpr(node) -> Promise<RillValue>
  * - evaluateUnaryExpr(node) -> Promise<RillValue>
  * - evaluateGroupedExpr(node) -> Promise<RillValue>
- * - resolveExpressionValue(value) -> Promise<RillValue>
  *
  * Error Handling:
  * - Operator operand type mismatches halt with RILL-R002; non-finite arithmetic
  *   results halt with #INVALID_INPUT
  * - Nested expression evaluation errors are propagated
- * - Closure auto-invoke errors are propagated
  *
  * @internal
  */
@@ -35,13 +33,11 @@ import type { RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import { BUILT_IN_TYPES } from '../../types/registrations.js';
 import { createChildContext } from '../../context.js';
-import { isCallable } from '../../callable.js';
 import type { EvalState } from '../state.js';
 import { withChildScope } from '../shared.js';
 import { accessHaltGate, haltSlowPath } from './access.js';
 import { hasStatusSidecar } from '../../types/status.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import { invokeCallable } from './closures.js';
 import { evaluatePostfixExpr, evaluatePipeChainCarried } from './core.js';
 import type { Carried } from '../../types/declared.js';
 import { requireOverlap } from '../../types/overlap.js';
@@ -56,48 +52,8 @@ function findRegistration(typeName: string) {
 }
 
 /**
- * Resolve expression value, auto-invoking closures when $ is bound.
- *
- * Auto-invokes closures only when ctx.pipeValue is set:
- * - Zero-param closures: invoke with pipeValue = $
- * - Parameterized closures: invoke with args = [$]
- * - Non-callable values: returned unchanged
- *
- * Expression contexts that call resolveExpressionValue:
- * - Unary operand (e.g., `! $closure`)
- * - Binary operands (e.g., `$a && $b`, `$x + $y`)
- *
- * Excluded contexts (no auto-invoke):
- * - Capture target (`:> $var`)
- * - Direct pipe target (`-> $fn`)
- * - Function call arguments (`func($closure)`)
- *
- * Reference: variables.ts:720-733 (property-style auto-invoke)
- */
-async function resolveExpressionValue(
-  s: EvalState,
-  value: RillValue
-): Promise<RillValue> {
-  // Auto-invoke only when $ is bound (pipeValue set)
-  if (!isCallable(value) || s.ctx.pipeValue === null) {
-    return value;
-  }
-
-  // Callable and $ is bound: auto-invoke
-  // Zero-param closures: invoke with pipeValue = $
-  // Parameterized closures: invoke with args = [$]
-  const args =
-    value.kind === 'script' && value.params.length === 0
-      ? []
-      : [s.ctx.pipeValue];
-
-  return await invokeCallable(s, value, args);
-}
-
-/**
  * Evaluate binary expression: left op right.
  * Handles arithmetic, comparison, and logical operators.
- * Auto-invokes closures when $ is bound.
  */
 export async function evaluateBinaryExpr(
   s: EvalState,
@@ -107,8 +63,7 @@ export async function evaluateBinaryExpr(
 
   // Logical operators with short-circuit evaluation
   if (op === '||') {
-    const rawLeft = await evaluateExprHead(s, node.left);
-    const left = await resolveExpressionValue(s, rawLeft);
+    const left = await evaluateExprHead(s, node.left);
     if (typeof left !== 'boolean') {
       throwCatchableHostHalt(
         {
@@ -121,8 +76,7 @@ export async function evaluateBinaryExpr(
       );
     }
     if (left) return true;
-    const rawRight = await evaluateExprHead(s, node.right);
-    const right = await resolveExpressionValue(s, rawRight);
+    const right = await evaluateExprHead(s, node.right);
     if (typeof right !== 'boolean') {
       throwCatchableHostHalt(
         {
@@ -138,8 +92,7 @@ export async function evaluateBinaryExpr(
   }
 
   if (op === '&&') {
-    const rawLeft = await evaluateExprHead(s, node.left);
-    const left = await resolveExpressionValue(s, rawLeft);
+    const left = await evaluateExprHead(s, node.left);
     if (typeof left !== 'boolean') {
       throwCatchableHostHalt(
         {
@@ -152,8 +105,7 @@ export async function evaluateBinaryExpr(
       );
     }
     if (!left) return false;
-    const rawRight = await evaluateExprHead(s, node.right);
-    const right = await resolveExpressionValue(s, rawRight);
+    const right = await evaluateExprHead(s, node.right);
     if (typeof right !== 'boolean') {
       throwCatchableHostHalt(
         {
@@ -170,30 +122,20 @@ export async function evaluateBinaryExpr(
 
   // Equality: operands carry their declared types into the overlap check
   if (op === '==' || op === '!=') {
-    const left = await resolveCarried(
-      s,
-      await evaluateExprHeadCarried(s, node.left)
-    );
-    const right = await resolveCarried(
-      s,
-      await evaluateExprHeadCarried(s, node.right)
-    );
+    const left = await evaluateExprHeadCarried(s, node.left);
+    const right = await evaluateExprHeadCarried(s, node.right);
     return evaluateEquality(s, left, right, op, node);
   }
 
   // Comparison operators - work on any values, return boolean
   if (op === '<' || op === '>' || op === '<=' || op === '>=') {
-    const rawLeft = await evaluateExprHead(s, node.left);
-    const left = await resolveExpressionValue(s, rawLeft);
-    const rawRight = await evaluateExprHead(s, node.right);
-    const right = await resolveExpressionValue(s, rawRight);
+    const left = await evaluateExprHead(s, node.left);
+    const right = await evaluateExprHead(s, node.right);
     return evaluateBinaryComparison(s, left, right, op, node);
   }
 
   // Arithmetic operators - require numbers
-  // Auto-invoke closures before checking type
   const rawLeft = await evaluateExprHead(s, node.left);
-  const resolvedLeftRaw = await resolveExpressionValue(s, rawLeft);
   // access-halt gate at arith site. An invalid operand halts
   // before the type check, so the halt surfaces as an access frame.
   // Inline the Symbol-keyed sidecar probe to eliminate the
@@ -201,10 +143,10 @@ export async function evaluateBinaryExpr(
   // required in this hot loop. Slow path delegates to
   // `haltSlowPath` which reads `node.span.start` itself.
   let resolvedLeft: RillValue;
-  if (hasStatusSidecar(resolvedLeftRaw)) {
-    resolvedLeft = haltSlowPath(resolvedLeftRaw, op, node.left, s.ctx.sourceId);
+  if (hasStatusSidecar(rawLeft)) {
+    resolvedLeft = haltSlowPath(rawLeft, op, node.left, s.ctx.sourceId);
   } else {
-    resolvedLeft = resolvedLeftRaw;
+    resolvedLeft = rawLeft;
   }
   if (typeof resolvedLeft !== 'number') {
     throwCatchableHostHalt(
@@ -220,17 +162,11 @@ export async function evaluateBinaryExpr(
   const left = resolvedLeft;
 
   const rawRight = await evaluateExprHead(s, node.right);
-  const resolvedRightRaw = await resolveExpressionValue(s, rawRight);
   let resolvedRight: RillValue;
-  if (hasStatusSidecar(resolvedRightRaw)) {
-    resolvedRight = haltSlowPath(
-      resolvedRightRaw,
-      op,
-      node.right,
-      s.ctx.sourceId
-    );
+  if (hasStatusSidecar(rawRight)) {
+    resolvedRight = haltSlowPath(rawRight, op, node.right, s.ctx.sourceId);
   } else {
-    resolvedRight = resolvedRightRaw;
+    resolvedRight = rawRight;
   }
   if (typeof resolvedRight !== 'number') {
     throwCatchableHostHalt(
@@ -423,15 +359,13 @@ function evaluateBinaryComparison(
 
 /**
  * Evaluate unary expression: -operand or !operand.
- * Auto-invokes closures when $ is bound.
  */
 export async function evaluateUnaryExpr(
   s: EvalState,
   node: UnaryExprNode
 ): Promise<RillValue> {
   if (node.op === '!') {
-    const rawValue = await evaluateExprHead(s, node.operand);
-    const value = await resolveExpressionValue(s, rawValue);
+    const value = await evaluateExprHead(s, node.operand);
     if (typeof value !== 'boolean') {
       throwCatchableHostHalt(
         {
@@ -463,8 +397,7 @@ export async function evaluateUnaryExpr(
     }
     return -inner;
   }
-  const rawValue = await evaluateExprHead(s, operand);
-  const value = await resolveExpressionValue(s, rawValue);
+  const value = await evaluateExprHead(s, operand);
   if (typeof value !== 'number') {
     throwCatchableHostHalt(
       {
@@ -509,12 +442,6 @@ async function evaluateExprHeadCarried(
 ): Promise<Carried> {
   if (node.type === 'PostfixExpr') return evaluatePostfixExprCarried(s, node);
   return { value: await evaluateExprHead(s, node), declared: undefined };
-}
-
-/** Auto-invoke a carried closure; an invoked result carries no declared type. */
-async function resolveCarried(s: EvalState, c: Carried): Promise<Carried> {
-  const value = await resolveExpressionValue(s, c.value);
-  return value === c.value ? c : { value, declared: undefined };
 }
 
 /**

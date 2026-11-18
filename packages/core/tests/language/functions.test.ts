@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { expectRuntimeError } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Built-in Functions', () => {
@@ -252,15 +253,16 @@ describe('Rill Runtime: Closures', () => {
     });
   });
 
-  describe('Implied $ for Closures', () => {
+  describe('No Implied $ for Closures', () => {
     it('$fn() receives $ implicitly when closure has params', async () => {
       expect(await run('|x| { $x } => $fn\n"hello" -> $fn()')).toBe('hello');
     });
 
-    it('$fn() in for loop receives loop value', async () => {
-      expect(
-        await run('|x| { $x } => $echo\nlist[1, 2, 3] -> seq({ $echo() })')
-      ).toEqual([1, 2, 3]);
+    it('$fn() in for loop receives no loop value', async () => {
+      await expectRuntimeError(
+        () => run('|x| { $x } => $echo\nlist[1, 2, 3] -> seq({ $echo() })'),
+        { code: 'RILL-R044', messagePattern: /Missing argument for parameter/ }
+      );
     });
 
     it('$fn() does not receive $ when args are explicit', async () => {
@@ -307,7 +309,7 @@ describe('Rill Runtime: Closures', () => {
 
     it('rejects number in for loop with string param', async () => {
       await expect(
-        run('|r: string| { $r } => $fn\nlist[1, 2, 3] -> seq({ $fn() })')
+        run('|r: string| { $r } => $fn\nlist[1, 2, 3] -> seq({ $fn($) })')
       ).rejects.toThrow(
         'Parameter type mismatch: r expects string, got number'
       );
@@ -315,7 +317,9 @@ describe('Rill Runtime: Closures', () => {
 
     it('accepts string in for loop with string param', async () => {
       expect(
-        await run('|r: string| { $r } => $fn\nlist["a", "b"] -> seq({ $fn() })')
+        await run(
+          '|r: string| { $r } => $fn\nlist["a", "b"] -> seq({ $fn($) })'
+        )
       ).toEqual(['a', 'b']);
     });
 

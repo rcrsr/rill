@@ -274,7 +274,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
   describe('method calls', () => {
     it('pushes frame for dict-bound callable', async () => {
       let capturedStack: CallFrame[] = [];
-      await run('dict[fn: |x|{ capture() }].fn(42)', {
+      await run('dict[fn: |x|{ capture($x) }].fn(42)', {
         functions: {
           capture: {
             returnType: anyTypeValue,

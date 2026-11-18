@@ -1280,6 +1280,8 @@ Slice (`slice<start:stop:step>`):
 
 `use<>` returns the resolved value (dict, closure, or any rill type). Hosts register resolvers; scripts cannot. A `guard` around `use<>` catches resolution failures only; halts inside the module propagate.
 
+`v -> use<...>` on a host-resolved value calls a callable, selects from a dict or list, or converts through a type; any other value halts `RILL-R002`. A source module's result, even a function, is returned as-is.
+
 See `control-flow` for iterators and lazy sequences.
 
 ---

@@ -13,7 +13,6 @@ import type {
 } from '../../../../types.js';
 import type { RillCallable } from '../../callable.js';
 import {
-  declaredParams,
   isCallable,
   isScriptCallable,
   isApplicationCallable,
@@ -45,12 +44,12 @@ import {
 import { locateField } from './field-access.js';
 
 /**
- * Bind the piped value as the first argument of a call target.
+ * Bind the piped value as the first argument of a call written as a pipe
+ * target.
  *
- * No-op when there is no piped value or the caller says to skip the operand.
- * In pipe-target position the value is prepended unless a top-level `$`
- * already places it; in primary position it is inserted only when no
- * arguments were written.
+ * No-op outside pipe-target position, when there is no piped value, or when
+ * the caller says to skip the operand. The value is prepended unless a
+ * top-level `$` already places it.
  */
 function bindPipeOperand(
   args: RillValue[],
@@ -60,22 +59,17 @@ function bindPipeOperand(
   inPipeTarget: boolean,
   skipOperand: boolean
 ): void {
-  if (operand === null || skipOperand) return;
-  const shouldPrepend = inPipeTarget
-    ? !hasTopLevelDollarInAST(argNodes)
-    : args.length === 0;
-  if (!shouldPrepend) return;
+  if (!inPipeTarget || operand === null || skipOperand) return;
+  if (hasTopLevelDollarInAST(argNodes)) return;
   args.unshift(operand);
   insertArgDeclared(args, 0, declared);
 }
 
 /** Evaluate host function call: functionName(args).
  *
- * When `inPipeTarget` is true the unified pipe-binding rule applies:
- * auto-prepend fires when no top-level `$` appears in the argument list.
- * When false (primary-expression context) the legacy guard is used instead
- * (`args.length === 0`), preserving existing behaviour for calls inside
- * blocks, conditionals, and other non-direct-pipe-target positions.
+ * Only a call written as a pipe target (`inPipeTarget`) receives the piped
+ * value, and only when no top-level `$` appears in its argument list. A call
+ * elsewhere receives exactly the arguments written.
  */
 export async function evaluateHostCall(
   s: EvalState,
@@ -147,7 +141,7 @@ export async function evaluateHostCall(
     s.ctx.pipeValue,
     pipeDeclaredOf(s.ctx),
     inPipeTarget,
-    skipsPipeOperand(fn, inPipeTarget, node.name)
+    isPropertyCallable(fn)
   );
   s.ctx.observability.onHostCall?.({ name: node.name, args });
   const startTime = performance.now();
@@ -260,42 +254,14 @@ export async function evaluateClosureCallWithPipe(
     pipeInput,
     s.ctx.pipeValue === pipeInput ? pipeDeclaredOf(s.ctx) : undefined,
     inPipeTarget,
-    // A primary-position call with written args never prepends; skip the
-    // parameter inspection so an undeclared callable halts at invocation.
-    (!inPipeTarget && args.length > 0) ||
-      skipsPipeOperand(closure, inPipeTarget)
+    isPropertyCallable(closure)
   );
   return invokeCallable(s, closure, args, node.span.start, fullPath);
 }
 
-/**
- * True when a call must not receive the piped operand: a property-style
- * callable always, and a zero-parameter callable outside pipe-target position.
- * In pipe-target position a zero-parameter callable still receives the
- * operand, so the excess-argument check halts it.
- */
-function skipsPipeOperand(
-  value: RillCallable,
-  inPipeTarget: boolean,
-  functionName?: string
-): boolean {
-  if (isApplicationCallable(value) && value.isProperty) return true;
-  if (inPipeTarget) return false;
-  return isApplicationCallable(value)
-    ? declaredParams(value, functionName).length === 0
-    : declaresZeroParams(value);
-}
-
-/**
- * True when the callable declares an empty parameter list, or is
- * property-style (its `self` parameter is bound to the dict, not piped).
- */
-export function declaresZeroParams(value: RillCallable): boolean {
-  return (
-    (isScriptCallable(value) && value.params.length === 0) ||
-    (isApplicationCallable(value) &&
-      (declaredParams(value).length === 0 || value.isProperty))
-  );
+/** True for a property-style callable, whose `self` is bound to the dict, not piped. */
+function isPropertyCallable(value: RillCallable): boolean {
+  return isApplicationCallable(value) && value.isProperty;
 }
 
 /** Evaluate pipe invoke: value -> (args). */

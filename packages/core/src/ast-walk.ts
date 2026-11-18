@@ -410,9 +410,7 @@ export function walkAst(root: ASTNode, visit: (node: ASTNode) => void): void {
  *
  * `written` counts a pipe variable (`$`, `$.x`, the implicit receiver of a
  * leading `.method`, the phantom receiver of `.?x`, a bare `...` spread).
- * `used` adds `pass`, `pass { }`, and a call written with no arguments, to
- * (a host, closure, postfix, or dict-member call), to which the runtime
- * supplies `$`.
+ * `used` adds `pass` and `pass { }`. A call with no arguments does not count.
  *
  * The walk does not enter a closure, a block other than a construct body that
  * inherits `$` (conditional branches and guard, retry, timeout, and pass
@@ -465,19 +463,6 @@ export function readsPipeValue(
         break;
       case 'PipeChain':
         children = [node.head];
-        break;
-      case 'HostCall':
-      case 'ClosureCall':
-      case 'Invoke':
-        if (mode === 'used' && node.args.length === 0) return true;
-        children = astChildren(node);
-        break;
-      case 'MethodCall':
-        // A dict receiver supplies `$` to an empty-paren member call.
-        if (mode === 'used' && node.hasParens && node.args.length === 0) {
-          return true;
-        }
-        children = astChildren(node);
         break;
       default:
         children = astChildren(node);

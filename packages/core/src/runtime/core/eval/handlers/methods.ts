@@ -23,8 +23,6 @@ import type {
 } from '../../types/structures.js';
 import {
   argDeclaredAt,
-  insertArgDeclared,
-  pipeDeclaredOf,
   setArgsDeclared,
   transferArgsDeclared,
 } from '../../types/declared.js';
@@ -51,7 +49,6 @@ import {
   invokeCallable,
   invokeStream,
 } from './closures.js';
-import { declaresZeroParams } from './calls.js';
 import type { FieldLocation, FoundField } from './field-access.js';
 import { locateField, readField } from './field-access.js';
 
@@ -189,24 +186,6 @@ export async function evaluateMethod(
       ? ownLocation.value
       : undefined;
   if (ownField !== undefined && isCallable(ownField)) {
-    // Only inject the piped value for an explicit empty-paren call
-    // (`.method()`), never for a bare `.field` reference. MethodCallNode
-    // carries `hasParens` precisely to distinguish the two: the
-    // Variable.accessChain path (parser-variables.ts, isMethodCallWithArgs)
-    // only attaches this node when the source wrote parens, but the
-    // postfix/pipe-target path (parseMethodCall via isMethodCall in
-    // parser-pipe-target.ts and parsePipeTargetDot) attaches it for bare `.field`
-    // too, with `args: []` either way. `hasParens` is therefore the only
-    // reliable signal here.
-    if (
-      node.hasParens &&
-      args.length === 0 &&
-      s.ctx.pipeValue !== null &&
-      !declaresZeroParams(ownField)
-    ) {
-      insertArgDeclared(args, args.length, pipeDeclaredOf(s.ctx));
-      args.push(s.ctx.pipeValue);
-    }
     return invokeCallable(
       s,
       ownField,

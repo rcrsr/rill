@@ -46,7 +46,7 @@ The piped value is available as `$`:
 
 ### A Target Uses the Piped Value
 
-A block or string target must read `$`. A leading method such as `.upper` or `pass` counts as a read. A list, dict, tuple, or ordered literal target must not read `$` at its top level. Wrap the literal in a block to use the value twice. A `$` inside a nested held block is fine.
+A block or string target must read `$`. A leading method such as `.upper` or `pass` counts as a read. A list, dict, tuple, or ordered literal target must not read `$` at its top level. Wrap the literal in a block to use the value twice. A `$` inside a nested held block is fine. A call with no arguments does not count.
 
 ```rill
 3 -> { list[$, $] }

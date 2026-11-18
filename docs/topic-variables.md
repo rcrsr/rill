@@ -77,9 +77,8 @@ When certain constructs appear without explicit input, `$` is used implicitly:
 |---------|---------------|---------|
 | `? { }` | `$ -> ? { }` | Piped conditional ($ as condition) |
 | `.method()` | `$ -> .method()` | Method call without receiver |
-| `$fn()` | `$fn($)` | Closure call with no explicit args* |
 
-*Closure calls receive `$` only when: no explicit args, a pipe value is in scope, and the callable does not declare an empty parameter list.
+A call with no arguments receives no implied `$`. Write `$fn($)` to pass it.
 
 ```rill
 # Inside blocks, $ flows naturally
@@ -89,10 +88,10 @@ When certain constructs appear without explicit input, `$` is used implicitly:
 
 # In each loops, $ is the current item
 |x| { $x * 2 } => $double
-[1, 2, 3] -> seq({ $double() })   # $double receives 1, 2, 3
+[1, 2, 3] -> seq({ $double($) })   # $double receives 1, 2, 3
 ```
 
-**When implied `$` does NOT apply:**
+**Closure calls pass arguments as written:**
 
 ```rill
 # Explicit args override implied $

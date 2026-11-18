@@ -35,8 +35,8 @@ A number, bool, or atom literal after `->` MUST be rejected with RILL-P001.
 r[pipe.uses-value] A target uses the piped value
 A code block whose body does not read the pipe value and a string that does not interpolate `$`
 MUST be rejected with RILL-P031 before the script runs. A body reads the pipe value when it writes
-`$`, starts a chain with a method such as `.upper`, calls with no arguments, or uses `pass`.
-`5 -> "x"` and `3 -> { 5 }` MUST be rejected.
+`$`, starts a chain with a method such as `.upper`, or uses `pass`. A call with no arguments does not
+read it: `5 -> { f() }` MUST be rejected. `5 -> "x"` and `3 -> { 5 }` MUST be rejected.
 
 r[pipe.zero-param] A function of no parameters halts when piped into
 `v -> $f` MUST halt with RILL-R045 when `$f` is a function of no parameters, because the value
@@ -73,7 +73,8 @@ r[pipe.string] A string target is built with the value
 
 r[pipe.call-operand] A call target receives the value first
 `v -> f(args)` and `v -> f` MUST call `f` with `v` prepended to `args`, for a built-in or host
-function `f`.
+function `f`. Only a call written as the target receives `v`. A call inside a target's body, a
+branch, or a callback receives only the arguments written.
 
 r[pipe.call-dollar] A written $ argument replaces the prepended operand
 When an argument of a call target is a top-level `$`, the value MUST NOT be prepended, and
@@ -173,4 +174,5 @@ On 0.23.0 a target that ignores the value runs: `5 -> "x"` yields `"x"` and `3 -
 5. `3 -> list[$, $]` builds `list[3, 3]` and indexes it with 3, halting RILL-R009. A function of no
 parameters drops the value or binds it to `$`. A script function does not receive the operand:
 `3 -> $h(4)` halts RILL-R044, and `3 -> $h($, 4)` works.
+On 0.23.0 a call with no arguments where `$` is bound received `$` as its first argument.
 On 0.23.0 `5 -> $n` for a number `$n` halts RILL-R002 `Cannot dispatch to number`.

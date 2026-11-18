@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: the built-in error_code type
  *
@@ -8,6 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { ERROR_CODES, parse } from '@rcrsr/rill';
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
 
@@ -167,21 +169,30 @@ describe('Rill Language: error_code type', () => {
       });
     });
 
-    it('compares .!code with #ok as a bool', async () => {
-      expect(await run('"x".!code == #ok')).toBe(true);
-    });
+    rule('error-code.closed-compare').it(
+      'compares .!code with #ok as a bool',
+      async () => {
+        expect(await run('"x".!code == #ok')).toBe(true);
+      }
+    );
 
-    it('halts comparing .!code with an atom outside the set', async () => {
-      await expectHalt(() => run('"x".!code == #TIMEUOT'), {
-        code: 'TYPE_MISMATCH',
-      });
-    });
+    rule('error-code.closed-compare').it(
+      'halts comparing .!code with an atom outside the set',
+      async () => {
+        await expectHalt(() => run('"x".!code == #TIMEUOT'), {
+          code: 'TYPE_MISMATCH',
+        });
+      }
+    );
 
-    it('lets guard catch the halt from a misspelled code comparison', async () => {
-      const result = (await run(
-        'guard { "x".!code == #TIMEUOT } => $r\n$r.!code'
-      )) as unknown;
-      expect(result).toEqual(atom('TYPE_MISMATCH'));
-    });
+    rule('error-code.closed-compare').it(
+      'lets guard catch the halt from a misspelled code comparison',
+      async () => {
+        const result = (await run(
+          'guard { "x".!code == #TIMEUOT } => $r\n$r.!code'
+        )) as unknown;
+        expect(result).toEqual(atom('TYPE_MISMATCH'));
+      }
+    );
   });
 });

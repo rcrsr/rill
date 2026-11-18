@@ -339,7 +339,7 @@ Use `do<limit: N>` to cap iterations. Without a limit, while loops default to 10
 
 ```rill
 # Limit loop to 100 iterations max ($ flows through as accumulator)
-"" -> do<limit: 100> { check_status() } while ($ == "")
+"" -> do<limit: 100> { check_status($) } while ($ == "")
 ```
 
 ## Putting It Together

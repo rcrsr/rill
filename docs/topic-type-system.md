@@ -189,8 +189,6 @@ list[1, "a"] -> :list(number)
 # Error: #TYPE_MISMATCH Type assertion failed
 ```
 
-An assertion to the bare `list` still passes, and `list[list[1], list["a"]] -> :?list(list)` is `true`.
-
 ### Metatype Fixed Point
 
 The `^type` of a type value is always `type`, and every type name is an expression that produces a type value, so `string.^type == type`. `type.^type` is `type`:
@@ -593,7 +591,7 @@ A type member matches by type. A literal member matches by equality. A closed se
 # Result: "c"
 ```
 
-A comparison against a value outside the set halts `#TYPE_MISMATCH`, so a misspelled member cannot pass as false. Undeclared atoms compare by name. The `.eq`, `.ne`, and `.has` forms and unions of literals follow the same rule.
+A comparison against a value outside the set halts `#TYPE_MISMATCH`, so a misspelled member cannot pass as false. See [Operators](topic-operators.md) for the comparison forms.
 
 ```rill
 #wired => $kind:union(#wired, #wireless)

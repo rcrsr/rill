@@ -121,7 +121,7 @@ describe('Rill Runtime: core handler error contracts', () => {
       const controller = new AbortController();
 
       await expectAbortHalt(() =>
-        run('"" -> { slow() -> slow() -> slow() }', {
+        run('"" -> { $ -> slow() -> slow() -> slow() }', {
           functions: {
             slow: {
               returnType: anyTypeValue,
@@ -443,7 +443,9 @@ describe('Rill Runtime: annotations handler error contracts', () => {
           },
         },
       });
-      const ast = parse('^(limit: 5) "" -> { probe() => $seen\n$undefined }');
+      const ast = parse(
+        '^(limit: 5) "" -> { $\nprobe() => $seen\n$undefined }'
+      );
 
       await expectHaltMessage(() => execute(ast, ctx), /Undefined variable/);
 

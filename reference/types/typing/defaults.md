@@ -7,7 +7,7 @@ issues: [623, 624]
 grammar: [field-arg-list, field-arg]
 errors: [RILL-P001, RILL-P014, RILL-R044, TYPE_MISMATCH, INVALID_INPUT]
 depends: [type-value, structural-typing, union, tuple, dict, ordered, fn]
-tests: [structural-type-defaults.test.ts, closure-annotation-defaults.test.ts, collection-type-defaults-bugs.test.ts]
+tests: [structural-type-defaults.test.ts, closure-annotation-defaults.test.ts, collection-type-defaults-bugs.test.ts, no-implied-dollar.test.ts, pipe-targets.test.ts, functions.test.ts, closure-semantics.test.ts]
 ---
 
 # Defaults in types
@@ -136,6 +136,8 @@ dict[a: 1] -> $f()
 Defaults live in the type, so changing one changes the type. Reading a default from a type value is
 stated by `introspection`. The `|x: number = 3|` closure parameter form is removed in 0.24.0 and
 replaced by the `fn` form.
+
+On 0.23.0 a call with no arguments where `$` is bound received `$` as its first argument.
 
 Superseded: `defaults.fn-match`. A function has a function type only when its defaults equal the
 type's (`structural-typing.function`, `fn.equality`). On 0.23.0 a function whose parameters declare

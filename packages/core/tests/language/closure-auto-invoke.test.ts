@@ -1,232 +1,227 @@
 /**
- * Rill Runtime Tests: Closure Auto-Invocation
+ * Rill Runtime Tests: Closure Operands Are Not Invoked
  *
- * Tests for FR-RUNTIME-2: Closure auto-invocation in expression contexts.
- * Closures are auto-invoked when used in expression contexts (operators, conditionals)
- * and $ is bound.
- *
- * Coverage: AC-28, AC-29, AC-30, AC-31, AC-32, AC-33, AC-34, AC-35, AC-36
+ * A closure used as an operand in an expression context (operators,
+ * conditions) is never invoked: the operator receives the closure value
+ * itself and halts with its own type error. A closure runs only when called
+ * (`$fn(...)`) or written as a pipe target (`-> $fn`).
  */
 
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
-import { expectHalt, expectRuntimeError } from '../helpers/halt.js';
+import { expectHalt } from '../helpers/halt.js';
 
-describe('Rill Runtime: Closure Auto-Invocation', () => {
-  describe('Success Cases', () => {
-    it('AC-28: auto-invokes closure in negation operator', async () => {
-      // Setup: |x|($x > 0) => $pos
-      // Expression: 5 -> (! $pos)
-      // Expected: false (5 > 0 = true, then negated)
+const NEGATION_TYPE_ERROR = {
+  code: 'RILL_R002',
+  hostErrorId: 'RILL-R002',
+  messagePattern: /requires boolean operand, got closure/,
+} as const;
+
+const ARITHMETIC_TYPE_ERROR = {
+  code: 'RILL_R002',
+  hostErrorId: 'RILL-R002',
+  messagePattern: /Arithmetic requires number, got closure/,
+} as const;
+
+describe('Rill Runtime: Closure Operands Are Not Invoked', () => {
+  describe('Operators Reject A Closure Operand', () => {
+    it('negation halts on a closure operand', async () => {
       const script = `
         |x|($x > 0) => $pos
         5 -> (! $pos)
       `;
-      expect(await run(script)).toBe(false);
+      await expectHalt(() => run(script), NEGATION_TYPE_ERROR);
     });
 
-    it('AC-29: auto-invokes zero-param closure in arithmetic', async () => {
-      // Setup: || { $ + 1 } => $inc
-      // Expression: 5 -> ($inc + 10)
-      // Expected: 16 (5+1=6, then 6+10=16)
+    it('arithmetic halts on a zero-param closure operand', async () => {
       const script = `
         || { $ + 1 } => $inc
         5 -> ($inc + 10)
       `;
-      expect(await run(script)).toBe(16);
+      await expectHalt(() => run(script), ARITHMETIC_TYPE_ERROR);
     });
 
-    it('AC-30: auto-invokes closure in equality comparison', async () => {
-      // Setup: |x| { $x } => $id
-      // Expression: "test" -> ($id == "test")
-      // Expected: true (identity returns "test", equals "test")
+    it('equality halts on a closure operand', async () => {
       const script = `
         |x| { $x } => $id
         "test" -> ($id == "test")
       `;
-      expect(await run(script)).toBe(true);
+      await expectHalt(() => run(script), { code: 'TYPE_MISMATCH' });
     });
 
-    it('auto-invokes closure in less-than comparison', async () => {
+    it('less-than halts on a closure operand', async () => {
       const script = `
         |x|($x * 2) => $double
         5 -> ($double < 20)
       `;
-      expect(await run(script)).toBe(true); // 5*2=10, 10<20=true
+      await expectHalt(() => run(script), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /closure/,
+      });
     });
 
-    it('auto-invokes closure in greater-than comparison', async () => {
+    it('greater-than halts on a closure operand', async () => {
       const script = `
         |x|($x - 3) => $sub
         10 -> ($sub > 5)
       `;
-      expect(await run(script)).toBe(true); // 10-3=7, 7>5=true
+      await expectHalt(() => run(script), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /closure/,
+      });
     });
 
-    it('auto-invokes closure in subtraction', async () => {
+    it('subtraction halts on a closure operand', async () => {
       const script = `
         |x|($x * 3) => $triple
         10 -> ($triple - 5)
       `;
-      expect(await run(script)).toBe(25); // 10*3=30, 30-5=25
+      await expectHalt(() => run(script), ARITHMETIC_TYPE_ERROR);
     });
 
-    it('auto-invokes closure in multiplication', async () => {
+    it('multiplication halts on a closure operand', async () => {
       const script = `
         |x|($x + 2) => $addTwo
         5 -> ($addTwo * 3)
       `;
-      expect(await run(script)).toBe(21); // 5+2=7, 7*3=21
+      await expectHalt(() => run(script), ARITHMETIC_TYPE_ERROR);
     });
 
-    it('auto-invokes closure in division', async () => {
+    it('division halts on a closure operand', async () => {
       const script = `
         |x|($x * 4) => $quadruple
         10 -> ($quadruple / 2)
       `;
-      expect(await run(script)).toBe(20); // 10*4=40, 40/2=20
+      await expectHalt(() => run(script), ARITHMETIC_TYPE_ERROR);
     });
   });
 
   describe('Boundary Conditions', () => {
-    it('AC-34: closure returning closure - outer invoked, inner returned', async () => {
-      // Outer closure invoked, returns inner closure (not auto-invoked again)
+    it('closure returning closure is returned by an explicit call', async () => {
       const script = `
         || { |x|($x + 1) } => $outer
         $outer() => $inner
         $inner.^type
       `;
-      // Invoking $outer returns the inner closure; check its type via host typeName
       const result = (await run(script)) as any;
       expect(result.typeName).toBe('closure');
     });
 
-    it('AC-35: both closures auto-invoked in && operator', async () => {
-      // Both operands are closures that should be auto-invoked
+    it('&& halts on a closure operand', async () => {
       const script = `
         |x|($x > 0) => $a
         |x|($x < 10) => $b
         5 -> ($a && $b)
       `;
-      expect(await run(script)).toBe(true); // (5>0) && (5<10) = true && true
+      await expectHalt(() => run(script), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern:
+          /Logical operator \(&&\) requires boolean operand, got closure/,
+      });
     });
 
-    it('AC-35 variant: both closures auto-invoked in || operator', async () => {
+    it('|| halts on a closure operand', async () => {
       const script = `
         |x|($x > 10) => $a
         |x|($x < 0) => $b
         5 -> ($a || $b)
       `;
-      expect(await run(script)).toBe(false); // (5>10) || (5<0) = false || false
+      await expectHalt(() => run(script), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern:
+          /Logical operator \(\|\|\) requires boolean operand, got closure/,
+      });
     });
 
-    it('AC-36: fallback closure in ?? operator (NOT auto-invoked)', async () => {
-      // Default value is evaluated but NOT auto-invoked
-      // This is because default value evaluation happens outside expression context.
-      // Capture the ?? result into $r, then check its type via host typeName.
+    it('fallback closure in ?? operator is returned, not invoked', async () => {
+      // The fallback is the value of the expression; it is never invoked.
       const script = `
         || { $ * 2 } => $fallback
         dict[x: 10] => $data
         5 -> ($data.y ?? $fallback) => $r
         $r.^type
       `;
-      // $data.y missing, $fallback is returned unevaluated (closure, not invoked)
       const result = (await run(script)) as any;
       expect(result.typeName).toBe('closure');
     });
 
-    it('double negation with closure auto-invoke', async () => {
+    it('double negation halts on a closure operand', async () => {
       const script = `
         |x|($x > 5) => $test
         3 -> (!!$test)
       `;
-      expect(await run(script)).toBe(false); // 3>5=false, !!false=false
+      await expectHalt(() => run(script), NEGATION_TYPE_ERROR);
     });
 
-    it('chained comparisons with closure', async () => {
+    it('chained comparisons halt on a closure operand', async () => {
       const script = `
         |x|($x + 5) => $addFive
         5 -> (($addFive > 8) && ($addFive < 12))
       `;
-      expect(await run(script)).toBe(true); // 5+5=10, (10>8) && (10<12) = true
+      await expectHalt(() => run(script), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /closure/,
+      });
     });
 
-    it('nested arithmetic with multiple closures', async () => {
+    it('nested arithmetic halts on a closure operand', async () => {
       const script = `
         |x|($x * 2) => $double
         |x|($x + 3) => $addThree
         5 -> (($double + $addThree) * 2)
       `;
-      expect(await run(script)).toBe(36); // (10 + 8) * 2 = 36
+      await expectHalt(() => run(script), ARITHMETIC_TYPE_ERROR);
     });
   });
 
   describe('Error Cases', () => {
-    it('AC-31: closure returning non-boolean in negation throws RUNTIME_TYPE_ERROR', async () => {
-      // Closure returns number, but negation requires boolean
+    it('negation of a closure returning a number halts on the closure', async () => {
       const script = `
         |x|($x + 1) => $add
         5 -> (! $add)
       `;
-      await expectHalt(() => run(script), {
-        code: 'RILL_R002',
-        hostErrorId: 'RILL-R002',
-        messagePattern: /requires boolean operand, got number/,
-      });
+      await expectHalt(() => run(script), NEGATION_TYPE_ERROR);
     });
 
-    it('AC-31 variant: closure returning string in negation', async () => {
+    it('negation of a closure returning a string halts on the closure', async () => {
       const script = `
         |x|($x -> string) => $toStr
         5 -> (! $toStr)
       `;
-      await expectHalt(() => run(script), {
-        code: 'RILL_R002',
-        hostErrorId: 'RILL-R002',
-        messagePattern: /requires boolean operand, got string/,
-      });
+      await expectHalt(() => run(script), NEGATION_TYPE_ERROR);
     });
 
-    it('AC-32: auto-invoke without $ bound throws RUNTIME_TYPE_ERROR', async () => {
-      // No pipe context ($), so closure is NOT auto-invoked
-      // The closure itself is passed to negation, which throws type error
+    it('negation of a closure without $ bound halts on the closure', async () => {
       const script = `
         || { $ + 1 } => $inc
         ! $inc
       `;
-      await expectHalt(() => run(script), {
-        code: 'RILL_R002',
-        hostErrorId: 'RILL-R002',
-        messagePattern: /requires boolean operand, got closure/,
-      });
+      await expectHalt(() => run(script), NEGATION_TYPE_ERROR);
     });
 
-    it('AC-33: closure requiring 2+ params without tuple throws arity error', async () => {
-      // Closure expects 2 parameters, auto-invoke only provides 1 ($ value)
+    it('arithmetic on a two-param closure halts on the closure, not on arity', async () => {
       const script = `
         |a, b|($a + $b) => $add
         5 -> ($add + 10)
       `;
-      await expectRuntimeError(() => run(script), {
-        code: 'RILL-R044',
-        messagePattern: /Missing argument/,
-      });
+      await expectHalt(() => run(script), ARITHMETIC_TYPE_ERROR);
     });
 
-    it('closure returns wrong type for arithmetic', async () => {
+    it('arithmetic on a closure returning text halts on the closure', async () => {
       const script = `
         |x|("text") => $str
         5 -> ($str + 10)
       `;
-      await expectHalt(() => run(script), {
-        code: 'RILL_R002',
-        hostErrorId: 'RILL-R002',
-        messagePattern: /Arithmetic requires number/,
-      });
+      await expectHalt(() => run(script), ARITHMETIC_TYPE_ERROR);
     });
 
-    it('closure returns wrong type for comparison', async () => {
+    it('comparison on a closure returning text halts on the closure', async () => {
       const script = `
         |x|("text") => $str
         5 -> ($str < 10)
@@ -234,31 +229,21 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
       await expectHalt(() => run(script), {
         code: 'RILL_R002',
         hostErrorId: 'RILL-R002',
-        messagePattern: /Cannot compare string with number/,
+        messagePattern: /closure/,
       });
     });
 
-    it('undefined variable in closure body during auto-invoke', async () => {
+    it('a closure body is never entered, so its undefined variable never halts', async () => {
       const script = `
         |x|($x + $undefined) => $bad
         5 -> (10 + $bad)
       `;
-      try {
-        await run(script);
-        expect.fail('Should have thrown RUNTIME_UNDEFINED_VARIABLE');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId', 'RILL-R005');
-        expect(err).toHaveProperty(
-          'message',
-          expect.stringMatching(/undefined/i)
-        );
-      }
+      await expectHalt(() => run(script), ARITHMETIC_TYPE_ERROR);
     });
   });
 
-  describe('No Auto-Invoke Contexts', () => {
-    it('capture target does not auto-invoke (outside pipe)', async () => {
-      // Closure captured as-is when not in pipe context
+  describe('Direct Closure Use', () => {
+    it('capture target does not invoke (outside pipe)', async () => {
       const script = `
         |x|($x + 1) => $add
         $add => $captured
@@ -268,8 +253,7 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
       expect(result.typeName).toBe('closure');
     });
 
-    it('direct pipe target does not auto-invoke', async () => {
-      // Piping directly to closure invokes it normally (not auto-invoke)
+    it('direct pipe target invokes with the operand', async () => {
       const script = `
         |x|($x + 1) => $add
         5 -> $add
@@ -277,8 +261,7 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
       expect(await run(script)).toBe(6);
     });
 
-    it('function call argument does not auto-invoke', async () => {
-      // Closure referenced in expression context, not auto-invoked
+    it('closure reference is a closure value', async () => {
       const script = `
         |x|($x + 1) => $add
         $add.^type
@@ -288,18 +271,20 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
     });
   });
 
-  describe('Auto-Invoke Integration', () => {
-    it('auto-invoke in conditional condition (via comparison)', async () => {
-      // Auto-invoke happens in > operator, not in conditional itself
+  describe('Integration', () => {
+    it('comparison in a conditional condition halts on a closure operand', async () => {
       const script = `
         |x|($x) => $id
         10 -> (($id > 5) ? "big" ! "small")
       `;
-      expect(await run(script)).toBe('big');
+      await expectHalt(() => run(script), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /closure/,
+      });
     });
 
     it('list filter with direct pipe to closure', async () => {
-      // filter receives closure, not auto-invoked
       const script = `
         |x|($x > 0) => $positive
         list[-1, 2, -3, 4] -> filter($positive)
@@ -308,7 +293,6 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
     });
 
     it('each loop with direct pipe to closure', async () => {
-      // each receives closure, not auto-invoked
       const script = `
         |x|($x * 2) => $double
         list[1, 2, 3] -> seq($double)
@@ -316,14 +300,13 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
       expect(await run(script)).toEqual([2, 4, 6]);
     });
 
-    it('auto-invoke with multiple operators', async () => {
+    it('multiple operators halt on a closure operand', async () => {
       const script = `
         |x|($x + 5) => $addFive
         |x|($x * 2) => $double
         5 -> ((($addFive + $double) > 15) && ($addFive < 15))
       `;
-      // 5+5=10, 5*2=10, (10+10>15) && (10<15) = true && true
-      expect(await run(script)).toBe(true);
+      await expectHalt(() => run(script), ARITHMETIC_TYPE_ERROR);
     });
   });
 });

@@ -12,11 +12,12 @@ import {
   moduleResolver,
   parse,
   ParseError,
+  structureToTypeValue,
   toCallable,
 } from '@rcrsr/rill';
 import type { SchemeResolver, ResolverResult, RillValue } from '@rcrsr/rill';
 
-import { expectHalt, expectRuntimeError } from '../helpers/halt.js';
+import { expectHalt } from '../helpers/halt.js';
 import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
@@ -279,24 +280,74 @@ describe('Rill Language: use<> Expressions', () => {
         expect(result).toBe('invoked:hello');
       });
 
-      it('halts when a resolved zero-param script closure receives the pipe value', async () => {
-        await expectRuntimeError(
+      it('returns a source module closure uninvoked when it is a pipe target', async () => {
+        const result = await run('"hello" -> use<module:greeter>', {
+          resolvers: {
+            module: sourceResolver('|| { "got:{$}" }'),
+          },
+          parseSource,
+        });
+        expect(isCallable(result)).toBe(true);
+      });
+
+      it('returns the result of a source module expression unchanged', async () => {
+        const result = await run('"hello" -> use<module:upper>', {
+          resolvers: {
+            module: sourceResolver('$ -> .upper'),
+          },
+          parseSource,
+        });
+        expect(result).toBe('HELLO');
+      });
+
+      it('halts when a host-resolved string receives a piped value', async () => {
+        await expectHalt(
           () =>
-            run('"hello" -> use<module:greeter>', {
-              resolvers: {
-                module: sourceResolver('|| { "got:{$}" }'),
-              },
-              parseSource,
+            run('"hello" -> use<host:value>', {
+              resolvers: { host: valueResolver('resolved') },
             }),
-          { code: 'RILL-R045', messagePattern: /expects 0 arguments, got 1/ }
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern:
+              /cannot pipe into use<host:value>: it holds a string/,
+          }
         );
       });
 
-      it('returns a non-callable resolved value unchanged', async () => {
-        const result = await run('"hello" -> use<host:value>', {
-          resolvers: { host: valueResolver('resolved') },
+      it('selects a host-resolved dict value by key', async () => {
+        const result = await run('"a" -> use<host:value>', {
+          resolvers: { host: valueResolver({ a: 1 }) },
         });
-        expect(result).toBe('resolved');
+        expect(result).toBe(1);
+      });
+
+      it('selects a host-resolved list element by index', async () => {
+        const result = await run('1 -> use<host:value>', {
+          resolvers: { host: valueResolver(['x', 'y', 'z']) },
+        });
+        expect(result).toBe('y');
+      });
+
+      it('invokes a function held in a host-resolved dict as a variable target does', async () => {
+        const fn = toCallable({
+          params: [],
+          returnType: anyTypeValue,
+          fn: () => 'called',
+        });
+        const result = await run('"f" -> use<host:value>', {
+          resolvers: { host: valueResolver({ f: fn }) },
+        });
+        expect(result).toBe('called');
+      });
+
+      it('converts the piped value through a host-resolved type value', async () => {
+        const result = await run('"5" -> use<host:value>', {
+          resolvers: {
+            host: valueResolver(structureToTypeValue({ kind: 'number' })),
+          },
+        });
+        expect(result).toBe(5);
       });
 
       it('returns the callable uninvoked when use<> is not a pipe target', async () => {

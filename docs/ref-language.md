@@ -557,7 +557,6 @@ When constructs appear without explicit input, `$` is used implicitly:
 |---------|---------------|
 | `? { }` | `$ -> ? { }` |
 | `.method()` | `$ -> .method()` |
-| `$fn()` | Passes `$` as a single argument (no auto-spread) |
 
 ---
 
