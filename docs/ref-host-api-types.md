@@ -231,7 +231,7 @@ Formats a structural type descriptor as a human-readable string.
 | `{ kind: 'any' }` | `"any"` |
 | `{ kind: 'list', element: { kind: 'number' } }` | `"list(number)"` |
 | `{ kind: 'dict', valueType: { kind: 'string' } }` | `"dict(string)"` |
-| `{ kind: 'dict', fields: { 'a b': { type: { kind: 'number' } } } }` | `"dict(\"a b\": number)"` (non-identifier key quoted) |
+| `{ kind: 'dict', fields: { 'a b': { type: { kind: 'number' } } } }` | `"dict(\"a b\": number)"` (key not spelled as an identifier or reserved word, and `true`/`false`, quoted) |
 | `{ kind: 'closure', params: [{ name: 'x', type: { kind: 'number' } }] }` | `"closure"` |
 | `{ kind: 'tuple', elements: [{ type: { kind: 'number' } }] }` | `"tuple(number)"` |
 

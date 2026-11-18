@@ -3,8 +3,8 @@ import { RULES } from './index.js';
 import type { RuleCategory } from './index.js';
 
 describe('RULES', () => {
-  it('registers exactly 52 rules', () => {
-    expect(RULES.length).toBe(52);
+  it('registers exactly 54 rules', () => {
+    expect(RULES.length).toBe(54);
   });
 
   it('has unique rule codes', () => {
@@ -66,6 +66,7 @@ const EXPECTED_CATEGORIES: Record<string, RuleCategory> = {
   PREFER_MAP: 'collections',
   PRESENCE_OVER_NULL_GUARD: 'errors',
   SPACING_BRACES: 'formatting',
+  SIGNATURE_BARE_KEY: 'types',
   SPACING_BRACKETS: 'formatting',
   SPACING_CLOSURE: 'formatting',
   SPACING_MEMBER: 'formatting',
@@ -75,6 +76,7 @@ const EXPECTED_CATEGORIES: Record<string, RuleCategory> = {
   TEMPORAL_LITERAL: 'types',
   THROWAWAY_CAPTURE: 'formatting',
   TUPLE_ONE_POSITION: 'types',
+  TYPE_EXTRA_KEY: 'types',
   UNNECESSARY_ASSERTION: 'types',
   USE_DEFAULT_OPERATOR: 'conditionals',
   USE_EMPTY_METHOD: 'strings',

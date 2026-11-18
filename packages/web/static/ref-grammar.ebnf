@@ -463,7 +463,8 @@ bool          = "true" | "false" ;
 (* List literal: bare bracket form or keyword-prefixed form.
    Both [1, 2, 3] and list[1, 2, 3] are valid and produce the same result.
    For keyword form, keyword and "[" must be adjacent (no whitespace).
-   [] and list[] are empty lists.
+   [] and list[] are empty lists. A bracket literal that mixes positional
+   and keyed entries, such as [1, a: 2], is a parse error (RILL-P001).
 
    Examples:
      []                               -- empty list (bare)
@@ -479,25 +480,29 @@ list-element  = "..." , expression           (* spread: inline list elements *)
               | expression ;                 (* regular element *)
               (* List spread syntax: [1, ...$list, 2] inlines $list elements.
                  The spread expression must evaluate to a list or tuple at runtime.
-                 Example: [1, 2] => $a; [...$a, 3] yields [1, 2, 3]
+                 Example: [1, 2] => $a; [...$a, 3] yields list[1, 2, 3]
                  Error: spreading any other value halts RILL-R002 *)
 
 (* Dict literal: bare bracket form or keyword-prefixed form.
    Both [a: 1] and dict[a: 1] are valid and produce the same result.
    For keyword form, keyword and "[" must be adjacent (no whitespace).
-   [:] and dict[] are empty dicts.
+   [:] and dict[] are empty dicts. The bare form takes every entry the
+   keyword form takes, spread included. [] is the empty list, not a dict.
+   In the bare form, $x: and (expr): are keys, so [$x:number] is a dict; an
+   inline type assertion in a bare list is parenthesized: [($x:number)].
 
    Examples:
      [:]                              -- empty dict (bare)
      [name: "Alice", age: 30]         -- two-key dict (bare)
      [$key: "value"]                  -- variable key (bare)
+     [...$other, b: 2]                -- spread plus entry (bare)
      dict[]                           -- empty dict (keyword)
      dict[name: "Alice", age: 30]     -- two-key dict (keyword) *)
 dict          = "[" , ":" , "]"
-              | "[" , dict-entry , { "," , dict-entry } , "]"
+              | "[" , dict-element , { "," , dict-element } , "]"   (* at least one dict-entry; spreads alone are a list *)
               | "dict" , "[" , "]"
               | "dict" , "[" , dict-element , { "," , dict-element } , "]" ;
-dict-element  = "..." , expression           (* spread: inline dict entries, keyword form only *)
+dict-element  = "..." , expression           (* spread: inline dict entries *)
               | dict-entry ;
 dict-key      = identifier | number | bool | string
               | "break" | "return" | "yield" | "pass" | "assert" | "error"
@@ -843,6 +848,8 @@ slice-bound       = number | variable | grouped-expr ;
 
    Dispatch to a type keyword or type constructor via the unified pipe operator (->).
    Same-type conversions are no-ops. Incompatible conversions halt with RILL-R036.
+   A union target returns a member value unchanged, declared as the union; a
+   non-member halts RILL-R036. Members are never tried in turn.
 
    Default handling during conversion:
    - Missing fields with defaults are filled from the type constructor.
@@ -875,6 +882,8 @@ pipe-invoke   = "$" , "(" , [ arguments ] , ")" ;
    field, pass assertion when every omitted field has a default in the
    type constructor.
    No field synthesis occurs. Use -> type to fill defaults.
+   A dict with a field the type does not name fails; a type naming no field
+   accepts any keys.
 
    Examples:
    42:number                       -- postfix assertion
@@ -972,9 +981,20 @@ type-target   = type-ref ;
    tuple(^("x") number, ^("y") number)                 -- positional fields with annotations
    dict(^(description: "d", enum: "a,b") f: string)    -- multi-key annotation *)
 
+(* A field key is a string. Identifier, string, number (including negative) and
+   bool spellings name the field by their text, so 1 and "1" are one key.
+   Reserved keywords (break, return, yield, pass, assert, error, guard,
+   retry, while, do) are accepted as keys. A key repeated in any spelling
+   is RILL-P027. A signature prints a key bare when it is a letter or _
+   followed by letters, digits or _, other than true and false, and
+   quoted otherwise. *)
+field-key        = identifier | string | number | bool
+                 | "break" | "return" | "yield" | "pass" | "assert"
+                 | "error" | "guard" | "retry" | "while" | "do" ;
+
 field-arg-list   = field-arg , { "," , field-arg } , [ "," ] ;
 
-field-arg        = [ annotation ] , identifier , ":" , type-ref , [ "=" , literal ]   (* named: ^() key: type [= default] *)
+field-arg        = [ annotation ] , field-key , ":" , type-ref , [ "=" , literal ]   (* named: ^() key: type [= default] *)
                  | [ annotation ] , type-ref , [ "=" , literal ] ;                     (* positional: ^() type [= default] *)
 
 (* ============================================================ *)

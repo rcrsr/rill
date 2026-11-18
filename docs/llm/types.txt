@@ -166,7 +166,7 @@ To validate a shape write `-> :dict(a: string)`, never `-> dict(a: string)`. To 
     dict[b: "b"] -> dict(b: string, a: string = "a")   # dict[a: "a", b: "b"]
 
 Only `-> type` conversion fills defaults. `:` assertion does NOT hydrate defaults. Nested fields recurse.
-Under a union, the narrowest matching member fills defaults, whatever the written order.
+A union first drops members a wider member accepts, unless the dropped member keeps a default. Among survivors the narrowest matching member fills a parameter's defaults whatever the order. A pipe into a union fills nothing unless the union reduces to one member.
 
 ## Datetime and duration
 

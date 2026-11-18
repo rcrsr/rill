@@ -988,7 +988,7 @@ An empty function map returns `[:]`. Functions created via `callable(fn)` appear
 
 Every entry is a closure-signature literal that evaluates to a type value, never a real closure body. This holds for zero-param functions (`"now"`) and functions with annotated params (`"greet"`) alike.
 
-Parameter defaults are never emitted, because not every `RillValue` round-trips through a rill literal; every signature carries an explicit return type (`:any` when unset) so the generated manifest always parses.
+Manifest names are quoted and escaped, so a name that is not an identifier still parses. Parameter defaults are never emitted, because not every `RillValue` round-trips through a rill literal; every signature carries an explicit return type (`:any` when unset) so the generated manifest always parses.
 
 ---
 

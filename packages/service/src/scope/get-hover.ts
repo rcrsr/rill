@@ -17,7 +17,7 @@ import type {
 import { spanToRange } from '../span-to-range.js';
 import { locateTarget } from './locate-target.js';
 import { findVisibleBinding } from './resolve-scope.js';
-import { typeRefToString } from './type-rendering.js';
+import { typeRefToString } from '../type-rendering.js';
 import type { HoverInfo } from './types.js';
 
 /**

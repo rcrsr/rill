@@ -1144,4 +1144,23 @@ describe('Rill Runtime: Manifest field keys', () => {
     expect(manifest).toContain('dict("a b": string)');
     expect(() => parse(manifest)).not.toThrow();
   });
+
+  it('escapes quote and brace characters in a function name key', async () => {
+    const ctx = createRuntimeContext({
+      functions: {
+        'say"hi{x}': {
+          params: [],
+          fn: () => '',
+          returnType: anyTypeValue,
+        },
+      },
+    });
+    const manifest = generateManifest(ctx);
+    expect(manifest).toContain('"say\\"hi{{x}}":');
+    expect(() => parse(manifest)).not.toThrow();
+
+    const result = await execute(parse(manifest), ctx);
+    const dict = result.result as Record<string, RillValue>;
+    expect(Object.hasOwn(dict, 'say"hi{x}')).toBe(true);
+  });
 });

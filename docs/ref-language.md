@@ -115,7 +115,7 @@ See [Collection Slicing](topic-collection-slicing.md) for detailed documentation
 | Number | `123`, `0.5` | `42`, `0.9` | Number value |
 | Bool | `true`, `false` | `true` | Boolean value |
 | List | `[a, b]` or `list[a, b]` (canonical) | `list["file.ts", 42]`, `list[...$a, 3]` | List value |
-| Dict | `[k: v]` or `dict[k: v]` (canonical) | `dict[output: "text"]`, `dict[$key: 1]` | Dict value |
+| Dict | `[k: v]` or `dict[k: v]` (canonical) | `dict[output: "text"]`, `dict[$key: 1]`, `[...$d, b: 2]` | Dict value |
 | Ordered | `ordered[k: v]` | `ordered[a: 1, b: "hello"]` | Ordered value |
 | Tuple | `tuple[...]` | `tuple[1, 2]` | Tuple value |
 | Datetime | `datetime(...)` or `now()` | `datetime("2024-01-15T10:30:00Z")`, `now()` | Datetime value |
@@ -134,7 +134,18 @@ Parameterized forms (`list(T)`, `dict(k: T, ...)`, `tuple(T, ...)`, `stream(T):R
 
 **Union types** (`union(T1, T2)`, `union(T1, T2, T3)`) are valid in all annotation positions. A union matches if the value satisfies any member. A member is a type or a string, number, bool, or atom literal: `union("c", "f")`. Type members can be parameterized: `union(list(string), dict)`. See [Type System](topic-type-system.md) for union type documentation.
 
-> **List and dict syntax:** Both `[1, 2]` and `list[1, 2]` produce a list; both `[a: 1]` and `dict[a: 1]` produce a dict. The keyword forms (`list[...]`, `dict[...]`) are canonical: they appear in `formatValue` output and the LLM reference. Use either form in source; the runtime treats them identically.
+> **List and dict syntax:** Both `[1, 2]` and `list[1, 2]` produce a list; both `[a: 1]` and `dict[a: 1]` produce a dict. The keyword forms (`list[...]`, `dict[...]`) are canonical: they appear in `formatValue` output and the LLM reference. Use either form in source; they behave identically, except that a bracket of only spreads (`[...$a]`) is a list; write `dict[...$d]`. `[]` is the empty list, `[:]` the empty dict; a bracket mixing positional and keyed entries halts `RILL-P001`.
+
+```rill
+dict[a: 1] => $d
+list[[...$d, b: 2] == dict[a: 1, b: 2], dict[...$d] == $d, [] == list[], [:] == dict[]]
+# Result: list[true, true, true, true]
+```
+
+```rill
+# Error: RILL-P001
+[1, a: 2]
+```
 
 See [Types](topic-types.md) for detailed documentation.
 

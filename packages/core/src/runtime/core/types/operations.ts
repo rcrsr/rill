@@ -37,7 +37,7 @@ import {
 import type { RillFieldDef, RillValue, TypeStructure } from './structures.js';
 import type { DefaultMismatch } from './field-defaults.js';
 import { formatFieldKey, quoteRillString } from './format-string.js';
-import { setDictField } from './dict-keys.js';
+import { orderedDictEntries, setDictField } from './dict-keys.js';
 import { formatUnion } from './error-code.js';
 // oxlint-disable-next-line import/no-cycle -- unions.ts imports this file; the edge is used only at call time, never at module init
 import { reduceUnionMembers } from './unions.js';
@@ -202,8 +202,11 @@ export function formatRillLiteral(value: RillValue): string {
 
   // Dict: dict[key: val, ...]; dict[] for empty
   if (isDict(value)) {
-    const inner = Object.entries(value)
-      .map(([k, v]) => `${formatFieldKey(k)}: ${formatRillLiteral(v)}`)
+    const inner = orderedDictEntries(value)
+      .map(
+        ({ key: k, value: v }) =>
+          `${formatFieldKey(k)}: ${formatRillLiteral(v)}`
+      )
       .join(', ');
     return `dict[${inner}]`;
   }

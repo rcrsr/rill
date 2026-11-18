@@ -985,7 +985,9 @@ type-target   = type-ref ;
    bool spellings name the field by their text, so 1 and "1" are one key.
    Reserved keywords (break, return, yield, pass, assert, error, guard,
    retry, while, do) are accepted as keys. A key repeated in any spelling
-   is RILL-P027. *)
+   is RILL-P027. A signature prints a key bare when it is a letter or _
+   followed by letters, digits or _, other than true and false, and
+   quoted otherwise. *)
 field-key        = identifier | string | number | bool
                  | "break" | "return" | "yield" | "pass" | "assert"
                  | "error" | "guard" | "retry" | "while" | "do" ;

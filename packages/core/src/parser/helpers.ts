@@ -248,6 +248,14 @@ export function staticKeyWidth(state: ParserState): number {
 }
 
 /**
+ * Unescape `{{` and `}}` in a string literal body to `{` and `}`.
+ * @internal
+ */
+export function unescapeBraces(raw: string): string {
+  return raw.replaceAll('{{', '{').replaceAll('}}', '}');
+}
+
+/**
  * Read a static key, consuming its tokens, and return its string spelling
  * with the form it was written in. Returns undefined, consuming nothing, when
  * the cursor does not start a static key.
@@ -266,7 +274,7 @@ export function readStaticKey(
   if (type === TOKEN_TYPES.STRING) {
     const raw = advance(state).value;
     return {
-      key: raw.replaceAll('{{', '{').replaceAll('}}', '}'),
+      key: unescapeBraces(raw),
       keyForm: 'string',
     };
   }

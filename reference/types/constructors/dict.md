@@ -67,18 +67,18 @@ MUST yield equal values of equal type, at every nesting depth, with the key rule
 accepts, including a spread entry as in `[...$d, b: 2]`, a variable key as in `[$k: 1]`, and a
 computed key as in `[(expr): 1]`.
 
-A bare bracket whose entries are all spreads MUST be a list (`list.bare`), so a spread-only dict is
-written `dict[...$d]`. In a bare bracket, `$x:` and `(expr):` MUST read as keys, as in `dict[...]`,
-so `[$x:number]` is a dict. An inline type assertion inside a bare list MUST be written in
-parentheses, as in `[($x:number)]`.
+In a bare bracket, `$x:` and `(expr):` MUST read as keys, as in `dict[...]`, so `[$x:number]` is a
+dict. A bracket of only spreads is a list (`list.bare`), so a spread-only dict is written
+`dict[...$d]`.
 
 r[dict.key-spelling] A dict type accepts every key spelling a literal accepts
-A named field MUST be written as an identifier, a quoted string, a number, or a bool. The key
-is a string in each case.
+A named field MUST be written as any `field-key` spelling, reserved words such as `while`
+included. The key is a string in each case.
 
 r[dict.key-print] A printed dict or ordered type parses back to an equal type
-A dict or ordered signature MUST print an identifier key bare and every other key quoted, as in
-`dict("a b": number)` and `ordered(a: number, "1": number)`.
+A dict or ordered signature MUST print a key bare when it is spelled as a letter or `_` followed by
+letters, digits or `_`, other than `true` and `false`. It MUST print every other key quoted. A
+reserved word such as `while` prints bare, and `true`, `false`, `1`, and `a b` print quoted.
 
 ## Evaluation
 
@@ -169,8 +169,8 @@ dict("a b": number) == dict["a b": 1].^type
 ```
 
 ```rill
-ordered[a: 1, 1: 2].^type.signature
-# Result: "ordered(a: number, \"1\": number)"
+ordered[while: 1, true: 2, 1: 3].^type.signature
+# Result: "ordered(while: number, \"true\": number, \"1\": number)"
 ```
 
 ## Notes

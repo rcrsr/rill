@@ -16,7 +16,11 @@ import {
   formatStructure,
 } from './types/operations.js';
 import type { FieldComparisonCallbacks } from './types/operations.js';
-import { escapeRillStringBody, formatFieldKey } from './types/format-string.js';
+import {
+  escapeRillStringBody,
+  formatFieldKey,
+  quoteRillString,
+} from './types/format-string.js';
 import { declaredParams, isScriptCallable } from './callable.js';
 import type { RillParam } from './callable.js';
 import { LANGUAGE_REFERENCE } from '../../generated/introspection-data.js';
@@ -393,7 +397,7 @@ export function generateManifest(ctx: RuntimeContext): string {
       annotationDescription(callable.annotations)
     );
 
-    entries.push(`  "${name}": ${signature}`);
+    entries.push(`  ${quoteRillString(name)}: ${signature}`);
   }
 
   if (entries.length === 0) {

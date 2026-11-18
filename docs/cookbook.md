@@ -112,7 +112,7 @@ $events -> fold([current: "idle", history: []], {
 Use closures as guards to conditionally allow transitions:
 
 ```text
-# Turnstile with coin counting (conceptual - dict spread not implemented)
+# Sketch: not run by the examples harness
 [
   locked: [
     coin: [
@@ -152,7 +152,7 @@ $transition.?guard ? {
     ! $ctx
   -> [...$, state: $transition.next]
 }
-# Result: dict[state: "unlocked", coins: 1]
+# Result: dict[coins: 1, state: "unlocked"]
 ```
 
 ### Hierarchical State Machine
@@ -257,7 +257,7 @@ $req.status -> $handlers ?? |r|{ "Unknown status: {$r.status}" }
 Calculate statistics in a single pass:
 
 ```text
-# Conceptual - dict spread [...$dict, key: val] not implemented
+# Sketch: not run by the examples harness
 [23, 45, 12, 67, 34, 89, 56] => $values
 
 $values -> fold([sum: 0, count: 0, min: 999999, max: -999999], {
@@ -270,7 +270,7 @@ $values -> fold([sum: 0, count: 0, min: 999999, max: -999999], {
 }) => $stats
 
 [...$stats, avg: $stats.sum / $stats.count]
-# Result: dict[sum: 326, count: 7, min: 12, max: 89, avg: 46.57...]
+# Result: dict[avg: 46.57..., count: 7, max: 89, min: 12, sum: 326]
 ```
 
 ### Grouping
@@ -278,7 +278,7 @@ $values -> fold([sum: 0, count: 0, min: 999999, max: -999999], {
 Group items by a computed key:
 
 ```text
-# Conceptual - uses dict spread and $$ syntax not implemented
+# Sketch: uses the $$ binding, which is not available here
 [
   [name: "Alice", dept: "Engineering"],
   [name: "Bob", dept: "Sales"],
@@ -286,7 +286,7 @@ Group items by a computed key:
   [name: "Dave", dept: "Sales"]
 ] => $employees
 
-$employees -> fold([], {
+$employees -> fold([:], {
   $@.?[$$.dept] ? {
     # Key exists - append to list
     [...$@, ($$.dept): [...$@[$$.dept], $$.name]]
@@ -432,11 +432,11 @@ range(0, $zipKeys -> .len) -> fan(|i|{
 # Result: list[dict[key: "a", value: 1], dict[key: "b", value: 2], dict[key: "c", value: 3]]
 ```
 
-Converting to a dict requires dict spread (not yet implemented):
+Converting to a dict spreads the accumulator with a computed key:
 
 ```text
-# Conceptual - dict spread [...$@, (key): val] not implemented
-range(0, $zipKeys -> .len) -> fold([], |i|{
+# Sketch: not run by the examples harness
+range(0, $zipKeys -> .len) -> fold([:], |i|{
   [...$@, ($zipKeys[$i]): $zipValues[$i]]
 })
 # Result: dict[a: 1, b: 2, c: 3]
@@ -464,7 +464,7 @@ $templateVars -> .entries -> fold($template, {
 Extract structured data from formatted text:
 
 ```text
-# Conceptual - uses dict spread with computed keys
+# Sketch: not run by the examples harness
 "name=Alice;age=30;city=Seattle" => $input
 
 $input
@@ -473,7 +473,7 @@ $input
     $ -> .split("=") -> destruct<$key, $value>
     [...$@, ($key): $value]
   })
-# Result: dict[name: "Alice", age: "30", city: "Seattle"]
+# Result: dict[age: "30", city: "Seattle", name: "Alice"]
 ```
 
 ### Word Frequency
@@ -481,18 +481,18 @@ $input
 Count word occurrences:
 
 ```text
-# Conceptual - uses dynamic existence check and dict spread
+# Sketch: not run by the examples harness
 "the quick brown fox jumps over the lazy dog the fox" => $text
 
 $text
   -> .lower
   -> .split(" ")
-  -> fold([], {
+  -> fold([:], {
     $@.?$
       ? [...$@, ($): $@.$ + 1]
       ! [...$@, ($): 1]
   })
-# Result: dict[the: 3, quick: 1, brown: 1, fox: 2, jumps: 1, over: 1, lazy: 1, dog: 1]
+# Result: dict[brown: 1, dog: 1, fox: 2, jumps: 1, lazy: 1, over: 1, quick: 1, the: 3]
 ```
 
 ## Closure Patterns
@@ -560,7 +560,7 @@ $compose($double, $increment) => $doubleThenIncrement
 Validate dict structure against rules:
 
 ```text
-# Conceptual - uses dynamic existence checks and dict spread
+# Sketch: not run by the examples harness
 [
   name: [type: "string", required: true, minLen: 1],
   age: [type: "number", required: true, min: 0, max: 150],
@@ -597,7 +597,7 @@ $schema.entries -> fold([valid: true, errors: []], {
     } ! $@
   }
 })
-# Result: dict[valid: false, errors: list["age above maximum"]]
+# Result: dict[errors: list["age above maximum"], valid: false]
 ```
 
 ## Extension Binding

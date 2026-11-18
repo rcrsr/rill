@@ -38733,7 +38733,20 @@
   {
     "index": 3672,
     "file": "structural-type-boundaries.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 31,
+          "offset": 30
+        },
+        "severity": "warning",
+        "code": "TYPE_EXTRA_KEY",
+        "message": "This dict has key constructor that dict(a: number) does not name, so :?dict(a: number) is false.",
+        "context": "dict[a: 1, constructor: 2] -> :?dict(a: number)",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3673,
@@ -42112,7 +42125,7 @@
         },
         "severity": "info",
         "code": "TUPLE_ONE_POSITION",
-        "message": "tuple(stream(any, number)) names exactly one position. Write :tuple to accept a tuple of any length, or -> list(stream(any, number)) for a sequence; a type meant for one element needs no change.",
+        "message": "tuple(stream(any):number) names exactly one position. Write :tuple to accept a tuple of any length, or -> list(stream(any):number) for a sequence; a type meant for one element needs no change.",
         "context": "tuple(stream():number) == tuple(stream(any):number)",
         "fix": null
       },
@@ -42124,7 +42137,7 @@
         },
         "severity": "info",
         "code": "TUPLE_ONE_POSITION",
-        "message": "tuple(stream(any, number)) names exactly one position. Write :tuple to accept a tuple of any length, or -> list(stream(any, number)) for a sequence; a type meant for one element needs no change.",
+        "message": "tuple(stream(any):number) names exactly one position. Write :tuple to accept a tuple of any length, or -> list(stream(any):number) for a sequence; a type meant for one element needs no change.",
         "context": "tuple(stream():number) == tuple(stream(any):number)",
         "fix": null
       }

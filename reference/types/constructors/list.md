@@ -45,8 +45,8 @@ r[list.bare] A bare bracket list is shorthand for the keyword list
 A list literal written as `[1, 2]` MUST mean `list[1, 2]`: the two MUST yield equal values of
 equal type, at every nesting depth, so `[[1], [2]]` means `list[list[1], list[2]]`. A bare list
 MUST accept spread elements, as in `[1, ...$l]`, and MUST take an inline type assertion on an
-element only in parentheses, as in `[($x:number)]`: a bare `[$x:number]` is a dict
-(`dict.bare`).
+element only in parentheses, as in `[($x:number)]`. A bare bracket whose entries are all spreads,
+as in `[...$a]` or `[...$a, ...$b]`, MUST be a list.
 
 r[list.bare-empty] A bare empty bracket is the empty list
 `[]` MUST be the empty list and MUST equal `list[]`. An empty dict is written `[:]` or `dict[]`.

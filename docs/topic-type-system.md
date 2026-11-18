@@ -216,7 +216,7 @@ The string representation of structural types follows this format:
 | List | `"list(number)"`, `"list(list(number))"` |
 | Dict (uniform) | `"dict(number)"` (all values same type) |
 | Ordered (uniform) | `"ordered(string)"` (all values same type) |
-| Dict | `"dict(a: number, b: string)"` (fields alphabetically sorted; a non-identifier key is quoted, as in `"dict(\"a b\": number)"`) |
+| Dict | `"dict(a: number, b: string)"` (fields alphabetically sorted; a key not spelled as an identifier or reserved word, and `true`/`false`, is quoted, as in `"dict(\"a b\": number)"`) |
 | Tuple | `"tuple(number, string, bool)"` (positional) |
 | Ordered | `"ordered(a: number, b: string)"` (named, order-sensitive) |
 | Closure | `"\|x: number\| :string"` (pipe-delimited params with colon-return) |
@@ -702,6 +702,7 @@ A union is a set. These rules apply when the union is built:
 | A duplicate member is rejected | `union(string, string)` | halts `#INVALID_INPUT` |
 | A nested union merges | `union(union(string, number), bool)` | `union(string, number, bool)` |
 | A subsumed member is dropped | `union(list(string), list)` | `list` |
+| A member that keeps a default survives a broader member | `union(dict(a: string, b: string = "x"), dict)` | both kept |
 | One type member equals that type | `union(string) == string` | `true` |
 | An empty union is rejected | `union()` | halts `#INVALID_INPUT` |
 | A compound literal is rejected | `union(list[1, 2])` | halts `#INVALID_INPUT` |
@@ -715,7 +716,7 @@ union(list(union(string, number)), list(string)).signature
 
 ### Defaults Under a Union
 
-When a value matches several members, the narrowest matching member fills defaults. A member is narrower when its accepted values are a strict subset of another matching member's. Matches that are incomparable use the first in canonical order. The order you list members in never decides. The rule applies to closure parameters, host parameters, and fields during `-> type`.
+Reduction comes first. Members that differ only by an omittable defaulted field reduce to the wide member, so `union(dict(a: number), dict(a: number, b: number = 9))` is `dict(a: number, b: number = 9)` and its default fills in either written order.
 
 ```rill
 |d: union(dict(a: number), dict(a: number, b: number = 9))| { $d.b } => $f
@@ -724,7 +725,23 @@ tuple[$f(dict[a: 1]), $g(dict[a: 1])]
 # Result: tuple[9, 9]
 ```
 
-Both members accept `dict[a: 1]`. The member with the `b` default accepts fewer values, so it fills `b` in both closures.
+Among members that survive reduction, a call fills defaults from the narrowest member the argument matches, whatever the written order. Incomparable matches resolve by canonical order. The rule applies to closure and host parameters.
+
+```rill
+|d: union(dict(a: number, b: number = 9), dict)| { $d.b } => $f
+|d: union(dict, dict(a: number, b: number = 9))| { $d.b } => $g
+tuple[$f(dict[a: 1]), $g(dict[a: 1])]
+# Result: tuple[9, 9]
+```
+
+A pipe into a union fills nothing (see [Conversion into a Union](#conversion-into-a-union)). A union that reduces to one member is that member, so it converts:
+
+```rill
+dict[] -> union(dict(a: number = 1), dict(a: number = 1, b: number = 2)) => $one
+dict[] -> union(dict(a: number = 1), string) => $two
+tuple[$one, $two]
+# Result: tuple[dict[a: 1, b: 2], dict[]]
+```
 
 ### Reserved Name
 

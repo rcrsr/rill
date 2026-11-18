@@ -34,6 +34,7 @@ import {
   callable,
   createOrdered,
   createVector,
+  formatRillLiteral,
   formatValue,
   RuntimeError,
   serializeValue,
@@ -272,6 +273,29 @@ describe('formatValue', () => {
 // ============================================================
 // serializeValue — JSON serialization
 // ============================================================
+
+describe('formatRillLiteral', () => {
+  it('prints dict entries sorted by key', () => {
+    expect(formatRillLiteral({ b: 1, a: 2 })).toBe('dict[a: 2, b: 1]');
+  });
+
+  it('sorts integer-like keys by code unit, not numerically', () => {
+    expect(formatRillLiteral({ '10': 1, '9': 2 })).toBe(
+      'dict["10": 1, "9": 2]'
+    );
+  });
+
+  it('sorts nested dicts', () => {
+    expect(formatRillLiteral({ z: { y: 1, x: 2 }, a: 0 })).toBe(
+      'dict[a: 0, z: dict[x: 2, y: 1]]'
+    );
+  });
+
+  it('prints dict defaults in a signature in sorted order', async () => {
+    const result = await run('dict(d: dict = dict[b: 1, a: 2]).signature');
+    expect(result).toBe('dict(d: dict = dict[a: 2, b: 1])');
+  });
+});
 
 describe('serializeValue', () => {
   describe('serializable types', () => {

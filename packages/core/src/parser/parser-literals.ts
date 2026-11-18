@@ -36,6 +36,7 @@ import {
 } from './state.js';
 import {
   expectVariableName,
+  unescapeBraces,
   isDictEntryStart,
   isNegativeNumber,
   readStaticKey,
@@ -112,7 +113,6 @@ declare module './parser.js' {
       source: string,
       baseLocation: SourceLocation
     ): InterpolationNode;
-    unescapeBraces(s: string): string;
     parseTuple(start: SourceLocation): ListLiteralNode;
     parseTupleOrDict(): ListLiteralNode | DictNode;
     parseTupleElement(): ExpressionNode | ListSpreadNode;
@@ -311,7 +311,7 @@ Parser.prototype.parseStringParts = function (
       }
 
       if (i > literalStart) {
-        const literal = this.unescapeBraces(raw.slice(literalStart, i));
+        const literal = unescapeBraces(raw.slice(literalStart, i));
         if (literal) parts.push(literal);
       }
 
@@ -493,7 +493,7 @@ Parser.prototype.parseStringParts = function (
   }
 
   if (literalStart < raw.length) {
-    const literal = this.unescapeBraces(raw.slice(literalStart));
+    const literal = unescapeBraces(raw.slice(literalStart));
     if (literal) parts.push(literal);
   }
 
@@ -502,10 +502,6 @@ Parser.prototype.parseStringParts = function (
   }
 
   return parts;
-};
-
-Parser.prototype.unescapeBraces = function (this: Parser, s: string): string {
-  return s.replaceAll('{{', '{').replaceAll('}}', '}');
 };
 
 Parser.prototype.parseInterpolationExpr = function (

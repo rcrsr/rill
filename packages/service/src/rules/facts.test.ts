@@ -406,6 +406,40 @@ describe('mixedListVars and mixedDictVars', () => {
 });
 
 // ============================================================
+// dictLiteralVars
+// ============================================================
+
+describe('dictLiteralVars', () => {
+  const facts = (source: string) => collectFacts(parse(source)).script;
+
+  it('collects a name captured once from a dict literal', () => {
+    const script = facts('dict[a: 1] => $d\n');
+    expect([...script.dictLiteralVars.keys()]).toEqual(['d']);
+    expect(script.dictLiteralVars.get('d')?.type).toBe('Dict');
+  });
+
+  it('collects a name captured once from an ordered literal', () => {
+    const script = facts('ordered[a: 1] => $o\n');
+    expect(script.dictLiteralVars.get('o')?.type).toBe('OrderedLiteral');
+  });
+
+  it('skips a name captured twice', () => {
+    const script = facts('dict[a: 1] => $d\n5 => $d\n');
+    expect(script.dictLiteralVars.size).toBe(0);
+  });
+
+  it('skips a name that is also a closure parameter', () => {
+    const script = facts('dict[a: 1] => $d\n|d| ($d) => $f\n');
+    expect(script.dictLiteralVars.has('d')).toBe(false);
+  });
+
+  it('skips a non-literal head', () => {
+    const script = facts('list[1] => $l\n5 => $n\n');
+    expect(script.dictLiteralVars.size).toBe(0);
+  });
+});
+
+// ============================================================
 // access-derived facts
 // ============================================================
 

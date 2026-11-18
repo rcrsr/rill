@@ -103,4 +103,12 @@ describe('typeRefToString', () => {
       expect(typeRefToString(ref)).toBe(printed);
     }
   });
+
+  it('doubles braces in string literals', () => {
+    const ref: TypeRef = {
+      kind: 'literal',
+      value: { type: 'StringLiteral', parts: ['a{b}'] },
+    } as unknown as TypeRef;
+    expect(typeRefToString(ref)).toBe('"a{{b}}"');
+  });
 });

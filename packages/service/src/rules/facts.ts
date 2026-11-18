@@ -51,6 +51,9 @@ import type {
   DestructNode,
   DestructureNode,
   DictEntryNode,
+  DictLiteralNode,
+  DictNode,
+  OrderedLiteralNode,
   PipeChainNode,
   PropertyAccess,
   SourceSpan,
@@ -142,6 +145,11 @@ export interface ScriptFacts {
   readonly mixedListVars: ReadonlySet<string>;
   /** Variables captured exactly once from a bare mixed-value dict literal, never a closure parameter. */
   readonly mixedDictVars: ReadonlySet<string>;
+  /** Variables captured exactly once from a bare dict or ordered literal, never a closure parameter, mapped to that literal. */
+  readonly dictLiteralVars: ReadonlyMap<
+    string,
+    DictNode | DictLiteralNode | OrderedLiteralNode
+  >;
   /** First zero-accessChain ClosureCall per callee name, in source order. */
   readonly firstClosureCall: ReadonlyMap<string, ClosureCallNode>;
   /** First collection-op pipe applied to a bare-variable head, per variable name, in source order. */
@@ -386,6 +394,10 @@ export function collectFacts(root: ASTNode): AstFacts {
   const streamVars = new Set<string>();
   const mixedListCandidates = new Set<string>();
   const mixedDictCandidates = new Set<string>();
+  const dictLiteralCandidates = new Map<
+    string,
+    DictNode | DictLiteralNode | OrderedLiteralNode
+  >();
   const firstClosureCall = new Map<string, ClosureCallNode>();
   const firstPipeIteration = new Map<string, ASTNode>();
   let hasDynamicFieldAccess = false;
@@ -510,6 +522,13 @@ export function collectFacts(root: ASTNode): AstFacts {
           } else if (isMixedValueDict(literal)) {
             mixedDictCandidates.add(onlyPipe.name);
           }
+          if (
+            literal.type === 'Dict' ||
+            literal.type === 'DictLiteral' ||
+            literal.type === 'OrderedLiteral'
+          ) {
+            dictLiteralCandidates.set(onlyPipe.name, literal);
+          }
         }
 
         const varName = getPipeHeadVariableName(node);
@@ -631,6 +650,9 @@ export function collectFacts(root: ASTNode): AstFacts {
     captureCounts.get(name) === 1 && !paramNames.has(name);
   const mixedListVars = new Set([...mixedListCandidates].filter(qualifies));
   const mixedDictVars = new Set([...mixedDictCandidates].filter(qualifies));
+  const dictLiteralVars = new Map(
+    [...dictLiteralCandidates].filter(([name]) => qualifies(name))
+  );
 
   return {
     bySubtree,
@@ -640,6 +662,7 @@ export function collectFacts(root: ASTNode): AstFacts {
       streamVars,
       mixedListVars,
       mixedDictVars,
+      dictLiteralVars,
       firstClosureCall,
       firstPipeIteration,
       hasDynamicFieldAccess,
