@@ -3,6 +3,7 @@
  * key's own span, used by both the document outline and scope resolution.
  */
 
+import { formatRillLiteral } from '@rcrsr/rill';
 import type { DictEntryNode, SourceSpan } from '@rcrsr/rill';
 
 /**
@@ -21,4 +22,19 @@ export function dictKeyName(key: DictEntryNode['key']): string | null {
 export function dictKeySpan(key: DictEntryNode['key']): SourceSpan | undefined {
   if (typeof key === 'object' && 'kind' in key) return key.span;
   return undefined;
+}
+
+const BARE_FIELD_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/**
+ * Renders a dict or ordered field key: bare only when it is an identifier
+ * other than `true`/`false`, otherwise a quoted rill string literal.
+ * Keep in sync with core's internal `formatFieldKey` in
+ * `runtime/core/types/format-string.ts`, which is not exported.
+ */
+export function formatFieldKey(key: string): string {
+  if (BARE_FIELD_KEY.test(key) && key !== 'true' && key !== 'false') {
+    return key;
+  }
+  return formatRillLiteral(key);
 }

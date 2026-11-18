@@ -1116,3 +1116,32 @@ describe('Rill Runtime: Manifest Generation', () => {
     });
   });
 });
+
+describe('Rill Runtime: Manifest field keys', () => {
+  it('quotes a dict param key that is not an identifier and re-parses', () => {
+    const ctx = createRuntimeContext({
+      functions: {
+        fn: {
+          params: [
+            {
+              name: 'x',
+              type: {
+                kind: 'dict',
+                fields: {
+                  'a b': { type: { kind: 'string' }, defaultValue: undefined },
+                },
+              },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          fn: (args) => args['x']!,
+          returnType: anyTypeValue,
+        },
+      },
+    });
+    const manifest = generateManifest(ctx);
+    expect(manifest).toContain('dict("a b": string)');
+    expect(() => parse(manifest)).not.toThrow();
+  });
+});

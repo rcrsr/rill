@@ -807,12 +807,14 @@ const greet: RillFunctionShorthand = {
 | Literal members | `union("c", "f")` |
 | List type | `list(string)`, or `list()` for an unspecified element type |
 | Built-in type `error_code` | `list(error_code)` |
-| Named dict type | `dict(k: string)` |
+| Named dict type | `dict(k: string)`, `dict("a b": string)` |
 | Tuple type | `tuple(number, string)`; `tuple(number)` is exactly one position |
 | Literal defaults | `n: number = -3`, `s: string = "x"`, `b: bool = true` |
 | Field defaults | `d: dict(a: number, b: number = 0)`, `t: tuple(string, number = 0)` |
 | Parameter annotations | `^(description: "text") name: string` |
 | Function annotations | `^(category: "io") \|a: string\|` before the parameter list |
+
+A parameter typed with a named dict type rejects a dict that has extra fields with `RILL-R001`; see [Extra and Missing Dict Fields](topic-type-system.md#extra-and-missing-dict-fields).
 
 An outer type on `list`, `dict`, or `tuple`, such as `list(number):string`, fails with `RILL-R091` and the message `list takes no outer type`. In script, the same text halts `RILL-P006`.
 

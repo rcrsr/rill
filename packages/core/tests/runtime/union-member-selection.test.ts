@@ -61,20 +61,20 @@ describe('union member selection', () => {
       expect(await callWith(union, 'dict[a: 1]')).toEqual({ a: 1, b: 9 });
     });
 
-    it('prints both orders as the same canonical signature', async () => {
+    it('prints both orders as the wide member alone', async () => {
       const a = await signatureOf(forward);
       const b = await signatureOf(reversed);
       expect(a).toBe(b);
-      expect(a).toBe(`union(${WIDE}, ${NARROW})`);
+      expect(a).toBe(NARROW);
     });
   });
 
   describe('host signature round trip', () => {
     it.each([`union(${NARROW}, ${WIDE})`, `union(${WIDE}, ${NARROW})`])(
-      'registers, reprints canonically, and re-registers %s',
+      'registers, reprints the reduced member, and re-registers %s',
       async (union) => {
         const printed = hostType(union);
-        expect(printed).toBe(`union(${WIDE}, ${NARROW})`);
+        expect(printed).toBe(NARROW);
         const fresh = hostCtx(printed ?? '');
         const { result } = await execute(parse('f(dict[a: 1])'), fresh);
         expect(result).toEqual({ a: 1, b: 9 });
@@ -114,10 +114,7 @@ describe('union member selection', () => {
           b: 1,
           c: 2,
         });
-        const printed = await signatureOf(union);
-        for (const member of chain) {
-          expect(printed).toContain(member);
-        }
+        expect(await signatureOf(union)).toBe(chain[2]);
       }
     );
   });
@@ -201,9 +198,7 @@ describe('union member selection', () => {
       });
       const manifest = generateManifest(ctx);
       expect(manifest).toContain('union(number, string)');
-      expect(manifest).toContain(
-        'union(dict(a: number), dict(a: number, b: number))'
-      );
+      expect(manifest).toContain('dict(a: number, b: number)');
       expect(() => parse(manifest)).not.toThrow();
     });
   });
@@ -233,45 +228,45 @@ describe('union member selection', () => {
     // Mutual acceptance needs equal key sets and equal default presence, so
     // two distinct member structures that accept each other cannot be written
     // through the public surface; the reduction tie branch is unreachable
-    // there. This checks the observable guarantee: a wider member that loses
-    // no default is dropped, and written order does not change the result.
-    it('drops the wider member identically in both written orders', async () => {
+    // there. This checks the observable guarantee: a member accepted by a
+    // defaulted member is dropped, and written order does not change the result.
+    it('drops the narrower member identically in both written orders', async () => {
       const a = 'dict(a: number)';
       const b = 'dict(a: number, b: number = 1)';
       const forward = await signatureOf(`union(${a}, ${b})`);
       expect(forward).toBe(await signatureOf(`union(${b}, ${a})`));
-      expect(forward).toBe(`union(${a}, ${b})`);
+      expect(forward).toBe(b);
     });
   });
 
-  // Soundness is checked indirectly: every sample matching the narrow member
-  // must pass `:narrow -> :wide`, and a value matching only the wide member must
-  // fail the narrow assertion (the reverse direction is rejected).
+  // Soundness is checked indirectly: every sample matching the inner member
+  // must pass `:inner -> :outer`, and a value matching only the outer member must
+  // fail the inner assertion (the reverse direction is rejected).
   describe('soundness of the dict acceptance rule', () => {
-    const pairs: Array<{ wide: string; narrow: string; samples: string[] }> = [
+    const pairs: Array<{ inner: string; outer: string; samples: string[] }> = [
       {
-        wide: 'dict(a: number)',
-        narrow: 'dict(a: number, b: number = 1)',
+        inner: 'dict(a: number)',
+        outer: 'dict(a: number, b: number = 1)',
+        samples: ['dict[a: 1]'],
+      },
+      {
+        inner: 'dict(a: number, b: number = 1)',
+        outer: 'dict(a: number, b: number = 1, c: number = 2)',
         samples: ['dict[a: 1]', 'dict[a: 1, b: 5]'],
       },
       {
-        wide: 'dict(a: number, b: number = 1)',
-        narrow: 'dict(a: number, b: number = 1, c: number = 2)',
-        samples: ['dict[a: 1]', 'dict[a: 1, c: 7]'],
-      },
-      {
-        wide: 'dict(a: union(number, string))',
-        narrow: 'dict(a: number)',
-        samples: ['dict[a: 1]', 'dict[a: 1, z: "q"]'],
+        inner: 'dict(a: number)',
+        outer: 'dict(a: union(number, string))',
+        samples: ['dict[a: 1]'],
       },
     ];
 
     it.each(pairs)(
-      'a value matching $narrow also matches $wide',
-      async ({ wide, narrow, samples }) => {
+      'a value matching $inner also matches $outer',
+      async ({ inner, outer, samples }) => {
         for (const sample of samples) {
           const ok = await run(
-            `${sample} => $v\n$v -> :${narrow} -> :${wide} -> .^type.signature`
+            `${sample} => $v\n$v -> :${inner} -> :${outer} -> .^type.signature`
           ).catch((e: unknown) => e);
           expect(ok).not.toBeInstanceOf(Error);
         }

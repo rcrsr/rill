@@ -91,7 +91,7 @@ A rule that `main` does not satisfy yet ends its marker with `{pending #N}`, nam
 that builds it:
 
 ```markdown
-r[union.conversion] A pipe into a union converts through one member {pending #574}
+r[union.conversion] A pipe into a union converts through one member {pending #600}
 ```
 
 The rule body runs from the marker to the next marker or heading. It may span paragraphs and
@@ -177,7 +177,7 @@ in that list MUST appear in the table. See
 
 - A ` ```rill ` fence runs in the examples harness. End it with `# Result: <value>`.
 - A fence that must halt carries `# Error:` on its first line.
-- A fence that needs an unbuilt rule is ` ```rill pending=574 `. The harness skips it until the
+- A fence that needs an unbuilt rule is ` ```rill pending=600 `. The harness skips it until the
   issue closes, and the checker then fails it until the tag is removed.
 - A block that spans lines opens with `{` at the end of a line, indents each statement two
   spaces, and closes with `}` on its own line. A one-statement block stays on one line.

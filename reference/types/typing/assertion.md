@@ -114,8 +114,8 @@ $x.^type.signature
 ```
 
 ```rill
+# Error: #TYPE_MISMATCH
 dict[a: 1, b: 2] -> :dict(a: number)
-# Result: dict[a: 1, b: 2]
 ```
 
 ```rill

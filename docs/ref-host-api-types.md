@@ -197,7 +197,7 @@ Pure function. Variants with different `kind` values always return `false`.
 structureMatches(value: RillValue, type: TypeStructure): boolean
 ```
 
-Checks if a value matches a structural type descriptor. Used by the `:?` runtime type check operator.
+Checks if a value matches a structural type descriptor. Used by the `:?` runtime type check operator. A named dict descriptor is exact: a dict with a key the descriptor does not name does not match.
 
 | Type descriptor | Matching behavior |
 |-----------------|-------------------|
@@ -231,6 +231,7 @@ Formats a structural type descriptor as a human-readable string.
 | `{ kind: 'any' }` | `"any"` |
 | `{ kind: 'list', element: { kind: 'number' } }` | `"list(number)"` |
 | `{ kind: 'dict', valueType: { kind: 'string' } }` | `"dict(string)"` |
+| `{ kind: 'dict', fields: { 'a b': { type: { kind: 'number' } } } }` | `"dict(\"a b\": number)"` (non-identifier key quoted) |
 | `{ kind: 'closure', params: [{ name: 'x', type: { kind: 'number' } }] }` | `"closure"` |
 | `{ kind: 'tuple', elements: [{ type: { kind: 'number' } }] }` | `"tuple(number)"` |
 

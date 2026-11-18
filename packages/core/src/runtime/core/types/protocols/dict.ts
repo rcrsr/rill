@@ -16,30 +16,13 @@ import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
 import { isDict } from '../guards.js';
 import { orderedDictEntries, setDictField } from '../dict-keys.js';
-import { quoteRillString } from '../format-string.js';
+import { formatFieldKey } from '../format-string.js';
 import {
   formatNested,
   compareByDeepEquals,
   serializeListElement,
   requireReceiver,
 } from './shared.js';
-
-/**
- * Render a dict key for `formatValue`. Every key is a string. A key renders
- * as a bare identifier when it is a valid identifier other than `true`/`false`
- * (which would otherwise re-parse as a boolean); every other key, including
- * numeric-looking strings such as "1", is quoted so the output round-trips.
- * This keeps the common identifier-keyed case (`dict[a: 1]`) byte-for-byte
- * unchanged.
- */
-const IDENTIFIER_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/;
-
-function formatStringKey(key: string): string {
-  if (IDENTIFIER_KEY.test(key) && key !== 'true' && key !== 'false') {
-    return key;
-  }
-  return quoteRillString(key);
-}
 
 // ============================================================
 // FORMAT
@@ -50,7 +33,7 @@ function formatDict(v: RillValue): string {
     ? v
     : requireReceiver(v, isDict, { fn: 'format-dict' }, 'dict');
   const parts = orderedDictEntries(dict).map(({ key, value }) => {
-    const formattedKey = formatStringKey(key);
+    const formattedKey = formatFieldKey(key);
     return `${formattedKey}: ${formatNested(value)}`;
   });
   return `dict[${parts.join(', ')}]`;

@@ -379,8 +379,9 @@ export interface HydrationMissingFieldInfo {
  *   RILL-R044 immediately, since a structural conversion has no later
  *   type-check stage to fall back on.
  * - `keepExtras` controls whether keys/elements not declared on the target
- *   type survive in the result (marshaling: yes, values must remain
- *   structurally compatible with the wider caller-supplied shape) or are
+ *   type survive in the result (marshaling: yes, extras are kept so Stage 3
+ *   structureMatches rejects a wider dict with RILL-R001 instead of the
+ *   walker silently narrowing it) or are
  *   dropped (conversion: yes, `-> type` narrows to exactly the declared
  *   shape).
  * - `coerceOrderedFromDict` controls whether a plain dict value is accepted
@@ -562,8 +563,8 @@ export function hydrateStructure(
 
 /**
  * Marshaling hydration policy: leave missing required fields absent (Stage 3
- * type-check reports RILL-R001), keep extras (structural match allows wider
- * shapes than declared), never coerce a dict source into an ordered target.
+ * type-check reports RILL-R001), keep extras (Stage 3 structureMatches rejects
+ * a wider dict with RILL-R001), never coerce a dict source into an ordered target.
  */
 const MARSHAL_HYDRATION_POLICY: HydrationPolicy = {
   onMissingField: () => {

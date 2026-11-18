@@ -38,6 +38,13 @@ describe('PIPE_CONVERTS_INNER', () => {
     expect(result[0]?.message).toContain('`-> :dict(a: string, b: string)`');
   });
 
+  it('quotes a non-identifier dict key in the message', () => {
+    const result = check('dict["a b": 1] -> dict("a b": string)\n');
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.message).toContain('`-> :dict("a b": string)`');
+  });
+
   it('matches tuple positions by index', () => {
     expect(check('tuple[1, "a"] -> tuple(number, string)\n')).toEqual([]);
     expect(check('tuple[1, "a"] -> tuple(number, number)\n')).toHaveLength(1);

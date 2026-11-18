@@ -239,10 +239,10 @@ describe('comparison overlap gate', () => {
 });
 
 describe('declared dict overlap', () => {
-  const declared = 'dict[a: 1, b: 2] => $x:dict(a: number)\n';
+  const declared = 'dict[a: 1] => $x:dict(a: number)\n';
 
   it('compares a declared dict with == without halting on an extra key', async () => {
-    expect(await run(`${declared}$x == dict[a: 1, b: 2]`)).toBe(true);
+    expect(await run(`${declared}$x == dict[a: 1, b: 2]`)).toBe(false);
   });
 
   it('compares a declared dict with != without halting on an extra key', async () => {
@@ -250,28 +250,28 @@ describe('declared dict overlap', () => {
   });
 
   it('applies the leniency when the declared dict is the right operand', async () => {
-    expect(await run(`${declared}dict[a: 1, b: 2] == $x`)).toBe(true);
+    expect(await run(`${declared}dict[a: 1, b: 2] == $x`)).toBe(false);
   });
 
   it('compares a declared dict with .eq and .ne', async () => {
-    expect(await run(`${declared}$x -> .eq(dict[a: 1, b: 2])`)).toBe(true);
-    expect(await run(`${declared}$x -> .ne(dict[a: 1, b: 2])`)).toBe(false);
+    expect(await run(`${declared}$x -> .eq(dict[a: 1, b: 2])`)).toBe(false);
+    expect(await run(`${declared}$x -> .ne(dict[a: 1, b: 2])`)).toBe(true);
   });
 
   it('finds a dict in a list with .has when the list is declared', async () => {
     expect(
       await run(
-        'list[dict[a: 1, b: 2]] => $l:list(dict(a: number))\n$l -> .has(dict[a: 1, b: 2])'
+        'list[dict[a: 1]] => $l:list(dict(a: number))\n$l -> .has(dict[a: 1, b: 2])'
       )
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('finds a dict in a list with .has when the sought dict is declared', async () => {
     expect(
       await run(
-        'dict[a: 1, b: 2] => $x:dict(a: number)\nlist[dict[a: 1, b: 2]] -> .has($x)'
+        'dict[a: 1] => $x:dict(a: number)\nlist[dict[a: 1, b: 2]] -> .has($x)'
       )
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('still halts when a shared key of a declared dict has a different type', async () => {

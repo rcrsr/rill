@@ -22,7 +22,11 @@ import type { RillValue } from '../core/types/structures.js';
 import { setDictField } from '../core/types/dict-keys.js';
 import { formatStructure } from '../core/types/operations.js';
 import { resolveReturnStructure } from '../core/introspection.js';
-import { quoteRillString } from '../core/types/format-string.js';
+import {
+  formatFieldKey,
+  isBareIdentifier,
+  quoteRillString,
+} from '../core/types/format-string.js';
 import { RuntimeError } from '../../types.js';
 import { ERROR_IDS } from '../../error-registry.js';
 
@@ -57,17 +61,6 @@ function formatParam(param: RillParam): string {
   return `${param.name}: ${typeName}`;
 }
 
-/** Matches a bare snake_case identifier per the lexer's identifier grammar. */
-const BARE_IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
-
-/**
- * Format a dict key, quoting it as a rill string literal when it is not a
- * valid bare identifier (e.g. `"user-id"` rather than `user-id`).
- */
-function formatDictKey(key: string): string {
-  return BARE_IDENTIFIER_RE.test(key) ? key : quoteRillString(key);
-}
-
 /**
  * Format a `use<ext:path>` reference. The static `scheme:seg1.seg2` form
  * requires every dot-separated segment to be a bare identifier; a path
@@ -78,7 +71,7 @@ function formatDictKey(key: string): string {
 function formatUseRef(path: string): string {
   const isBarePath = path
     .split('.')
-    .every((segment) => BARE_IDENTIFIER_RE.test(segment));
+    .every((segment) => isBareIdentifier(segment));
   return isBarePath
     ? `use<ext:${path}>`
     : `use<(${quoteRillString(`ext:${path}`)})>`;
@@ -108,7 +101,7 @@ function buildNestedSource(
     const parts = entries.map(([key, child]) => {
       const childPath = path.length > 0 ? `${path}.${key}` : key;
       const childSource = buildNestedSource(child, childPath, childIndent);
-      return `${childIndent}${formatDictKey(key)}: ${childSource}`;
+      return `${childIndent}${formatFieldKey(key)}: ${childSource}`;
     });
     return `[\n${parts.join(',\n')}\n${indent}]`;
   }
@@ -134,7 +127,7 @@ function buildExtensionBindings(extensions: Record<string, RillValue>): string {
     } else {
       const parts = entries.map(([name, value]) => {
         const source = buildNestedSource(value, name, '');
-        return `  ${formatDictKey(name)}: ${source}`;
+        return `  ${formatFieldKey(name)}: ${source}`;
       });
       bindingSource = `[\n${parts.join(',\n')}\n]`;
     }

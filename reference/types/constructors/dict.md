@@ -3,11 +3,11 @@ id: dict
 title: Dict types
 status: normative
 since: 0.24.0
-issues: [572, 581, 600]
-grammar: []
+issues: [600]
+grammar: [field-key]
 errors: [RILL-P006, RILL-P027, TYPE_MISMATCH]
 depends: [type-value, type-form]
-tests: [structural-type-identity.test.ts, structural-type-boundaries.test.ts, type-inner-outer.test.ts, type-assertions.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts]
+tests: [structural-type-identity.test.ts, structural-type-boundaries.test.ts, type-inner-outer.test.ts, type-assertions.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts, type-field-keys.test.ts]
 ---
 
 # Dict types
@@ -15,6 +15,12 @@ tests: [structural-type-identity.test.ts, structural-type-boundaries.test.ts, ty
 A dict type describes a dict by its named fields, one type per field.
 
 ## Syntax
+
+```ebnf
+field-key        = identifier | string | number | bool
+                 | "break" | "return" | "yield" | "pass" | "assert"
+                 | "error" | "guard" | "retry" | "while" | "do" ;
+```
 
 ```text
 dict                          any dict
@@ -52,22 +58,22 @@ r[dict.key-duplicate] A key written twice in one literal is rejected
 A literal that spells one key twice, including a number and the string with the same text,
 MUST be rejected at parse time with RILL-P027.
 
-r[dict.type-key-duplicate] A type that names one key twice is rejected {pending #581}
+r[dict.type-key-duplicate] A type that names one key twice is rejected
 A dict or ordered type that names one key twice, in any spelling, MUST be rejected at parse time
 with RILL-P027.
 `dict("a b": number, "a b": string)` MUST NOT parse.
 
-r[dict.key-spelling] A dict type accepts every key spelling a literal accepts {pending #581}
+r[dict.key-spelling] A dict type accepts every key spelling a literal accepts
 A named field MUST be written as an identifier, a quoted string, a number, or a bool. The key
 is a string in each case.
 
-r[dict.key-print] A printed dict type parses back to an equal type {pending #581}
+r[dict.key-print] A printed dict type parses back to an equal type
 A signature MUST print an identifier key bare and every other key quoted, as in
 `dict("a b": number)`.
 
 ## Evaluation
 
-r[dict.named-membership] A named form rejects a field it does not name {pending #572}
+r[dict.named-membership] A named form rejects a field it does not name
 `dict[a: 1, b: 2] -> :dict(a: number)` MUST halt with `#TYPE_MISMATCH`. The bare `dict` MUST
 still accept the value, because it names no field.
 
@@ -94,9 +100,9 @@ that holds a non-type follows `type-value.variable-halt`.
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | Outer on a type that takes none | RILL-P006 | No |
-| Value has a field a named form does not name {pending #572} | `#TYPE_MISMATCH` | Yes |
+| Value has a field a named form does not name | `#TYPE_MISMATCH` | Yes |
 | A literal spells one key twice | RILL-P027 | No |
-| A type names one key twice {pending #581} | RILL-P027 | No |
+| A type names one key twice | RILL-P027 | No |
 
 ## Examples
 
@@ -120,12 +126,12 @@ dict(a: number, b: string).inner.b == string
 # Result: true
 ```
 
-```rill pending=572
+```rill
 dict[a: 1, b: 2] -> :?dict(a: number)
 # Result: false
 ```
 
-```rill pending=581
+```rill
 dict("a b": number) == dict["a b": 1].^type
 # Result: true
 ```

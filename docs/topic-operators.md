@@ -857,7 +857,10 @@ Structural type syntax is supported in assertions. The structural form specifies
 [1, 2, 3] -> :list(number)                    # passes: all elements are number
 [a: 1, b: 2] -> :dict(a: number, b: number)   # passes: fields match types
 [1, "x"] -> :list(number)                     # ERROR: structural type mismatch
+[a: 1, b: 2] -> :dict(a: number)              # ERROR: extra field, see Type System
 ```
+
+See [Extra and Missing Dict Fields](topic-type-system.md#extra-and-missing-dict-fields) for the exactness table.
 
 ```text
 "hello" -> :number               # ERROR: expected number, got string
@@ -945,6 +948,8 @@ The `-> type` operator converts a value to the target type. Same-type conversion
 A closure, an iterator, or a vector has no `-> string` conversion, and neither has a list, dict, tuple, or ordered that holds one at any depth. Converting one, interpolating one in a string, or joining one with `.join` halts with `RILL-R036`. A datetime or a duration interpolates as its printed form, and `duration -> string` yields that form, but `-> string` on a datetime, or on a collection that holds a datetime or a duration, halts with `RILL-R036`.
 
 `-> list(T)`, `-> dict(...)`, `-> ordered(...)`, and `-> tuple(...)` convert every element, field, and position and halt `RILL-R036` or `RILL-R038` naming the part; see the [conversion table](topic-type-system.md#extra-and-missing-dict-fields).
+
+`-> union(...)` returns a member unchanged and halts `RILL-R036` otherwise; see [Conversion into a Union](topic-type-system.md#conversion-into-a-union).
 
 **Structural conversion with signatures:** `-> dict(sig)`, `-> ordered(sig)`, and `-> tuple(sig)` accept a structural type signature as the conversion target. The source value must match the target kind (dict-to-dict, tuple-to-tuple, or list-to-tuple). Fields present in the signature but absent from the source are hydrated with the signature's default values. See [Type System](topic-type-system.md) for structural type and default value documentation.
 

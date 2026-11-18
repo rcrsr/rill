@@ -10,6 +10,7 @@
  */
 
 import type { FieldArg, LiteralNode, TypeRef } from '@rcrsr/rill';
+import { formatFieldKey } from '../dict-key.js';
 
 function literalToString(node: LiteralNode): string | undefined {
   switch (node.type) {
@@ -29,7 +30,10 @@ function literalToString(node: LiteralNode): string | undefined {
 
 function fieldArgToString(arg: FieldArg): string {
   const valueStr = typeRefToString(arg.value);
-  const named = arg.name !== undefined ? `${arg.name}: ${valueStr}` : valueStr;
+  const named =
+    arg.name !== undefined
+      ? `${formatFieldKey(arg.name)}: ${valueStr}`
+      : valueStr;
   const literal =
     arg.defaultValue !== undefined
       ? literalToString(arg.defaultValue)

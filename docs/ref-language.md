@@ -297,6 +297,7 @@ Type constructors are primary expressions that produce structural type values. T
 | Dict type (uniform) | `dict(T)` | `dict(number)` |
 | Ordered type (uniform) | `ordered(T)` | `ordered(string)` |
 | Dict type | `dict(k: T [= literal], ...)` | `dict(a: number, b: string = "x")` |
+| Dict field, quoted/number/bool key | `dict("k": T, ...)` | `dict("a b": number)` |
 | Tuple type | `tuple(T, T2 [= literal], ...)` | `tuple(number, string = "x")` |
 | Ordered type | `ordered(k: T [= literal], ...)` | `ordered(a: number, b: string = "x")` |
 | Dict field with annotation | `dict(^(...) k: T, ...)` | `dict(^("label") name: string)` |

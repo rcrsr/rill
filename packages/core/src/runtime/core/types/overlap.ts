@@ -42,8 +42,9 @@ function overlapKind(s: TypeStructure): string {
 
 /**
  * Overlap of keyed fields: shared fields overlap. A one-sided field is
- * defaulted when strict; when lenient (a declared dict type lets extra keys
- * pass) it is ignored.
+ * defaulted when strict; when lenient it is ignored. Lenient is a deliberately
+ * wider overlap test for equality operands, not membership: a declared dict
+ * type matches values with exactly its named keys.
  */
 function fieldsOverlap(
   aFields: Record<string, RillFieldDef>,
@@ -249,7 +250,8 @@ function messageStructure(
 /**
  * Halt `#TYPE_MISMATCH` (catchable) when the operands' types cannot overlap.
  * When either operand carries a declared type, a dict key present on one side
- * only passes, as it does when the value is matched against that type.
+ * only is tolerated by this overlap test; this is wider than membership,
+ * which rejects unnamed keys.
  * `lenient` overrides that default for callers whose operand structure is
  * inferred rather than declared.
  */

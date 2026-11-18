@@ -650,6 +650,16 @@ export async function evaluatePipeTarget(
       }
     );
   }
+  if (target.type === 'TypeConstructor') {
+    // `-> type(...)` resolves the constructor once and shares the type-value
+    // conversion path; a union target carries the union.
+    return convertToType(
+      s,
+      carried.value,
+      await evaluateTypeConstructor(s, target),
+      target
+    );
+  }
   return {
     value: await evaluatePipeTargetValue(s, target, carried),
     declared: undefined,
@@ -728,10 +738,7 @@ async function evaluateHeldPipeTarget(
   // __rill_type flag on RillTypeValue, not structural duck typing, and must
   // precede the dict checks since RillTypeValue is a plain object.
   if (isTypeValue(value)) {
-    return {
-      value: convertToType(s, input, value, site.node),
-      declared: undefined,
-    };
+    return convertToType(s, input, value, site.node);
   }
 
   if (isPlainDict(value) || Array.isArray(value)) {
@@ -914,18 +921,6 @@ async function evaluatePipeTargetValue(
       // applyConversion, which enforces the full conversion compatibility
       // matrix (no-op short-circuits, RILL-R036, RILL-R037, etc.).
       return applyConversion(s, input, target.typeName, target);
-    }
-
-    case 'TypeConstructor': {
-      // Pipe target: `-> type(...)` (parameterized type constructor).
-      // Resolve the constructor once, then share the type-value conversion
-      // path (structural dict/ordered/tuple and uniform types).
-      return convertToType(
-        s,
-        input,
-        await evaluateTypeConstructor(s, target),
-        target
-      );
     }
 
     case 'TimeoutBlock':

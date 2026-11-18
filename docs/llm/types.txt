@@ -55,6 +55,7 @@ Structural types with field/element constraints.
 
     list(string)                    # list of strings
     dict(name: string, age: number) # dict with these fields
+    dict("a b": number)             # quote a key that is not an identifier
     tuple(number, string)           # positional tuple
     tuple(number)                   # exactly one number; any length is list(number)
     ordered(x: number, y: number)   # named ordered args
@@ -66,6 +67,8 @@ An outer type (`:string` after the parentheses or a bare name) attaches only to 
 
     $data -> :dict(name: string, age: number)
     $data:?dict(name: string, age: number)
+
+Assertion is exact: an extra key halts #TYPE_MISMATCH (`:?` gives false). Bare `dict` and `dict()` accept any keys.
 
 In closure params (validates input structure):
 
@@ -128,7 +131,10 @@ A parameterized target converts each element or field. A failing part halts `RIL
     dict[a: 1] -> dict(a: string)   # dict[a: "1"]
     list[1, 2] -> :list(string)     # halts #TYPE_MISMATCH: `:` checks, never converts
 
-To validate a shape write `-> :dict(a: string)`, never `-> dict(a: string)`.
+    "5" -> union(number, string)    # "5": a member passes unchanged, declared as the union
+    "5" -> union(number, bool)      # halts RILL-R036: not a member, members are never tried in turn
+
+To validate a shape write `-> :dict(a: string)`, never `-> dict(a: string)`. To drop extra keys, convert first: `dict[a: 1, b: 2] -> dict(a: number)` is `dict[a: 1]`.
 
 ### Conversion matrix
 

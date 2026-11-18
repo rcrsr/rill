@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Structural Type Boundary Conditions
  * Tests for edge cases in structural type inference and equality.
@@ -14,6 +15,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { expectHalt, expectRuntimeError } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Language: Structural Type Boundary Conditions', () => {
   // ============================================================
@@ -232,5 +235,149 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       );
       expect(result).toBe(true);
     });
+  });
+
+  // ============================================================
+  // Exact dict membership
+  // ============================================================
+
+  describe('Dict membership is exact', () => {
+    const wide = 'dict[a: 1, b: 2]';
+
+    rule('assertion.membership').it(
+      'halts #TYPE_MISMATCH when an assertion meets an unnamed key',
+      async () => {
+        await expectHalt(() => run(`${wide} -> :dict(a: number)`), {
+          code: 'TYPE_MISMATCH',
+        });
+      }
+    );
+
+    rule('assertion.membership').it(
+      'recovers the unnamed-key halt through guard',
+      async () => {
+        const result = await run(
+          `guard { ${wide} -> :dict(a: number) } => $r\n$r.!code == #TYPE_MISMATCH`
+        );
+        expect(result).toBe(true);
+      }
+    );
+
+    rule('assertion.membership').it(
+      'returns false from a check that meets an unnamed key',
+      async () => {
+        expect(await run(`${wide} -> :?dict(a: number)`)).toBe(false);
+      }
+    );
+
+    rule('assertion.membership').it(
+      'keeps bare dict, dict(), dict(any), and dict(V) open to a wider dict',
+      async () => {
+        expect(await run(`${wide} -> :?dict`)).toBe(true);
+        expect(await run(`${wide} -> :?dict()`)).toBe(true);
+        expect(await run(`${wide} -> :?dict(any)`)).toBe(true);
+        expect(await run(`${wide} -> :?dict(number)`)).toBe(true);
+      }
+    );
+
+    rule('assertion.membership').it(
+      'accepts an absent defaulted field',
+      async () => {
+        expect(
+          await run('dict[a: 1] -> :?dict(a: number, b: number = 0)')
+        ).toBe(true);
+      }
+    );
+
+    rule('assertion.membership').it(
+      'rejects an unnamed key in a typed capture',
+      async () => {
+        await expectHalt(() => run(`${wide} => $x:dict(a: number)`), {
+          code: 'TYPE_MISMATCH',
+        });
+      }
+    );
+
+    rule('assertion.membership').it(
+      'halts RILL-R001 when a closure parameter meets an unnamed key',
+      async () => {
+        await expectRuntimeError(
+          () => run(`|x: dict(a: number)| { $x } => $f\n$f(${wide})`),
+          { code: 'RILL-R001' }
+        );
+      }
+    );
+
+    rule('assertion.membership').it(
+      'halts when a closure return meets an unnamed key',
+      async () => {
+        await expectHalt(
+          () => run(`|| { ${wide} }:dict(a: number) => $f\n$f()`),
+          { code: 'TYPE_MISMATCH' }
+        );
+      }
+    );
+
+    rule('assertion.membership').it(
+      'halts when a destructure type meets an unnamed key',
+      async () => {
+        await expectHalt(
+          () => run(`dict[o: ${wide}] -> destruct<o: $q:dict(a: number)>`),
+          { code: 'TYPE_MISMATCH' }
+        );
+      }
+    );
+
+    rule('assertion.membership').it(
+      'rejects an unnamed key against a union member',
+      async () => {
+        expect(await run(`${wide} -> :?union(dict(a: number), string)`)).toBe(
+          false
+        );
+      }
+    );
+
+    rule('assertion.membership').it(
+      'rejects an unnamed key in a nested dict',
+      async () => {
+        expect(
+          await run(`dict[o: ${wide}] -> :?dict(o: dict(a: number))`)
+        ).toBe(false);
+      }
+    );
+
+    rule('assertion.membership').it(
+      'rejects an unnamed key in a list element',
+      async () => {
+        expect(await run(`list[${wide}] -> :?list(dict(a: number))`)).toBe(
+          false
+        );
+      }
+    );
+
+    rule('assertion.membership').it(
+      'passes a conversion result through a later assertion',
+      async () => {
+        expect(
+          await run(`dict[a: 1, b: 2] -> dict(a: number) -> :dict(a: number)`)
+        ).toEqual({ a: 1 });
+      }
+    );
+
+    rule('assertion.membership').it(
+      'treats an own key named like an inherited property as unnamed',
+      async () => {
+        expect(
+          await run('dict[a: 1, constructor: 2] -> :?dict(a: number)')
+        ).toBe(false);
+      }
+    );
+
+    rule('assertion.membership').it(
+      'does not count an inherited property name as present',
+      async () => {
+        expect(await run('dict[] -> :?dict(toString: number = 1)')).toBe(true);
+      }
+    );
   });
 });

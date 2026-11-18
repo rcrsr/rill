@@ -3,11 +3,11 @@ id: ordered
 title: Ordered types
 status: normative
 since: 0.24.0
-issues: [581, 600]
-grammar: []
+issues: [600]
+grammar: [field-key]
 errors: [RILL-P006]
 depends: [type-value, type-form, dict]
-tests: [structural-type-identity.test.ts, structural-type-boundaries.test.ts, structural-type-defaults.test.ts, type-inner-outer.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts]
+tests: [structural-type-identity.test.ts, structural-type-boundaries.test.ts, structural-type-defaults.test.ts, type-inner-outer.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts, type-field-keys.test.ts]
 ---
 
 # Ordered types
@@ -15,6 +15,12 @@ tests: [structural-type-identity.test.ts, structural-type-boundaries.test.ts, st
 An ordered type describes a keyed collection whose fields keep their written order, with one type per named field.
 
 ## Syntax
+
+```ebnf
+field-key        = identifier | string | number | bool
+                 | "break" | "return" | "yield" | "pass" | "assert"
+                 | "error" | "guard" | "retry" | "while" | "do" ;
+```
 
 ```text
 ordered                          any ordered
@@ -38,7 +44,7 @@ r[ordered.empty-parens] ordered and ordered() are one type
 r[ordered.no-outer] An ordered type takes no outer
 An ordered type written with an outer, such as `ordered(a: number):string`, MUST be a parse error.
 
-r[ordered.key-spelling] An ordered type accepts every key spelling a literal accepts {pending #581}
+r[ordered.key-spelling] An ordered type accepts every key spelling a literal accepts
 A named field MUST be written as an identifier, a quoted string, a number, or a bool. The key
 is a string in each case, and a signature MUST print an identifier bare and any other key
 quoted.
@@ -96,7 +102,7 @@ ordered[a: 1, b: 2] -> :?ordered
 ordered(number)
 ```
 
-```rill pending=581
+```rill
 ordered("a b": number) == ordered["a b": 1].^type
 # Result: true
 ```

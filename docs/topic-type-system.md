@@ -216,7 +216,7 @@ The string representation of structural types follows this format:
 | List | `"list(number)"`, `"list(list(number))"` |
 | Dict (uniform) | `"dict(number)"` (all values same type) |
 | Ordered (uniform) | `"ordered(string)"` (all values same type) |
-| Dict | `"dict(a: number, b: string)"` (fields alphabetically sorted) |
+| Dict | `"dict(a: number, b: string)"` (fields alphabetically sorted; a non-identifier key is quoted, as in `"dict(\"a b\": number)"`) |
 | Tuple | `"tuple(number, string, bool)"` (positional) |
 | Ordered | `"ordered(a: number, b: string)"` (named, order-sensitive) |
 | Closure | `"\|x: number\| :string"` (pipe-delimited params with colon-return) |
@@ -292,7 +292,7 @@ The table shows how each operation treats a dict value whose keys differ from th
 
 | Operation | Extra fields | Missing field with a default | Missing field with no default | Field or element of another type |
 |-----------|--------------|------------------------------|-------------------------------|----------------------------------|
-| `:T` / `:?T` | Accepted; value returned unchanged, extras kept | Accepted; not filled | `:` halts `#TYPE_MISMATCH`; `:?` returns false | `:T` halts `#TYPE_MISMATCH`; `:?` returns false |
+| `:T` / `:?T` | `:` halts `#TYPE_MISMATCH`; `:?` returns false. Bare `dict` and `dict()` accept any keys | Accepted; not filled | `:` halts `#TYPE_MISMATCH`; `:?` returns false | `:T` halts `#TYPE_MISMATCH`; `:?` returns false |
 | `-> T` | Dropped | Filled with the default | Halts RILL-R044, except a collection-typed field whose children all have defaults (see [Nested Collection Synthesis](#nested-collection-synthesis)) | Converts; halts RILL-R036 or RILL-R038 naming the part |
 | `.^type == T` (undeclared dict) | false | false | false | false |
 
@@ -314,8 +314,8 @@ list[1, 2] -> :list(string)
 `.^type == T` requires the exact key set, field types, and default presence on the dict's own type.
 
 ```rill
+# Error: #TYPE_MISMATCH
 dict[a: 1, x: 2] -> :dict(a: number)
-# Result: dict[a: 1, x: 2]
 ```
 
 ```rill
@@ -612,6 +612,32 @@ The one-value type is `union("c")`. A bare literal after a colon is a parse erro
 "c" => $a:"c"
 ```
 
+### Conversion into a Union
+
+`-> union(...)` returns a member value unchanged and declares it as the union. A value that is not a member halts `RILL-R036`, not the `#TYPE_MISMATCH` of an assertion. Members are never tried in turn, so a string is not converted into a number member.
+
+```rill
+"5" -> union(number, string)
+# Result: "5"
+```
+
+```rill
+"5" -> union(number, string) => $v
+$v.^type.signature
+# Result: "union(number, string)"
+```
+
+```rill
+"5" -> union(number, string) => $v
+$v.^effective.signature
+# Result: "string"
+```
+
+```rill
+# Error: RILL-R036
+"5" -> union(number, bool)
+```
+
 ### Closed-Set Dispatch
 
 An atom is not a dict key. Convert a value from a closed set of atoms to its name before selecting:
@@ -820,7 +846,7 @@ $x.^effective.signature
 # Result: "number"
 ```
 
-A declaration comes from a capture annotation, a `:T` assertion, a typed parameter, or `.!code`. It stays with `$`, captures, grouped expressions, `pass`, destructures, and closure parameters. Element and field reads on a declared collection project the declared element type:
+A declaration comes from a capture annotation, a `:T` assertion, a pipe into a union, a typed parameter, or `.!code`. It stays with `$`, captures, grouped expressions, `pass`, destructures, and closure parameters. Element and field reads on a declared collection project the declared element type:
 
 ```rill
 list[1, 2] => $xs:list(union(string, number))

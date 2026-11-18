@@ -3,10 +3,10 @@ id: structural-typing
 title: Structural typing
 status: normative
 since: 0.24.0
-issues: [572, 623]
+issues: [623]
 errors: [TYPE_MISMATCH]
 depends: [type-value, any, list, dict, tuple, ordered, union]
-tests: [equality-gate.test.ts, structural-type-identity.test.ts, structural-type-boundaries.test.ts, structural-type-errors.test.ts, structural-type-defaults.test.ts]
+tests: [equality-gate.test.ts, structural-type-identity.test.ts, structural-type-boundaries.test.ts, structural-type-errors.test.ts, structural-type-defaults.test.ts, type-field-keys.test.ts]
 ---
 
 # Structural typing
@@ -45,7 +45,7 @@ A `tuple` value MUST have a positional `tuple` type only when it has no position
 omits, and none missing unless the type defaults it. An `ordered` value MUST also match
 the field order of the type.
 
-r[structural-typing.exact-dict] A dict has a field-naming type only without other fields {pending #572}
+r[structural-typing.exact-dict] A dict has a field-naming type only without other fields
 A `dict` value MUST NOT have a type that names fields when the value holds a field the type
 does not name. A value with an extra field is converted first; conversion drops the extra
 field.
@@ -114,7 +114,7 @@ ordered(a: number, b: string) == ordered(b: string, a: number)
 # Result: false
 ```
 
-```rill pending=572
+```rill
 dict[a: 1, x: 2] -> :?dict(a: number)
 # Result: false
 ```
@@ -124,8 +124,8 @@ dict[a: 1, x: 2] -> :?dict(a: number)
 Value `==` between operands whose types do not overlap halts; the `equality` concept states
 that rule on top of the overlap relation.
 
-Until the pending dict rule is built, a dict with extra fields has a field-naming type, and
-the assertion returns the value with the extra fields kept.
+On 0.23.0 a dict with extra fields has a field-naming type, and the assertion returns the
+value with the extra fields kept.
 
 Two identical structures with different meanings, such as a Celsius and a Fahrenheit
 temperature, are the same type.

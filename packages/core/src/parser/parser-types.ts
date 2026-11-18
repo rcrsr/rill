@@ -31,6 +31,9 @@ import {
   isLiteralStart,
   isNegativeNumber,
   parseTypeName,
+  readStaticKey,
+  rejectRepeatedKey,
+  staticKeyWidth,
   expectVariableName,
 } from './helpers.js';
 import { ERROR_IDS } from '../error-registry.js';
@@ -250,7 +253,14 @@ function parseSingleType(
     return { kind: 'union', members };
   }
 
-  const args = parseFieldArgList(state, buildTypeRefOpts(opts));
+  const keyed =
+    typeName === 'dict' || typeName === 'ordered'
+      ? { keyedCollection: `${typeName} type` as const }
+      : {};
+  const args = parseFieldArgList(state, {
+    ...buildTypeRefOpts(opts),
+    ...keyed,
+  });
   advance(state); // consume ")"
   parseOuterType(state, typeName, args, opts);
 
@@ -374,14 +384,30 @@ function buildTypeRefOpts(opts?: {
   return result;
 }
 
+/** Read the static key at the cursor; the caller confirmed one starts here. */
+function readKeyAtCursor(state: ParserState): string {
+  const read = readStaticKey(state);
+  if (read === undefined) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P014,
+      'Expected field key',
+      current(state).span.start
+    );
+  }
+  return read.key;
+}
+
 export function parseFieldArgList(
   state: ParserState,
   opts?: {
     parseLiteral?: () => LiteralNode;
     parseAnnotations?: () => AnnotationArg[];
+    /** Set for dict and ordered types: named fields take any static key spelling. */
+    keyedCollection?: 'dict type' | 'ordered type';
   }
 ): FieldArg[] {
   const args: FieldArg[] = [];
+  const seenKeys = new Set<string>();
 
   skipNewlines(state);
 
@@ -412,15 +438,24 @@ export function parseFieldArgList(
       }
     }
 
-    // Check for named arg: identifier ":" type-ref
-    // Lookahead: current is IDENTIFIER and next is COLON
-    const tok = current(state);
+    // Check for named arg: static key ":" type-ref. Dict and ordered types
+    // accept every static key spelling; other constructors take identifiers.
+    const keyWidth = opts?.keyedCollection
+      ? staticKeyWidth(state)
+      : current(state).type === TOKEN_TYPES.IDENTIFIER
+        ? 1
+        : 0;
     if (
-      tok.type === TOKEN_TYPES.IDENTIFIER &&
-      state.tokens[state.pos + 1]?.type === TOKEN_TYPES.COLON
+      keyWidth > 0 &&
+      state.tokens[state.pos + keyWidth]?.type === TOKEN_TYPES.COLON
     ) {
-      const name = tok.value;
-      advance(state); // consume identifier
+      const keyStart = current(state).span.start;
+      const name = opts?.keyedCollection
+        ? readKeyAtCursor(state)
+        : advance(state).value;
+      if (opts?.keyedCollection) {
+        rejectRepeatedKey(seenKeys, name, keyStart, opts.keyedCollection);
+      }
       advance(state); // consume ":"
       skipNewlines(state);
       const typeRefOpts = buildTypeRefOpts(opts);

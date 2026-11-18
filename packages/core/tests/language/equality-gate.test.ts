@@ -191,21 +191,21 @@ describe('Rill Language: equality gate', () => {
     }
   );
 
-  const declaredDict = 'dict[a: 1, b: 2] => $x:dict(a: number)\n';
+  const declaredDict = 'dict[a: 1] => $x:dict(a: number)\n';
 
   rule('equality.declared-dict').it(
-    'passes a one-sided dict key when an operand carries a declared type',
+    'compares unequal without halting when a one-sided dict key meets a declared type',
     async () => {
-      expect(await run(`${declaredDict}$x == dict[a: 1, b: 2]`)).toBe(true);
-      expect(await run(`${declaredDict}dict[a: 1, b: 2] != $x`)).toBe(false);
+      expect(await run(`${declaredDict}$x == dict[a: 1, b: 2]`)).toBe(false);
+      expect(await run(`${declaredDict}dict[a: 1, b: 2] != $x`)).toBe(true);
       expect(await run(`${declaredDict}$x -> .eq(dict[a: 1, b: 2])`)).toBe(
-        true
+        false
       );
       expect(
         await run(
-          'list[dict[a: 1, b: 2]] => $l:list(dict(a: number))\n$l -> .has(dict[a: 1, b: 2])'
+          'list[dict[a: 1]] => $l:list(dict(a: number))\n$l -> .has(dict[a: 1, b: 2])'
         )
-      ).toBe(true);
+      ).toBe(false);
     }
   );
 

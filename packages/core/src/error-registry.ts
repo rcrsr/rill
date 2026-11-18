@@ -822,10 +822,10 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_P027,
     category: 'parse',
-    description: 'Duplicate key in a dict or ordered literal',
+    description: 'Duplicate key in a dict or ordered literal or type',
     messageTemplate: "Duplicate key '{key}' in {collection}",
     cause:
-      'A dict or ordered literal spells the same literal key twice. Identifier, string, number, and boolean keys are compared as strings, so 1 and "1" are the same key.',
+      'A dict or ordered literal, or a dict or ordered type, spells the same key twice. Identifier, string, number, and boolean keys are compared as strings, so 1 and "1" are the same key.',
     resolution: 'Remove the repeated key, or give each entry a distinct key.',
     examples: [
       {
@@ -835,6 +835,10 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Number key and string key spell the same key',
         code: 'dict[1: "x", "1": "y"]',
+      },
+      {
+        description: 'Type fields spell the same key twice',
+        code: 'dict(a: number, "a": string)',
       },
     ],
   },

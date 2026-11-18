@@ -38,6 +38,8 @@ import {
   expectVariableName,
   isDictStart,
   isNegativeNumber,
+  readStaticKey,
+  rejectRepeatedKey,
 } from './helpers.js';
 import { ERROR_IDS } from '../error-registry.js';
 
@@ -694,6 +696,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   // Parse key: identifier, string, number, boolean, variable, computed, or list literal (multi-key)
   let key: string | ListLiteralNode | DictKeyVariable | DictKeyComputed;
   let keyForm: DictEntryNode['keyForm'] = undefined;
+  let staticKey: ReturnType<typeof readStaticKey>;
 
   if (check(this.state, TOKEN_TYPES.DOLLAR)) {
     // Parse variable key: $variableName
@@ -761,55 +764,9 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
       'Dict entry key must be identifier or list, not dict',
       current(this.state).span.start
     );
-  } else if (check(this.state, TOKEN_TYPES.STRING)) {
-    // Parse string literal as key
-    const keyToken = advance(this.state);
-    key = keyToken.value;
-    keyForm = 'string';
-  } else if (isNegativeNumber(this.state)) {
-    // Parse negative number as key: -NUMBER
-    advance(this.state); // consume MINUS
-    const numToken = advance(this.state); // consume NUMBER
-    key = `-${numToken.value}`;
-    keyForm = 'number';
-  } else if (check(this.state, TOKEN_TYPES.NUMBER)) {
-    // Parse number as key
-    const keyToken = advance(this.state);
-    key = keyToken.value;
-    keyForm = 'number';
-  } else if (check(this.state, TOKEN_TYPES.TRUE)) {
-    // Parse boolean true as key
-    advance(this.state);
-    key = 'true';
-    keyForm = 'bool';
-  } else if (check(this.state, TOKEN_TYPES.FALSE)) {
-    // Parse boolean false as key
-    advance(this.state);
-    key = 'false';
-    keyForm = 'bool';
-  } else if (check(this.state, TOKEN_TYPES.IDENTIFIER)) {
-    // Parse identifier as string key
-    const keyToken = advance(this.state);
-    key = keyToken.value;
-    keyForm = 'identifier';
-  } else if (
-    check(
-      this.state,
-      TOKEN_TYPES.BREAK,
-      TOKEN_TYPES.RETURN,
-      TOKEN_TYPES.YIELD,
-      TOKEN_TYPES.PASS,
-      TOKEN_TYPES.ASSERT,
-      TOKEN_TYPES.ERROR,
-      TOKEN_TYPES.GUARD,
-      TOKEN_TYPES.RETRY,
-      TOKEN_TYPES.WHILE,
-      TOKEN_TYPES.DO
-    )
-  ) {
-    // Reserved keywords parse as identifier-form string keys
-    key = advance(this.state).value;
-    keyForm = 'identifier';
+  } else if ((staticKey = readStaticKey(this.state)) !== undefined) {
+    key = staticKey.key;
+    keyForm = staticKey.keyForm;
   } else {
     // Invalid token at key position
     throw new ParseError(
@@ -919,14 +876,7 @@ function rejectDuplicateKey(
   collection: 'dict' | 'ordered'
 ): void {
   if (entry.keyForm === undefined || typeof entry.key !== 'string') return;
-  if (seenKeys.has(entry.key)) {
-    throw new ParseError(
-      ERROR_IDS.RILL_P027,
-      `Duplicate key '${entry.key}' in ${collection}`,
-      entry.span.start
-    );
-  }
-  seenKeys.add(entry.key);
+  rejectRepeatedKey(seenKeys, entry.key, entry.span.start, collection);
 }
 
 /**

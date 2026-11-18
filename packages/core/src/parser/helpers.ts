@@ -4,7 +4,12 @@
  * @internal This module contains internal parser utilities
  */
 
-import type { BlockNode, HostCallNode, SourceSpan } from '../types.js';
+import type {
+  BlockNode,
+  HostCallNode,
+  SourceLocation,
+  SourceSpan,
+} from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import {
   type ParserState,
@@ -201,6 +206,105 @@ export function isNegativeNumber(state: ParserState): boolean {
     check(state, TOKEN_TYPES.MINUS) &&
     peek(state, 1).type === TOKEN_TYPES.NUMBER
   );
+}
+
+/**
+ * Reserved-keyword token types that spell an identifier-form key.
+ * @internal
+ */
+const KEYWORD_KEY_TYPES: readonly string[] = [
+  TOKEN_TYPES.BREAK,
+  TOKEN_TYPES.RETURN,
+  TOKEN_TYPES.YIELD,
+  TOKEN_TYPES.PASS,
+  TOKEN_TYPES.ASSERT,
+  TOKEN_TYPES.ERROR,
+  TOKEN_TYPES.GUARD,
+  TOKEN_TYPES.RETRY,
+  TOKEN_TYPES.WHILE,
+  TOKEN_TYPES.DO,
+];
+
+/**
+ * Token count of a static dict or type key at the cursor, or 0 when the
+ * cursor does not start one. Static keys are a string, a number, a negative
+ * number (two tokens), true, false, an identifier, or a reserved keyword.
+ * @internal
+ */
+export function staticKeyWidth(state: ParserState): number {
+  if (isNegativeNumber(state)) return 2;
+  const type = current(state).type;
+  if (
+    type === TOKEN_TYPES.STRING ||
+    type === TOKEN_TYPES.NUMBER ||
+    type === TOKEN_TYPES.TRUE ||
+    type === TOKEN_TYPES.FALSE ||
+    type === TOKEN_TYPES.IDENTIFIER ||
+    KEYWORD_KEY_TYPES.includes(type)
+  ) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Read a static key, consuming its tokens, and return its string spelling
+ * with the form it was written in. Returns undefined, consuming nothing, when
+ * the cursor does not start a static key.
+ * @internal
+ */
+export function readStaticKey(
+  state: ParserState
+):
+  | { key: string; keyForm: 'identifier' | 'string' | 'number' | 'bool' }
+  | undefined {
+  if (isNegativeNumber(state)) {
+    advance(state); // consume MINUS
+    return { key: `-${advance(state).value}`, keyForm: 'number' };
+  }
+  const type = current(state).type;
+  if (type === TOKEN_TYPES.STRING) {
+    const raw = advance(state).value;
+    return {
+      key: raw.replaceAll('{{', '{').replaceAll('}}', '}'),
+      keyForm: 'string',
+    };
+  }
+  if (type === TOKEN_TYPES.NUMBER) {
+    return { key: advance(state).value, keyForm: 'number' };
+  }
+  if (type === TOKEN_TYPES.TRUE || type === TOKEN_TYPES.FALSE) {
+    advance(state);
+    return {
+      key: type === TOKEN_TYPES.TRUE ? 'true' : 'false',
+      keyForm: 'bool',
+    };
+  }
+  if (type === TOKEN_TYPES.IDENTIFIER || KEYWORD_KEY_TYPES.includes(type)) {
+    return { key: advance(state).value, keyForm: 'identifier' };
+  }
+  return undefined;
+}
+
+/**
+ * Record a static key in `seen`, or raise RILL-P027 when it was already seen.
+ * @throws ParseError RILL-P027
+ * @internal
+ */
+export function rejectRepeatedKey(
+  seen: Set<string>,
+  key: string,
+  at: SourceLocation,
+  collection: string
+): void {
+  if (seen.has(key)) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P027,
+      `Duplicate key '${key}' in ${collection}`,
+      at
+    );
+  }
+  seen.add(key);
 }
 
 /**

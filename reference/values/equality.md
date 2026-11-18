@@ -120,9 +120,9 @@ $f == $g
 ```
 
 ```rill
-dict[a: 1, b: 2] => $x:dict(a: number)
+dict[a: 1] => $x:dict(a: number)
 $x == dict[a: 1, b: 2]
-# Result: true
+# Result: false
 ```
 
 ```rill

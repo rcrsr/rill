@@ -126,18 +126,24 @@ function losesDefault(dropped: TypeStructure, keeper: TypeStructure): boolean {
 }
 
 /**
- * Named-dict acceptance: `outer` accepts `inner` when every outer key is in
- * inner, each shared outer type accepts the inner type, an inner default is
- * matched by an outer default, and every inner-only key has a default.
- * Mirrors structureMatches, which lets extras pass and defaulted fields
- * be absent.
+ * Named-dict acceptance is exact: `outer` accepts `inner` when every inner
+ * key is an outer key, every outer-only key has an outer default, each
+ * shared key's outer type accepts the inner type, and an inner default is
+ * matched by an outer default. Mirrors structureMatches, which rejects
+ * unnamed keys and lets defaulted fields be absent.
  */
 function dictFieldsAccept(
   outer: Record<string, RillFieldDef>,
   inner: Record<string, RillFieldDef>
 ): boolean {
+  for (const name of Object.keys(inner)) {
+    if (!Object.hasOwn(outer, name)) return false;
+  }
   for (const [name, outerField] of Object.entries(outer)) {
-    if (!Object.hasOwn(inner, name)) return false;
+    if (!Object.hasOwn(inner, name)) {
+      if (outerField.defaultValue === undefined) return false;
+      continue;
+    }
     const innerField = inner[name];
     if (innerField === undefined) return false;
     if (!structureAccepts(outerField.type, innerField.type)) return false;
@@ -145,11 +151,6 @@ function dictFieldsAccept(
       innerField.defaultValue !== undefined &&
       outerField.defaultValue === undefined
     ) {
-      return false;
-    }
-  }
-  for (const [name, innerField] of Object.entries(inner)) {
-    if (!Object.hasOwn(outer, name) && innerField.defaultValue === undefined) {
       return false;
     }
   }

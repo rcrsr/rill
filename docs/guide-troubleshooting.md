@@ -128,6 +128,24 @@ $person.?age ? "has age" ! "no age"
 # Result: "no age"
 ```
 
+## Dict Assertion Halts on Extra Fields
+
+A `:dict(...)` assertion names every key the dict may hold. A dict with an extra key halts `#TYPE_MISMATCH`.
+
+```text
+dict[a: 1, b: 2] -> :dict(a: number)
+# Error: #TYPE_MISMATCH
+```
+
+**Fix:** Convert with `-> dict(...)` to drop the extra key, or name the key in the type.
+
+```rill
+dict[a: 1, b: 2] -> dict(a: number)
+# Result: dict[a: 1]
+```
+
+See [Extra and Missing Dict Fields](topic-type-system.md#extra-and-missing-dict-fields) for the full table.
+
 ## List Index Out of Bounds
 
 ```text

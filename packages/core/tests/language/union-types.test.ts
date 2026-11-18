@@ -445,5 +445,68 @@ describe('union(...) types', () => {
         'RILL-R036'
       );
     });
+
+    it('returns a string unchanged when a member already matches', async () => {
+      expect(await run('"5" -> union(number, string)')).toBe('5');
+    });
+
+    it('halts RILL-R036 when no member matches the value', async () => {
+      await expectHalt(() => run('"5" -> union(number, list)'), {
+        code: 'RILL_R036',
+      });
+    });
+
+    it('halts RILL-R036 rather than TYPE_MISMATCH for a bool into number|string', async () => {
+      await expectHalt(() => run('true -> union(number, string)'), {
+        code: 'RILL_R036',
+      });
+    });
+
+    it('halts RILL-R036 through a held union type', async () => {
+      await expectHalt(() => run('union(number, string) => $T\ntrue -> $T'), {
+        code: 'RILL_R036',
+      });
+    });
+
+    it('returns a match unchanged through a held union type', async () => {
+      expect(await run('union(number, string) => $T\n"5" -> $T')).toBe('5');
+    });
+
+    it('carries the union as the declared type of the result', async () => {
+      expect(
+        await run('5 -> union(number, string) => $v\n$v.^type -> .signature')
+      ).toBe('union(number, string)');
+    });
+
+    it('carries the union through a held union type', async () => {
+      expect(
+        await run(
+          'union(number, string) => $T\n5 -> $T => $v\n$v.^type -> .signature'
+        )
+      ).toBe('union(number, string)');
+    });
+
+    it('halts TYPE_MISMATCH when a carried literal union meets a non-overlapping literal', async () => {
+      await expectHalt(() => run('"a" -> union("a", "b") => $v\n$v == "c"'), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
+    it('reduces a single-member union to the member', async () => {
+      expect(await run('"5" -> union(number)')).toBe(5);
+    });
+
+    it('halts RILL-R036 for a dict that misses the member shape', async () => {
+      await expectHalt(
+        () => run('dict[a: 1, b: 2] -> union(dict(a: number), string)'),
+        { code: 'RILL_R036' }
+      );
+    });
+
+    it('returns a matching dict unchanged without filling defaults', async () => {
+      expect(
+        await run('dict[a: 1] -> union(dict(a: number, b: number = 0), string)')
+      ).toEqual({ a: 1 });
+    });
   });
 });

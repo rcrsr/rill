@@ -305,6 +305,23 @@ Every dict key is a string. A single number or boolean key in a literal names th
 # Result: list["1", "true"]
 ```
 
+A dict type names its fields with the same key forms. An identifier, quoted, number, or boolean key works, and a signature quotes any key that is not an identifier. A repeated key halts `RILL-P027`.
+
+```rill
+dict("a b": number) == dict["a b": 1].^type
+# Result: true
+```
+
+```rill
+dict(1: string) == dict("1": string)
+# Result: true
+```
+
+```rill
+# Error: RILL-P027
+dict(a: number, "a": string)
+```
+
 ```text
 dict[a: 1, a: 2]    # Error: RILL-P027 Duplicate key 'a' in dict
 dict[1: "a", "1": "b"]    # Error: RILL-P027 Duplicate key '1' in dict
