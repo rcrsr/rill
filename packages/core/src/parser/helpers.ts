@@ -385,6 +385,59 @@ export function isDictStart(state: ParserState): boolean {
 }
 
 /**
+ * Token index just past the dict entry key at `pos`, or -1 when no key starts
+ * there. Covers every key `parseDictEntry` reads: identifier, keyword,
+ * string, number, negative number, bool, `$name`, parenthesized computed
+ * expression, and a bracketed multi-key list.
+ * @internal
+ */
+function skipDictKey(state: ParserState, pos: number): number {
+  const token = state.tokens[pos];
+  if (token === undefined) return -1;
+  const type = token.type;
+  if (
+    type === TOKEN_TYPES.IDENTIFIER ||
+    type === TOKEN_TYPES.STRING ||
+    type === TOKEN_TYPES.NUMBER ||
+    type === TOKEN_TYPES.TRUE ||
+    type === TOKEN_TYPES.FALSE ||
+    KEYWORD_KEY_TYPES.includes(type)
+  ) {
+    return pos + 1;
+  }
+  if (type === TOKEN_TYPES.MINUS) {
+    return state.tokens[pos + 1]?.type === TOKEN_TYPES.NUMBER ? pos + 2 : -1;
+  }
+  if (type === TOKEN_TYPES.DOLLAR) {
+    const name = state.tokens[pos + 1];
+    return name !== undefined && isVariableNameToken(name) ? pos + 2 : -1;
+  }
+  const isParen = type === TOKEN_TYPES.LPAREN;
+  if (!isParen && !BRACKET_OPENERS.includes(type)) return -1;
+  const closer = isParen ? TOKEN_TYPES.RPAREN : TOKEN_TYPES.RBRACKET;
+  const opens = (t: string): boolean =>
+    isParen ? t === TOKEN_TYPES.LPAREN : BRACKET_OPENERS.includes(t);
+  let depth = 0;
+  for (let i = pos; i < state.tokens.length; i++) {
+    const t = state.tokens[i]?.type;
+    if (t === undefined || t === TOKEN_TYPES.EOF) return -1;
+    if (opens(t)) depth++;
+    else if (t === closer && --depth === 0) return i + 1;
+  }
+  return -1;
+}
+
+/**
+ * Check whether a dict entry (`key: value`) starts at the cursor: any key
+ * `dict[...]` accepts, followed by a colon. Does not consume tokens.
+ * @internal
+ */
+export function isDictEntryStart(state: ParserState): boolean {
+  const after = skipDictKey(state, state.pos);
+  return after >= 0 && state.tokens[after]?.type === TOKEN_TYPES.COLON;
+}
+
+/**
  * Check for method call with args (for field access termination): .identifier(
  * @internal
  */

@@ -463,7 +463,8 @@ bool          = "true" | "false" ;
 (* List literal: bare bracket form or keyword-prefixed form.
    Both [1, 2, 3] and list[1, 2, 3] are valid and produce the same result.
    For keyword form, keyword and "[" must be adjacent (no whitespace).
-   [] and list[] are empty lists.
+   [] and list[] are empty lists. A bracket literal that mixes positional
+   and keyed entries, such as [1, a: 2], is a parse error (RILL-P001).
 
    Examples:
      []                               -- empty list (bare)
@@ -479,25 +480,29 @@ list-element  = "..." , expression           (* spread: inline list elements *)
               | expression ;                 (* regular element *)
               (* List spread syntax: [1, ...$list, 2] inlines $list elements.
                  The spread expression must evaluate to a list or tuple at runtime.
-                 Example: [1, 2] => $a; [...$a, 3] yields [1, 2, 3]
+                 Example: [1, 2] => $a; [...$a, 3] yields list[1, 2, 3]
                  Error: spreading any other value halts RILL-R002 *)
 
 (* Dict literal: bare bracket form or keyword-prefixed form.
    Both [a: 1] and dict[a: 1] are valid and produce the same result.
    For keyword form, keyword and "[" must be adjacent (no whitespace).
-   [:] and dict[] are empty dicts.
+   [:] and dict[] are empty dicts. The bare form takes every entry the
+   keyword form takes, spread included. [] is the empty list, not a dict.
+   In the bare form, $x: and (expr): are keys, so [$x:number] is a dict; an
+   inline type assertion in a bare list is parenthesized: [($x:number)].
 
    Examples:
      [:]                              -- empty dict (bare)
      [name: "Alice", age: 30]         -- two-key dict (bare)
      [$key: "value"]                  -- variable key (bare)
+     [...$other, b: 2]                -- spread plus entry (bare)
      dict[]                           -- empty dict (keyword)
      dict[name: "Alice", age: 30]     -- two-key dict (keyword) *)
 dict          = "[" , ":" , "]"
-              | "[" , dict-entry , { "," , dict-entry } , "]"
+              | "[" , dict-element , { "," , dict-element } , "]"   (* at least one dict-entry; spreads alone are a list *)
               | "dict" , "[" , "]"
               | "dict" , "[" , dict-element , { "," , dict-element } , "]" ;
-dict-element  = "..." , expression           (* spread: inline dict entries, keyword form only *)
+dict-element  = "..." , expression           (* spread: inline dict entries *)
               | dict-entry ;
 dict-key      = identifier | number | bool | string
               | "break" | "return" | "yield" | "pass" | "assert" | "error"

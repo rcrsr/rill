@@ -173,6 +173,11 @@ and id in the table MUST appear in the frontmatter `errors` list, without the `#
 in that list MUST appear in the table. See
 `conventions/halt.md` for the terms.
 
+A row MAY list a condition whose rule another file owns, so the file's table is complete for its
+construct. The Condition cell names the owning rule id in backticks and does not restate the
+rule, as in "Value has a field a named form does not name (`structural-typing.exact-dict`)".
+The owning rule carries the normative text.
+
 ## Examples
 
 - A ` ```rill ` fence runs in the examples harness. End it with `# Result: <value>`.

@@ -47,10 +47,10 @@ type MUST travel with the value as `carried-type.carriage-declared` states.
 r[declaration.mismatch] A value that lacks the written type halts {pending #628}
 A literal whose value does not have the written type MUST halt with `#TYPE_MISMATCH`.
 
-r[declaration.spellings] A literal has a complete, a kind, and a bare spelling {pending #628}
-`list(number)[1]`, `list[1]`, and `[1]` MUST yield equal values. The complete spelling
-writes the whole type, the kind spelling writes the name and leaves the inner to inference,
-and the bare spelling writes the value alone.
+r[declaration.spellings] A type in front has a complete and a kind spelling {pending #628}
+`list(number)[1]` and `list[1]` MUST yield equal values. The complete spelling writes the
+whole type, and the kind spelling writes the name and leaves the inner to inference.
+`list.bare` owns the equivalence of `[1]` with `list[1]`.
 
 r[declaration.kind] A kind spelling leaves the inner to inference
 A collection written with its kind and no inner, such as `list[1, 2]`, MUST take the inferred

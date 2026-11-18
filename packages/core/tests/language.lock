@@ -4,7 +4,7 @@
 # An entry changing here means the arbiter changed. That must be a language
 # spec change, never a fix to make an implementation change pass.
 #
-# 112 files.
+# 113 files.
 49952ceb33ddcc7695d90088af3ea143b2668676b490acb39d4ab282148945cd  packages/core/tests/language/access-halt.test.ts
 963716dca793a81e392cc1f4c2caa2a38d3b8f032d705489b855f98c3bf112a8  packages/core/tests/language/annotations.test.ts
 8f14c344dbc270cde7e4f66ea4dbaac082d8cc0f5a3a7badf0fe6e6ae8cdb01e  packages/core/tests/language/anonymous-typed-closure-reflection.test.ts
@@ -14,6 +14,7 @@ e872cfed8454e0ae867e90e64d7ba4c12525c1ae0dfd5fc571f68770c030b0ce  packages/core/
 bc7319046983e414375a542e25279b6c60d812eac108dfba07d68ca08a93f2c1  packages/core/tests/language/assert.test.ts
 3b0e4424d3c2e48ff8a180e82ea1f1c2e7311efa27a9ac86b1d2f9fce2042cde  packages/core/tests/language/atom-comment-spelling.test.ts
 2bdc8dee46644b3fa78557ea9b1ab9afead6d78017e757bbd137a0dad88b5969  packages/core/tests/language/atoms.test.ts
+ec4a0cc0ceb4657ac431d41685f9dd5b88cbbd468232f2fc17832ee489ddbf5c  packages/core/tests/language/bare-bracket-literals.test.ts
 3494dea880680a2b9d530a743db1a33bc28b08522b60d8546a50187bf3582754  packages/core/tests/language/bare-syntax.test.ts
 043149c6c092cbf0a5743a4f56f65b43878d8136f530005bb4ec860cea2c21e2  packages/core/tests/language/block-scoping.test.ts
 d677c7610d0f1cfbfe23cbc291616dd5c8cbfb08b1e503d7a3c7c209bed59a6e  packages/core/tests/language/boolean.test.ts
@@ -43,7 +44,7 @@ ee792b853c002918fc6cdde9a788af66d88b2d8a91aeddb629f70d55b46219bc  packages/core/
 6265bb0a7b6af057d2983f4145ed1d45efb6c0026811137c7c763178d86e8204  packages/core/tests/language/dict.test.ts
 77821fcb2aaeffbb508a1065a781151714e39cafef24ac6ec27383f3410b8980  packages/core/tests/language/duration.test.ts
 90d8b187dc7737244a7a33e9f1157334c53150fe3280df429be78b8a9dfb451e  packages/core/tests/language/dynamic-field-access.test.ts
-e9d330106a8d9639e2ff651fc82e80afc822ef480b45b8d45dacc7ee222c07e8  packages/core/tests/language/equality-gate.test.ts
+02aff189cc3f0d08b5dfbf418b6279c0fc410c9eea905d54e81910afe47056b7  packages/core/tests/language/equality-gate.test.ts
 889e89550a71d22ee22964d8e4a6aa3f6d12e23bb1f59c8a2851179f09868051  packages/core/tests/language/error-code-type.test.ts
 39e4aeaf63e373102f9d546c4a29cf97d081abe058ad0c9aaeae1726cab84ba7  packages/core/tests/language/error.test.ts
 93a1df4b6c6ddaada1a4dc0a3957a9c0a4f6e4b1a874c12b4d861704d2591036  packages/core/tests/language/existence-check-dynamic.test.ts
@@ -100,7 +101,7 @@ cf6177bb542f7df526e4a1e7e61ef7e8ed1441618723f93ae0f3dbffb9cc0b23  packages/core/
 024cf7efeb9813f93133e4d46efc5ed3f609c0fc8ff45b34e21d763a935d3543  packages/core/tests/language/trace-frames.test.ts
 d5aa82062ffce258d5e3fa4775723f6683d878fa4a5397f67dcb05fc12ad5bbb  packages/core/tests/language/tuple-positions.test.ts
 9f76e7c43bbc41c79698fe279740a9984d2cb5fa5bd21bb3fb742812a59e0f6e  packages/core/tests/language/type-assertions.test.ts
-763f58951b717f38acdfda733359b346ad4a3b497eeede441d394fd98b15ad73  packages/core/tests/language/type-field-keys.test.ts
+dfa8a94cac60984c848a04b1f753eeea03e55b69d501fb2c8c1799e836aadb98  packages/core/tests/language/type-field-keys.test.ts
 53196a5e7dc1d47d1a3a140376e6bfc3e8500fd0c2c5ad3e3027f1e5dbc36c3a  packages/core/tests/language/type-form-outer.test.ts
 6c81573a301735b770b429675ae290292e432c8a97a37a5059ddfe1a5955d725  packages/core/tests/language/type-inner-outer.test.ts
 8811175596270fd0ea608c84a17393814f2b9cbcc0cdfcc5a1dd570e25f58f31  packages/core/tests/language/type-ref-arg-unification.test.ts

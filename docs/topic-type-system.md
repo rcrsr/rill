@@ -56,7 +56,7 @@ Type constructor fields accept a default value using `= literal` syntax after th
 
 ```rill
 [b: "b"] -> dict(b: string, a: string = "a")
-# Result: [b: "b", a: "a"]
+# Result: dict[a: "a", b: "b"]
 ```
 
 The input `[b: "b"]` omits `a`. The conversion fills `a` with `"a"` from the default.
@@ -377,6 +377,8 @@ dict(b: string, a: string) => $dt
 dict[b: "b"] -> :$dt
 # Error: type assertion fails
 ```
+
+Inside a bare bracket, `$x:` and `(expr):` read as dict keys, so `[$x:number]` is a dict. Write an inline assertion on a list element in parentheses, as in `[($x:number)]`.
 
 ### Check Type (`:?type`)
 

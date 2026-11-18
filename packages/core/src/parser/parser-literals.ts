@@ -36,7 +36,7 @@ import {
 } from './state.js';
 import {
   expectVariableName,
-  isDictStart,
+  isDictEntryStart,
   isNegativeNumber,
   readStaticKey,
   rejectRepeatedKey,
@@ -557,17 +557,29 @@ Parser.prototype.parseTuple = function (
   const elements: (ExpressionNode | ListSpreadNode)[] = [];
   elements.push(this.parseTupleElement());
   skipNewlines(this.state);
+  return finishTuple(this, start, elements);
+};
 
-  while (check(this.state, TOKEN_TYPES.COMMA)) {
-    const comma = advance(this.state);
-    skipNewlines(this.state);
-    rejectTrailingComma(this.state, comma, 'tuple');
-    elements.push(this.parseTupleElement());
-    skipNewlines(this.state);
+/**
+ * Parse the remaining `, element` pairs and the closing `]` of a bare list
+ * whose first elements are already collected.
+ * @internal
+ */
+function finishTuple(
+  parser: Parser,
+  start: SourceLocation,
+  elements: (ExpressionNode | ListSpreadNode)[]
+): ListLiteralNode {
+  while (check(parser.state, TOKEN_TYPES.COMMA)) {
+    const comma = advance(parser.state);
+    skipNewlines(parser.state);
+    rejectTrailingComma(parser.state, comma, 'tuple');
+    elements.push(parser.parseTupleElement());
+    skipNewlines(parser.state);
   }
 
   const rbracket = expect(
-    this.state,
+    parser.state,
     TOKEN_TYPES.RBRACKET,
     'Expected ]',
     ERROR_IDS.RILL_P005
@@ -578,7 +590,7 @@ Parser.prototype.parseTuple = function (
     defaultValue: null,
     span: makeSpan(start, rbracket.span.end),
   } satisfies ListLiteralNode;
-};
+}
 
 Parser.prototype.parseTupleOrDict = function (
   this: Parser
@@ -613,12 +625,71 @@ Parser.prototype.parseTupleOrDict = function (
     };
   }
 
-  if (isDictStart(this.state)) {
+  if (check(this.state, TOKEN_TYPES.ELLIPSIS)) {
+    return parseSpreadLedBracket(this, start);
+  }
+
+  if (isDictEntryStart(this.state)) {
     return this.parseDict(start);
   }
 
   return this.parseTuple(start);
 };
+
+/**
+ * Parse a bare bracket that opens with `...` in one pass. Leading spreads are
+ * parsed once; the first non-spread element decides the kind: a keyed entry
+ * makes a dict (the spreads become its spread entries), anything else a list.
+ * A bracket holding only spreads stays a list.
+ * @internal
+ */
+function parseSpreadLedBracket(
+  parser: Parser,
+  start: SourceLocation
+): ListLiteralNode | DictNode {
+  const state = parser.state;
+  const spreads: ListSpreadNode[] = [];
+  let pendingComma: Token | undefined;
+  while (check(state, TOKEN_TYPES.ELLIPSIS)) {
+    const spread = parser.parseTupleElement();
+    if (spread.type !== 'ListSpread') {
+      throw new ParseError(
+        ERROR_IDS.RILL_P004,
+        "Expected expression after '...'",
+        current(state).span.start
+      );
+    }
+    spreads.push(spread);
+    skipNewlines(state);
+    pendingComma = undefined;
+    if (!check(state, TOKEN_TYPES.COMMA)) break;
+    pendingComma = advance(state);
+    skipNewlines(state);
+  }
+
+  if (pendingComma !== undefined && isDictEntryStart(state)) {
+    const entries: DictEntryNode[] = spreads.map((spread) => ({
+      type: 'DictEntry',
+      key: '...',
+      value: spread.expression,
+      span: spread.span,
+    }));
+    const seenKeys = new Set<string>();
+    const first = parseDictEntryOrSpread(parser);
+    rejectDuplicateKey(seenKeys, first, 'dict');
+    entries.push(first);
+    skipNewlines(state);
+    return finishDict(parser, start, entries, seenKeys);
+  }
+
+  const elements: (ExpressionNode | ListSpreadNode)[] = [...spreads];
+  if (pendingComma !== undefined) {
+    rejectTrailingComma(state, pendingComma, 'tuple');
+    elements.push(parser.parseTupleElement());
+    skipNewlines(state);
+  }
+  return finishTuple(parser, start, elements);
+}
 
 Parser.prototype.parseTupleElement = function (
   this: Parser
@@ -665,19 +736,32 @@ Parser.prototype.parseDict = function (
   rejectDuplicateKey(seenKeys, first, 'dict');
   entries.push(first);
   skipNewlines(this.state);
+  return finishDict(this, start, entries, seenKeys);
+};
 
-  while (check(this.state, TOKEN_TYPES.COMMA)) {
-    const comma = advance(this.state);
-    skipNewlines(this.state);
-    rejectTrailingComma(this.state, comma, 'dict');
-    const next = parseDictEntryOrSpread(this);
+/**
+ * Parse the remaining `, entry` pairs and the closing `]` of a bare dict
+ * whose first entries are already collected.
+ * @internal
+ */
+function finishDict(
+  parser: Parser,
+  start: SourceLocation,
+  entries: DictEntryNode[],
+  seenKeys: Set<string>
+): DictNode {
+  while (check(parser.state, TOKEN_TYPES.COMMA)) {
+    const comma = advance(parser.state);
+    skipNewlines(parser.state);
+    rejectTrailingComma(parser.state, comma, 'dict');
+    const next = parseDictEntryOrSpread(parser);
     rejectDuplicateKey(seenKeys, next, 'dict');
     entries.push(next);
-    skipNewlines(this.state);
+    skipNewlines(parser.state);
   }
 
   const rbracket = expect(
-    this.state,
+    parser.state,
     TOKEN_TYPES.RBRACKET,
     'Expected ]',
     ERROR_IDS.RILL_P005
@@ -688,7 +772,7 @@ Parser.prototype.parseDict = function (
     defaultValue: null,
     span: makeSpan(start, rbracket.span.end),
   };
-};
+}
 
 Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   const start = current(this.state).span.start;

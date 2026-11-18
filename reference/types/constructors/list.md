@@ -5,9 +5,9 @@ status: normative
 since: 0.24.0
 issues: []
 grammar: [type-constructor]
-errors: [RILL-P006, INVALID_INPUT]
+errors: [RILL-P001, RILL-P006, INVALID_INPUT]
 depends: [type-value, type-form]
-tests: [structural-type-identity.test.ts, structural-type-boundaries.test.ts, type-inner-outer.test.ts, type-assertions.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts]
+tests: [structural-type-identity.test.ts, structural-type-boundaries.test.ts, type-inner-outer.test.ts, type-assertions.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts, bare-bracket-literals.test.ts]
 ---
 
 # List types
@@ -41,6 +41,20 @@ A list type written with an outer, such as `list(number):string`, MUST be a pars
 r[list.unspecified] list, list(), and list(any) are one type
 `list()` MUST be accepted. `list`, `list()`, and `list(any)` MUST compare equal.
 
+r[list.bare] A bare bracket list is shorthand for the keyword list
+A list literal written as `[1, 2]` MUST mean `list[1, 2]`: the two MUST yield equal values of
+equal type, at every nesting depth, so `[[1], [2]]` means `list[list[1], list[2]]`. A bare list
+MUST accept spread elements, as in `[1, ...$l]`, and MUST take an inline type assertion on an
+element only in parentheses, as in `[($x:number)]`: a bare `[$x:number]` is a dict
+(`dict.bare`).
+
+r[list.bare-empty] A bare empty bracket is the empty list
+`[]` MUST be the empty list and MUST equal `list[]`. An empty dict is written `[:]` or `dict[]`.
+
+r[list.bare-mixed] A bare bracket mixing positional and keyed entries is rejected
+A bracket literal that mixes positional and keyed entries, such as `[1, a: 2]` or `[a: 1, 1]`,
+MUST be a parse error RILL-P001.
+
 ## Evaluation
 
 r[list.membership] A list has list(T) when every element has T
@@ -61,6 +75,10 @@ r[list.print] A list type prints its element type
 `list(T)` MUST print as `list(T)` with `T` in printed form. `inference.empty` states the type of
 an empty list.
 
+r[list.value-print] A list value prints in the keyword spelling
+A list value MUST print as `list[...]` and never as a bare bracket list, so `[1, 2]` prints
+`list[1, 2]` and a nested list prints `list[list[1], list[2]]`.
+
 ## Interactions
 
 An unknown type name as the argument follows `type-form.unknown-name`, and a variable argument
@@ -72,12 +90,28 @@ that holds a non-type follows `type-value.variable-halt`.
 |-----------|-------|-----------|
 | More or fewer than one argument, or a named argument | `#INVALID_INPUT` | Yes |
 | Outer on a type that takes none | RILL-P006 | No |
+| A bracket literal mixes positional and keyed entries | RILL-P001 | No |
 
 ## Examples
 
 ```rill
 list[1, 2].^type == list(number)
 # Result: true
+```
+
+```rill
+[1, 2] == list[1, 2]
+# Result: true
+```
+
+```rill
+[] == list[]
+# Result: true
+```
+
+```rill
+[[1], [2]] -> string
+# Result: "list[list[1], list[2]]"
 ```
 
 ```rill
