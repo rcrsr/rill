@@ -1395,7 +1395,7 @@ try {
 function structureOverlaps(a: TypeStructure, b: TypeStructure): boolean;
 ```
 
-It implements the strict rule behind the `#TYPE_MISMATCH` halt of `==`, `!=`, `.eq`, `.ne`, `.has`, `.has_any`, and `.has_all`. The runtime relaxes it in one case. When either operand carries a declared type, a dict key on one side only passes. See [Operators](topic-operators.md) for the halt rule.
+It implements the rule behind the `#TYPE_MISMATCH` halt of `==`, `!=`, `.eq`, `.ne`, `.has`, `.has_any`, and `.has_all`, whether or not an operand carries a declared type. See [Operators](topic-operators.md) for the halt rule.
 
 ---
 
