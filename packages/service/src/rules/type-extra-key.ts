@@ -29,8 +29,13 @@ import type {
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { formatFieldKey } from '@rcrsr/rill';
 import { typeRefToString } from '../type-rendering.js';
-import { extractContextLine } from './helpers.js';
+import {
+  chainlessVariableName,
+  extractContextLine,
+  staticEntryKey,
+} from './helpers.js';
 import { unwrapBareLiteral } from './literal-shape.js';
+import { isPassThroughStep } from './static-type.js';
 import { registeredRules } from './rules-registry.js';
 
 type KnownSource = DictNode | DictLiteralNode | OrderedLiteralNode;
@@ -50,17 +55,10 @@ function knownDictSource(
   ) {
     return node;
   }
-  if (
-    node.type === 'Variable' &&
-    !node.isPipeVar &&
-    node.name !== null &&
-    node.accessChain.length === 0 &&
-    node.defaultValue === null &&
-    node.existenceCheck === null
-  ) {
-    return context.facts.script.dictLiteralVars.get(node.name) ?? null;
-  }
-  return null;
+  const name = chainlessVariableName(node);
+  return name === null
+    ? null
+    : (context.facts.script.dictLiteralVars.get(name) ?? null);
 }
 
 /** Static string keys of a literal's entries, or null when any key is dynamic. */
@@ -70,10 +68,9 @@ function staticEntries(
   if (source.type === 'Dict' && source.defaultValue !== null) return null;
   const out: Array<readonly [string, DictEntryNode]> = [];
   for (const entry of source.entries) {
-    if (typeof entry.key !== 'string' || entry.keyForm === undefined) {
-      return null;
-    }
-    out.push([entry.key, entry]);
+    const key = staticEntryKey(entry);
+    if (key === null) return null;
+    out.push([key, entry]);
   }
   return out;
 }
@@ -176,14 +173,15 @@ function validatePipeChain(
   for (const step of steps) {
     if (source === null) break;
     const at = step.span.start;
-    switch (step.type) {
-      case 'TypeAssertion':
-        if (step.operand !== null) {
-          source = null;
-          break;
-        }
+    if (isPassThroughStep(step)) {
+      if (step.type === 'TypeAssertion') {
         out.push(...report(at, source, step.typeRef, 'check', context));
-        break;
+      } else if (step.type === 'Capture' && step.typeRef !== null) {
+        out.push(...report(at, source, step.typeRef, 'capture', context));
+      }
+      continue;
+    }
+    switch (step.type) {
       case 'TypeCheck':
         if (step.operand !== null) {
           source = null;
@@ -191,11 +189,6 @@ function validatePipeChain(
         }
         out.push(...report(at, source, step.typeRef, 'probe', context));
         source = null;
-        break;
-      case 'Capture':
-        if (step.typeRef !== null) {
-          out.push(...report(at, source, step.typeRef, 'capture', context));
-        }
         break;
       case 'Closure': {
         const [first] = step.params;

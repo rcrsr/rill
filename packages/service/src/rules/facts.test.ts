@@ -508,3 +508,66 @@ describe('access-derived facts', () => {
     expect(collectFacts(root).bySubtree.get(root)?.hasBracketAccess).toBe(true);
   });
 });
+
+// ============================================================
+// declaredTypes, entriesVars, entriesBodies
+// ============================================================
+
+describe('declaredTypes', () => {
+  const script = (source: string) => collectFacts(parse(source)).script;
+
+  it('records a typed capture bound once', () => {
+    expect(script('5 => $n:number\n').declaredTypes.get('n')).toEqual({
+      kind: 'static',
+      typeName: 'number',
+    });
+  });
+
+  it('records a typed closure param bound once', () => {
+    expect(script('|x: number| ($x) => $f\n').declaredTypes.get('x')).toEqual({
+      kind: 'static',
+      typeName: 'number',
+    });
+  });
+
+  it('omits a name bound twice', () => {
+    expect(script('5 => $n:number\n6 => $n\n').declaredTypes.has('n')).toBe(
+      false
+    );
+  });
+
+  it('omits a typed param used in two closures', () => {
+    const source = '|x: number| ($x) => $f\n|x: number| ($x) => $g\n';
+    expect(script(source).declaredTypes.has('x')).toBe(false);
+  });
+});
+
+describe('entriesVars and entriesBodies', () => {
+  const script = (source: string) => collectFacts(parse(source)).script;
+
+  it('puts a variable captured from an .entries read in entriesVars', () => {
+    expect([
+      ...script('dict[a: 1] => $d\n$d.entries => $p\n').entriesVars,
+    ]).toEqual(['p']);
+  });
+
+  it('puts a collection-op body fed by an .entries stage in entriesBodies', () => {
+    const source = 'dict[a: 1] => $d\n$d -> .entries -> seq({ $ })\n';
+    const root = parse(source);
+    const body = bodyOfFirstCall(root, 'seq');
+    expect(collectFacts(root).script.entriesBodies.has(body)).toBe(true);
+  });
+
+  it('puts a body fed by an entriesVars variable in entriesBodies', () => {
+    const source = 'dict[a: 1] => $d\n$d.entries => $p\n$p -> seq({ $ })\n';
+    const root = parse(source);
+    const body = bodyOfFirstCall(root, 'seq');
+    expect(collectFacts(root).script.entriesBodies.has(body)).toBe(true);
+  });
+
+  it('adds nothing for a list literal input', () => {
+    const facts = script('list[list[1]] -> seq({ $ })\n');
+    expect(facts.entriesVars.size).toBe(0);
+    expect(facts.entriesBodies.size).toBe(0);
+  });
+});

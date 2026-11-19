@@ -21,7 +21,11 @@ import { structureOverlaps } from '@rcrsr/rill';
 import type { ASTNode, TypeStructure } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
-import { literalKind, unwrapBareLiteral } from './literal-shape.js';
+import {
+  literalKind,
+  scalarLiteralKind,
+  unwrapBareLiteral,
+} from './literal-shape.js';
 import { registeredRules } from './rules-registry.js';
 
 // ============================================================
@@ -33,12 +37,6 @@ const MEMBERSHIP_METHODS: ReadonlySet<string> = new Set([
   'has',
   'has_any',
   'has_all',
-]);
-const SCALAR_KINDS: ReadonlySet<string> = new Set([
-  'number',
-  'string',
-  'bool',
-  'atom',
 ]);
 
 /** The statically known structure of an operand, or null when unknowable. */
@@ -64,19 +62,13 @@ interface ComparedPair {
   readonly description: string;
 }
 
-/** The scalar kind of a bare literal, or null for anything else. */
-function scalarKind(expr: ASTNode): string | null {
-  const kind = literalKind(unwrapBareLiteral(expr));
-  return kind !== null && SCALAR_KINDS.has(kind) ? kind : null;
-}
-
 /** The distinct scalar kinds of a list literal's elements, or null when unknowable. */
 function listScalarKinds(expr: ASTNode): string[] | null {
   const node = unwrapBareLiteral(expr);
   if (node.type !== 'ListLiteral' || node.elements.length === 0) return null;
   const kinds = new Set<string>();
   for (const element of node.elements) {
-    const kind = scalarKind(element);
+    const kind = scalarLiteralKind(element);
     if (kind === null) return null;
     kinds.add(kind);
   }
@@ -114,7 +106,7 @@ function methodPair(
   if (elements === null) return null;
   let sought: string[] | null;
   if (call.name === 'has') {
-    const kind = scalarKind(arg);
+    const kind = scalarLiteralKind(arg);
     sought = kind === null ? null : [kind];
   } else {
     sought = listScalarKinds(arg);

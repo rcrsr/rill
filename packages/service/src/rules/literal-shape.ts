@@ -9,6 +9,7 @@
  */
 
 import type { ASTNode, DictEntryNode } from '@rcrsr/rill';
+import { staticEntryKey } from './helpers.js';
 
 // ============================================================
 // CONSTANTS
@@ -92,20 +93,32 @@ export function literalKind(node: ASTNode): LiteralKind | null {
 }
 
 // ============================================================
-// SHAPES
+// SCALAR KINDS
 // ============================================================
 
-function staticKey(entry: DictEntryNode): string | null {
-  const { key } = entry;
-  if (typeof key === 'string') return key === '...' ? null : key;
-  return null;
+/** The scalar literal kinds a rule can judge statically. */
+export const SCALAR_KINDS: ReadonlySet<string> = new Set([
+  'number',
+  'string',
+  'bool',
+  'atom',
+]);
+
+/** The scalar kind of a bare literal expression, or null for anything else. */
+export function scalarLiteralKind(expr: ASTNode): string | null {
+  const kind = literalKind(unwrapBareLiteral(expr));
+  return kind !== null && SCALAR_KINDS.has(kind) ? kind : null;
 }
+
+// ============================================================
+// SHAPES
+// ============================================================
 
 /** Key:shape pairs for a dict or ordered literal, or null when any is non-static. */
 function entryShapes(entries: readonly DictEntryNode[]): string[] | null {
   const pairs: string[] = [];
   for (const entry of entries) {
-    const key = staticKey(entry);
+    const key = staticEntryKey(entry);
     const value = literalShape(entry.value);
     if (key === null || value === null) return null;
     pairs.push(`${key}:${value}`);
@@ -195,7 +208,7 @@ export function isMixedValueDict(node: ASTNode): boolean {
   if (node.type !== 'Dict' && node.type !== 'DictLiteral') return false;
   const shapes: string[] = [];
   for (const entry of node.entries) {
-    if (staticKey(entry) === null) return false;
+    if (staticEntryKey(entry) === null) return false;
     const shape = literalShape(entry.value);
     if (shape !== null && shape !== EMPTY_SHAPE) shapes.push(shape);
   }

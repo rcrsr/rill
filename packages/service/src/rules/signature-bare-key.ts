@@ -12,7 +12,11 @@
 import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { formatFieldKey } from '@rcrsr/rill';
-import { comparedOperands, extractContextLine } from './helpers.js';
+import {
+  comparedOperands,
+  extractContextLine,
+  trailingMemberName,
+} from './helpers.js';
 import { unwrapBareLiteral } from './literal-shape.js';
 import { registeredRules } from './rules-registry.js';
 
@@ -27,28 +31,12 @@ const KEY_BREAKERS = '()[],"';
 /** True for a `.signature` read: `$t.signature` or `dict(...).signature`. */
 function isSignatureRead(node: ASTNode): boolean {
   if (node.type === 'Variable') {
-    const last = node.accessChain.at(-1);
-    return (
-      node.defaultValue === null &&
-      node.existenceCheck === null &&
-      last !== undefined &&
-      'kind' in last &&
-      last.kind === 'literal' &&
-      last.field === 'signature'
-    );
+    if (node.defaultValue !== null || node.existenceCheck !== null)
+      return false;
+  } else if (node.type === 'PostfixExpr') {
+    if (node.defaultValue !== null || node.existenceCheck) return false;
   }
-  if (node.type === 'PostfixExpr') {
-    const last = node.methods.at(-1);
-    return (
-      node.defaultValue === null &&
-      !node.existenceCheck &&
-      last?.type === 'MethodCall' &&
-      last.name === 'signature' &&
-      !last.hasParens &&
-      last.args.length === 0
-    );
-  }
-  return false;
+  return trailingMemberName(node) === 'signature';
 }
 
 /** Keys in a signature string that are spelled bare but print quoted. */

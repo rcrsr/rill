@@ -6180,12 +6180,38 @@
   {
     "index": 440,
     "file": "bare-bracket-literals.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 2,
+          "offset": 1
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "[1: \"x\"] == dict[\"1\": \"x\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 441,
     "file": "bare-bracket-literals.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 2,
+          "offset": 1
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "[true: 1] == dict[\"true\": 1]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 442,
@@ -6341,7 +6367,32 @@
   {
     "index": 457,
     "file": "bare-bracket-literals.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 2,
+          "offset": 1
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key -1 is stored as the string \"-1\". Quote it to write that spelling directly.",
+        "context": "[-1: 1] == dict[-1: 1]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 17,
+          "offset": 16
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key -1 is stored as the string \"-1\". Quote it to write that spelling directly.",
+        "context": "[-1: 1] == dict[-1: 1]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 458,
@@ -11327,7 +11378,20 @@
   {
     "index": 864,
     "file": "collection-literals.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 14,
+          "offset": 13
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key -1 is stored as the string \"-1\". Quote it to write that spelling directly.",
+        "context": "\"-1\" -> dict[-1: \"x\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 865,
@@ -11382,7 +11446,20 @@
   {
     "index": 875,
     "file": "collection-literals.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 9,
+          "offset": 8
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key -1 is stored as the string \"-1\". Quote it to write that spelling directly.",
+        "context": "ordered[-1: \"x\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 876,
@@ -16300,6 +16377,18 @@
     "file": "default-value-operator.test.ts",
     "diagnostics": [
       {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"x\"] => $d",
+        "fix": null
+      },
+      {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $d -> ...' instead of separate statements",
         "severity": "info",
@@ -16317,6 +16406,18 @@
     "index": 1406,
     "file": "default-value-operator.test.ts",
     "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"x\"] => $d",
+        "fix": null
+      },
       {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $d -> ...' instead of separate statements",
@@ -17056,87 +17157,464 @@
   {
     "index": 1471,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 13,
+          "offset": 12
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "\"1\" -> dict[1: \"one\", 2: \"two\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 23,
+          "offset": 22
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 2 is stored as the string \"2\". Quote it to write that spelling directly.",
+        "context": "\"1\" -> dict[1: \"one\", 2: \"two\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1472,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 13,
+          "offset": 12
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "\"2\" -> dict[1: \"one\", 2: \"two\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 23,
+          "offset": 22
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 2 is stored as the string \"2\". Quote it to write that spelling directly.",
+        "context": "\"2\" -> dict[1: \"one\", 2: \"two\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1473,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 14,
+          "offset": 13
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key -1 is stored as the string \"-1\". Quote it to write that spelling directly.",
+        "context": "\"-1\" -> dict[-1: \"negative\", 1: \"positive\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 30,
+          "offset": 29
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "\"-1\" -> dict[-1: \"negative\", 1: \"positive\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1474,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 16,
+          "offset": 15
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 3.14 is stored as the string \"3.14\". Quote it to write that spelling directly.",
+        "context": "\"3.14\" -> dict[3.14: \"pi\", 2.71: \"e\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 28,
+          "offset": 27
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 2.71 is stored as the string \"2.71\". Quote it to write that spelling directly.",
+        "context": "\"3.14\" -> dict[3.14: \"pi\", 2.71: \"e\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1475,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 16,
+          "offset": 15
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "\"true\" -> dict[true: \"yes\", false: \"no\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 29,
+          "offset": 28
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key false is stored as the string \"false\". Quote it to write that spelling directly.",
+        "context": "\"true\" -> dict[true: \"yes\", false: \"no\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1476,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 17,
+          "offset": 16
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "\"false\" -> dict[true: \"yes\", false: \"no\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 30,
+          "offset": 29
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key false is stored as the string \"false\". Quote it to write that spelling directly.",
+        "context": "\"false\" -> dict[true: \"yes\", false: \"no\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1477,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 13,
+          "offset": 12
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "\"3\" -> dict[1: \"one\", 2: \"two\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 23,
+          "offset": 22
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 2 is stored as the string \"2\". Quote it to write that spelling directly.",
+        "context": "\"3\" -> dict[1: \"one\", 2: \"two\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1478,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "DISPATCH_SELECTOR_NOT_STRING",
+        "message": "A dispatch table takes a string selector, but this value is number; the dispatch halts #TYPE_MISMATCH before any lookup, even with a ?? default. Convert first with -> string.",
+        "severity": "warning",
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "context": "1 -> dict[1: \"one\", 2: \"two\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 11,
+          "offset": 10
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "1 -> dict[1: \"one\", 2: \"two\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 21,
+          "offset": 20
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 2 is stored as the string \"2\". Quote it to write that spelling directly.",
+        "context": "1 -> dict[1: \"one\", 2: \"two\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1479,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "DISPATCH_SELECTOR_NOT_STRING",
+        "message": "A dispatch table takes a string selector, but this value is bool; the dispatch halts #TYPE_MISMATCH before any lookup, even with a ?? default. Convert first with -> string.",
+        "severity": "warning",
+        "location": {
+          "line": 1,
+          "column": 9,
+          "offset": 8
+        },
+        "context": "true -> dict[true: \"yes\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 14,
+          "offset": 13
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "true -> dict[true: \"yes\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1480,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 13,
+          "offset": 12
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "\"3\" -> dict[1: \"one\", 2: \"two\"] ?? \"other\"",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 23,
+          "offset": 22
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 2 is stored as the string \"2\". Quote it to write that spelling directly.",
+        "context": "\"3\" -> dict[1: \"one\", 2: \"two\"] ?? \"other\"",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1481,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 17,
+          "offset": 16
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "\"false\" -> dict[true: \"yes\"] ?? \"no\"",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1482,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 13,
+          "offset": 12
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "\"1\" -> dict[1: \"number\", one: \"identifier\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1483,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "DISPATCH_SELECTOR_NOT_STRING",
+        "message": "A dispatch table takes a string selector, but this value is number; the dispatch halts #TYPE_MISMATCH before any lookup, even with a ?? default. Convert first with -> string.",
+        "severity": "warning",
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "context": "1 -> dict[1: \"n\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 11,
+          "offset": 10
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "1 -> dict[1: \"n\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1484,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 16,
+          "offset": 15
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "\"true\" -> dict[true: \"bool\", truthy: \"identifier\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1485,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 18,
+          "offset": 17
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "\"truthy\" -> dict[true: \"b\", truthy: \"s\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1486,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "DISPATCH_SELECTOR_NOT_STRING",
+        "message": "A dispatch table takes a string selector, but this value is number; the dispatch halts #TYPE_MISMATCH before any lookup, even with a ?? default. Convert first with -> string.",
+        "severity": "warning",
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "context": "1 -> dict[one: \"s\", two: \"s\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1487,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 13,
+          "offset": 12
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "\"3\" -> dict[1: \"n\", 2: \"n\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 21,
+          "offset": 20
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 2 is stored as the string \"2\". Quote it to write that spelling directly.",
+        "context": "\"3\" -> dict[1: \"n\", 2: \"n\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1488,
@@ -17146,12 +17624,38 @@
   {
     "index": 1489,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 14,
+          "offset": 13
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 42 is stored as the string \"42\". Quote it to write that spelling directly.",
+        "context": "\"42\" -> dict[42: \"answer\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1490,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 16,
+          "offset": 15
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "\"true\" -> dict[true: \"yes\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1491,
@@ -17303,7 +17807,20 @@
   {
     "index": 1513,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "DISPATCH_SELECTOR_NOT_STRING",
+        "message": "A dispatch table takes a string selector, but this value is number; the dispatch halts #TYPE_MISMATCH before any lookup, even with a ?? default. Convert first with -> string.",
+        "severity": "warning",
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "context": "1 -> dict[list[1, 2]: \"x\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1514,
@@ -17478,12 +17995,62 @@
   {
     "index": 1535,
     "file": "dict-key-form.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"x\", -2.50: \"y\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 14,
+          "offset": 13
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key -2.50 is stored as the string \"-2.50\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"x\", -2.50: \"y\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1536,
     "file": "dict-key-form.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "dict[true: \"x\", false: \"y\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 17,
+          "offset": 16
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key false is stored as the string \"false\". Quote it to write that spelling directly.",
+        "context": "dict[true: \"x\", false: \"y\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1537,
@@ -17518,7 +18085,44 @@
   {
     "index": 1543,
     "file": "dict-key-form.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 9 is stored as the string \"9\". Quote it to write that spelling directly.",
+        "context": "dict[9: \"a\", 10: \"b\", 1: \"c\"] -> .keys",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 14,
+          "offset": 13
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 10 is stored as the string \"10\". Quote it to write that spelling directly.",
+        "context": "dict[9: \"a\", 10: \"b\", 1: \"c\"] -> .keys",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 23,
+          "offset": 22
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[9: \"a\", 10: \"b\", 1: \"c\"] -> .keys",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1544,
@@ -17668,6 +18272,18 @@
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
       {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
+      {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $d -> ...' instead of separate statements",
         "severity": "info",
@@ -17685,6 +18301,18 @@
     "index": 1558,
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "dict[true: \"t\"] => $b",
+        "fix": null
+      },
       {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $b -> ...' instead of separate statements",
@@ -18206,6 +18834,18 @@
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
       {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
+      {
         "code": "THROWAWAY_CAPTURE",
         "message": "'$d' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
@@ -18223,6 +18863,18 @@
     "index": 1601,
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
+      {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "dict[true: \"t\"] => $b",
+        "fix": null
+      },
       {
         "code": "THROWAWAY_CAPTURE",
         "message": "'$b' is captured and used only once, away from its capture; consider inlining instead",
@@ -18242,6 +18894,18 @@
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
       {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
+      {
         "code": "THROWAWAY_CAPTURE",
         "message": "'$d' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
@@ -18259,6 +18923,18 @@
     "index": 1603,
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
+      {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
       {
         "code": "THROWAWAY_CAPTURE",
         "message": "'$d' is captured and used only once, away from its capture; consider inlining instead",
@@ -18308,6 +18984,18 @@
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
       {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
+      {
         "code": "THROWAWAY_CAPTURE",
         "message": "'$d' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
@@ -18325,6 +19013,18 @@
     "index": 1606,
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
+      {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
       {
         "code": "THROWAWAY_CAPTURE",
         "message": "'$d' is captured and used only once, away from its capture; consider inlining instead",
@@ -18368,6 +19068,18 @@
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
       {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
+      {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $d -> ...' instead of separate statements",
         "severity": "info",
@@ -18386,6 +19098,18 @@
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
       {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
+      {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $d -> ...' instead of separate statements",
         "severity": "info",
@@ -18403,6 +19127,18 @@
     "index": 1609,
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
+      {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
       {
         "location": {
           "line": 3,
@@ -18433,6 +19169,18 @@
     "index": 1610,
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
+      {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
       {
         "code": "THROWAWAY_CAPTURE",
         "message": "'$d' is captured and used only once, away from its capture; consider inlining instead",
@@ -18479,6 +19227,18 @@
           "offset": 14
         },
         "context": "\"1\" => $k",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 3,
+          "column": 15,
+          "offset": 31
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "ordered[1: \"a\", $k: \"b\"] => $o",
         "fix": null
       }
     ]
@@ -30747,12 +31507,50 @@
   {
     "index": 2824,
     "file": "parser-syntax-errors.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 2825,
     "file": "parser-syntax-errors.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "dict[true: \"yes\", false: \"no\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 19,
+          "offset": 18
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key false is stored as the string \"false\". Quote it to write that spelling directly.",
+        "context": "dict[true: \"yes\", false: \"no\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 2826,
@@ -30762,22 +31560,110 @@
   {
     "index": 2827,
     "file": "parser-syntax-errors.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 42 is stored as the string \"42\". Quote it to write that spelling directly.",
+        "context": "dict[42: \"answer\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 2828,
     "file": "parser-syntax-errors.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 3.14 is stored as the string \"3.14\". Quote it to write that spelling directly.",
+        "context": "dict[3.14: \"pi\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 2829,
     "file": "parser-syntax-errors.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 21,
+          "offset": 20
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[name: \"alice\", 1: \"one\", true: \"yes\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 31,
+          "offset": 30
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "dict[name: \"alice\", 1: \"one\", true: \"yes\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 2830,
     "file": "parser-syntax-errors.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key -1 is stored as the string \"-1\". Quote it to write that spelling directly.",
+        "context": "dict[-1: \"negative\", 0: \"zero\", 1: \"positive\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 22,
+          "offset": 21
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 0 is stored as the string \"0\". Quote it to write that spelling directly.",
+        "context": "dict[-1: \"negative\", 0: \"zero\", 1: \"positive\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 33,
+          "offset": 32
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[-1: \"negative\", 0: \"zero\", 1: \"positive\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 2831,
@@ -33088,12 +33974,62 @@
   {
     "index": 3097,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\", 2: \"two\"] -> .entries => $e",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 16,
+          "offset": 15
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 2 is stored as the string \"2\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\", 2: \"two\"] -> .entries => $e",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3098,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "dict[true: \"yes\", false: \"no\"] => $d",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 19,
+          "offset": 18
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key false is stored as the string \"false\". Quote it to write that spelling directly.",
+        "context": "dict[true: \"yes\", false: \"no\"] => $d",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3099,
@@ -33866,17 +34802,56 @@
   {
     "index": 3175,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 13,
+          "offset": 12
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "\"1\" -> dict[1: \"number\", one: \"word\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3176,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 15,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "\"one\" -> dict[1: \"number\", one: \"word\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3177,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 16,
+          "offset": 15
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "\"true\" -> dict[true: \"bool\", truthy: \"str\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3178,
@@ -34785,7 +35760,32 @@
   {
     "index": 3309,
     "file": "sort.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 12,
+          "offset": 11
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 9 is stored as the string \"9\". Quote it to write that spelling directly.",
+        "context": "dict[b: 1, 9: \"y\", 10: \"x\"] -> sort -> .keys",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 20,
+          "offset": 19
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 10 is stored as the string \"10\". Quote it to write that spelling directly.",
+        "context": "dict[b: 1, 9: \"y\", 10: \"x\"] -> sort -> .keys",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3310,
@@ -37667,12 +38667,38 @@
   {
     "index": 3545,
     "file": "string-dict-keys.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"n\"] == dict[\"1\": \"n\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3546,
     "file": "string-dict-keys.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"n\"] -> .keys",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3547,
@@ -37915,7 +38941,32 @@
   {
     "index": 3570,
     "file": "string-dict-keys.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 26,
+          "offset": 25
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 3 is stored as the string \"3\". Quote it to write that spelling directly.",
+        "context": "dict[\"str\": 1, ident: 2, 3: 3, true: 4]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 32,
+          "offset": 31
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "dict[\"str\": 1, ident: 2, 3: 3, true: 4]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3571,
