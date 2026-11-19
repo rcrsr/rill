@@ -8,13 +8,19 @@ import {
 import type { RuntimeContext } from '../../core/types/runtime.js';
 import type { SourceLocation } from '../../../types.js';
 import type { EvalState } from '../../core/eval/state.js';
-import { internalCallable, isCallable } from '../../core/callable.js';
+import {
+  internalCallable,
+  isCallable,
+  type RillCallable,
+} from '../../core/callable.js';
 import { isDict, isStream } from '../../core/types/guards.js';
 import {
   DEFAULT_MAX_ITERATIONS,
   checkAborted,
 } from '../../core/eval/shared.js';
 import { invokeCallable as invokeCallableState } from '../../core/eval/handlers/closures.js';
+import { invokeCallable } from '../../core/eval/index.js';
+import { createChildContext } from '../../core/context.js';
 import { validateStreamChunk } from '../../core/eval/handlers/collections.js';
 import { accessHaltGate } from '../../core/eval/handlers/access.js';
 import {
@@ -174,7 +180,7 @@ export async function walkIteratorSteps(
       throwCatchableHostHalt(
         site,
         'RILL_R002',
-        'Iterator/stream .next must be a closure'
+        'Iterator/stream .next must be a function'
       );
     }
     const nextStep = await invokeCallableState(
@@ -378,10 +384,8 @@ export function makeGenericIterator(
  * stream or iterator, carries nothing and each element is judged by its own
  * type. `extra` args (a fold accumulator)
  * follow the element and carry nothing.
- *
- * @internal
  */
-export function bindElement(
+function bindElement(
   childCtx: RuntimeContext,
   element: RillValue,
   record: Readonly<Record<string, RillValue>>,
@@ -397,4 +401,53 @@ export function bindElement(
     );
   }
   return callArgs;
+}
+
+/**
+ * Assert that `value` is a function, halting catchably otherwise with
+ * "<op>: <role> must be a function, got <type>". `code` is the halt's error
+ * code and `site` must carry `fn`.
+ */
+export function requireFunctionArg(
+  value: RillValue,
+  op: string,
+  role: string,
+  code: string,
+  site: TypeHaltSite
+): asserts value is RillCallable {
+  if (!isCallable(value)) {
+    throwCatchableHostHalt(
+      site,
+      code,
+      `${op}: ${role} must be a function, got ${inferType(value)}`
+    );
+  }
+}
+
+/**
+ * Call a collection operator's function for one element in a fresh child
+ * context. The call passes exactly `[element]`, or `[element, ...extra]` when
+ * `extra` carries the accumulator (fold and acc), so the callee's declared
+ * arity decides what binds. It sets no `@` variable and leaves the callee's
+ * defining scope alone.
+ *
+ * @internal
+ */
+export function callWithElement(
+  body: RillCallable,
+  ctx: RuntimeContext,
+  element: RillValue,
+  record: Readonly<Record<string, RillValue>>,
+  location: SourceLocation | undefined,
+  options: {
+    readonly extra?: readonly RillValue[] | undefined;
+    readonly forkCallDepth?: boolean | undefined;
+  } = {}
+): Promise<RillValue> {
+  const childCtx =
+    options.forkCallDepth === true
+      ? createChildContext(ctx, { forkCallDepth: true })
+      : createChildContext(ctx);
+  const callArgs = bindElement(childCtx, element, record, options.extra);
+  return invokeCallable(body, callArgs, childCtx, location);
 }

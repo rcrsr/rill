@@ -23,7 +23,7 @@
 | [Variables](topic-variables.md) | Declaration, scope rules, `$` binding |
 | [Control Flow](topic-control-flow.md) | Conditionals, loops, break/return |
 | [Operators](topic-operators.md) | Arithmetic, comparison, spread, extraction |
-| [Closures](topic-closures.md) | Late binding, dict-bound closures |
+| [Functions and Code Blocks](topic-closures.md) | Code blocks, block assertions, blocks as arguments, held collection entries, `fn` functions, late binding |
 | [Closure Annotations](topic-closure-annotations.md) | Parameter metadata, annotations, and reflection |
 | [Error Handling](topic-error-handling.md) | `.!`, `.?`, `guard`, `retry`, and error recovery patterns |
 
@@ -81,7 +81,7 @@
 2. **Ready to code?** Start with the [Guide](guide-getting-started.md)
 3. **See it in action:** Browse [Examples](guide-examples.md) for working code
 4. **Something not working?** Check [Troubleshooting](guide-troubleshooting.md)
-5. **Learn the language:** Read [Types](topic-types.md), [Control Flow](topic-control-flow.md), [Closures](topic-closures.md)
+5. **Learn the language:** Read [Types](topic-types.md), [Control Flow](topic-control-flow.md), [Functions and Code Blocks](topic-closures.md)
 6. **Handle errors:** Study [Error Handling](topic-error-handling.md) for `.!`, `guard`, `retry`, and recovery operators
 7. **Go deeper:** Explore [Operators](topic-operators.md), [Collections](topic-collections.md), [Collection Slicing](topic-collection-slicing.md), [Type System](topic-type-system.md)
 8. **Design patterns:** Study the [Cookbook](cookbook.md)

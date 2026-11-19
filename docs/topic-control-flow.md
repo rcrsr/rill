@@ -145,6 +145,15 @@ $input -> .empty
 # Result: "DATA"
 ```
 
+A conditional branch accepts a type assertion after its block. `:T` asserts the branch result and `:?T` yields whether it has type `T`:
+
+```rill
+true ? { 5 }:number ! { 6 }
+# Result: 5
+```
+
+The suffix does not parse on `while`, `do`, `guard`, `retry`, `pass`, or `timeout` bodies. See [Code Blocks](ref-language.md#code-blocks) for the block rules.
+
 ---
 
 ## While Loop
@@ -222,7 +231,7 @@ Use `do<limit: N>` as the construct option to set maximum iterations (default: 1
 
 Exceeding the limit halts with `RILL-R010`.
 
-The `do<limit: N>` construct option applies only to that specific loop evaluation, not to the body closure.
+The `do<limit: N>` construct option applies only to that specific loop evaluation, not to the loop body.
 
 ### Multiple State Values
 

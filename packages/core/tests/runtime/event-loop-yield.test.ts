@@ -42,7 +42,7 @@ vi.setConfig({ testTimeout: 30_000 });
 
 const R1 = '0 -> while (true) do<limit: 1000000000000> { $ + 1 }';
 const R2 =
-  'range(0,10000) -> seq({ range(0,10000) -> seq({ range(0,10000) -> fold(0, { $@ + $ }) }) })';
+  'range(0,10000) -> seq(fn(x) { range(0,10000) -> seq(fn(y) { range(0,10000) -> fold(0, { $@ + $ }) }) })';
 const REPROS: ReadonlyArray<readonly [string, string]> = [
   ['while loop', R1],
   ['nested seq/fold', R2],
@@ -50,7 +50,7 @@ const REPROS: ReadonlyArray<readonly [string, string]> = [
 
 /** Bounded CPU-bound script that runs well past one yield slice. */
 const BOUNDED =
-  'range(0,SIZE) -> seq({ range(0,100) -> fold(0, { $@ + $ }) }) -> fold(0, { $@ + $ })';
+  'range(0,SIZE) -> seq(fn(x) { range(0,100) -> fold(0, { $@ + $ }) }) -> fold(0, { $@ + $ })';
 const BOUNDED_SIZE = 1000;
 const BOUNDED_SCRIPT = BOUNDED.replace('SIZE', String(BOUNDED_SIZE));
 const BOUNDED_RESULT = 4950 * BOUNDED_SIZE;
@@ -399,7 +399,7 @@ describe('Rill Runtime: event-loop yielding', () => {
       await expectAbortHalt(() =>
         execute(
           parse(
-            'range(0, 8) -> fan({ 0 -> while (true) do<limit: 1000000000000> { $ + 1 } })'
+            'range(0, 8) -> fan(fn(x) { 0 -> while (true) do<limit: 1000000000000> { $ + 1 } })'
           ),
           ctx
         )

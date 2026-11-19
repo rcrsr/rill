@@ -15,7 +15,7 @@ Load fragments progressively. The cheatsheet alone is enough for most short scri
 | [control-flow](llm/control-flow.txt) | Writing conditionals, loops, branching, or transforming collections. Includes the operator picker and iterators. |
 | [errors](llm/errors.txt) | Adding `assert`, `error`, `guard`, `retry`, `??`, or inspecting `.!` sidecars. |
 | [types](llm/types.txt) | Asserting types, converting between types, validating dict shapes, or reading `^type` and `.^effective`. |
-| [callables](llm/callables.txt) | Defining functions, typed functions, dispatch tables, or using `.^type.inner` / `.^type.outer` reflection. |
+| [callables](llm/callables.txt) | Code blocks, held dict or list entries, block arguments and operator arity, defining functions, typed functions, dispatch tables, or using `.^type.inner` / `.^type.outer` reflection. |
 | [stdlib](llm/stdlib.txt) | Calling string, list, or dict methods. Includes built-in functions (`log`, `range`, `enumerate`). |
 | [style](llm/style.txt) | Formatting output. Naming, spacing, line continuations, and idiomatic patterns. |
 
@@ -39,6 +39,7 @@ Load fragments progressively. The cheatsheet alone is enough for most short scri
 2. **Conditions must be boolean.** No truthiness. `"" ? a ! b` is an error. Use `.empty`, `.eq()`, comparison operators.
 3. **Errors halt by default. Resolve to valid via `??`.**
 4. **All variables start with `$`.** `$name` references a variable. Bare `name` is a dict key, a built-in, or a host function.
-5. **Script-defined names live in variables, even callables.** A function literal becomes a `$` variable: `fn(x) { $x * 2 } => $double` then `5 -> $double`. Only built-in and host functions stay bare.
+5. **A code block is never a value.** `{ 5 } => $x` binds 5. Store a function with `fn { 5 } => $x`.
+6. **Script-defined names live in variables, even callables.** A function literal becomes a `$` variable: `fn(x) { $x * 2 } => $double` then `5 -> $double`. Only built-in and host functions stay bare.
 
 Read the cheatsheet next.

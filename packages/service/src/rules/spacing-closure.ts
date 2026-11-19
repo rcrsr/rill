@@ -5,7 +5,7 @@
  * A ClosureNode.span begins at its `fn` keyword, so the space cannot be seen
  * in the span text; the rule looks back into the source from the keyword.
  * It fires only when the run of whitespace before the `fn` sits directly
- * after an opening bracket (`(` or `[`), where tightening the closure is
+ * after an opening bracket (`(` or `[`), where tightening the function is
  * both idiomatic and safe. Whitespace that another rule requires or that
  * is idiomatic elsewhere is deliberately not flagged: a space after a
  * pipe/capture operator (`-> fn(x) {}`, `=> fn(x) {}`) is mandated by
@@ -46,7 +46,7 @@ export const spacingClosure: Rule = {
     if (sawWhitespace && afterOpenBracket) {
       diagnostics.push({
         code: 'SPACING_CLOSURE',
-        message: 'No space before closure after an opening bracket',
+        message: 'No space before function after an opening bracket',
         severity: 'info',
         // `location` anchors on the `fn` keyword (`fnOffset`), not the removable
         // space. A future autofix must derive the removable range as

@@ -102,12 +102,11 @@ describe('Rill Language: String Literal Dict Keys', () => {
     });
 
     it('parses dict with string key and callable block value', async () => {
-      // Return the type of the block-closure value via host typeName property.
-      const result = (await run(
-        'dict["key": { 1 + 1 }] => $d\n$d.key.^type'
-      )) as any;
-      // Blocks in dict values are stored as callables, not evaluated
-      expect(result.typeName).toBe('fn');
+      // A block entry is held, not evaluated: the dict types it as fn().
+      const held = (await run('dict["key": { 1 + 1 }].^type')) as any;
+      expect(held.structure.fields.key.type.kind).toBe('fn');
+      // Selecting the entry runs the block.
+      expect(await run('dict["key": { 1 + 1 }] => $d\n$d.key')).toBe(2);
     });
   });
 
@@ -120,9 +119,7 @@ describe('Rill Language: String Literal Dict Keys', () => {
     });
 
     it('dispatches with string keys and closure values', async () => {
-      const result = await run(
-        '"status" -> dict["status": fn { $ -> .upper }]'
-      );
+      const result = await run('"status" -> dict["status": { $ -> .upper }]');
       expect(result).toBe('STATUS');
     });
 
@@ -176,8 +173,8 @@ describe('Rill Language: String Literal Dict Keys', () => {
       const script = `
         "error" => $type
         $type -> dict[
-          "blocked": fn() { "blocked" -> .upper },
-          "error": fn() { "error" -> .len }
+          "blocked": { "blocked" -> .upper },
+          "error": { "error" -> .len }
         ]
       `;
       const result = await run(script);

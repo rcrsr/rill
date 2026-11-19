@@ -55,6 +55,6 @@ export const closureType: TypeDefinition = {
   protocol: {
     format: formatClosure,
     eq: eqClosure,
-    serialize: throwNotSerializable('closure'),
+    serialize: throwNotSerializable('function'),
   },
 };

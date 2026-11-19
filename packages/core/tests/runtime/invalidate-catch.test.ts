@@ -356,7 +356,7 @@ describe('Non-access invalid-value halts', () => {
   it('filter predicate reporting an invalid value halts catchably instead of reporting "got dict"', async () => {
     const src = `
       guard<on: list[#NOT_A_CODE]> { 1 } => $x
-      guard { list[1] -> filter({ $x }) }
+      guard { list[1] -> filter(fn(y) { $x }) }
     `;
     const result = await runRecovered(src);
     expect(isInvalid(result as never)).toBe(true);

@@ -175,7 +175,7 @@ describe('iterate: EC-14 — catchable closure halt propagates', () => {
     // The closure body "not_a_number" : number produces a catchable TYPE_MISMATCH
     // halt. iterate propagates it as-is.
     await expectHalt(
-      () => run('iterate(0, { "not_a_number" : number }) -> take(5)'),
+      () => run('iterate(0, fn(n) { "not_a_number" : number }) -> take(5)'),
       { code: 'TYPE_MISMATCH' }
     );
   });
@@ -183,7 +183,7 @@ describe('iterate: EC-14 — catchable closure halt propagates', () => {
   it('catchable halt can be recovered via guard', async () => {
     // guard intercepts catchable halts and converts them to the ?? fallback path.
     const result = await run(
-      'guard { iterate(0, { "not_a_number" : number }) -> take(5) } ?? 99'
+      'guard { iterate(0, fn(n) { "not_a_number" : number }) -> take(5) } ?? 99'
     );
     expect(result).toBe(99);
   });
@@ -198,14 +198,14 @@ describe('iterate: EC-15 — non-catchable closure halt propagates', () => {
     // error "msg" produces catchable: false RuntimeHaltSignal (RILL_R016).
     // iterate propagates it without re-catching.
     await expect(
-      run('iterate(0, { error "fatal step" }) -> take(5)')
+      run('iterate(0, fn(n) { error "fatal step" }) -> take(5)')
     ).rejects.toThrow(expect.objectContaining({ errorId: 'RILL-R016' }));
   });
 
   it('non-catchable halt is NOT recoverable via guard', async () => {
     // guard only recovers catchable halts. A non-catchable halt bypasses guard.
     await expectHalt(
-      () => run('guard { iterate(0, { error "nope" }) -> take(5) } ?? 0'),
+      () => run('guard { iterate(0, fn(n) { error "nope" }) -> take(5) } ?? 0'),
       {
         code: 'RILL_R016',
         hostErrorId: 'RILL-R016',

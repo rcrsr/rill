@@ -72,11 +72,10 @@ $task
   -> $app.classify
   -> .category -> :string
   -> [
-    billing:   $app.handle_billing,
-    technical: $app.handle_technical,
-    general:   $app.handle_general
-  ] ?? $app.handle_general
-  -> fn(handler) { $handler($task) }
+    billing:   { $app.handle_billing($task) },
+    technical: { $app.handle_technical($task) },
+    general:   { $app.handle_general($task) }
+  ] ?? $app.handle_general($task)
 ```
 
 Every defensive check in the Python maps to a failure category rill eliminates:

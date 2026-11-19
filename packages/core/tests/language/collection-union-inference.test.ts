@@ -162,7 +162,7 @@ describe('Rill Language: collection union inference', () => {
     it('acc infers the union of its running values', async () => {
       expect(
         await run(
-          '(list[1, 2] -> acc(0, { ($ == 1) ? "a" ! 2 }) -> .^type) == list(union(string, number))'
+          '(list[1, 2] -> acc(0, fn(e, a) { ($e == 1) ? "a" ! 2 }) -> .^type) == list(union(string, number))'
         )
       ).toBe(true);
     });

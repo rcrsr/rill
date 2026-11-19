@@ -53,7 +53,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
 
   it('dict-bound self-referential recursion halts with RILL-R010, not a host RangeError', async () => {
     const script = `
-      dict[a: fn() { $o.a }] => $o
+      dict[a: { $o.a }] => $o
       $o.a
     `;
     await expectHalt(() => run(script, { maxCallDepth: 50 }), {
@@ -69,7 +69,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
     // a raw RangeError well before a ceiling in the thousands. The yield
     // in invokeCallable makes the ceiling the only bound that applies.
     const script = `
-      dict[a: fn() { $o.a }] => $o
+      dict[a: { $o.a }] => $o
       $o.a
     `;
     await expectHalt(() => run(script, { maxCallDepth: 5000 }), {
@@ -79,12 +79,12 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
   });
 
   it('bounds recursion driven through the no-call-site auto-invoke dispatch path', async () => {
-    // `$f` is never called with `(...)` here; every recursive step is a
-    // dispatch-selected zero-param closure reference, which routes through
+    // No call is written with `(...)` here; every recursive step is a
+    // dispatch-selected held block, which routes through
     // invokeCallable's no-location dispatch branch exclusively.
     const script = `
-      fn() { "a" -> dict[a: $f] } => $f
-      "a" -> dict[a: $f]
+      dict[a: { "a" -> $d }] => $d
+      "a" -> $d
     `;
     await expectHalt(() => run(script, { maxCallDepth: 50 }), {
       code: 'RILL_R010',
@@ -201,31 +201,31 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
 
     it('still halts on recursion through a fan body', async () => {
       const script = `
-        fn() { list[1] -> fan({ $f() }) } => $f
-        $f()
+        fn(x) { list[1] -> fan({ $f($) }) } => $f
+        $f(0)
       `;
       await expectHaltMessage(() => run(script, { maxCallDepth: 50 }), CEILING);
     });
 
     it('still halts on recursion through a filter body', async () => {
       const script = `
-        fn() { list[1] -> filter({ $f() }) } => $f
-        $f()
+        fn(x) { list[1] -> filter({ $f($) }) } => $f
+        $f(0)
       `;
       await expectHaltMessage(() => run(script, { maxCallDepth: 50 }), CEILING);
     });
 
     it('still halts on recursion through a sort key function', async () => {
       const script = `
-        fn() { list[1] -> sort({ $f() }) } => $f
-        $f()
+        fn(x) { list[1] -> sort({ $f($) }) } => $f
+        $f(0)
       `;
       await expectHaltMessage(() => run(script, { maxCallDepth: 50 }), CEILING);
     });
 
     it('measures depth inside a fan branch the same as inside a seq body', async () => {
       const recurse = (op: 'seq' | 'fan', k: number): string => `
-        fn(n) { ($n < 1) ? 0 ! (list[1] -> ${op}({ $count($n - 1) }) -> .len) } => $count
+        fn(n) { ($n < 1) ? 0 ! (list[1] -> ${op}({ $count($n - $) }) -> .len) } => $count
         $count(${k})
       `;
       const options = { maxCallDepth: 50 };
@@ -263,8 +263,8 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
     const IN_FLIGHT_50 = /Calls in flight exceeded 10050/;
 
     const branching = (body: string): string => `
-      fn() { ${body} } => $f
-      $f()
+      fn(x) { ${body} } => $f
+      $f(0)
     `;
 
     const itemsFn = (count: number): Record<string, RillFunction> => ({
@@ -276,7 +276,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
     });
 
     it('halts unbounded fan recursion at the default ceiling', async () => {
-      const script = branching('range(0, 10) -> fan({ $f() })');
+      const script = branching('range(0, 10) -> fan({ $f($) })');
       await expectHalt(() => run(script), {
         code: 'RILL_R010',
         hostErrorId: 'RILL-R010',
@@ -290,7 +290,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
     it('halts branching fan recursion', async () => {
       await expectHaltMessage(
         () =>
-          run(branching('list[1, 2] -> fan({ $f() })'), { maxCallDepth: 50 }),
+          run(branching('list[1, 2] -> fan({ $f($) })'), { maxCallDepth: 50 }),
         IN_FLIGHT_50
       );
     });
@@ -298,7 +298,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
     it('halts branching fan recursion with bounded concurrency', async () => {
       await expectHaltMessage(
         () =>
-          run(branching('list[1, 2] -> fan({ $f() }, dict[concurrency: 2])'), {
+          run(branching('list[1, 2] -> fan({ $f($) }, dict[concurrency: 2])'), {
             maxCallDepth: 50,
           }),
         IN_FLIGHT_50
@@ -308,7 +308,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
     it('halts branching filter recursion', async () => {
       await expectHaltMessage(
         () =>
-          run(branching('list[1, 2] -> filter({ $f() })'), {
+          run(branching('list[1, 2] -> filter({ $f($) })'), {
             maxCallDepth: 50,
           }),
         IN_FLIGHT_50
@@ -318,7 +318,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
     it('halts branching keyed list sort recursion', async () => {
       await expectHaltMessage(
         () =>
-          run(branching('list[1, 2] -> sort({ $f() })'), { maxCallDepth: 50 }),
+          run(branching('list[1, 2] -> sort({ $f($) })'), { maxCallDepth: 50 }),
         IN_FLIGHT_50
       );
     });
@@ -326,7 +326,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
     it('halts branching dict sort recursion', async () => {
       await expectHaltMessage(
         () =>
-          run(branching('dict[a: 1, b: 2] -> sort({ $f() })'), {
+          run(branching('dict[a: 1, b: 2] -> sort({ $f($) })'), {
             maxCallDepth: 50,
           }),
         IN_FLIGHT_50
@@ -334,7 +334,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
     });
 
     it('is fatal: guard cannot recover the halt', async () => {
-      const script = branching('guard { list[1, 2] -> fan({ $f() }) }');
+      const script = branching('guard { list[1, 2] -> fan({ $f($) }) }');
       await expectHaltMessage(
         () => run(script, { maxCallDepth: 50 }),
         IN_FLIGHT_50
@@ -351,8 +351,10 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
           inner: itemsFn(inner)['items']!,
         },
       });
-      const script =
-        'outer() -> fan({ inner() -> fan({ $ }) -> .len }) -> .len';
+      const script = `outer() -> fan({
+          $ => $_outer
+          inner() -> fan({ $ }) -> .len
+        }) -> .len`;
       expect(await run(script, nested(2, 5000))).toBe(2);
       await expectHaltMessage(
         () => run(script, nested(2, 5001)),
@@ -385,7 +387,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
 
     it('drains the counter, resets the latch, and stays usable after a halt', async () => {
       const ctx: RuntimeContext = createRuntimeContext({ maxCallDepth: 50 });
-      const ast = parse(branching('list[1, 2] -> fan({ $f() })'));
+      const ast = parse(branching('list[1, 2] -> fan({ $f($) })'));
       await expectHalt(() => execute(ast, ctx), {
         code: 'RILL_R010',
         hostErrorId: 'RILL-R010',

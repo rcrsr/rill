@@ -34,7 +34,7 @@ export const bareCallableBody: Rule = {
     return [
       {
         code: 'BARE_CALLABLE_BODY',
-        message: `Bare '${name}' is a zero-arg call here, not a callable — ${node.name} body must be a closure. Wrap it ({ ${name}($) }) or reference a callable ($var or $ext.name).`,
+        message: `Bare '${name}' is a zero-arg call here, not a callable — ${node.name} body must be a function. Wrap it ({ ${name}($) }) or reference a callable ($var or $ext.name).`,
         severity: 'warning',
         location: bareCall.span.start,
         context: extractContextLine(bareCall.span.start.line, context.source),

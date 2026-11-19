@@ -128,23 +128,23 @@ describe('Rill Language: chain() Built-in', () => {
   describe('error contracts', () => {
     it('throws RILL-R040 when second arg is a non-closure string (AC-30, EC-14)', async () => {
       await expect(run('chain(5, "not a closure")')).rejects.toThrow(
-        /chain.*closure/i
+        /chain.*function/i
       );
     });
 
     it('throws RILL-R040 when second arg is a number', async () => {
-      await expect(run('chain(5, 42)')).rejects.toThrow(/chain.*closure/i);
+      await expect(run('chain(5, 42)')).rejects.toThrow(/chain.*function/i);
     });
 
     it('throws RILL-R040 when second arg is a dict', async () => {
       await expect(run('chain(5, dict[a: 1])')).rejects.toThrow(
-        /chain.*closure/i
+        /chain.*function/i
       );
     });
 
     it('throws RILL-R040 when list element is not a closure', async () => {
       await expect(run('chain(5, list["not a closure"])')).rejects.toThrow(
-        /chain.*closure/i
+        /chain.*function/i
       );
     });
 
@@ -153,7 +153,7 @@ describe('Rill Language: chain() Built-in', () => {
       // list["bad"] produces a homogeneous string list; chain rejects it.
       await expect(
         run('list["not a closure"] => $fns\nchain(5, $fns)')
-      ).rejects.toThrow(/chain.*closure/i);
+      ).rejects.toThrow(/chain.*function/i);
     });
   });
 

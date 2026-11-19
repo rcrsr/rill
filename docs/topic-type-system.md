@@ -986,6 +986,16 @@ $fn.^type.signature
 # Result: "fn(y: string):string"
 ```
 
+A block held as a collection entry reports `fn()` as its type, whatever assertion follows the block:
+
+```rill
+dict[run: { 1 }:number] => $d
+$d.^type == dict(run: fn())
+# Result: true
+```
+
+See [Code Blocks](ref-language.md#code-blocks) for how held blocks run.
+
 Combining `.^type` with `.name` and `.signature` gives both coarse and structural information:
 
 ```rill
@@ -1065,7 +1075,7 @@ $l.^type == list(number)
 |----------|-------------|
 | [Types](topic-types.md) | Primitives, collections, and value types |
 | [Variables](topic-variables.md) | Declaration, scope, `$` binding |
-| [Closures](topic-closures.md) | Closure semantics and patterns |
+| [Closures](topic-closures.md) | Function semantics and patterns |
 | [Closure Annotations](topic-closure-annotations.md) | Field annotations on dict, ordered, and tuple types, and their TypeScript access |
 | [Operators](topic-operators.md) | Type assertions and existence checks in operators |
 | [Reference](ref-language.md) | Quick reference tables |

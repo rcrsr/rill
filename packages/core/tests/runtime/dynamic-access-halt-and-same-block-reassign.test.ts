@@ -166,7 +166,7 @@ describe('Same-block same-type reassignment', () => {
   it('still halts when reassigning a genuinely outer variable from a child scope', async () => {
     const code = `
       "outer" => $x
-      list[1, 2, 3] -> seq({ "inner" => $x })
+      list[1, 2, 3] -> seq(fn(y) { "inner" => $x })
     `;
     await expectHaltMessage(() => run(code), /Cannot reassign outer variable/);
   });

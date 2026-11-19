@@ -100,10 +100,10 @@ All operators accept any callable as the body argument:
 
     -> seq({ $ * 2 })           # block, $ is current element
     -> seq(fn(x) { $x * 2 })    # inline function
-    -> seq($double)             # variable closure
-    -> seq({ log($) })          # built-in wrapped in a closure
+    -> seq($double)             # variable function
+    -> seq({ log($) })          # built-in wrapped in a block
 
-A bare built-in or host name -- seq(log) -- does NOT reference a callable here. In argument position it parses as a zero-arg call log(). Wrap it in a closure.
+A bare built-in or host name -- seq(log) -- does NOT reference a callable here. In argument position it parses as a zero-arg call log(). Wrap it in a block.
 
 ## Iterating dicts and strings
 
@@ -215,4 +215,4 @@ Example:
 
 Do NOT use `pass { body }` when you need the body result — the body result is always discarded.
 
-See `errors` for `assert`, `error`, `guard`, `retry`. See `callables` for closure forms.
+See `errors` for `assert`, `error`, `guard`, `retry`. See `callables` for code blocks, held entries, and block arguments.

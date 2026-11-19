@@ -4,7 +4,7 @@
 
 ## Parameter Metadata
 
-Closures expose parameter metadata via the `.params` property. This enables runtime introspection of function signatures.
+Functions expose parameter metadata via the `.params` property. This enables runtime introspection of function signatures.
 
 ### Basic Usage
 
@@ -32,17 +32,17 @@ $fn("hello")
 # Result: "hello"
 ```
 
-### Block-Closures
+### Block Functions
 
-Block-closures have an implicit `$` parameter:
+A function written as `fn { ... }` has an implicit `$` parameter:
 
 ```rill
-{ $ * 2 } => $double
+fn { $ * 2 } => $double
 $double.params
 # dict["$": dict[]]
 ```
 
-### Zero-Parameter Closures
+### Zero-Parameter Functions
 
 ```rill
 fn() { 42 } => $constant
@@ -245,7 +245,7 @@ $get_user.^cache          # true
 
 ## Return Type Assertions
 
-The `:type-target` after the parameter list declares and enforces the closure's return type. The runtime validates the return value on every call — a mismatch halts with `#TYPE_MISMATCH`.
+The `:type-target` after the parameter list declares and enforces the function's return type. The runtime validates the return value on every call — a mismatch halts with `#TYPE_MISMATCH`.
 
 ```rill
 fn(x: number):string { "{$x}" } => $fn
@@ -285,9 +285,9 @@ $add(3, 4)    # 7
 
 ## Annotation Reflection
 
-Closures support annotation reflection via `.^key` syntax. Annotations attach metadata to closures for runtime introspection.
+Functions support annotation reflection via `.^key` syntax. Annotations attach metadata to functions for runtime introspection.
 
-**Type Restriction:** Only closures support annotation reflection. Accessing `.^key` on a non-function value halts `RILL-R003`; `.?^key` yields `false` instead. The keys `type` and `effective` are the exception: `.^type` and `.^effective` read on any value.
+**Type Restriction:** Only functions support annotation reflection. Accessing `.^key` on a non-function value halts `RILL-R003`; `.?^key` yields `false` instead. The keys `type` and `effective` are the exception: `.^type` and `.^effective` read on any value.
 
 ### Basic Annotation Access
 
@@ -300,7 +300,7 @@ $fn.^max     # 100
 
 ### Function Metadata
 
-Annotations record documentation and versioning alongside the closure:
+Annotations record documentation and versioning alongside the function:
 
 ```rill
 ^(doc: "validates user input", version: 2) fn(input) { $input } => $validate
@@ -311,7 +311,7 @@ $validate.^version  # 2
 
 ### Configuration Annotations
 
-Annotations carry per-closure configuration that a host reads at call time:
+Annotations carry per-function configuration that a host reads at call time:
 
 ```rill
 ^(timeout: 30000, max_retries: 3) fn(url) { $url } => $fetch
@@ -353,7 +353,7 @@ $processor.^enabled ? "processing" ! "disabled"  # "processing"
 
 ### Dynamic Annotations
 
-Annotation values are evaluated at closure creation:
+Annotation values are evaluated at function creation:
 
 ```rill
 10 => $base
@@ -363,16 +363,16 @@ $fn.^budget  # 100
 
 ### Scope Rule: Direct Annotation Only
 
-Annotations apply only to the closure directly targeted by `^(...)`. Closures nested inside an annotated statement do not inherit the annotation.
+Annotations apply only to the function directly targeted by `^(...)`. Functions nested inside an annotated statement do not inherit the annotation.
 
 ```rill
 # Direct annotation: works
-^("doubles input") { $ * 2 } => $fn
+^("doubles input") fn { $ * 2 } => $fn
 $fn.^description    # "doubles input"
 ```
 
 ```text
-# Nested closure does NOT inherit outer annotation
+# Nested function does NOT inherit outer annotation
 ^(version: 2)
 "" -> {
   fn(x) { $x } => $fn
@@ -380,7 +380,11 @@ $fn.^description    # "doubles input"
 $fn.^version    # Error: RILL-R008
 ```
 
-Nesting does not copy an annotation inward: only the closure immediately following `^(...)` carries it.
+Nesting does not copy an annotation inward: only the function immediately following `^(...)` carries it.
+
+### Annotations on Blocks
+
+An annotation written on a block argument or a collection entry attaches to the function or held block. An annotation on a head block is ignored, because a head block runs where it is written and is never a value. See [Code Blocks](ref-language.md#code-blocks) for how each position treats a block.
 
 ### Stacked Annotation Blocks
 
@@ -401,7 +405,7 @@ fn(x) { $x } => $fn
 $fn.^missing   # Error: RILL-R008
 ```
 
-**Non-Closure Type:**
+**Non-Function Type:**
 
 ```text
 "hello" => $str
@@ -412,7 +416,7 @@ All primitive types (string, number, boolean, list, dict) halt `RILL-R003` when 
 
 ### Presence Check
 
-`.?^key` tests whether a closure carries an annotation and yields a bool. It yields `false` for a missing key and for a value that is not a function:
+`.?^key` tests whether a function carries an annotation and yields a bool. It yields `false` for a missing key and for a value that is not a function:
 
 ```rill
 ^(timeout: 30) fn(x) { $x } => $fn
@@ -420,13 +424,13 @@ tuple[$fn.?^timeout, $fn.?^retries, "text".?^timeout]
 # Result: tuple[true, false, false]
 ```
 
-`.?^key` tests stored annotations only. `$f.?^type` and `$f.?^effective` are `false` unless the closure stores those keys, even though `.^type` and `.^effective` read on any value.
+`.?^key` tests stored annotations only. `$f.?^type` and `$f.?^effective` are `false` unless the function stores those keys, even though `.^type` and `.^effective` read on any value.
 
 ---
 
 ## Dict, Ordered, and Tuple Field Annotations
 
-The `^()` syntax works on fields inside `dict`, `ordered`, and `tuple` type constructors. It attaches metadata to individual fields, using the same rules as closure parameter annotations.
+The `^()` syntax works on fields inside `dict`, `ordered`, and `tuple` type constructors. It attaches metadata to individual fields, using the same rules as function parameter annotations.
 
 ### Syntax
 
@@ -528,7 +532,7 @@ In TypeScript, `fields.flagged.annotations` equals `{}` while `fields.age.annota
 list(^("label") string)   # Error: RILL-P001
 ```
 
-### Contrast with Closure Parameter Annotations
+### Contrast with Function Parameter Annotations
 
 | Context | Syntax | Host API path |
 |---------|--------|---------------|
@@ -539,7 +543,7 @@ list(^("label") string)   # Error: RILL-P001
 
 All four positions use the same `^()` syntax and the same description shorthand. Annotation values follow the same rules in all positions: bare strings expand to `description`, multiple blocks before a target merge, and values are full expressions.
 
-### Closure Parameter Annotations on the Type Structure
+### Function Parameter Annotations on the Type Structure
 
 `$fn.^type` keeps parameter annotations on its structure at `TypeStructure.params[i].annotations` for hosts. `.inner` lists parameter types only. Scripts read parameter annotations through `.params`:
 
@@ -572,6 +576,6 @@ The result is a `fn` type value. `structure.params[0].annotations` equals `{ des
 
 | Document | Description |
 |----------|-------------|
-| [Closures](topic-closures.md) | Closure syntax, scoping, and invocation |
+| [Closures](topic-closures.md) | Function syntax, scoping, and invocation |
 | [Reference](ref-language.md) | Language specification |
 | [Guide](guide-getting-started.md) | Getting started tutorial |

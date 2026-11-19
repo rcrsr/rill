@@ -62,6 +62,7 @@ import {
   evaluatePipeChain,
 } from './core.js';
 import { evaluateString } from './literals.js';
+import { evaluateTypeAssertionCarried, evaluateTypeCheck } from './types.js';
 import { evaluateGroupedExpr } from './expressions.js';
 import { runInStreamScope } from '../invocation/stream-closures.js';
 
@@ -575,7 +576,7 @@ export function evaluateBody(s: EvalState, node: BodyNode): Promise<RillValue> {
     case 'GroupedExpr':
       return evaluateGroupedExpr(s, node);
     case 'PostfixExpr':
-      return evaluatePostfixExpr(s, node);
+      return evaluateTypedBlockBranch(s, node) ?? evaluatePostfixExpr(s, node);
     case 'PipeChain':
       return evaluatePipeChain(s, node);
   }
@@ -584,6 +585,42 @@ export function evaluateBody(s: EvalState, node: BodyNode): Promise<RillValue> {
     ERROR_ATOMS[ERROR_IDS.RILL_R002],
     'Unsupported body node'
   );
+}
+
+/**
+ * A branch block carrying `:T` / `:?T` runs under construct semantics, so
+ * `return` propagates as in an untyped branch, then asserts or checks the
+ * result as `-> :T` / `-> :?T` do. Returns undefined for any other body.
+ */
+function evaluateTypedBlockBranch(
+  s: EvalState,
+  node: Extract<BodyNode, { type: 'PostfixExpr' }>
+): Promise<RillValue> | undefined {
+  const typed = node.primary;
+  if (node.methods.length > 0) return undefined;
+  if (typed.type !== 'TypeAssertion' && typed.type !== 'TypeCheck') {
+    return undefined;
+  }
+  const operand = typed.operand;
+  if (
+    !operand ||
+    operand.methods.length > 0 ||
+    operand.primary.type !== 'Block'
+  ) {
+    return undefined;
+  }
+  const block = operand.primary;
+  return (async (): Promise<RillValue> => {
+    const value = await evaluateBlock(s, block);
+    if (typed.type === 'TypeCheck') {
+      return evaluateTypeCheck(s, typed, value);
+    }
+    const asserted = await evaluateTypeAssertionCarried(s, typed, {
+      value,
+      declared: undefined,
+    });
+    return asserted.value;
+  })();
 }
 
 /**

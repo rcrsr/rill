@@ -3,11 +3,11 @@ id: fn
 title: Function types
 status: normative
 since: 0.24.0
-issues: [626]
+issues: []
 grammar: []
 errors: [RILL-P028, RILL-P029]
 depends: [type-value, structural-typing]
-tests: [fn-type.test.ts, fn-literal.test.ts]
+tests: [fn-type.test.ts, fn-literal.test.ts, block-argument.test.ts]
 ---
 
 # Function types
@@ -94,21 +94,21 @@ r[fn.bare-literal] fn in front of a block types it by its reads
 its body reads: `fn { 5 }` MUST have `fn():any`, `fn { $ * 2 }` MUST have `fn(any):any`, and a
 body that reads `$@` MUST have `fn(any, any):any`. `fn:T { body }` MUST take its outer from `T`.
 
-r[fn.block-type] A bare block has the unnamed parameters its body reads {pending #626}
+r[fn.block-type] A bare block has the unnamed parameters its body reads
 A block passed as a whole argument MUST convert to a function, typed by the unnamed
 parameters its body reads. Any other block is a code block (`code-block`).
 
-r[fn.block-outer] An assertion on an argument block is its outer {pending #626}
+r[fn.block-outer] An assertion on an argument block is its outer
 `{ body }:T` passed as a whole argument MUST convert to a function whose outer is `T`, and
 each call MUST assert its result against `T`. `seq({ $ + 1 }:number)` passes `fn(any):number`.
 
-r[fn.block-reads-none] A block that reads no unnamed parameter has no parameters {pending #626}
+r[fn.block-reads-none] A block that reads no unnamed parameter has no parameters
 A block that reads neither `$` nor `$@` MUST have `fn():any`.
 
-r[fn.block-reads-pipe] A block that reads the pipe value takes one parameter {pending #626}
+r[fn.block-reads-pipe] A block that reads the pipe value takes one parameter
 A block that reads `$` and not `$@` MUST have `fn(any):any`.
 
-r[fn.block-reads-acc] A block that reads the accumulator takes two parameters {pending #626}
+r[fn.block-reads-acc] A block that reads the accumulator takes two parameters
 A block that reads `$@`, with or without `$`, MUST have `fn(any, any):any`.
 
 r[fn.no-self] A fn() body does not read a parameter

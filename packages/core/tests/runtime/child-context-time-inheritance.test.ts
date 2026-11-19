@@ -15,7 +15,7 @@ describe('child context time-field inheritance', () => {
   it('now() inside a seq body reflects the parent nowMs virtual clock', async () => {
     const fixedMs = 1710316800000;
 
-    const result = await run('list[1] -> seq({ now().unix })', {
+    const result = await run('list[1] -> seq(fn(x) { now().unix })', {
       nowMs: fixedMs,
     });
 
@@ -35,7 +35,7 @@ describe('child context time-field inheritance', () => {
   it('now() inside a fn body reflects the parent nowMs virtual clock', async () => {
     const fixedMs = 1710316800000;
 
-    const result = await run('{ now().unix } => $f\n0 -> $f', {
+    const result = await run('fn() { now().unix } => $f\n$f()', {
       nowMs: fixedMs,
     });
 
@@ -44,7 +44,7 @@ describe('child context time-field inheritance', () => {
 
   it('a datetime method inside a seq body honors the parent timezone', async () => {
     const result = await run(
-      'list[1] -> seq({ datetime("2026-03-13T08:00:00Z").local_iso })',
+      'list[1] -> seq(fn(x) { datetime("2026-03-13T08:00:00Z").local_iso })',
       { timezone: 1 }
     );
 
@@ -88,7 +88,7 @@ describe('child context time-field inheritance', () => {
     };
 
     const result = await run(
-      'list[1] -> seq({ guard { timeout<total: duration("1d")> { slow() } } => $r\n$r.! ? "timed_out" ! "completed" })',
+      'list[1] -> seq(fn(x) { guard { timeout<total: duration("1d")> { slow() } } => $r\n$r.! ? "timed_out" ! "completed" })',
       {
         scheduler: fakeScheduler,
         functions: { slow },

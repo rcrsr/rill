@@ -99,12 +99,12 @@ import {
   evaluateRetryBlock,
   evaluateGuardBlock,
 } from './recovery.js';
+import { resolveSelected, runCodeBlock } from './code-block.js';
 import {
   evaluateString,
   evaluatePassBlock,
   evaluateDict,
   createClosure,
-  createBlockClosure,
   evaluatePass,
   evaluateDictDispatch,
 } from './literals.js';
@@ -433,8 +433,12 @@ export async function evaluatePrimary(
     case 'DoWhileLoop':
       return evaluateDoWhileLoop(s, primary);
 
-    case 'Block':
-      return createBlockClosure(s, primary);
+    case 'Block': {
+      // A head, statement or parenthesized block runs; an annotation on it
+      // is dropped.
+      s.ctx.immediateAnnotation = undefined;
+      return runCodeBlock(s, primary, s.ctx.pipeValue, pipeDeclaredOf(s.ctx));
+    }
 
     case 'GroupedExpr':
       return evaluateGroupedExpr(s, primary);
@@ -728,6 +732,16 @@ async function evaluateHeldPipeTarget(
   const input = carried.value;
   const location = getNodeLocation(s, site.node);
 
+  // A held block that access selected runs with the piped value as `$`.
+  const ran = await resolveSelected(
+    s,
+    value,
+    input,
+    carried.declared,
+    location
+  );
+  if (ran.ran) return { value: ran.value, declared: undefined };
+
   // If value is callable, invoke it with the pipe input
   if (isCallable(value)) {
     return {
@@ -766,8 +780,7 @@ async function evaluateHeldPipeTarget(
       input,
       held.declared,
       site.defaultValue,
-      location,
-      'invoke'
+      location
     );
   }
 
@@ -780,8 +793,7 @@ async function evaluateHeldPipeTarget(
       input,
       held.declared,
       site.defaultValue,
-      location,
-      'keep'
+      location
     );
   }
 
@@ -834,16 +846,9 @@ async function evaluatePipeTargetValue(
     case 'DoWhileLoop':
       return evaluateDoWhileLoop(s, target);
 
-    case 'Block': {
-      // Create block-closure then invoke with input as $
-      const closure = createBlockClosure(s, target);
-      return invokeCallable(
-        s,
-        closure,
-        argsOf(carried),
-        getNodeLocation(s, target)
-      );
-    }
+    case 'Block':
+      // The piped value is `$` inside the block.
+      return runCodeBlock(s, target, input, carried.declared);
 
     case 'Closure': {
       // Inline closure: create and invoke
@@ -895,7 +900,15 @@ async function evaluatePipeTargetValue(
         return selected.value;
       }
       // list[...] as pipe target: index-based dispatch
-      return evaluateListLiteralDispatch(s, target, input);
+      return (
+        await resolveSelected(
+          s,
+          await evaluateListLiteralDispatch(s, target, input),
+          input,
+          undefined,
+          getNodeLocation(s, target)
+        )
+      ).value;
     }
 
     case 'Slice':

@@ -21,6 +21,7 @@ import {
   orderedValueEntries,
 } from '../../../core/types/guards.js';
 import { orderedDictEntries } from '../../../core/types/dict-keys.js';
+import { rejectHeldEntries } from '../../../core/types/held-block.js';
 import { createTuple } from '../../../core/types/constructors.js';
 import { isEmpty } from '../../../core/values.js';
 import {
@@ -154,12 +155,18 @@ export const mFirst: RillMethod = async (receiver, _args, ctx, location) => {
       throwCatchableHostHalt(
         { location: loc, sourceId: ctx.sourceId, fn: 'first' },
         'RILL_R002',
-        'Stream .next must be a closure'
+        'Stream .next must be a function'
       );
     }
     return await invokeCallableState(nextRaw, [], ctx, loc);
   }
   if (isIterator(receiver)) return receiver;
+  rejectHeldEntries(
+    receiver,
+    'first',
+    { location, sourceId: ctx.sourceId, fn: 'first' },
+    'direct'
+  );
   if (Array.isArray(receiver)) return makeListIterator(receiver, 0);
   if (typeof receiver === 'string') return makeStringIterator(receiver, 0);
   if (isPlainDict(receiver)) return makeDictIterator(receiver, 0);
@@ -590,6 +597,12 @@ export const mKeys: RillMethod = (receiver, _args, ctx, location) => {
 
 /** Get all values of a dict as a list, in canonical key order. */
 export const mValues: RillMethod = (receiver, _args, ctx, location) => {
+  rejectHeldEntries(
+    receiver,
+    'values',
+    { location, sourceId: ctx.sourceId, fn: 'values' },
+    'direct'
+  );
   if (isOrdered(receiver))
     return orderedValueEntries(receiver).map(([, v]) => v);
   requireDictReceiver(receiver, 'values', ctx, location);
@@ -598,6 +611,12 @@ export const mValues: RillMethod = (receiver, _args, ctx, location) => {
 
 /** Get all entries of a dict or ordered as a list of [key, value] tuples, in canonical key order. */
 export const mEntries: RillMethod = (receiver, _args, ctx, location) => {
+  rejectHeldEntries(
+    receiver,
+    'entries',
+    { location, sourceId: ctx.sourceId, fn: 'entries' },
+    'direct'
+  );
   if (isOrdered(receiver))
     return orderedValueEntries(receiver).map(([k, v]): RillValue =>
       createTuple([k, v])

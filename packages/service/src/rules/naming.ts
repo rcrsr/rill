@@ -9,6 +9,7 @@
  *   AST flag distinguishes these from bare-identifier keys, which still fire.
  */
 
+import { isUnnamedParamName } from '@rcrsr/rill';
 import type { ASTNode, SourceLocation, SourceSpan } from '@rcrsr/rill';
 import type {
   Diagnostic,
@@ -261,7 +262,7 @@ export const namingSnakeCase: Rule = {
         const name = paramNode.name;
 
         // `$` and `@` are the legal names of unnamed fn params.
-        if (name !== '$' && name !== '@' && !isSnakeCase(name)) {
+        if (!isUnnamedParamName(name) && !isSnakeCase(name)) {
           const fix = buildFix(context, 'param', name, paramNode.span);
           return [
             createNamingDiagnostic(

@@ -16,6 +16,7 @@ import {
   ParseError,
   isRillTypeName,
   isUnnamedParam,
+  UNNAMED_PARAM_NAMES,
 } from '../types.js';
 import {
   type ParserState,
@@ -649,7 +650,7 @@ function parseFnParam(
     }
     return {
       type: 'ClosureParam',
-      name: unnamedSoFar === 0 ? '$' : '@',
+      name: UNNAMED_PARAM_NAMES[unnamedSoFar === 0 ? 0 : 1],
       typeRef,
       defaultValue: null,
       annotations,

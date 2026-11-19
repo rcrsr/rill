@@ -9,7 +9,7 @@
  *   variable captured once from it) checked against `list(list)` or
  *   `list(list(T))` with `:T`, `expr:T`, `:?T`, or a typed capture
  * - a list-only method, field read, or `-> dict` on an element: bare `$` heading
- *   a statement of a body fed by `.entries`, the first parameter of such a closure, a
+ *   a statement of a body fed by `.entries`, the first parameter of such a function, a
  *   method-shorthand body (`seq({ .head })`), or `$d.entries[n]` in one
  *   access chain
  *

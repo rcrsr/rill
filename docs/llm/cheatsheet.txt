@@ -79,7 +79,8 @@ All copies are deep. All comparisons are by value. No object identity.
     Tuples:       tuple[1, 2, 3]
     Ordered:      ordered[a: 1, b: 2]   # named-arg unpacking
     Functions:    fn(x) { $x + 1 }      # explicit
-                  { $ + 1 }             # block, implicit $
+                  fn { $ + 1 }          # unnamed param from the reads
+                  { $ + 1 }             # code block: runs where written, never a value
     Type annot:   "hi" => $x:string
     Modules:      use<module:greet> => $g
     Extensions:   use<ext:llm> => $llm
@@ -104,9 +105,9 @@ Atoms are identified and compared by name: #FOO == #BAR is false, and any well-f
 
 Implied `$`: bare `.method` means `$ -> .method`. `"hello" -> .upper` is `"hello" -> $.upper`.
 
-**Pipe binding when `->` targets a callable.** If no top-level `$` appears in the argument list, the piped value is auto-prepended. If any top-level `$` appears, every `$` resolves to the piped value (no auto-prepend). Closure boundaries (`{ ... }`) hide their inner `$` from the scan. See `callables` for the full table.
+**Pipe binding when `->` targets a callable.** If no top-level `$` appears in the argument list, the piped value is auto-prepended. If any top-level `$` appears, every `$` resolves to the piped value (no auto-prepend). Block arguments (`{ ... }`) hide their inner `$` from the scan. See `callables` for the full table.
 
-    $list -> filter({ $.active })       # filter($list, { ... }); closure $ is late-bound
+    $list -> filter({ $.active })       # filter($list, { ... }); block argument $ is read per element
     [1,2,3] -> fold(0, { $@ + $ })      # fold([1,2,3], 0, ...) — list auto-prepended
     10 -> $fmt(1, $, 0)                 # $fmt(1, 10, 0) — explicit placement
 
@@ -122,14 +123,14 @@ Don't capture just to continue a chain. Use line continuation. Capture only when
 
 | Type | Source | Examples |
 |---|---|---|
-| Function | Script-defined | `fn(x) { $x * 2 }`, `{ $ + 1 }` |
+| Function | Script-defined | `fn(x) { $x * 2 }`, `fn { $ + 1 }` |
 | Built-in | Shipped with runtime | `log`, `json`, `range`, `repeat`, `chain` |
 | Host | Registered by host | `$app.fetch()` (hoisted via `use<ext:app> => $app`) |
 
 The `$` prefix disambiguates:
 
     name()    -> built-in or host call
-    $name()   -> closure invocation
+    $name()   -> function invocation
     $name     -> variable reference
     name      -> dict key literal
 

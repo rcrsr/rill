@@ -22,7 +22,7 @@ For design principles, see [Design Principles](topic-design-principles.md).
 
 | Delimiter | Semantics | Produces |
 |-----------|-----------|----------|
-| `{ body }` | Deferred (closure creation) | `ScriptCallable` |
+| `{ body }` | Code block: runs where control flow reaches it, never a value | Its last statement's value, or a held entry |
 | `( expr )` | Eager (immediate evaluation) | Result value |
 
 ### Operators
@@ -71,6 +71,16 @@ See [Operators](topic-operators.md) for detailed documentation.
 
 See [Control Flow](topic-control-flow.md) for detailed documentation. Script-level exit functions must be host-provided.
 
+### Code Blocks
+
+A code block is a braced body that runs where control flow reaches it. It is never a value.
+
+`{ 5 } => $x` binds 5. `fn { 5 } => $x` stores a function. A pipe target `v -> { }` runs with `$` bound to `v`.
+
+A block that is a collection entry is held and runs on each selection. A whole-argument block such as `seq({ })` converts to a function. See [Closures](topic-closures.md) for held entries, selection, dispatch path steps, `$@` scope, annotations, and held-block halts.
+
+`{ body }:T` asserts and `{ body }:?T` tests the result. Only conditional branches accept the suffix, as in `true ? { 5 }:number ! { 6 }`.
+
 ### Collection Operators
 
 | Syntax | Description |
@@ -82,7 +92,14 @@ See [Control Flow](topic-control-flow.md) for detailed documentation. Script-lev
 | `-> fold(init, { body })` | Sequential reduction, final result |
 | `-> sort` / `-> sort({ key })` | Stable ordering, optional key extractor |
 
-See [Collections](topic-collections.md) for detailed documentation. All six operators (`seq`, `acc`, `fan`, `filter`, `fold`, `sort`) work on streams, consuming chunks as they arrive and returning collected results when the stream closes. See [Collections](topic-collections.md) for stream operator behavior.
+Arity differs by operator:
+
+| Operator | Function receives | Wrong arity |
+|----------|-------------------|-------------|
+| `seq`, `fan`, `filter`, `sort` | Element alone | `seq({ 5 })` halts `RILL-R045`; `seq({ $@ })` halts `RILL-R044` |
+| `fold`, `acc` | Element and accumulator | Fewer than two parameters halts `RILL-R045`; a third required parameter halts `RILL-R044` |
+
+See [Collections](topic-collections.md) for detailed documentation. All six operators work on streams. They consume chunks as they arrive and return collected results when the stream closes.
 
 ### Slicing and Restructuring Operators
 
@@ -95,8 +112,8 @@ See [Collections](topic-collections.md) for detailed documentation. All six oper
 | `-> window(n, step?)` | Stream of sliding windows; `step` defaults to `n` |
 | `-> start_when({ pred })` | Stream of elements from first predicate match onward |
 | `-> stop_when({ pred })` | Stream of elements through first predicate match (inclusive) |
-| `iterate(seed, closure)` | Infinite source stream: emit `seed`, then call `closure` with `$` to produce each next value |
-| `$seed -> iterate(closure)` | Pipe form: `seed` is the piped value; `closure` produces next values |
+| `iterate(seed, fn)` | Infinite source stream: emit `seed`, then call `fn` with `$` to produce each next value |
+| `$seed -> iterate(fn)` | Pipe form: `seed` is the piped value; `fn` produces next values |
 | `-> debounce(duration)` | Suppress rapid emissions; emit latest chunk after `duration` of silence |
 | `-> throttle(duration)` | Emit first chunk per `duration` interval; discard subsequent chunks in that interval |
 | `-> sample(duration)` | Emit latest chunk seen at each fixed `duration` interval |
@@ -123,14 +140,14 @@ See [Collection Slicing](topic-collection-slicing.md) for detailed documentation
 | Vector | host-provided | `$app.embed("text")` (after `use<ext:app> => $app`) | Vector value |
 | Function | `fn() { }` | `fn(x) { $x * 2 }` | `ScriptCallable` |
 | Stream | `:stream(T):R` | host-provided | Stream value |
-| Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |
+| Block | `{ body }` | `{ $ + 1 }` | Runs in place; yields its last statement's value, or is a held entry (never a value) |
 | Atom | `#NAME` | `#TIMEOUT`, `#wired` | `:atom` value |
 
 **Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `fn`, `list`, `dict`, `ordered`, `tuple`, `vector`, `iterator`, `datetime`, `duration`, `stream`, `atom`, `error_code`, `any`, `type`
 
 `union` is also a type name, valid only as `union(T, ...)`; see [Type System](topic-type-system.md).
 
-Parameterized forms (`list(T)`, `dict(k: T, ...)`, `tuple(T, ...)`, `stream(T):R`, `union(T, ...)`) are also valid in all annotation positions and deep-validate element types at runtime. See [Types](topic-types.md) for stream type documentation and [Closures](topic-closures.md) for stream closure syntax.
+Parameterized forms (`list(T)`, `dict(k: T, ...)`, `tuple(T, ...)`, `stream(T):R`, `union(T, ...)`) are also valid in all annotation positions and deep-validate element types at runtime. See [Types](topic-types.md) for stream type documentation and [Closures](topic-closures.md) for stream function syntax.
 
 **Union types** (`union(T1, T2)`, `union(T1, T2, T3)`) are valid in all annotation positions. A union matches if the value satisfies any member. A member is a type or a string, number, bool, or atom literal: `union("c", "f")`. Type members can be parameterized: `union(list(string), dict)`. See [Type System](topic-type-system.md) for union type documentation.
 
@@ -227,9 +244,9 @@ See [Variables](topic-variables.md) for detailed documentation.
 |------|------------------|
 | `.$k`, `[expr]`, `.?` | Dict data fields, list and tuple positions, ordered entries |
 | `.name`, `.?name`, and `-> .name` on a type value | `name`, `signature`, `inner`, `outer`, `defaults`, where the type has them; `.$k` and `[k]` halt RILL-R002 |
-| `.len`, `.keys`, closure `.params` | Work only as a written `.name` or a pipe method |
+| `.len`, `.keys`, function `.params` | Work only as a written `.name` or a pipe method |
 | `.?len` | `false` |
-| `["len"]` | Halts RILL-R002 on a list, tuple, string, or closure; RILL-R009 on a dict or ordered |
+| `["len"]` | Halts RILL-R002 on a list, tuple, string, or function; RILL-R009 on a dict or ordered |
 | `.?k` | `true` exactly when `["k"]` does not halt |
 
 ```rill
@@ -411,13 +428,13 @@ Dict keys are strings and multi-key syntax `[k1, k2]: value` maps several keys t
 
 Path element types: string keys for dict lookup, number indexes for list access (negative indexes supported). A string key on a list halts `RILL-R002`; a non-string key on a dict follows [Dict Keys Are Strings](topic-types.md); a missing key or an out-of-range index halts `RILL-R009`.
 
-Terminal closures receive `$` bound to the final path key.
+Terminal held blocks and functions receive `$` bound to the final path key.
 
 ```text
 ["name", "given"] -> [name: dict[given: "Alice"]]              # "Alice" (dict path)
 [0, 1] -> list[list[1, 2, 3], list[4, 5, 6]]                      # 2 (list path)
 ["users", 0, "name"] -> [users: list[dict[name: "Alice"]]]    # "Alice" (mixed path)
-["req", "draft"] -> [req: dict[draft: { "key={$}" }]]         # "key=draft" (terminal closure)
+["req", "draft"] -> [req: dict[draft: { "key={$}" }]]         # "key=draft" (terminal held block)
 ```
 
 **List Dispatch:** Index into a list using a number.
@@ -543,14 +560,14 @@ Methods marked "runtime checked" accept any receiver at parse time and halt at r
 | `enumerate` | `items: union(list, dict)` | `list` | Add index to elements |
 | `range` | `start: number, stop: number, step: number = 1` | `iterator` | Generate number sequence |
 | `repeat` | `value: any, count: number` | `iterator` | Repeat value n times |
-| `chain` | `value: any, transform: any` | `any` | Apply closure(s) sequentially |
+| `chain` | `value: any, transform: any` | `any` | Apply function(s) sequentially |
 | `datetime` | `input\|year, month, day, ...\|unix` | `datetime` | Construct datetime from ISO string, named components, or unix ms |
 | `duration` | a printed-form string, or named components via `...dict[...]` | `duration` | Construct duration from a printed form such as `"1h30m"` or from named unit components |
 | `now` | (none) | `datetime` | Current UTC instant |
 | `sort` | `list[T], key_fn?: (item: T) => Comparable` | `list[T]` | Sort list; stable, ascending by default |
 | `sort` | `dict[K, V], key_fn?: (entry: [key: K, value: V]) => Comparable` | `ordered[[key: K, value: V]]` | Sort dict entries; returns ordered key-value pairs |
 
-`json` halts `#INVALID_INPUT` on a closure value, including a closure held in a dict or list.
+`json` halts `#INVALID_INPUT` on a function value, including a function held in a dict or list.
 
 The remaining built-ins are `seq`, `fan`, `acc`, `fold`, `filter`, `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `iterate`, `debounce`, `throttle`, and `sample`. See [Collection Operators](#collection-operators) and [Slicing and Restructuring Operators](#slicing-and-restructuring-operators) for their rows.
 
@@ -602,7 +619,7 @@ Capture variables accept type annotations: `destruct<$a:list(string)>`, `destruc
 
 ## Annotation Reflection
 
-Access annotation values using `.^key` syntax. Annotations attach to callables (script closures and host-provided functions). The key `type` is special-cased and works on any value; it returns the declared type when the value carries one, else the own type.
+Access annotation values using `.^key` syntax. Annotations attach to callables (script functions and host-provided functions). The key `type` is special-cased and works on any value; it returns the declared type when the value carries one, else the own type.
 
 ### `.^key` Dispatch Table
 
@@ -621,7 +638,7 @@ $fn.^min     # 0
 $fn.^max     # 100
 ```
 
-Annotations apply only to the closure directly targeted by `^(...)`; a nested closure does not inherit an outer annotation. Stacked `^(...)` blocks before one target merge. Accessing an undefined key halts `RILL-R008`; `.?^key` yields `false` instead of halting. `.?^key` tests stored annotations only, so `$f.?^type` and `$f.?^effective` are `false` unless the function stores those keys, although `.^type` and `.^effective` read on any value.
+Annotations apply only to the function directly targeted by `^(...)`; a nested function does not inherit an outer annotation. Stacked `^(...)` blocks before one target merge. Accessing an undefined key halts `RILL-R008`; `.?^key` yields `false` instead of halting. `.?^key` tests stored annotations only, so `$f.?^type` and `$f.?^effective` are `false` unless the function stores those keys, although `.^type` and `.^effective` read on any value.
 
 ### Reserved Annotation Keys
 
@@ -634,7 +651,7 @@ The parser rejects annotation keys that conflict with built-in dispatch semantic
 | `description` | User-defined | Not reserved; common metadata key |
 | `enum` | User-defined | Not reserved; common metadata key |
 | `default` | User-defined | Not reserved; common metadata key |
-| `input` | User-defined | Not reserved; on a closure `^(input: ...)` is an ordinary annotation, `.^input` returns it, and it shadows the function halt. A stream value is not shadowed |
+| `input` | User-defined | Not reserved; on a function `^(input: ...)` is an ordinary annotation, `.^input` returns it, and it shadows the function halt. A stream value is not shadowed |
 | `output` | User-defined | Not reserved; same as `input` |
 | `chunk` | User-defined | Not reserved; same as `input` |
 
@@ -643,7 +660,7 @@ The parser rejects annotation keys that conflict with built-in dispatch semantic
 ^(effective: "x") name: string   # Error: annotation key "effective" is reserved
 ```
 
-The `name` key is not reserved on closures. On type values, `.name` is a dot-notation property, not annotation access; use `.^type.name` to read a type value's name.
+The `name` key is not reserved on functions. On type values, `.name` is a dot-notation property, not annotation access; use `.^type.name` to read a type value's name.
 
 ### Removed Reflection Probes
 
@@ -934,7 +951,7 @@ These always begin a new statement:
 
 | Token | Starts |
 |-------|--------|
-| `$` | Variable reference or closure call |
+| `$` | Variable reference or function call |
 | identifier | Host function call or loop keyword (`while`, `do`) |
 | `fn` | Function definition |
 | literals | String, number, bool, `[...]`, `[...]`, `tuple[...]`, `ordered[...]` |
@@ -985,7 +1002,7 @@ For detailed documentation on specific topics:
 - [Variables](topic-variables.md): Declaration, scope, `$` binding
 - [Control Flow](topic-control-flow.md): Conditionals, loops
 - [Operators](topic-operators.md): All operators
-- [Closures](topic-closures.md): Late binding, dict closures
+- [Closures](topic-closures.md): Late binding, functions held in dicts
 - [Collections](topic-collections.md): `seq`, `fan`, `filter`, `fold`, `acc`, `sort`
 - [Collection Slicing](topic-collection-slicing.md): `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `pass` body forms
 - [Iterators](topic-iterators.md): `range`, `repeat`, `.first()`

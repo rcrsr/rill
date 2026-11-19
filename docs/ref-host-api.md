@@ -355,6 +355,8 @@ export type { FieldArg, RillTypeName, TypeRef };
 
 // AST traversal
 export { nodeAtPosition, walkAst };
+export { codeBlockShape, unnamedParamsRead, isUnnamedParamName };
+export type { CodeBlockShape };
 
 ```
 
@@ -604,6 +606,51 @@ See [AST Node Types](ref-host-api-types.md#ast-node-types) for the full set of n
 
 ---
 
+## codeBlockShape
+
+`codeBlockShape(node: ASTNode): CodeBlockShape | undefined` recognizes a code block and returns `{ block: BlockNode }`. It returns `undefined` for anything else.
+
+| Recognized node | Condition |
+|-----------------|-----------|
+| `Block` | Always recognized; the base case |
+| `PostfixExpr` | Carries no method call, default value, or existence check; its primary is recognized |
+| `PipeChain` | Carries no pipe and no terminator; its head is recognized |
+| `TypeAssertion`, `TypeCheck` | Has an operand that is recognized |
+| `AnnotatedExpr` | Wraps a recognized node |
+
+```typescript
+import { codeBlockShape, parse, walkAst } from '@rcrsr/rill';
+
+const statement = parse(source).statements[0];
+const shape =
+  statement?.type === 'Statement'
+    ? codeBlockShape(statement.expression)
+    : undefined;
+if (shape !== undefined) {
+  walkAst(shape.block, (n) => visit(n));
+}
+```
+
+---
+
+## unnamedParamsRead
+
+`unnamedParamsRead(body: ASTNode): 0 | 1 | 2` counts the unnamed params a fn body reads. A read inside a nested closure does not count.
+
+| Return value | Condition |
+|--------------|-----------|
+| `0` | The body reads neither `$` nor `$@` |
+| `1` | The body reads `$`, including implicit forms such as a leading `.method` or `pass` |
+| `2` | The body reads `$@` |
+
+---
+
+## isUnnamedParamName
+
+`isUnnamedParamName(name: string): boolean` returns `true` for the binding name of an unnamed fn param, `'$'` or `'@'`.
+
+---
+
 ## BUILTIN_FUNCTIONS
 
 `BUILTIN_FUNCTIONS` is a `readonly string[]` listing every built-in function name. Use this to drive editor completion lists for rill scripts.
@@ -716,6 +763,8 @@ A dict value in `args` is a live `RillValue` whose keys are all strings, so `Obj
 ---
 
 ## RillFunction
+
+A dispatch pipe returns a host function entry uncalled, including one reached through `use<host:value>`; call it with `$c.name(args)`. See [Dispatch Returns Host Functions](integration-host.md#dispatch-returns-host-functions).
 
 `RillFunction` is the explicit form of a host function declaration. `toCallable(def)` and `createRuntimeContext({ functions })` also accept the signature shorthand. Both input forms declare the same function; the runtime normalizes the shorthand to a `RillFunction` at registration.
 

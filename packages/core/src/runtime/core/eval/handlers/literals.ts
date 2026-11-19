@@ -14,7 +14,8 @@
  * - evaluateString(node) -> Promise<{ value: string; interpolated: boolean }>
  * - evaluateDict(node) -> Promise<Record<string, RillValue>>
  * - createClosure(node) -> Promise<ScriptCallable>
- * - createBlockClosure(node) -> ScriptCallable
+ * - evaluateArgument(node) -> Promise<Carried>
+ * - evaluateEntryValue(node) -> Promise<RillValue>
  *
  * Error Handling:
  * - Pass halts with RILL-R005 if $ not bound
@@ -31,14 +32,26 @@ import type {
   ClosureNode,
   BlockNode,
   PipeChainNode,
-  PostfixExprNode,
   ExpressionNode,
   SourceLocation,
   PassNode,
   PassBlockNode,
+  ASTNode,
+  AnnotationArg,
+  BodyNode,
+  TypeRef,
 } from '../../../../types.js';
-import { isPipeChainNode } from '../../../../types.js';
-import type { RillValue } from '../../types/structures.js';
+import {
+  codeBlockShape,
+  isPipeChainNode,
+  unnamedParamsRead,
+} from '../../../../types.js';
+import type { Carried } from '../../types/declared.js';
+import type {
+  RillTypeValue,
+  RillValue,
+  TypeStructure,
+} from '../../types/structures.js';
 import {
   deepEquals,
   formatValue,
@@ -78,11 +91,14 @@ import { getEvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getNodeLocation, setDictField, withChildScope } from '../shared.js';
 import { orderedDictEntries } from '../../types/dict-keys.js';
-import { evaluateExpression, evaluatePipeChain } from './core.js';
 import {
-  invokeSelected,
-  rejectParameterizedClosure,
-} from './element-dispatch.js';
+  evaluateExpression,
+  evaluateExpressionCarried,
+  evaluatePipeChain,
+} from './core.js';
+import { evaluateAnnotations } from './annotations.js';
+import { resolveSelected } from './code-block.js';
+import { isHeldBlock, rejectHeldEntries } from '../../types/held-block.js';
 import { accessHaltGateFast } from './access.js';
 import { describeNoStringForm } from './conversion.js';
 import { copyExtensionIdentity } from '../../policy/identity.js';
@@ -305,6 +321,16 @@ export async function evaluateString(
         () => getNodeLocation(s, part),
         s.ctx.sourceId
       );
+      rejectHeldEntries(
+        value,
+        'string interpolation',
+        {
+          location: getNodeLocation(s, part),
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateString',
+        },
+        'deep'
+      );
       // A function, iterator, or vector at any depth has no printed form.
       const noStringForm = describeNoStringForm(value, 'print');
       if (noStringForm) {
@@ -326,28 +352,50 @@ export async function evaluateString(
 }
 
 /**
- * Evaluate a dict entry value: a block or closure literal becomes a closure,
- * any other expression is evaluated. The result passes the invalid-value gate
- * so a collection never stores an invalid value.
+ * Evaluate one non-spread entry of a dict, list, tuple or ordered literal.
+ * A code block entry is held uncalled, with the annotations written on it; any
+ * other expression, a function literal included, is evaluated. The result
+ * passes the invalid-value gate so a collection never stores an invalid value.
  */
-async function evaluateDictEntryValue(
+export async function evaluateEntryValue(
   s: EvalState,
-  valueNode: ExpressionNode
+  valueNode: ExpressionNode,
+  fn = 'evaluateDict'
 ): Promise<RillValue> {
-  let value: RillValue;
-  if (isBlockExpr(valueNode)) {
-    value = createBlockClosure(s, valueNode.head.primary);
-  } else if (isClosureExpr(valueNode)) {
-    value = await createClosure(s, valueNode.head.primary);
-  } else {
-    value = await evaluateExpression(s, valueNode);
-  }
+  const value =
+    isPipeChainNode(valueNode) && codeBlockShape(valueNode) !== undefined
+      ? await createHeldBlock(s, valueNode)
+      : await evaluateExpression(s, valueNode);
   return accessHaltGateFast(
     value,
-    'evaluateDict',
+    fn,
     () => valueNode.span?.start,
     s.ctx.sourceId
   );
+}
+
+/**
+ * Create the held block for a code block entry. It has no params, runs the
+ * whole entry body in the scope where it was written, and carries the held
+ * brand. Annotations written on the entry attach to it.
+ */
+async function createHeldBlock(
+  s: EvalState,
+  body: PipeChainNode
+): Promise<ScriptCallable> {
+  const written = peelArgumentBlock(body)?.annotations ?? [];
+  const annotations =
+    written.length > 0 ? await evaluateAnnotations(s, [...written]) : {};
+  return {
+    ...buildScriptCallable({
+      params: [],
+      body,
+      definingScope: s.ctx,
+      annotations,
+      returnType: anyTypeValue,
+    }),
+    held: true,
+  };
 }
 
 /** Key lists made only of plain string literals, computed once per AST node. */
@@ -460,7 +508,7 @@ export async function evaluateDictMultiKeyFromList(
     'evaluateDictMultiKeyFromList'
   );
   // Evaluate value once
-  const evaluatedValue = await evaluateDictEntryValue(s, value);
+  const evaluatedValue = await evaluateEntryValue(s, value);
   return stringKeys.map((key): [string, RillValue] => [key, evaluatedValue]);
 }
 
@@ -570,6 +618,16 @@ export async function evaluateDict(
         s.ctx.sourceId
       );
       const pairs: [string, RillValue][] = [];
+      rejectHeldEntries(
+        spreadValue,
+        'spread',
+        {
+          location: getNodeLocation(s, entry),
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateDict',
+        },
+        'direct'
+      );
       if (isOrdered(spreadValue)) {
         for (const pair of orderedValueEntries(spreadValue)) {
           pairs.push(pair);
@@ -638,7 +696,7 @@ export async function evaluateDict(
           setDictField(
             result,
             stringKey,
-            await evaluateDictEntryValue(s, entry.value)
+            await evaluateEntryValue(s, entry.value)
           );
 
           continue;
@@ -674,7 +732,7 @@ export async function evaluateDict(
         setDictField(
           result,
           stringKey,
-          await evaluateDictEntryValue(s, entry.value)
+          await evaluateEntryValue(s, entry.value)
         );
 
         continue;
@@ -695,11 +753,7 @@ export async function evaluateDict(
 
     const storeKey = String(entry.key);
     assertUsableDictKey(s, storeKey, entry.span);
-    setDictField(
-      result,
-      storeKey,
-      await evaluateDictEntryValue(s, entry.value)
-    );
+    setDictField(result, storeKey, await evaluateEntryValue(s, entry.value));
   }
 
   // Bind all callables to the containing dict. Use setDictField so a field
@@ -707,7 +761,8 @@ export async function evaluateDict(
   // reparenting the dict via the prototype setter.
   for (const key of Object.keys(result)) {
     const value = result[key];
-    if (value !== undefined && isCallable(value)) {
+    // A held block takes `$` from its selection, never from the dict.
+    if (value !== undefined && isCallable(value) && !isHeldBlock(value)) {
       const bound = { ...value, boundDict: result };
       copyExtensionIdentity(value, bound);
       setDictField(result, key, bound);
@@ -778,8 +833,20 @@ export async function evaluateDictDispatch(
 
     if (matchFound) {
       // Found match - evaluate and return the value
-      const matchedValue = await evaluateExpression(s, entry.value);
-      return resolveDispatchValue(s, matchedValue, input, node);
+      const matchedValue = await evaluateEntryValue(
+        s,
+        entry.value,
+        'evaluateDictDispatch'
+      );
+      return (
+        await resolveSelected(
+          s,
+          matchedValue,
+          input,
+          undefined,
+          node.span?.start
+        )
+      ).value;
     }
   }
 
@@ -798,23 +865,6 @@ export async function evaluateDictDispatch(
     },
     { key: inputKey }
   );
-}
-
-/**
- * Resolve dispatch value: auto-invoke if closure, otherwise return as-is.
- * Zero-param closures (block-closures) are invoked with args = [] and pipeValue = input.
- * Parameterized closures (1+ params) throw error.
- */
-async function resolveDispatchValue(
-  s: EvalState,
-  value: RillValue,
-  input: RillValue,
-  node: DictNode
-): Promise<RillValue> {
-  if (!isCallable(value)) return value;
-  const location = node.span?.start;
-  rejectParameterizedClosure(s, value, location, 'resolveDispatchValue');
-  return await invokeSelected(s, value, input, location);
 }
 
 /**
@@ -848,100 +898,155 @@ export async function createClosure(
   const rillParams = isStructureKind(fnStructure, 'fn')
     ? fieldDefsToParams(fnStructure.params ?? [])
     : [];
-  const isProperty = rillParams.length === 0;
   const outer = isStructureKind(fnStructure, 'fn')
     ? fnStructure.ret
     : undefined;
-  const returnType =
-    outer === undefined || outer.kind === 'any'
-      ? anyTypeValue
-      : structureToTypeValue(outer);
 
-  return {
-    __type: 'callable',
-    kind: 'script',
+  return buildScriptCallable({
     params: rillParams,
     body: node.body,
     definingScope,
-    isProperty,
     annotations,
-    returnType,
-  };
+    returnType: outerTypeValue(outer),
+  });
+}
+
+/** Type value of an outer type; `any` and an absent outer share one value. */
+function outerTypeValue(outer: TypeStructure | undefined): RillTypeValue {
+  return outer === undefined || outer.kind === 'any'
+    ? anyTypeValue
+    : structureToTypeValue(outer);
 }
 
 /**
- * Create a script callable from a block node in expression position.
- * Block-closures have a single implicit $ parameter representing the piped value.
- *
- * No default parameter evaluation since the implicit $ has no default.
- * isProperty is always false (block-closures require $).
+ * The one constructor of a script callable, shared by a written function and
+ * a function converted from an argument block. A callable with no params is
+ * property-style.
  */
-export function createBlockClosure(
-  s: EvalState,
-  node: BlockNode
-): ScriptCallable {
-  // Store reference to the defining scope for late-bound variable resolution
-  const definingScope = s.ctx;
-
-  // Block-closures have exactly one parameter: $
-  // type is undefined (any-typed), matching the structural type of an
-  // explicit `fn(any) { }` function.
-  const rillParams: readonly RillParam[] = [
-    {
-      name: '$',
-      type: undefined,
-      defaultValue: undefined,
-      annotations: {},
-    },
-  ];
-
-  const annotations = s.ctx.immediateAnnotation ?? {};
-  s.ctx.immediateAnnotation = undefined;
-
+function buildScriptCallable(parts: {
+  readonly params: readonly RillParam[];
+  readonly body: BodyNode;
+  readonly definingScope: RuntimeContext;
+  readonly annotations: Record<string, RillValue>;
+  readonly returnType: RillTypeValue;
+}): ScriptCallable {
   return {
     __type: 'callable',
     kind: 'script',
-    params: rillParams,
-    body: node,
-    definingScope,
-    isProperty: false,
-    annotations,
-    returnType: anyTypeValue,
+    params: parts.params,
+    body: parts.body,
+    definingScope: parts.definingScope,
+    isProperty: parts.params.length === 0,
+    annotations: parts.annotations,
+    returnType: parts.returnType,
   };
 }
 
-/**
- * Helper: Check if expression is a bare closure (no pipes, no methods).
- * Used to detect dict entries that should be treated as closures.
- */
-function isClosureExpr(expr: ExpressionNode): expr is BareClosureExpr {
-  if (!isPipeChainNode(expr)) return false;
-  if (expr.pipes.length > 0) return false;
-  if (expr.head.type !== 'PostfixExpr') return false;
-  const head = expr.head;
-  if (head.methods.length > 0) return false;
-  return head.primary.type === 'Closure';
+/** A code block with the annotations and outer type written around it. */
+interface ArgumentBlock {
+  readonly block: BlockNode;
+  readonly annotations: readonly AnnotationArg[];
+  readonly outer: TypeRef | undefined;
 }
 
-/** Pipe chain whose head is a bare block: no pipes, no methods. */
-type BareBlockExpr = PipeChainNode & {
-  readonly head: PostfixExprNode & { readonly primary: BlockNode };
-};
-
-/** Pipe chain whose head is a bare closure: no pipes, no methods. */
-type BareClosureExpr = PipeChainNode & {
-  readonly head: PostfixExprNode & { readonly primary: ClosureNode };
-};
+/**
+ * Peel the wrappers around an argument code block: annotations and a `:T`
+ * assertion. Returns undefined when a `:?T` check wraps the block, which is
+ * not converted.
+ */
+function peelArgumentBlock(node: ASTNode): ArgumentBlock | undefined {
+  const annotations: AnnotationArg[] = [];
+  let outer: TypeRef | undefined;
+  let current: ASTNode = node;
+  for (;;) {
+    switch (current.type) {
+      case 'Block':
+        return { block: current, annotations, outer };
+      case 'PostfixExpr':
+        current = current.primary;
+        break;
+      case 'PipeChain':
+        current = current.head;
+        break;
+      case 'AnnotatedExpr':
+        annotations.push(...current.annotations);
+        current = current.expression;
+        break;
+      case 'TypeAssertion':
+        if (current.operand === null) return undefined;
+        outer ??= current.typeRef;
+        current = current.operand;
+        break;
+      default:
+        return undefined;
+    }
+  }
+}
 
 /**
- * Helper: Check if expression is a bare block (no pipes, no methods).
- * Used to detect dict entries that should be treated as block closures.
+ * Create the function an argument block converts to. Its params are the
+ * unnamed params the body reads, each typed any; its outer is the `:T` written
+ * after the block, else any. Annotations written on the argument, and any
+ * pending immediate annotation, attach to the function.
  */
-function isBlockExpr(expr: ExpressionNode): expr is BareBlockExpr {
-  if (!isPipeChainNode(expr)) return false;
-  if (expr.pipes.length > 0) return false;
-  if (expr.head.type !== 'PostfixExpr') return false;
-  const head = expr.head;
-  if (head.methods.length > 0) return false;
-  return head.primary.type === 'Block';
+async function createArgumentFunction(
+  s: EvalState,
+  arg: ArgumentBlock
+): Promise<ScriptCallable> {
+  const definingScope = s.ctx;
+  const annotations: Record<string, RillValue> = {};
+  Object.assign(annotations, s.ctx.immediateAnnotation);
+  s.ctx.immediateAnnotation = undefined;
+  if (arg.annotations.length > 0) {
+    Object.assign(
+      annotations,
+      await evaluateAnnotations(s, [...arg.annotations])
+    );
+  }
+
+  const params = fieldDefsToParams(
+    Array.from({ length: unnamedParamsRead(arg.block) }, () => ({
+      type: { kind: 'any' } as const,
+    }))
+  );
+  const outer =
+    arg.outer === undefined
+      ? undefined
+      : (
+          await resolveTypeRef(
+            s,
+            arg.outer,
+            (name: string) => getVariable(s.ctx, name),
+            arg.block.span.start
+          )
+        ).structure;
+
+  return buildScriptCallable({
+    params,
+    body: arg.block,
+    definingScope,
+    annotations,
+    returnType: outerTypeValue(outer),
+  });
+}
+
+/**
+ * Evaluate a call argument. An argument that is a code block converts to a
+ * function typed by the unnamed params its body reads; any other argument
+ * evaluates as an expression.
+ */
+export async function evaluateArgument(
+  s: EvalState,
+  node: ExpressionNode
+): Promise<Carried> {
+  if (codeBlockShape(node) !== undefined) {
+    const arg = peelArgumentBlock(node);
+    if (arg !== undefined) {
+      return {
+        value: await createArgumentFunction(s, arg),
+        declared: undefined,
+      };
+    }
+  }
+  return evaluateExpressionCarried(s, node);
 }

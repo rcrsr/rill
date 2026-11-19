@@ -253,9 +253,9 @@ Use `break` to exit a loop early:
 # Result: list[1, 2]
 ```
 
-## Closures (Functions)
+## Functions
 
-Define reusable logic with fn syntax `fn(params) { body }`. See [Closures](topic-closures.md) for advanced patterns including late binding and dict-bound closures.
+Define reusable logic with fn syntax `fn(params) { body }`. See [Functions and Code Blocks](topic-closures.md) for advanced patterns including late binding and dict-bound functions.
 
 ```rill
 fn(x) { $x * 2 } => $double
@@ -363,7 +363,7 @@ $descriptions -> .join(", ")
 ## Next Steps
 
 - [Reference](ref-language.md) — Complete language specification
-- [Closures](topic-closures.md) — Late binding, dict-bound, and invocation patterns
+- [Functions and Code Blocks](topic-closures.md) — Held blocks, function values, and dispatch
 - [Collections](topic-collections.md) — `seq`, `fan`, `filter`, `fold`, `acc` operators
 - [Examples](guide-examples.md) — Workflow patterns
 

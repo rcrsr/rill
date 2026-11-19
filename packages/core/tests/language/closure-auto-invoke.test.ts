@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Closure Operands Are Not Invoked
  *
@@ -9,6 +10,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
 
@@ -308,5 +310,30 @@ describe('Rill Runtime: Closure Operands Are Not Invoked', () => {
       `;
       await expectHalt(() => run(script), ARITHMETIC_TYPE_ERROR);
     });
+  });
+
+  describe('Function Entries Are Not Invoked On Selection', () => {
+    rule('dispatch.fn').it(
+      'returns a function entry selected by name uncalled',
+      async () => {
+        const result = await run('dict[f: fn { 5 }] => $d\n$d.f');
+        expect(result).toMatchObject({ __type: 'callable', kind: 'script' });
+      }
+    );
+
+    rule('dispatch.fn').it(
+      'returns a function entry selected by bracket uncalled',
+      async () => {
+        const result = await run('dict[f: fn { 5 }] => $d\n$d["f"]');
+        expect(result).toMatchObject({ __type: 'callable', kind: 'script' });
+      }
+    );
+
+    rule('dispatch.fn').it(
+      'calls a function entry only when the selection has parens',
+      async () => {
+        expect(await run('dict[f: fn { 5 }] => $d\n$d.f()')).toBe(5);
+      }
+    );
   });
 });

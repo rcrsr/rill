@@ -23,6 +23,7 @@ import type {
 } from '../../types/structures.js';
 import {
   argDeclaredAt,
+  pipeDeclaredOf,
   setArgsDeclared,
   transferArgsDeclared,
 } from '../../types/declared.js';
@@ -49,6 +50,7 @@ import {
   invokeCallable,
   invokeStream,
 } from './closures.js';
+import { resolveSelected } from './code-block.js';
 import type { FieldLocation, FoundField } from './field-access.js';
 import { locateField, readField } from './field-access.js';
 
@@ -186,13 +188,33 @@ export async function evaluateMethod(
       ? ownLocation.value
       : undefined;
   if (ownField !== undefined && isCallable(ownField)) {
-    return invokeCallable(
+    const location = getNodeLocation(s, node);
+    // A held block runs with the enclosing `$`. Written without parens it is
+    // a selection and yields its result; with parens the result is called.
+    const selected = await resolveSelected(
       s,
       ownField,
-      args,
-      getNodeLocation(s, node),
-      node.name
+      s.ctx.pipeValue,
+      pipeDeclaredOf(s.ctx),
+      location
     );
+    const isHostProperty =
+      selected.value === ownField &&
+      ownField.kind === 'application' &&
+      ownField.isProperty;
+    if (args.length === 0 && !node.hasParens && !isHostProperty) {
+      return selected.value;
+    }
+    const callee = selected.value;
+    if (!isCallable(callee)) {
+      return throwCatchableHostHalt(
+        { location, sourceId: s.ctx.sourceId, fn: 'evaluateMethod' },
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
+        `'${node.name}' is not callable`,
+        { name: node.name, actualType: inferType(callee) }
+      );
+    }
+    return invokeCallable(s, callee, args, location, node.name);
   }
   if (args.length === 0 && !node.hasParens) {
     if (ownField !== undefined) return ownField;

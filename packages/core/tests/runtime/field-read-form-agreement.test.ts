@@ -485,6 +485,19 @@ describe('field existence checks', () => {
     expect(result).toBe('computed');
     expect(counter.calls).toBe(1);
   });
+
+  it.each([
+    ['literal field', '$d.prop'],
+    ['pipe-target name', '$d -> .prop'],
+    ['string key dispatch', '"prop" -> $d'],
+  ])('invokes a property callable the same way for a %s', async (_, source) => {
+    const counter = { calls: 0 };
+    const result = await run(source, {
+      variables: { d: propertyDict(counter) as never },
+    });
+    expect(result).toBe('computed');
+    expect(counter.calls).toBe(1);
+  });
 });
 
 // ============================================================
@@ -545,11 +558,9 @@ describe('pipe selection from a declared collection', () => {
     ).toBe(true);
   });
 
-  it('takes the own type when the selected value is invoked', async () => {
+  it('takes the own type when the selected held block runs', async () => {
     expect(
-      await run(
-        'dict[a: fn(x) { "s" }] => $d\n"a" -> $d => $v\n$v.^type == string'
-      )
+      await run('dict[a: { "s" }] => $d\n"a" -> $d => $v\n$v.^type == string')
     ).toBe(true);
   });
 

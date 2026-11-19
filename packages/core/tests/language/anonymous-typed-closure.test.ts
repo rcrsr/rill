@@ -116,7 +116,7 @@ describe('Rill Language: Anonymous Typed Closure Parameters', () => {
 
     it('fn(fn) parses and accepts fn input', async () => {
       // Body returns 42 to confirm the type-check passed and body executed
-      expect(await run('{ $ } => $fn\n$fn -> fn(fn) { 42 }')).toBe(42);
+      expect(await run('fn { $ } => $fn\n$fn -> fn(fn) { 42 }')).toBe(42);
     });
 
     it('fn(list) parses and accepts list input', async () => {

@@ -51,6 +51,7 @@ import {
 import type { RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import { isTuple, isOrdered } from '../../types/guards.js';
+import { rejectHeldEntries } from '../../types/held-block.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 // ============================================================
@@ -192,6 +193,13 @@ export class ArgumentsBinder {
             'Spread requires an active pipe value ($)'
           );
         }
+
+        rejectHeldEntries(
+          spreadValue,
+          'spread',
+          { location, sourceId, fn: 'bind' },
+          'direct'
+        );
 
         // Dispatch by type: isOrdered BEFORE isDict, per the spec algorithm
         if (isTuple(spreadValue)) {

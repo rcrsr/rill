@@ -49,6 +49,7 @@ import {
   bindParamDeclarations,
   createCallableContext,
 } from '../handlers/closures.js';
+import { isPipeParam } from '../../types/fn-params.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 // ============================================================
@@ -327,10 +328,11 @@ export async function invokeStreamClosure(
 
   // Bind each named value into the callable context. A first parameter named
   // `$` also syncs the pipe value (block closure pipe sync).
-  const syncsPipe = callable.params[0]?.name === '$';
+  const first = callable.params[0];
+  const syncsPipe = first !== undefined && isPipeParam(first.name);
   for (const [name, value] of Object.entries(record)) {
     callableCtx.variables.set(name, value);
-    if (syncsPipe && name === '$') {
+    if (syncsPipe && isPipeParam(name)) {
       setPipe(callableCtx, value, undefined);
     }
   }
@@ -346,7 +348,7 @@ export async function invokeStreamClosure(
         fn: 'invokeStreamClosure',
       },
       ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      'Stream closure return type is not a stream'
+      'Stream function return type is not a stream'
     );
   }
 

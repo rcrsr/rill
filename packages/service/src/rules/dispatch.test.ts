@@ -7,6 +7,7 @@ import {
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 import {
+  dispatchFnEntry,
   dispatchMissingMember,
   dispatchSelectorNotString,
 } from './dispatch.js';
@@ -17,6 +18,7 @@ function check(source: string) {
   return runRules(toParseResult(source), source, makeConfig(), [
     dispatchSelectorNotString,
     dispatchMissingMember,
+    dispatchFnEntry,
   ]);
 }
 
@@ -194,5 +196,60 @@ describe('DISPATCH rules', () => {
     const result = check(`${ATOMS} -> dict[a: 1]\n`);
 
     expect(result.map((d) => d.code)).toEqual(['DISPATCH_SELECTOR_NOT_STRING']);
+  });
+});
+
+describe('DISPATCH_FN_ENTRY', () => {
+  it.each([
+    [
+      'a selected fn entry',
+      '"a" -> :union("a") -> dict[a: fn { $ }]\n',
+      'The selected entry a is a function',
+    ],
+    [
+      'a union selector where one member selects an fn',
+      '"b" -> :union("a", "b") -> dict[a: 1, b: fn(x) { $x }]\n',
+      'The selected entry b is a function',
+    ],
+    [
+      'a variable table',
+      'dict[a: fn { $ }] => $t\n"a" -> :union("a") -> $t\n',
+      'The selected entry a is a function',
+    ],
+    [
+      'a bare string literal selector',
+      '"a" -> dict[a: fn { $ }]\n',
+      'The selected entry a is a function',
+    ],
+  ])('fires on %s', (_name, source, fragment) => {
+    const result = check(source);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'DISPATCH_FN_ENTRY',
+      severity: 'warning',
+      fix: null,
+    });
+    expect(result[0]?.message).toContain(fragment);
+  });
+
+  it.each([
+    ['a selected bare block entry', '"a" -> :union("a") -> dict[a: { $ }]\n'],
+    ['a selected value entry', '"a" -> :union("a", "b") -> dict[a: 1, b: 2]\n'],
+    [
+      'an fn entry the selector never selects',
+      '"a" -> :union("a") -> dict[a: 1, b: fn { $ }]\n',
+    ],
+    [
+      'an unknown selector',
+      'use<ext:app> => $app\n$app.get() -> dict[a: fn { $ }]\n',
+    ],
+    [
+      'a bare literal selecting a non-fn entry',
+      '"b" -> dict[a: fn { $ }, b: 1]\n',
+    ],
+    ['a list target selected by index', '0 -> list[fn { $ }]\n'],
+  ])('stays silent on %s', (_name, source) => {
+    expect(check(source)).toEqual([]);
   });
 });

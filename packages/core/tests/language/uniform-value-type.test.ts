@@ -174,16 +174,15 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
     });
 
     it('dynamic key extract from dict(closure) carries no uniform type [AC-20]', async () => {
-      // Auto-invoking closures (fn() { body }) resolve to their return value
-      // on access. The extracted value is a plain value, not a closure
-      // with uniform type metadata.
+      // A no-parens read returns a stored fn uncalled (dispatch.fn). Calling
+      // the selected fn yields its plain return value, which carries no
+      // uniform type metadata.
       const script = `
         dict[run: fn() { 42 }] -> dict(fn) => $d
         "run" => $key
-        $d.$key
+        $d.$key()
       `;
       const result = await run(script);
-      // Dynamic key extraction auto-invokes the closure, returning 42
       expect(result).toBe(42);
     });
   });

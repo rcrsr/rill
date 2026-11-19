@@ -306,6 +306,16 @@ functions: {
 
 `ctx.metadata` is `undefined` when the script runs outside the agent harness (e.g., direct `execute()` calls).
 
+## Dispatch Returns Host Functions
+
+```text
+use<host:value> => $v   # dict-shaped host value; its key entry is a host function
+"key" -> $v             # returns the entry; does not call it
+$v.key()                # calls the entry
+```
+
+A dispatch pipe `sel -> $c` selects an entry of a collection. A function entry is returned uncalled, and that includes a host function entry and one reached through `use<host:value>`. Call it explicitly with `$c.name(args)`. See [Dispatch](ref-language.md#dispatch) for the selection rules.
+
 ## Dispatch-Boundary Policy
 
 A script that resolves an extension through `use<scheme:resource>` can call every method on it. `filterResolver` lets the host decide, per method, whether the call is permitted and what happens to its input and output.
@@ -691,13 +701,13 @@ function callable(fn: CallableFn, isProperty?: boolean): ApplicationCallable;
 | Parameter | Description |
 |-----------|-------------|
 | `fn` | The function to wrap. Receives a name-keyed record |
-| `isProperty` | If `true`, auto-invokes when accessed from dict and declares one `self` parameter |
+| `isProperty` | If `true`, runs on access from a dict and declares one `self` parameter |
 
 `callable()` declares `params: []`, or a single `self: any` parameter when `isProperty` is `true`. Use it for zero-argument callables; use `toCallable` when the callable takes arguments.
 
 ### Property-Style Callables
 
-Property-style callables auto-invoke when accessed from a dict, enabling computed properties:
+Property-style callables run on access from a dict, enabling computed properties:
 
 ```typescript
 const ctx = createRuntimeContext({
@@ -705,7 +715,7 @@ const ctx = createRuntimeContext({
     user: {
       firstName: 'John',
       lastName: 'Doe',
-      // Auto-invokes on access, receives bound dict
+      // Runs on access, receives bound dict
       fullName: callable((args) => {
         // Property-style callable: args.self is the bound dict this callable was accessed from
         const dict = args.self as Record<string, RillValue>;

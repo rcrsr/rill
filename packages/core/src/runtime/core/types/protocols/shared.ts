@@ -205,7 +205,7 @@ export function serializeListElement(v: RillValue): unknown {
   if (isCallable(v))
     throw new RuntimeError(
       ERROR_IDS.RILL_R067,
-      'closures are not JSON-serializable'
+      'functions are not JSON-serializable'
     );
   if (isTuple(v))
     throw new RuntimeError(

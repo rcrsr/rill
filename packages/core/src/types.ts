@@ -13,7 +13,10 @@ export * from './ast-nodes.js';
 export * from './ast-unions.js';
 export * from './error-classes.js';
 export {
+  UNNAMED_PARAM_NAMES,
+  codeBlockShape,
   isUnnamedParam,
+  isUnnamedParamName,
   readsPipeValue,
   unnamedParamsRead,
 } from './ast-walk.js';

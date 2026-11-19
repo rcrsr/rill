@@ -397,7 +397,7 @@ describe('serializeValue', () => {
     it('throws RuntimeError for callable', () => {
       const fn = callable(() => null);
       expect(() => serializeValue(fn)).toThrow(
-        'closures are not JSON-serializable'
+        'functions are not JSON-serializable'
       );
     });
 
@@ -802,10 +802,10 @@ describe('Script-level integration', () => {
       );
     });
 
-    it('error message mentions closures', async () => {
+    it('error message mentions functions', async () => {
       await expectHaltMessage(
         () => run('fn(x) { $x * 2 } -> json'),
-        'closures'
+        'functions'
       );
     });
   });

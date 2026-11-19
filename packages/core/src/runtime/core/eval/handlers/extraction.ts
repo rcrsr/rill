@@ -48,11 +48,13 @@ import { accessHaltGateFast } from './access.js';
 import { isKeyedSource } from './collections.js';
 import { setDictField, throwSourceKindHalt } from '../shared.js';
 import { orderedDictEntries } from '../../types/dict-keys.js';
+import { rejectHeldEntries } from '../../types/held-block.js';
 import {
   assertUsableDictKey,
   assertStringVariableKey,
   assertStringComputedKey,
   evaluateDictMultiKeyFromList,
+  evaluateEntryValue,
 } from './literals.js';
 
 /**
@@ -561,6 +563,16 @@ export async function evaluateListLiteralElements(
       );
       const spreadElements = positionalElements(spreadValue);
       if (spreadElements !== undefined) {
+        rejectHeldEntries(
+          spreadValue,
+          'spread',
+          {
+            location: elem.span?.start,
+            sourceId: s.ctx.sourceId,
+            fn: 'evaluateListLiteralElements',
+          },
+          'direct'
+        );
         for (const spreadElement of spreadElements) {
           result.push(
             accessHaltGateFast(
@@ -585,12 +597,7 @@ export async function evaluateListLiteralElements(
       }
     } else {
       result.push(
-        accessHaltGateFast(
-          await evaluateExpression(s, elem),
-          'evaluateListLiteralElements',
-          () => elem.span?.start,
-          s.ctx.sourceId
-        )
+        await evaluateEntryValue(s, elem, 'evaluateListLiteralElements')
       );
     }
   }
@@ -638,6 +645,16 @@ async function evaluateDictLiteralEntries(
         'evaluateDictLiteralEntries',
         () => entry.span?.start,
         s.ctx.sourceId
+      );
+      rejectHeldEntries(
+        spreadValue,
+        'spread',
+        {
+          location: entry.span?.start,
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateDictLiteralEntries',
+        },
+        'direct'
       );
       if (isOrdered(spreadValue)) {
         for (const [k, v] of orderedValueEntries(spreadValue)) {
@@ -713,8 +730,11 @@ async function evaluateDictLiteralEntries(
       }
     }
 
-    const value = await evaluateExpression(s, entry.value);
-    setMergedEntry(stringKey, value, entry.span?.start);
+    setMergedEntry(
+      stringKey,
+      await evaluateEntryValue(s, entry.value, 'evaluateDictLiteralEntries'),
+      entry.span?.start
+    );
   }
   return [...merged.values()];
 }

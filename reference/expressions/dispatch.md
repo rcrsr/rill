@@ -3,7 +3,7 @@ id: dispatch
 title: Dispatch
 status: normative
 since: 0.24.0
-issues: [568, 599]
+issues: [599]
 grammar: []
 errors: [RILL-R002]
 depends: [selection, dict, ordered, list, tuple, map, fn]
@@ -43,13 +43,13 @@ A block held by a dict entry MUST run with `$` bound to the selector.
 r[dispatch.block-list] A block in a list variable runs with the index bound
 `0 -> $l` MUST run a block held at index 0 of the list `$l`, with `$` bound to 0.
 
-r[dispatch.block-literal] A block in a list literal target runs {pending #568}
+r[dispatch.block-literal] A block in a list literal target runs
 `0 -> list[{ 5 }]` MUST run the block and yield 5.
 
-r[dispatch.block-held] A block held by a tuple or an ordered runs {pending #568}
+r[dispatch.block-held] A block held by a tuple or an ordered runs
 Selecting a held block from a tuple or an ordered MUST run it, with `$` bound to the selector.
 
-r[dispatch.fn] A selected function is returned {pending #568}
+r[dispatch.fn] A selected function is returned
 A function selected by key or index MUST be returned and MUST NOT be called.
 
 r[dispatch.map-block] A block held by a map runs on selection {pending #599}

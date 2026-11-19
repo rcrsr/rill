@@ -457,7 +457,7 @@ describe('filter integration: calls inside closure bodies', () => {
     await expectHalt(
       () =>
         execute(
-          parse('use<ext:kb> => $kb\nlist[1] -> seq({ $kb.delete() })'),
+          parse('use<ext:kb> => $kb\nlist[1] -> seq(fn(x) { $kb.delete() })'),
           ctx
         ),
       {

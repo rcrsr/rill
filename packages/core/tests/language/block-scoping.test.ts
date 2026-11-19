@@ -15,10 +15,14 @@ import { run } from '../helpers/runtime.js';
 describe('Rill Runtime: Block Scoping', () => {
   describe('Loop Blocks', () => {
     it('cannot shadow outer variable in block', async () => {
-      // Attempting to assign to outer variable name is an error
+      // Attempting to assign to outer variable name is an error.
+      // The body reads $ so it takes the element (iteration.arity).
       const script = `
         "outer" => $x
-        list[1, 2, 3] -> seq({ "inner" => $x })
+        list[1, 2, 3] -> seq({
+          $
+          "inner" => $x
+        })
         $x
       `;
       await expect(run(script)).rejects.toThrow(
@@ -30,7 +34,10 @@ describe('Rill Runtime: Block Scoping', () => {
       // Variable created inside block is not visible outside
       // Accessing undefined variable throws an error
       const script = `
-        list[1, 2, 3] -> seq({ "created" => $y })
+        list[1, 2, 3] -> seq({
+          $
+          "created" => $y
+        })
         $y
       `;
       await expect(run(script)).rejects.toThrow('Undefined variable');
@@ -66,8 +73,10 @@ describe('Rill Runtime: Block Scoping', () => {
       const script = `
         "outer" => $x
         list[1, 2] -> seq({
+          $
           "level1" => $a
           list[3, 4] -> seq({
+            $
             "level2" => $b
             list[$x, $a, $b]
           })
@@ -199,6 +208,7 @@ describe('Rill Runtime: Block Scoping', () => {
       const script = `
         "hello" => $x
         list[1, 2, 3] -> seq({
+          $
           100 => $x
           $x
         })

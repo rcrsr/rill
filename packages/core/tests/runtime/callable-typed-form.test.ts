@@ -68,7 +68,7 @@ describe('Rill Runtime: typed-only callable form', () => {
       (metadata.find((m) => m.name === fn)?.params ?? []).map((p) => p.name);
 
     expect(names('chain')).toEqual(['value', 'transform']);
-    expect(names('iterate')).toEqual(['seed', 'closure']);
+    expect(names('iterate')).toEqual(['seed', 'body']);
     expect(names('log')).toEqual(['message']);
   });
 
@@ -183,8 +183,6 @@ describe('Rill Runtime: typed-only callable form', () => {
     it.each([
       ['a pipe into a call', '1 -> $f()'],
       ['a spread call', '$f(...list[1])'],
-      ['dict dispatch', '"a" -> dict[a: $f]'],
-      ['a dispatch literal', 'dict[a: $f] => $d\n"a" -> $d'],
       ['.params access', '$f.params'],
     ])('halts with a host-contract atom for %s', async (_label, source) => {
       await expectHalt(() => run(source, { variables: { f: undeclared } }), {
@@ -192,6 +190,14 @@ describe('Rill Runtime: typed-only callable form', () => {
         messagePattern:
           /Host function '[^']+' has no parameter declaration.*toCallable or callable\(\)/,
       });
+    });
+
+    it.each([
+      ['dict dispatch', '"a" -> dict[a: $f]'],
+      ['a dispatch literal', 'dict[a: $f] => $d\n"a" -> $d'],
+    ])('returns the callable uncalled for %s', async (_label, source) => {
+      const result = await run(source, { variables: { f: undeclared } });
+      expect(result).toMatchObject({ __type: 'callable' });
     });
 
     const undeclaredTyped = {

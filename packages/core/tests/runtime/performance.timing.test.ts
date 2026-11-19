@@ -213,7 +213,7 @@ describe('Rill Runtime: Performance Regression', () => {
       ],
       [
         'seq',
-        scriptRun('$items -> seq({ 1 })'),
+        scriptRun('$items -> seq(fn(x) { 1 })'),
         (result: unknown): boolean => Array.isArray(result),
       ],
       [

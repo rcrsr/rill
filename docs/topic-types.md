@@ -28,7 +28,7 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 - **No null/undefined**: Empty values are valid (`""`, `[]`, `[:]`), but "no value" cannot exist
 - **No truthiness**: Conditions require actual booleans, not "truthy" values
 
-`fn` is the type name of every function, in every type position. Writing `closure` in a type position halts `RILL-P012` and names `fn`. See [Closures](topic-closures.md) for function literals and `fn` types.
+`fn` is the type name of every function, in every type position. Writing `closure` in a type position halts `RILL-P012` and names `fn`. See [Closures](topic-closures.md) for function literals and `fn` types. A block written as a dict, ordered, list, or tuple entry is held uncalled and reports the type `fn()`; see [Code Blocks](ref-language.md#code-blocks).
 
 ## Strings
 
@@ -1212,7 +1212,7 @@ $s -> fold(0, { $@ + $ })      # reduces all chunks to a single value
 
 See [Collections](topic-collections.md) for full operator documentation including stream behavior.
 
-For stream closure syntax and the `:stream(T):R` annotation on closures, see [Closures](topic-closures.md).
+For stream function syntax and the `:stream(T):R` annotation on functions, see [Closures](topic-closures.md).
 
 ## Atom (`:atom`)
 
@@ -1226,7 +1226,7 @@ For stream closure syntax and the `:stream(T):R` annotation on closures, see [Cl
 |----------|-------------|
 | [Type System](topic-type-system.md) | Structural types, type assertions, unions, type-locked variables |
 | [Variables](topic-variables.md) | Declaration, scope, `$` binding |
-| [Closures](topic-closures.md) | Closure semantics and patterns |
+| [Closures](topic-closures.md) | Function semantics and patterns |
 | [Collections](topic-collections.md) | List iteration operators |
 | [Strings](topic-strings.md) | String methods reference |
 | [Reference](ref-language.md) | Quick reference tables |

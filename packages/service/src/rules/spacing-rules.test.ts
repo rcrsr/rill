@@ -429,7 +429,7 @@ describe('SPACING_CLOSURE', () => {
     expect(result[0]).toMatchObject({
       code: 'SPACING_CLOSURE',
       severity: 'info',
-      message: 'No space before closure after an opening bracket',
+      message: 'No space before function after an opening bracket',
       location: { line: 1, column: 16, offset: 15 },
       fix: null,
     });

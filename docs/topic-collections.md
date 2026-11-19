@@ -45,6 +45,39 @@ Every operator accepts these sources: list, tuple, string, dict, ordered, iterat
 
 ---
 
+## Operator Functions
+
+`seq`, `fan`, `filter`, and `sort` call their function with the element alone, so the function takes exactly one parameter. `fold` and `acc` call it with the element and then the accumulator, so the function takes exactly two. A block argument counts its parameters by its reads: `$` is one parameter, and `$@` adds the accumulator as the second.
+
+```rill
+[1, 2, 3] -> seq({ $ * 2 })
+# Result: list[2, 4, 6]
+```
+
+```rill
+[1, 2, 3] -> fold(0, fn(x, total) { $total + $x })
+# Result: 6
+```
+
+A function that takes too few parameters halts with RILL-R045. A function that requires too many halts with RILL-R044. The same rules apply to `fold` and `acc`, where a third required parameter halts with RILL-R044.
+
+```rill
+[1, 2, 3] -> seq({ 5 })
+# Error: RILL-R045
+```
+
+```rill
+[1, 2, 3] -> seq({ $@ })
+# Error: RILL-R044
+```
+
+```rill
+[1, 2, 3] -> fold(0, fn(x) { $x })
+# Error: RILL-R045
+```
+
+---
+
 ## seq — Sequential Iteration
 
 **Signature:** `seq(list: list[T], body: (item: T) => U): list[U]`
@@ -338,8 +371,8 @@ fold([1, 2, 3], 0, { $@ + $ })
 [1, 2, 3] -> fold(0, { $@ + $ })
 # Result: 6
 
-# Same with inline closure
-[1, 2, 3] -> fold(0, fn(item) { $@ + $item })
+# Same with a two-parameter function
+[1, 2, 3] -> fold(0, fn(item, total) { $total + $item })
 # Result: 6
 ```
 
@@ -371,7 +404,7 @@ fold([1, 2, 3], 0, { $@ + $ })
 #### Count
 
 ```rill
-[1, 2, 3, 4, 5] -> fold(0, { $@ + 1 })
+[1, 2, 3, 4, 5] -> fold(0, fn(x, total) { $total + 1 })
 # Result: 5
 ```
 
@@ -405,8 +438,8 @@ When folding over a dict, `$` contains `key` and `value` fields.
 Define closures for common reductions.
 
 ```rill
-fn(x) { $@ + $x } => $summer
-fn(x) { ($x > $@) ? $x ! $@ } => $maxer
+fn(x, total) { $total + $x } => $summer
+fn(x, best) { ($x > $best) ? $x ! $best } => $maxer
 
 [1, 2, 3] -> fold(0, $summer) => $r1
 [3, 7, 2] -> fold(0, $maxer) => $r2
@@ -887,8 +920,8 @@ Process nested structures with nested operators.
 [] -> seq({ $ })       # []
 [] -> fan({ $ })       # []
 [] -> filter({ $ })    # []
-[] -> fold(42, { $ })  # 42
-[] -> acc(0, { $ })    # []
+[] -> fold(42, { $@ + $ })  # 42
+[] -> acc(0, { $@ + $ })  # []
 ```
 
 ---

@@ -165,7 +165,7 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `TEMPORAL_LITERAL` | types | warning | `duration("...")` or `datetime("...")` with a string literal that cannot parse, so the call halts `#INVALID_INPUT` |
 | `EQUALITY_NO_OVERLAP` | types | warning | `==`, `!=`, `.eq`, or `.ne` (operator or pipe form), or `.has`, `.has_any`, or `.has_all` on a list literal of scalar literals, between operands whose types never overlap, so the comparison halts `#TYPE_MISMATCH` |
 | `PIPE_CONVERTS_INNER` | types | info | Pipe into `list(T)`, `dict(...)`, or `tuple(...)` of a statically known source with elements of another scalar kind, so `->` converts them; write `-> :T` to check without converting |
-| `PIPE_ZERO_PARAM_TARGET` | closures | warning | Pipe target closure with no parameters, so the call halts `RILL-R045` |
+| `PIPE_ZERO_PARAM_TARGET` | closures | warning | Pipe target function with no parameters, so the call halts `RILL-R045` |
 | `MIXED_ELEMENT_TYPE_READ` | types | info | `.^type` or `.^effective` read from a list literal of distinct compound shapes, or from the result of iterating a dict literal of distinct value shapes, where the read reports a union element type |
 | `TYPE_EXTRA_KEY` | types | warning | Typed check, capture, or parameter on a statically known dict or ordered literal with a key the type does not name, so it halts `#TYPE_MISMATCH` or `RILL-R001` |
 | `SIGNATURE_BARE_KEY` | types | warning | `.signature` compared with a string literal that spells a non-identifier key bare, so the comparison is always false (true for `!=`) |
@@ -188,6 +188,7 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `PREFER_DO_WHILE` | loops | info | Consider do-while for init-then-loop |
 | `USE_EACH` | loops | info | Use `each` instead of while loop |
 | `BREAK_IN_PARALLEL` | collections | error | `break` inside `map` or `filter` |
+| `COLLECTION_ARITY` | collections | error | `seq`, `fan`, `filter`, or `sort` function that does not take exactly one argument, or `fold` or `acc` function that does not take exactly two, so the call halts `RILL-R045` (too few) or `RILL-R044` (too many required) |
 | `BARE_CALLABLE_BODY` | collections | warning | Bare builtin or host name as a collection-op body is a zero-arg call, not a callable |
 | `PREFER_MAP` | collections | info | Use `map` when body has no side effects |
 | `FOLD_INTERMEDIATES` | collections | info | `acc` used only for its final value |
@@ -196,16 +197,17 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `USE_DEFAULT_OPERATOR` | conditionals | info | Use `??` instead of conditional |
 | `CONDITION_TYPE` | conditionals | warning | Condition is a non-boolean literal |
 | `DISPATCH_MISSING_MEMBER` | conditionals | warning | Dispatch table with no default piped a union of string literals, where a member has no key, so that member halts `RILL-R009` |
-| `CLOSURE_LATE_BINDING` | closures | warning | Closure captures late-bound variable |
+| `DISPATCH_FN_ENTRY` | conditionals | warning | Dispatch selects an `fn` literal entry by string, which dispatch returns uncalled; write a bare block to run it, or call the result |
+| `CLOSURE_LATE_BINDING` | closures | warning | Function captures late-bound variable |
 | `SPACING_OPERATOR` | formatting | info | Operators need surrounding spaces |
 | `SPACING_BRACES` | formatting | info | Braces need inner spacing |
 | `SPACING_BRACKETS` | formatting | info | Brackets need consistent spacing |
-| `SPACING_CLOSURE` | formatting | info | Closure params need spacing |
+| `SPACING_CLOSURE` | formatting | info | Space between an opening bracket and an `fn` literal |
 | `SPACING_MEMBER` | formatting | info | Member access dot must touch the field name |
 | `INDENT_CONTINUATION` | formatting | info | Continuation line indentation |
 | `IMPLICIT_DOLLAR_METHOD` | formatting | info | Prefer implicit `$` for methods |
 | `IMPLICIT_DOLLAR_FUNCTION` | formatting | info | Prefer implicit `$` for functions |
-| `IMPLICIT_DOLLAR_CLOSURE` | formatting | info | Prefer implicit `$` for closures |
+| `IMPLICIT_DOLLAR_CLOSURE` | formatting | info | Prefer implicit `$` for function calls |
 | `THROWAWAY_CAPTURE` | formatting | info | Capture unused or used once, far away |
 
 ## rill-run

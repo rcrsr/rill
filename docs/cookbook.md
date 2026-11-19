@@ -33,7 +33,7 @@ The pattern `$machine.$state.$event` chains two property accesses: first get the
 
 ### State Machine with Actions
 
-Embed closures in the transition table to execute side effects:
+Embed functions in the transition table to execute side effects:
 
 ```rill
 # Order processing state machine
@@ -109,7 +109,7 @@ $events -> fold([current: "idle", history: []], {
 
 ### Guard Conditions
 
-Use closures as guards to conditionally allow transitions:
+Use functions as guards to conditionally allow transitions:
 
 ```text
 # Sketch: not run by the examples harness
@@ -436,8 +436,8 @@ Converting to a dict spreads the accumulator with a computed key:
 
 ```text
 # Sketch: not run by the examples harness
-range(0, $zipKeys -> .len) -> fold([:], fn(i) {
-  [...$@, ($zipKeys[$i]): $zipValues[$i]]
+range(0, $zipKeys -> .len) -> fold([:], fn(i, acc) {
+  [...$acc, ($zipKeys[$i]): $zipValues[$i]]
 })
 # Result: dict[a: 1, b: 2, c: 3]
 ```
@@ -495,7 +495,7 @@ $text
 # Result: dict[brown: 1, dog: 1, fox: 2, jumps: 1, lazy: 1, over: 1, quick: 1, the: 3]
 ```
 
-## Closure Patterns
+## Function Patterns
 
 ### Partial Application
 
@@ -976,7 +976,7 @@ Each element is logged, then passed through to `seq`'s result list. A logging fa
 iterate(dict[a: 0, b: 1], { dict[a: $.b, b: ($.a + $.b)] }) -> take(8) -> seq({ $.a })
 # Result: list[0, 1, 1, 2, 3, 5, 8, 13]
 ```
-The closure advances the Fibonacci pair at each step; `seq` extracts `$.a` from each emitted state.
+The function advances the Fibonacci pair at each step; `seq` extracts `$.a` from each emitted state.
 ### Timeout Recovery via `??`
 ```text
 use<ext:app> => $app

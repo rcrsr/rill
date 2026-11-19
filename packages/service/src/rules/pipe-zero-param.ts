@@ -23,7 +23,7 @@ export const pipeZeroParamTarget: Rule = {
       diagnostics.push({
         code: 'PIPE_ZERO_PARAM_TARGET',
         message:
-          'A pipe target closure with no parameters halts RILL-R045; declare a parameter to receive the piped value.',
+          'A pipe target function with no parameters halts RILL-R045; declare a parameter to receive the piped value.',
         severity: 'warning',
         location: pipe.span.start,
         context: extractContextLine(pipe.span.start.line, context.source),

@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: List Dispatch
  * Tests for list literal as index-based dispatch table when piped.
@@ -8,10 +9,31 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
 
 describe('Rill Language: List Dispatch', () => {
+  describe('block entries in a list literal target', () => {
+    rule('dispatch.block-literal').it('runs a block at the index', async () => {
+      expect(await run('0 -> list[{ 5 }]')).toBe(5);
+    });
+
+    rule('dispatch.block-literal').it(
+      'binds $ to the index when the block runs',
+      async () => {
+        expect(await run('1 -> list["a", { "got {$}" }]')).toBe('got 1');
+      }
+    );
+
+    rule('dispatch.block-literal').it(
+      'runs only the block at the index',
+      async () => {
+        expect(await run('0 -> list["x", { error "boom" }]')).toBe('x');
+      }
+    );
+  });
+
   // ============================================================
   // BASIC INDEX DISPATCH - keyword list[ form (AC-19)
   // ============================================================

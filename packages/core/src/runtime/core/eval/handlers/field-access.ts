@@ -38,7 +38,7 @@
 import type { SourceLocation, VariableNode } from '../../../../types.js';
 import type { RillValue, TypeStructure } from '../../types/structures.js';
 import type { Carried } from '../../types/declared.js';
-import { projectElement } from '../../types/declared.js';
+import { pipeDeclaredOf, projectElement } from '../../types/declared.js';
 import { inferType } from '../../types/registrations.js';
 import {
   isIterator,
@@ -63,6 +63,7 @@ import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getNodeLocation, isFieldReceiver, readOwnField } from '../shared.js';
 import { invokeCallable } from './closures.js';
+import { resolveSelected } from './code-block.js';
 
 // ============================================================
 // TYPES
@@ -107,6 +108,8 @@ export interface FieldReadRequest {
   readonly receiverDeclared?: TypeStructure | undefined;
   /** Report a miss with the bracket read's halt, for `.$k`. */
   readonly bracketMiss?: boolean | undefined;
+  /** Leave a selected held block unrun, for a pipe target that runs it. */
+  readonly keepHeld?: boolean | undefined;
 }
 
 // ============================================================
@@ -429,15 +432,25 @@ export async function readField(
     typeof key === 'string' &&
     isFieldReceiver(receiver) &&
     isCallable(stored) &&
+    stored.kind === 'application' &&
     stored.isProperty
   ) {
-    // ApplicationCallable: pass [dict] as args (no boundDict mechanism)
-    // ScriptCallable: pass [] - dict is bound via boundDict -> pipeValue
-    const args = stored.kind === 'script' ? [] : [receiver];
+    // A host property-style function receives the dict as its argument.
     return {
-      value: await invokeCallable(s, stored, args, request.location),
+      value: await invokeCallable(s, stored, [receiver], request.location),
       declared: undefined,
     };
+  }
+  if (request.keepHeld !== true) {
+    // A held block runs with the enclosing `$`; any other value is returned.
+    const resolved = await resolveSelected(
+      s,
+      stored,
+      s.ctx.pipeValue,
+      pipeDeclaredOf(s.ctx),
+      request.location
+    );
+    if (resolved.ran) return { value: resolved.value, declared: undefined };
   }
   return {
     value: stored,
@@ -465,6 +478,7 @@ function siteFor(s: EvalState, node: VariableNode, fn: string): TypeHaltSite {
  * @param node - The parent variable node for location info
  * @param allowMissing - Resolve a miss to null instead of halting
  * @param receiverDeclared - Declared type of the receiver, if any
+ * @param keepHeld - Leave a selected held block unrun
  * @returns The field or element value with its projected declared type
  * @throws RuntimeHaltSignal (catchable) if the variable is undefined, the
  *   key has the wrong type, or the read misses without allowMissing
@@ -478,7 +492,8 @@ export async function evaluateFieldAccessVariable(
   value: RillValue,
   node: VariableNode,
   allowMissing: boolean,
-  receiverDeclared?: TypeStructure
+  receiverDeclared?: TypeStructure,
+  keepHeld?: boolean
 ): Promise<Carried> {
   const fn = 'evaluateFieldAccessVariable';
   let keyValue: RillValue | undefined;
@@ -511,5 +526,6 @@ export async function evaluateFieldAccessVariable(
     fn,
     receiverDeclared,
     bracketMiss: true,
+    keepHeld,
   });
 }

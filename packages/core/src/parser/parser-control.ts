@@ -161,6 +161,34 @@ Parser.prototype.parseConditionalWithCondition = function (
   return this.parseConditionalRest(conditionBody, start);
 };
 
+/**
+ * Parses a conditional branch. A block branch may carry a `:T` assertion or
+ * `:?T` check suffix, built in the same postfix shape as `$x:T`.
+ */
+function parseBranchBody(parser: Parser): BodyNode {
+  const body = parser.parseBody();
+  if (body.type !== 'Block' || !check(parser.state, TOKEN_TYPES.COLON)) {
+    return body;
+  }
+  const operand: PostfixExprNode = {
+    type: 'PostfixExpr',
+    primary: body,
+    methods: [],
+    defaultValue: null,
+    existenceCheck: null,
+    span: body.span,
+  };
+  const typeOp = parser.parsePostfixTypeOperation(operand);
+  return {
+    type: 'PostfixExpr',
+    primary: typeOp,
+    methods: [],
+    defaultValue: null,
+    existenceCheck: null,
+    span: typeOp.span,
+  };
+}
+
 Parser.prototype.parseConditionalRest = function (
   this: Parser,
   condition: BodyNode | null,
@@ -169,7 +197,7 @@ Parser.prototype.parseConditionalRest = function (
   // A trailing `?` at end of line continues onto the then-branch on the
   // next line.
   skipNewlines(this.state);
-  const thenBranch = this.parseBody();
+  const thenBranch = parseBranchBody(this);
   assertBranchShapeBoundary(this.state);
 
   let elseBranch: BodyNode | ConditionalNode | null = null;
@@ -180,7 +208,7 @@ Parser.prototype.parseConditionalRest = function (
     // next line.
     skipNewlines(this.state);
 
-    const elseBody = this.parseBody();
+    const elseBody = parseBranchBody(this);
     assertBranchShapeBoundary(this.state);
 
     // Site 5: Add newline lookahead before ? check for else-if

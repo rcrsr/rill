@@ -195,7 +195,7 @@ describe('take/skip reject malformed .next results', () => {
       {
         code: 'RILL_R002',
         hostErrorId: 'RILL-R002',
-        messagePattern: /Iterator\/stream \.next must be a closure/,
+        messagePattern: /Iterator\/stream \.next must be a function/,
       }
     );
   });

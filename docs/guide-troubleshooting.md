@@ -215,9 +215,9 @@ List spread requires a list or tuple operand. Dict spread requires a dict operan
 # Result: list["h", "e", "l", "l", "o"]
 ```
 
-## Closure Parameter Count
+## Function Parameter Count
 
-Calling a closure with wrong argument count produces an error.
+Calling a function with wrong argument count produces an error.
 
 ```text
 fn(a, b) { $a + $b } => $add
@@ -232,6 +232,49 @@ fn(a, b = 0) { $a + $b } => $add
 $add(1)
 # Result: 1
 ```
+
+## A Block Argument Halts With an Arity Error
+
+`seq`, `fan`, `filter`, and `sort` call their function with the element only. A block argument takes the parameters its body reads, so the body must read `$` and must not read `$@`.
+
+```rill
+list[1, 2] -> seq({ 5 })
+# Error: RILL-R045
+```
+
+```rill
+list[1, 2] -> seq({ $@ })
+# Error: RILL-R044
+```
+
+`{ 5 }` reads nothing, so it takes no parameter and the element is an excess argument (RILL-R045). `{ $@ }` reads the accumulator, so it requires a second parameter that `seq` never supplies (RILL-R044).
+
+**Fix:** Read `$`, or declare the parameters with `fn`.
+
+```rill
+list[1, 2] -> seq({ $ * 5 })
+# Result: list[5, 10]
+```
+
+`fold` and `acc` call their function with two arguments. A function with fewer than two parameters halts RILL-R045, and a third required parameter halts RILL-R044. See [Collections](topic-collections.md) for the arity rules.
+
+## A Collection Entry Holds a Block That a Read Does Not Select
+
+A block written as a dict value or list element is held, not run. Selecting the entry with `$c.name`, `$c[key]`, or a dispatch pipe runs it, with `$` bound to the enclosing `$` for access and to the selector for dispatch. Iteration, `.values`, spread, equality, and interpolation select nothing, so they halt with `#TYPE_MISMATCH`.
+
+```rill
+dict[n: 2, double: { $.n * 2 }] => $d
+$d -> $d.double
+# Result: 4
+```
+
+```rill
+dict[a: { 1 }] => $d
+$d -> .values -> seq({ $ })
+# Error: TYPE_MISMATCH
+```
+
+**Fix:** Select the entry by name, or write the entry as `fn { ... }` when you need a function value. See [Functions and Code Blocks](topic-closures.md) for held blocks and function values.
 
 ## Reserved Dict Keys
 
@@ -313,26 +356,26 @@ $full_text -> log
 $full_text -> .len -> log
 ```
 
-### `yield` Outside a Stream Closure
+### `yield` Outside a Stream Function
 
-`yield` is a keyword scoped to stream closure bodies. Using it outside that context is a parse error.
+`yield` is a keyword scoped to stream function bodies. Using it outside that context is a parse error.
 
 ```text
 "hello" -> yield
-# Error: RILL-P: yield is not valid outside a stream closure body
+# Error: RILL-P: yield is not valid outside a stream function body
 ```
 
-`yield` is also invalid inside a stored closure defined within a stream body.
+`yield` is also invalid inside a stored function defined within a stream body.
 
 ```text
 fn():stream(number):number {
   fn { $ -> yield } => $fn
   $fn(1)
 }
-# Error: yield is not valid in stored closure
+# Error: yield is not valid in stored function
 ```
 
-**Fix:** Use `yield` only as a terminator in a pipe chain inside the stream closure body directly.
+**Fix:** Use `yield` only as a terminator in a pipe chain inside the stream function body directly.
 
 ```text
 fn():stream(string):number {

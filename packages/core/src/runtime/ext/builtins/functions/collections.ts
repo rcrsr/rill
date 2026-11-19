@@ -1,9 +1,5 @@
 import type { RillFunction } from '../../../core/callable.js';
-import {
-  isCallable,
-  isDict,
-  isScriptCallable,
-} from '../../../core/callable.js';
+import { isDict } from '../../../core/callable.js';
 import {
   isIterator,
   isOrdered,
@@ -29,9 +25,7 @@ import { inferType } from '../../../core/types/registrations.js';
 import { createOrdered } from '../../../core/types/constructors.js';
 import { resolvedCompareValue } from '../../../core/types/protocols/shared.js';
 import { anyTypeValue } from '../../../core/values.js';
-import { invokeCallable } from '../../../core/eval/index.js';
 import { BreakSignal } from '../../../core/signals.js';
-import { createChildContext } from '../../../core/context.js';
 import {
   getIterableElements,
   isKeyedSource,
@@ -39,7 +33,7 @@ import {
 } from '../../../core/eval/handlers/collections.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
 import { DEFAULT_MAX_ITERATIONS } from '../../../core/eval/shared.js';
-import { bindElement, chunkSlice } from '../shared.js';
+import { callWithElement, chunkSlice, requireFunctionArg } from '../shared.js';
 
 /** Halt-site descriptor shared by the collection built-ins' host halts. */
 function buildSite(
@@ -137,13 +131,13 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const input = args['list'] ?? null;
       const body = args['body'] ?? null;
 
-      if (!isCallable(body)) {
-        throwCatchableHostHalt(
-          buildSite('seq', ctx, location),
-          'TYPE_MISMATCH',
-          `seq: body must be a closure, got ${inferType(body)}`
-        );
-      }
+      requireFunctionArg(
+        body,
+        'seq',
+        'body',
+        'TYPE_MISMATCH',
+        buildSite('seq', ctx, location)
+      );
 
       // Fake node for getIterableElements location reporting
       const node = {
@@ -159,19 +153,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           ctx,
           node,
           'seq',
-          (element) => {
-            const childCtx = createChildContext(ctx);
-            const elementArgs = bindElement(childCtx, element, args);
-            const closureToInvoke = isScriptCallable(body)
-              ? { ...body, definingScope: childCtx }
-              : body;
-            return invokeCallable(
-              closureToInvoke,
-              elementArgs,
-              childCtx,
-              location
-            );
-          }
+          (element) => callWithElement(body, ctx, element, args, location)
         );
         return results;
       }
@@ -182,18 +164,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
 
       try {
         for (const element of elements) {
-          const childCtx = createChildContext(ctx);
-          const elementArgs = bindElement(childCtx, element, args);
-          const closureToInvoke = isScriptCallable(body)
-            ? { ...body, definingScope: childCtx }
-            : body;
-          const result = await invokeCallable(
-            closureToInvoke,
-            elementArgs,
-            childCtx,
-            location
+          results.push(
+            await callWithElement(body, ctx, element, args, location)
           );
-          results.push(result);
         }
       } catch (e) {
         if (e instanceof BreakSignal) {
@@ -239,13 +212,13 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const body = args['body'] ?? null;
       const options = args['options'] ?? null;
 
-      if (!isCallable(body)) {
-        throwCatchableHostHalt(
-          buildSite('fan', ctx, location),
-          'TYPE_MISMATCH',
-          `fan: body must be a closure, got ${inferType(body)}`
-        );
-      }
+      requireFunctionArg(
+        body,
+        'fan',
+        'body',
+        'TYPE_MISMATCH',
+        buildSite('fan', ctx, location)
+      );
 
       // Validate options if provided
       let concurrency: number | undefined;
@@ -308,11 +281,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       if (concurrency === undefined) {
         // Unbounded parallel: Promise.all over all elements
         const promises = elements.map((element) => {
-          const childCtx = createChildContext(ctx, {
+          return callWithElement(body, ctx, element, args, location, {
             forkCallDepth: true,
           });
-          const elementArgs = bindElement(childCtx, element, args);
-          return invokeCallable(body, elementArgs, childCtx, location);
         });
         try {
           return await Promise.all(promises);
@@ -326,11 +297,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const results: RillValue[] = [];
       for (const batch of chunkSlice(elements, concurrency)) {
         const batchPromises = batch.map((element) => {
-          const childCtx = createChildContext(ctx, {
+          return callWithElement(body, ctx, element, args, location, {
             forkCallDepth: true,
           });
-          const elementArgs = bindElement(childCtx, element, args);
-          return invokeCallable(body, elementArgs, childCtx, location);
         });
         try {
           const batchResults = await Promise.all(batchPromises);
@@ -378,13 +347,13 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const seed = args['init'] ?? null;
       const body = args['body'] ?? null;
 
-      if (!isCallable(body)) {
-        throwCatchableHostHalt(
-          buildSite('acc', ctx, location),
-          'TYPE_MISMATCH',
-          `acc: body must be a closure, got ${inferType(body)}`
-        );
-      }
+      requireFunctionArg(
+        body,
+        'acc',
+        'body',
+        'TYPE_MISMATCH',
+        buildSite('acc', ctx, location)
+      );
 
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
@@ -401,26 +370,13 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           node,
           'acc',
           async (element) => {
-            const childCtx = createChildContext(ctx);
-            childCtx.variables.set('@', lazyAccumulator);
-            const closureToInvoke = isScriptCallable(body)
-              ? { ...body, definingScope: childCtx }
-              : body;
-            // Two-type closures fn(elem_type, acc_type) { body } declare '@' as
-            // second param. Pass accumulator as second arg so marshalArgs
-            // can bind and type-check it.
-            const isTwoTypeBody =
-              isScriptCallable(body) &&
-              body.params.length === 2 &&
-              body.params[1]?.name === '@';
-            const invokeArgs: RillValue[] = isTwoTypeBody
-              ? bindElement(childCtx, element, args, [lazyAccumulator])
-              : bindElement(childCtx, element, args);
-            const result = await invokeCallable(
-              closureToInvoke,
-              invokeArgs,
-              childCtx,
-              location
+            const result = await callWithElement(
+              body,
+              ctx,
+              element,
+              args,
+              location,
+              { extra: [lazyAccumulator] }
             );
             lazyAccumulator = result;
             return result;
@@ -436,25 +392,13 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
 
       try {
         for (const element of elements) {
-          const childCtx = createChildContext(ctx);
-          childCtx.variables.set('@', accumulator);
-          const closureToInvoke = isScriptCallable(body)
-            ? { ...body, definingScope: childCtx }
-            : body;
-          // Two-type closures fn(elem_type, acc_type) { body } declare '@' as second param.
-          // Pass accumulator as second arg so marshalArgs can bind and type-check it.
-          const isTwoTypeBody =
-            isScriptCallable(body) &&
-            body.params.length === 2 &&
-            body.params[1]?.name === '@';
-          const invokeArgs: RillValue[] = isTwoTypeBody
-            ? bindElement(childCtx, element, args, [accumulator])
-            : bindElement(childCtx, element, args);
-          const result = await invokeCallable(
-            closureToInvoke,
-            invokeArgs,
-            childCtx,
-            location
+          const result = await callWithElement(
+            body,
+            ctx,
+            element,
+            args,
+            location,
+            { extra: [accumulator] }
           );
           results.push(result);
           accumulator = result;
@@ -502,13 +446,13 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const seed = args['init'] ?? null;
       const body = args['body'] ?? null;
 
-      if (!isCallable(body)) {
-        throwCatchableHostHalt(
-          buildSite('fold', ctx, location),
-          'TYPE_MISMATCH',
-          `fold: body must be a closure, got ${inferType(body)}`
-        );
-      }
+      requireFunctionArg(
+        body,
+        'fold',
+        'body',
+        'TYPE_MISMATCH',
+        buildSite('fold', ctx, location)
+      );
 
       const elements = await materializeSource('fold', input, ctx, location);
 
@@ -521,26 +465,14 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       };
 
       for (const element of elements) {
-        const childCtx = createChildContext(ctx);
-        childCtx.variables.set('@', accumulator);
-        const closureToInvoke = isScriptCallable(body)
-          ? { ...body, definingScope: childCtx }
-          : body;
-        // Two-type closures fn(elem_type, acc_type) { body } declare '@' as second param.
-        // Pass accumulator as second arg so marshalArgs can bind and type-check it.
-        const isTwoTypeBody =
-          isScriptCallable(body) &&
-          body.params.length === 2 &&
-          body.params[1]?.name === '@';
-        const invokeArgs: RillValue[] = isTwoTypeBody
-          ? bindElement(childCtx, element, args, [accumulator])
-          : bindElement(childCtx, element, args);
         try {
-          accumulator = await invokeCallable(
-            closureToInvoke,
-            invokeArgs,
-            childCtx,
-            location
+          accumulator = await callWithElement(
+            body,
+            ctx,
+            element,
+            args,
+            location,
+            { extra: [accumulator] }
           );
         } catch (e) {
           rejectBreakAsHalt(e, site);
@@ -587,13 +519,13 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const body = args['body'] ?? null;
       const options = args['options'] ?? null;
 
-      if (!isCallable(body)) {
-        throwCatchableHostHalt(
-          buildSite('filter', ctx, location),
-          'TYPE_MISMATCH',
-          `filter: body must be a closure, got ${inferType(body)}`
-        );
-      }
+      requireFunctionArg(
+        body,
+        'filter',
+        'body',
+        'TYPE_MISMATCH',
+        buildSite('filter', ctx, location)
+      );
 
       // Validate options if provided
       let concurrency: number | undefined;
@@ -655,15 +587,13 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
 
       /** Run the predicate for a single element and return keep/discard result. */
       const runPredicate = async (element: RillValue) => {
-        const childCtx = createChildContext(ctx, {
-          forkCallDepth: true,
-        });
-        const elementArgs = bindElement(childCtx, element, args);
-        const result = await invokeCallable(
+        const result = await callWithElement(
           body,
-          elementArgs,
-          childCtx,
-          location
+          ctx,
+          element,
+          args,
+          location,
+          { forkCallDepth: true }
         );
         if (isInvalid(result)) {
           throwCatchableHostHalt(
@@ -754,17 +684,8 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       };
 
       // validate key_fn if supplied
-      if (
-        keyFnArg !== undefined &&
-        keyFnArg !== null &&
-        !isCallable(keyFnArg)
-      ) {
-        throwTypeHalt(
-          site,
-          'TYPE_MISMATCH',
-          `sort: key_fn must be a closure, got ${inferType(keyFnArg)}`,
-          'runtime'
-        );
+      if (keyFnArg !== undefined && keyFnArg !== null) {
+        requireFunctionArg(keyFnArg, 'sort', 'key_fn', 'TYPE_MISMATCH', site);
       }
 
       const elements = await materializeSource('sort', input, ctx, location);
@@ -776,12 +697,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         elements.map(async (el) => {
           let key: RillValue = el;
           if (keyFnArg) {
-            const childCtx = createChildContext(ctx, {
-              forkCallDepth: true,
-            });
-            const elArgs = bindElement(childCtx, el, args);
             try {
-              key = await invokeCallable(keyFnArg, elArgs, childCtx, location);
+              key = await callWithElement(keyFnArg, ctx, el, args, location, {
+                forkCallDepth: true,
+              });
             } catch (e) {
               rejectBreakAsHalt(e, site);
               throw e;

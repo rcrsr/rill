@@ -3,7 +3,7 @@
  * where each name's binding-introducing construct lives in source.
  */
 
-import { walkAst } from '@rcrsr/rill';
+import { isUnnamedParamName, walkAst } from '@rcrsr/rill';
 import type { ASTNode, ParseResult } from '@rcrsr/rill';
 import type { SourceSpan, TypeRef } from '@rcrsr/rill';
 
@@ -100,8 +100,7 @@ function computeScopeState(parsed: ParseResult, offset: number): ScopeState {
         break;
       case 'ClosureParam':
         // An unnamed param binds the pipe value `$` or `$@`, never a name.
-        if (!boundParams.has(node) || node.name === '$' || node.name === '@')
-          break;
+        if (!boundParams.has(node) || isUnnamedParamName(node.name)) break;
         frame.bindings.push(
           createBinding(
             node.name,

@@ -139,16 +139,19 @@ describe('collections handlers', () => {
     });
 
     it('propagates errors from body evaluation', async () => {
-      await expectHalt(() => run('list[1, 2, 3] -> seq({ $undefined })'), {
-        code: 'RILL_R005',
-        hostErrorId: 'RILL-R005',
-      });
+      await expectHalt(
+        () => run('list[1, 2, 3] -> seq(fn(x) { $undefined })'),
+        {
+          code: 'RILL_R005',
+          hostErrorId: 'RILL-R005',
+        }
+      );
     });
 
     it('raises error when body is not a closure', async () => {
       await expectHalt(() => run('list[1] -> seq(42)'), {
         code: 'TYPE_MISMATCH',
-        messagePattern: /seq.*closure/i,
+        messagePattern: /seq.*function/i,
       });
     });
   });
@@ -296,7 +299,7 @@ describe('collections handlers', () => {
     it('raises error when body is not a closure', async () => {
       await expectHalt(() => run('list[1] -> fold(0, 42)'), {
         code: 'TYPE_MISMATCH',
-        messagePattern: /fold.*closure/i,
+        messagePattern: /fold.*function/i,
       });
     });
   });

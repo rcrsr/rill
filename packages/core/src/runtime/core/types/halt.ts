@@ -828,3 +828,32 @@ export function throwAccessHalt(
   const frame = createTraceFrame({ site, kind: TRACE_KINDS.ACCESS, fn });
   throw new RuntimeHaltSignal(appendTraceFrame(value, frame), true);
 }
+
+// ============================================================
+// HELD-ENTRY HALT BUILDER
+// ============================================================
+
+/**
+ * Halt because an operation reached a held block among the entries of a
+ * collection. Raises a catchable `#TYPE_MISMATCH` naming the operation and
+ * the entry (a dict key, ordered key, or list/tuple index).
+ *
+ * @param op    - Operation that rejected the collection.
+ * @param entry - Key or index of the held entry.
+ * @param site  - Halt site; `fn` names the producer.
+ * @throws RuntimeHaltSignal (catchable).
+ */
+export function throwHeldEntryHalt(
+  op: string,
+  entry: string | number,
+  site: TypeHaltSite
+): never {
+  const label = typeof entry === 'number' ? `index ${entry}` : `'${entry}'`;
+  return throwTypeHalt(
+    site,
+    'TYPE_MISMATCH',
+    `${op}: entry ${label} holds a code block, which is not a value`,
+    'runtime',
+    { operation: op, entry }
+  );
+}

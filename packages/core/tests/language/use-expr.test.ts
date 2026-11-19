@@ -329,17 +329,20 @@ describe('Rill Language: use<> Expressions', () => {
         expect(result).toBe('y');
       });
 
-      it('invokes a function held in a host-resolved dict as a variable target does', async () => {
-        const fn = toCallable({
-          params: [],
-          returnType: anyTypeValue,
-          fn: () => 'called',
-        });
-        const result = await run('"f" -> use<host:value>', {
-          resolvers: { host: valueResolver({ f: fn }) },
-        });
-        expect(result).toBe('called');
-      });
+      rule('dispatch.fn').it(
+        'returns a function held in a host-resolved dict uncalled',
+        async () => {
+          const fn = toCallable({
+            params: [],
+            returnType: anyTypeValue,
+            fn: () => 'called',
+          });
+          const result = await run('"f" -> use<host:value>', {
+            resolvers: { host: valueResolver({ f: fn }) },
+          });
+          expect(result).toBe(fn);
+        }
+      );
 
       it('converts the piped value through a host-resolved type value', async () => {
         const result = await run('"5" -> use<host:value>', {

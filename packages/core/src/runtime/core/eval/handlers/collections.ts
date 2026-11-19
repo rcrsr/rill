@@ -27,6 +27,7 @@ import type { RuntimeContext } from '../../types/runtime.js';
 import { BreakSignal } from '../../signals.js';
 import { isCallable } from '../../callable.js';
 import { orderedDictEntries } from '../../types/dict-keys.js';
+import { rejectHeldEntries } from '../../types/held-block.js';
 import { invokeStreamDispose } from '../../types/constructors.js';
 import {
   throwCatchableHostHalt,
@@ -111,11 +112,18 @@ export async function getIterableElements(
   node: { span: { start: SourceLocation } },
   limit: number = DEFAULT_MAX_ITERATIONS
 ): Promise<RillValue[]> {
+  const site = {
+    location: node.span.start,
+    sourceId: ctx.sourceId,
+    fn: 'getIterableElements',
+  };
   if (Array.isArray(input)) {
+    rejectHeldEntries(input, 'iteration', site, 'direct');
     return input;
   }
   const positional = positionalElements(input);
   if (positional !== undefined) {
+    rejectHeldEntries(input, 'iteration', site, 'direct');
     return [...positional];
   }
   if (typeof input === 'string') {
@@ -131,9 +139,11 @@ export async function getIterableElements(
     return expandIterator(input, evaluator, node, limit);
   }
   if (isOrdered(input)) {
+    rejectHeldEntries(input, 'iteration', site, 'direct');
     return input.entries.map(([key, value]) => ({ key, value }));
   }
   if (isPlainDict(input)) {
+    rejectHeldEntries(input, 'iteration', site, 'direct');
     // Dict iteration: canonical key order (string keys sorted by UTF-16 code
     // unit), each element is { key, value }.
     return orderedDictEntries(input).map((e) => ({
@@ -192,7 +202,7 @@ async function expandIterator(
           fn: 'expandIterator',
         },
         ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        'Iterator .next must be a closure'
+        'Iterator .next must be a function'
       );
     }
     const nextIterator = await invokeCallable(
@@ -401,7 +411,7 @@ export async function walkStreamOrIteratorElements(
         throwFatalHostHalt(
           site,
           ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          `${streamInput ? 'Stream' : 'Iterator'} .next must be a closure`
+          `${streamInput ? 'Stream' : 'Iterator'} .next must be a function`
         );
       }
       const nextStep = await invokeCallable(
@@ -535,7 +545,7 @@ async function expandStream(
         throwFatalHostHalt(
           site,
           ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          'Stream .next must be a closure'
+          'Stream .next must be a function'
         );
       }
       const nextStep = await invokeCallable(

@@ -1,5 +1,5 @@
 import type { RillFunction } from '../../../core/callable.js';
-import { internalCallable, isCallable } from '../../../core/callable.js';
+import { internalCallable } from '../../../core/callable.js';
 import {
   rejectBreakAsHalt,
   throwCatchableHostHalt,
@@ -16,16 +16,15 @@ import {
 } from '../../../core/types/guards.js';
 import { requireFixedDuration } from '../../../core/types/duration-limit.js';
 import { anyTypeValue } from '../../../core/values.js';
-import { invokeCallable } from '../../../core/eval/index.js';
-import { createChildContext } from '../../../core/context.js';
 import { getIterableElements } from '../../../core/eval/handlers/collections.js';
 import { getEvalState } from '../../../core/eval/state.js';
 import { DEFAULT_MAX_ITERATIONS } from '../../../core/eval/shared.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
 import {
-  bindElement,
+  callWithElement,
   chunkSlice,
   makeListIterator,
+  requireFunctionArg,
   requireNonNegativeInteger,
   walkIteratorSteps,
 } from '../shared.js';
@@ -573,13 +572,13 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
         fn: 'start_when',
       };
 
-      if (!isCallable(predicate)) {
-        throwCatchableHostHalt(
-          site,
-          'RILL_R040',
-          `start_when: predicate must be a closure, got ${inferType(predicate)}`
-        );
-      }
+      requireFunctionArg(
+        predicate,
+        'start_when',
+        'predicate',
+        ERROR_ATOMS[ERROR_IDS.RILL_R040],
+        site
+      );
 
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
@@ -593,12 +592,11 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       try {
         for (const element of elements) {
           if (!triggered) {
-            const childCtx = createChildContext(ctx);
-            const elementArgs = bindElement(childCtx, element, args);
-            const testResult = await invokeCallable(
+            const testResult = await callWithElement(
               predicate,
-              elementArgs,
-              childCtx,
+              ctx,
+              element,
+              args,
               location
             );
             if (typeof testResult !== 'boolean') {
@@ -664,13 +662,13 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
         fn: 'stop_when',
       };
 
-      if (!isCallable(predicate)) {
-        throwCatchableHostHalt(
-          site,
-          'RILL_R040',
-          `stop_when: predicate must be a closure, got ${inferType(predicate)}`
-        );
-      }
+      requireFunctionArg(
+        predicate,
+        'stop_when',
+        'predicate',
+        ERROR_ATOMS[ERROR_IDS.RILL_R040],
+        site
+      );
 
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
@@ -688,12 +686,11 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
               `stop_when: yield count exceeded ${DEFAULT_MAX_ITERATIONS} limit`
             );
           }
-          const childCtx = createChildContext(ctx);
-          const elementArgs = bindElement(childCtx, element, args);
-          const testResult = await invokeCallable(
+          const testResult = await callWithElement(
             predicate,
-            elementArgs,
-            childCtx,
+            ctx,
+            element,
+            args,
             location
           );
           if (typeof testResult !== 'boolean') {

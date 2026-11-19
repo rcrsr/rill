@@ -15,7 +15,7 @@ describe('CLOSURE_LATE_BINDING', () => {
       code: 'CLOSURE_LATE_BINDING',
       severity: 'warning',
       message:
-        'Capture loop variable explicitly for deferred closures: $ => $item',
+        'Capture loop variable explicitly for deferred functions: $ => $item',
       fix: null,
     });
   });

@@ -12,7 +12,7 @@ Iterators provide lazy sequence generation in rill. They produce values on deman
 |----------|-------------|
 | `range(start, end, step?)` | Generate number sequence |
 | `repeat(value, count)` | Repeat value n times |
-| `iterate(seed, closure)` | Infinite stream: apply closure to produce next value |
+| `iterate(seed, body)` | Infinite stream: apply the function to produce next value |
 | `.first()` | Get iterator for any collection |
 
 **Key characteristics:**
@@ -122,7 +122,7 @@ $r.!code -> string
 
 ## iterate: Infinite Source Stream
 
-**Signature:** `iterate(seed, closure): stream of T`
+**Signature:** `iterate(seed, body): stream of T`
 
 `iterate` produces an unbounded stream. It starts with `seed` as the first emitted value. After each emission, it calls the function with the current value in `$` to produce the next value, which becomes both the next emission and the next seed.
 
@@ -164,7 +164,7 @@ iterate(1, { $ + 1 }) -> take(20) -> stop_when({ $ >= 5 })
 
 ### Fibonacci sequence
 
-Use a dict pair as the seed to carry two values between steps. The closure advances the pair; `seq` extracts the `a` field from each step.
+Use a dict pair as the seed to carry two values between steps. The function advances the pair; `seq` extracts the `a` field from each step.
 
 ```rill
 iterate(dict[a: 0, b: 1], { dict[a: $.b, b: ($.a + $.b)] }) -> take(8) -> seq({ $.a })
@@ -186,14 +186,14 @@ iterate(0, { $ + 1 }) -> seq({ $ })
 
 | Condition | Error |
 |-----------|-------|
-| Closure is missing | `RILL-R044`, a non-catchable halt (`guard` does not catch it) |
-| Closure is not invocable | Catchable halt: `RILL_R006` |
-| Closure produces a catchable halt | Propagates as catchable |
-| Closure produces a non-catchable halt | Propagates as non-catchable |
+| Function is missing | `RILL-R044`, a non-catchable halt (`guard` does not catch it) |
+| Function is not invocable | Catchable halt: `RILL_R006` |
+| Function produces a catchable halt | Propagates as catchable |
+| Function produces a non-catchable halt | Propagates as non-catchable |
 | Iteration exceeds 10,000 chunks | Non-catchable halt `RILL_R010` at a materializing consumer such as `seq` or `fold`; catchable when `take` or `skip` raises it |
 
 ```text
-# Error: RILL-R044 — Missing argument for parameter 'closure'
+# Error: RILL-R044 — Missing argument for parameter 'body'
 iterate(0)
 ```
 
@@ -292,7 +292,7 @@ Streams and iterators share the same protocol fields but differ in source, state
 | Stale access | N/A (immutable) | Halts with error |
 | Operators | `seq`, `fan`, `filter`, `fold`, `acc` | Same operators |
 | Invocation | Not callable | `$s()` returns resolution value |
-| Production | Built-in functions | Host helper or `:stream(T):R` closure |
+| Production | Built-in functions | Host helper or `:stream(T):R` function |
 
 Iterators are value types: calling `.next()` returns a new iterator and the original is unchanged. Streams are stateful: each chunk consumed advances the stream permanently.
 
@@ -462,5 +462,5 @@ See [Collection Slicing](topic-collection-slicing.md) for `take`, `skip`, `cycle
 
 - [Collections](topic-collections.md) — `seq`, `fan`, `filter`, `fold`, `acc`, `sort` operators
 - [Collection Slicing](topic-collection-slicing.md) — `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `debounce`, `throttle`, `sample`
-- [Closures](topic-closures.md) — Closure semantics for custom iterators
+- [Closures](topic-closures.md) — Function semantics for custom iterators
 - [Reference](ref-language.md) — Complete language specification

@@ -551,7 +551,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
         code: '$x.method(...$args)  # spread not supported in method calls',
       },
       {
-        description: 'yield outside stream closure',
+        description: 'yield outside stream function',
         code: 'fn(x) { yield }  # yield requires :stream() return type',
       },
     ],
@@ -973,7 +973,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     messageTemplate:
       'Operator {operator} cannot be applied to {leftType} and {rightType}',
     cause:
-      'An operation received an operand, key, or receiver of the wrong type or shape. Rill does not perform implicit type coercion. Families: an operator applied to incompatible operand types, including division or modulo by zero and logical or negation operators on non-bool values; ordering two durations whose calendar and clock components disagree; a list[...] dispatch with a non-number index, a missing index, or a spread that is not a list or tuple; a non-bool condition in a conditional, while, do-while, or assert; a non-string message in an `error` statement; an index or key of the wrong type, or a receiver that cannot be indexed (for example "Cannot index string" or "Cannot index iterator"); a destructure pattern that does not match the shape of the value; a call or dispatch on a non-callable target, or property access on a non-dict value; a spread of the wrong type in a list, dict, or annotation literal; a collection operator applied to a source that is not a list, tuple, string, dict, ordered, iterator, or stream; and an iterator or stream protocol violation, such as a `.next` that is not a closure or does not return the expected step. The same code is raised when a script uses a reserved brand key (such as `__type` or `__rill_atom`) as a dict or ordered field name or as an annotation key, because such a key would let user data masquerade as a branded runtime value.',
+      'An operation received an operand, key, or receiver of the wrong type or shape. Rill does not perform implicit type coercion. Families: an operator applied to incompatible operand types, including division or modulo by zero and logical or negation operators on non-bool values; ordering two durations whose calendar and clock components disagree; a list[...] dispatch with a non-number index, a missing index, or a spread that is not a list or tuple; a non-bool condition in a conditional, while, do-while, or assert; a non-string message in an `error` statement; an index or key of the wrong type, or a receiver that cannot be indexed (for example "Cannot index string" or "Cannot index iterator"); a destructure pattern that does not match the shape of the value; a call or dispatch on a non-callable target, or property access on a non-dict value; a spread of the wrong type in a list, dict, or annotation literal; a collection operator applied to a source that is not a list, tuple, string, dict, ordered, iterator, or stream; and an iterator or stream protocol violation, such as a `.next` that is not a function or does not return the expected step. The same code is raised when a script uses a reserved brand key (such as `__type` or `__rill_atom`) as a dict or ordered field name or as an annotation key, because such a key would let user data masquerade as a branded runtime value.',
     resolution:
       'Ensure both operands are compatible types. Convert values explicitly if needed using type-specific methods. Rename any field or annotation key that collides with a reserved brand key.',
     examples: [
@@ -1630,19 +1630,19 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     errorId: ERROR_IDS.RILL_R040,
     category: 'runtime',
     description: 'Non-callable chain, start_when, stop_when arg',
-    messageTemplate: 'chain() argument must be a closure or list of closures',
+    messageTemplate: 'chain() argument must be a function or list of functions',
     cause:
-      'The chain() built-in received a value that is neither a closure nor a list of closures, or a list element was not a closure. The start_when and stop_when built-ins received a predicate that is not callable. The halt is catchable for chain(), start_when, and stop_when.',
+      'The chain() built-in received a value that is neither a function nor a list of functions, or a list element was not a function. The start_when and stop_when built-ins received a predicate that is not callable. The halt is catchable for chain(), start_when, and stop_when.',
     resolution:
-      'Pass a single closure or a list of closures to chain(), and a closure predicate to start_when and stop_when.',
+      'Pass a single function or a list of functions to chain(), and a function predicate to start_when and stop_when.',
     examples: [
       {
         description: 'Passing a number to chain()',
-        code: '5 -> chain(42)  # 42 is not a closure',
+        code: '5 -> chain(42)  # 42 is not a function',
       },
       {
-        description: 'Passing a non-closure predicate to start_when',
-        code: 'list[1, 2, 3] -> start_when(42)  # 42 is not a closure',
+        description: 'Passing a non-function predicate to start_when',
+        code: 'list[1, 2, 3] -> start_when(42)  # 42 is not a function',
       },
     ],
   },
@@ -1682,15 +1682,15 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_R043,
     category: 'runtime',
-    description: 'Non-producing closure body or script',
+    description: 'Non-producing function body or script',
     messageTemplate: '{context} produced no value',
     cause:
-      'A closure body or script contains no statements that produce a value.',
+      'A function body or script contains no statements that produce a value.',
     resolution:
-      'Ensure the closure body or script ends with an expression that produces a value.',
+      'Ensure the function body or script ends with an expression that produces a value.',
     examples: [
       {
-        description: 'Empty closure body',
+        description: 'Empty function body',
         code: 'fn(x: number) { }  # No value produced',
       },
       {
@@ -1733,7 +1733,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       'Remove the excess arguments or add more parameters to the callable definition.',
     examples: [
       {
-        description: 'Too many arguments to a two-param closure',
+        description: 'Too many arguments to a two-param function',
         code: 'fn(x: number, y: number) { $x + $y } => $add\n$add(1, 2, 3)  # 3 args, 2 params',
       },
     ],
@@ -2033,10 +2033,10 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     cause:
       'The value type cannot be represented in JSON. Only strings, numbers, bools, lists, and dicts serialize.',
     resolution:
-      'Convert the value to a serializable type before JSON operations. Extract data from closures or iterators first.',
+      'Convert the value to a serializable type before JSON operations. Extract data from functions or iterators first.',
     examples: [
       {
-        description: 'Closure in JSON context',
+        description: 'Function in JSON context',
         code: 'fn(x) { $x + 1 } -> as(string)  # Error: functions not serializable',
       },
     ],
@@ -2229,7 +2229,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     messageTemplate:
       "Legacy ':>' conversion syntax removed; use '-> {target}' instead",
     cause:
-      "The parser encountered the legacy ':>type' conversion operator. The '->' pipe operator is now the unified syntax for both closure dispatch and type conversion dispatch.",
+      "The parser encountered the legacy ':>type' conversion operator. The '->' pipe operator is now the unified syntax for both function dispatch and type conversion dispatch.",
     resolution:
       "Replace ':>type' with '-> type'. The target type keyword follows the pipe directly: '-> :>string' becomes '-> string', '-> :>ordered(...)' becomes '-> ordered(...)'.",
     examples: [

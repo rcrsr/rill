@@ -90,7 +90,7 @@ fn(x) { $x } => $identity
     it('json errors on direct closure serialization', async () => {
       await expectHaltMessage(
         () => run('fn(x) { $x * 2 } -> json'),
-        'closures are not JSON-serializable'
+        'functions are not JSON-serializable'
       );
     });
 
@@ -98,7 +98,7 @@ fn(x) { $x } => $identity
       await expectHaltMessage(
         () =>
           run('dict[name: "user", age: 30, greet: fn() { "Hello" }] -> json'),
-        'closures are not JSON-serializable'
+        'functions are not JSON-serializable'
       );
     });
 
@@ -107,7 +107,7 @@ fn(x) { $x } => $identity
       // and json reaches the serialization check.
       await expectHalt(() => run('list[fn() { "fn" }] -> json'), {
         code: 'INVALID_INPUT',
-        messagePattern: 'closures are not JSON-serializable',
+        messagePattern: 'functions are not JSON-serializable',
       });
     });
 
@@ -116,7 +116,7 @@ fn(x) { $x } => $identity
         () => run('dict[items: list[fn() { 0 }], fn: fn() { 0 }] -> json'),
         {
           code: 'INVALID_INPUT',
-          messagePattern: 'closures are not JSON-serializable',
+          messagePattern: 'functions are not JSON-serializable',
         }
       );
     });
@@ -330,7 +330,7 @@ $val -> fn(x) { $x -> .len }`;
     });
 
     it('block closure variable as pipe target still receives the operand', async () => {
-      expect(await run('{ $ + 1 } => $f\n3 -> $f')).toBe(4);
+      expect(await run('fn { $ + 1 } => $f\n3 -> $f')).toBe(4);
     });
   });
 
