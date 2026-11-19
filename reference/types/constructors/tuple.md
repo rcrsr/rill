@@ -69,6 +69,10 @@ position MUST have its position type.
 r[tuple.not-list] A tuple value does not have a list type
 `tuple[1, 2] -> :?list(number)` MUST yield false.
 
+r[tuple.len] .len is the position count
+`.len` on a tuple value MUST return its number of positions, so `tuple[1, "a"].len` is 2 and
+`tuple[].len` is 0.
+
 r[tuple.equality] Tuple types are equal when their positions are equal in order
 `tuple(number, string)` MUST NOT equal `tuple(string, number)`, and two tuple types MUST be
 equal when their positions are equal in order.
@@ -109,6 +113,11 @@ tuple[1, 2, 3] -> :?tuple(number, number)
 ```rill
 tuple[1] -> :?tuple(number, string = "x")
 # Result: true
+```
+
+```rill
+tuple[1, "a"].len
+# Result: 2
 ```
 
 ```rill

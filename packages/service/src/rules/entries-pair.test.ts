@@ -134,8 +134,8 @@ const FIRES: ReadonlyArray<
   ],
   [
     'field read on bare dollar',
-    `${SETUP}$d.entries -> seq({ $.len })\n`,
-    listOnly('len'),
+    `${SETUP}$d.entries -> seq({ $.head })\n`,
+    listOnly('head'),
     2,
     21,
     'RILL-R003',
@@ -158,8 +158,8 @@ const FIRES: ReadonlyArray<
   ],
   [
     'field read on closure parameter',
-    `${SETUP}$d.entries -> seq(|p| { $p.len })\n`,
-    listOnly('len'),
+    `${SETUP}$d.entries -> seq(|p| { $p.head })\n`,
+    listOnly('head'),
     2,
     25,
     'RILL-R003',
@@ -190,8 +190,8 @@ const FIRES: ReadonlyArray<
   ],
   [
     'indexed entries field read',
-    `${SETUP}$d.entries[0].len\n`,
-    listOnly('len'),
+    `${SETUP}$d.entries[0].head\n`,
+    listOnly('head'),
     2,
     1,
     'RILL-R003',
@@ -269,9 +269,11 @@ describe('ENTRIES_PAIR_AS_LIST', () => {
     }
   );
 
-  it('stays silent on .at, which a tuple serves although its method table omits it', async () => {
-    const source = `${SETUP}$d.entries -> seq({ $.at(0) })\n`;
-
+  it.each([
+    ['.at on an element', `${SETUP}$d.entries -> seq({ $.at(0) })\n`],
+    ['.len on an element', `${SETUP}$d.entries -> seq({ $.len })\n`],
+    ['.len on an indexed pair', `${SETUP}$d.entries[0].len\n`],
+  ])('stays silent on %s, which a tuple serves', async (_label, source) => {
     expect(run(source)).toEqual([]);
     await expect(runtime(source)).resolves.toBeDefined();
   });

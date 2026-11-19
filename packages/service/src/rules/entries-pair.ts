@@ -48,17 +48,10 @@ import { isEntriesRead, isPassThroughStep } from './static-type.js';
 // CONSTANTS
 // ============================================================
 
-/**
- * List methods a tuple's method table omits but the runtime still serves on a
- * tuple: `.at` indexes a tuple's positions.
- */
-const TUPLE_SERVED_METHODS: ReadonlySet<string> = new Set(['at']);
-
 /** List methods a tuple lacks. */
 const LIST_ONLY_METHODS: ReadonlySet<string> = new Set(
   Object.keys(BUILTIN_METHODS.list).filter(
-    (name) =>
-      !(name in BUILTIN_METHODS.tuple) && !TUPLE_SERVED_METHODS.has(name)
+    (name) => !(name in BUILTIN_METHODS.tuple)
   )
 );
 

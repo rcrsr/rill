@@ -751,6 +751,7 @@ tuple.bare ffddbd638c71
 tuple.default-trailing df2e154cb11a
 tuple.equality 64729ee2cb20
 tuple.inner b776a092093d
+tuple.len 073a01e4c74f
 tuple.no-outer d8b4910fd70c
 tuple.no-uniform df1522a0607b
 tuple.not-list 919afe9ff7a9
