@@ -34,6 +34,7 @@ import {
   callable,
   createOrdered,
   createVector,
+  formatFieldKey,
   formatRillLiteral,
   formatValue,
   RuntimeError,
@@ -294,6 +295,29 @@ describe('formatRillLiteral', () => {
   it('prints dict defaults in a signature in sorted order', async () => {
     const result = await run('dict(d: dict = dict[b: 1, a: 2]).signature');
     expect(result).toBe('dict(d: dict = dict[a: 2, b: 1])');
+  });
+});
+
+describe('formatFieldKey', () => {
+  it.each([
+    ['name', 'name'],
+    ['_x1', '_x1'],
+    ['while', 'while'],
+    ['true', '"true"'],
+    ['false', '"false"'],
+    ['1', '"1"'],
+    ['a b', '"a b"'],
+    ['', '""'],
+    ['a{b}', '"a{{b}}"'],
+  ])('prints %j as %s', (key, printed) => {
+    expect(formatFieldKey(key)).toBe(printed);
+  });
+
+  it('matches the key spelling in a printed signature', async () => {
+    const result = await run('dict("a b": number, while: string).signature');
+    expect(result).toBe(
+      `dict(${formatFieldKey('a b')}: number, ${formatFieldKey('while')}: string)`
+    );
   });
 });
 

@@ -140,6 +140,7 @@ export {
   structureMatches,
 } from './runtime/core/types/operations.js';
 export { structureOverlaps } from './runtime/core/types/overlap.js';
+export { formatFieldKey } from './runtime/core/types/format-string.js';
 export {
   BUILT_IN_TYPES,
   deepEquals,

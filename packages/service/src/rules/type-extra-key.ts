@@ -27,7 +27,7 @@ import type {
   TypeRef,
 } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
-import { formatFieldKey } from '../dict-key.js';
+import { formatFieldKey } from '@rcrsr/rill';
 import { typeRefToString } from '../type-rendering.js';
 import { extractContextLine } from './helpers.js';
 import { unwrapBareLiteral } from './literal-shape.js';

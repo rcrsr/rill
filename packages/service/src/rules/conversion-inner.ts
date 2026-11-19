@@ -18,7 +18,7 @@ import type {
 } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
-import { formatFieldKey } from '../dict-key.js';
+import { formatFieldKey } from '@rcrsr/rill';
 import { literalKind, unwrapBareLiteral } from './literal-shape.js';
 import { registeredRules } from './rules-registry.js';
 

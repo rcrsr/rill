@@ -9,9 +9,8 @@
  * `introspectHandlerFromAST` would have produced for the same shape.
  */
 
-import { formatRillLiteral } from '@rcrsr/rill';
+import { formatFieldKey, formatRillLiteral } from '@rcrsr/rill';
 import type { FieldArg, LiteralNode, TypeRef } from '@rcrsr/rill';
-import { formatFieldKey } from './dict-key.js';
 
 function literalToString(node: LiteralNode): string | undefined {
   switch (node.type) {

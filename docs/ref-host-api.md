@@ -199,6 +199,7 @@ export {
 export {
   commonType,
   compareStructuredFields,
+  formatFieldKey,
   formatRillLiteral,
   formatStructure,
   inferStructure,
