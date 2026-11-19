@@ -372,5 +372,5 @@ Use `$` for accumulation in while loops:
 
 - [Types](topic-types.md) — Type system and type assertions
 - [Control Flow](topic-control-flow.md) — Conditionals and loops
-- [Closures](topic-closures.md) — Function scope and late binding
+- [Functions and Code Blocks](topic-closures.md) — Function scope and late binding
 - [Reference](ref-language.md) — Quick reference tables

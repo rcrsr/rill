@@ -77,7 +77,7 @@ A code block is a braced body that runs where control flow reaches it. It is nev
 
 `{ 5 } => $x` binds 5. `fn { 5 } => $x` stores a function. A pipe target `v -> { }` runs with `$` bound to `v`.
 
-A block that is a collection entry is held and runs on each selection. A whole-argument block such as `seq({ })` converts to a function. See [Closures](topic-closures.md) for held entries, selection, dispatch path steps, `$@` scope, annotations, and held-block halts.
+A block that is a collection entry is held and runs on each selection. A whole-argument block such as `seq({ })` converts to a function. See [Functions and Code Blocks](topic-closures.md) for held entries, selection, dispatch path steps, `$@` scope, annotations, and held-block halts.
 
 `{ body }:T` asserts and `{ body }:?T` tests the result. Only conditional branches accept the suffix, as in `true ? { 5 }:number ! { 6 }`.
 
@@ -147,7 +147,7 @@ See [Collection Slicing](topic-collection-slicing.md) for detailed documentation
 
 `union` is also a type name, valid only as `union(T, ...)`; see [Type System](topic-type-system.md).
 
-Parameterized forms (`list(T)`, `dict(k: T, ...)`, `tuple(T, ...)`, `stream(T):R`, `union(T, ...)`) are also valid in all annotation positions and deep-validate element types at runtime. See [Types](topic-types.md) for stream type documentation and [Closures](topic-closures.md) for stream function syntax.
+Parameterized forms (`list(T)`, `dict(k: T, ...)`, `tuple(T, ...)`, `stream(T):R`, `union(T, ...)`) are also valid in all annotation positions and deep-validate element types at runtime. See [Types](topic-types.md) for stream type documentation and [Functions and Code Blocks](topic-closures.md) for stream function syntax.
 
 **Union types** (`union(T1, T2)`, `union(T1, T2, T3)`) are valid in all annotation positions. A union matches if the value satisfies any member. A member is a type or a string, number, bool, or atom literal: `union("c", "f")`. Type members can be parameterized: `union(list(string), dict)`. See [Type System](topic-type-system.md) for union type documentation.
 
@@ -198,7 +198,7 @@ Atom literals use `#NAME` syntax. They produce a `:atom` value identifying a nam
 
 Spreading is opt-in via `...` or `...$expr`. Passing a tuple or ordered value without `...` passes it as a single argument. The implicit auto-spread behavior has been removed. At most one spread is permitted per call.
 
-See [Closures](topic-closures.md) for detailed documentation.
+See [Functions and Code Blocks](topic-closures.md) for detailed documentation.
 
 ### Special Variables
 
@@ -1002,7 +1002,7 @@ For detailed documentation on specific topics:
 - [Variables](topic-variables.md): Declaration, scope, `$` binding
 - [Control Flow](topic-control-flow.md): Conditionals, loops
 - [Operators](topic-operators.md): All operators
-- [Closures](topic-closures.md): Late binding, functions held in dicts
+- [Functions and Code Blocks](topic-closures.md): Late binding, functions held in dicts
 - [Collections](topic-collections.md): `seq`, `fan`, `filter`, `fold`, `acc`, `sort`
 - [Collection Slicing](topic-collection-slicing.md): `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `pass` body forms
 - [Iterators](topic-iterators.md): `range`, `repeat`, `.first()`

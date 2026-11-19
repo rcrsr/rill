@@ -997,6 +997,6 @@ All three are stream-only; passing a list halts with `#INVALID_INPUT`. Under syn
 - [Reference](ref-language.md) — Complete language specification
 - [Collections](topic-collections.md) — `seq`, `fan`, `filter`, `fold`, `acc` details
 - [Collection Slicing](topic-collection-slicing.md) — `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `pass<>` details
-- [Closures](topic-closures.md) — Function patterns and binding
+- [Functions and Code Blocks](topic-closures.md) — Function patterns and binding
 - [Host Integration](integration-host.md) — Embedding API
 - [Error Handling](topic-error-handling.md) — guard, retry, status probes

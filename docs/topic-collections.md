@@ -931,6 +931,6 @@ Process nested structures with nested operators.
 - [Collection Slicing and Restructuring Operators](topic-collection-slicing.md) — `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `debounce`, `throttle`, `sample`, `pass<>` body form
 - [Iterators](topic-iterators.md) — Lazy sequences with `range`, `repeat`, `iterate` (infinite source stream), `.first()`
 - [Reference](ref-language.md) — Complete language specification
-- [Closures](topic-closures.md) — Closure semantics and patterns
+- [Functions and Code Blocks](topic-closures.md) — Closure semantics and patterns
 - [Guide](guide-getting-started.md) — Beginner introduction
 - [Examples](guide-examples.md) — Workflow examples

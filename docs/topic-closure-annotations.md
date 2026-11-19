@@ -576,6 +576,6 @@ The result is a `fn` type value. `structure.params[0].annotations` equals `{ des
 
 | Document | Description |
 |----------|-------------|
-| [Closures](topic-closures.md) | Function syntax, scoping, and invocation |
+| [Functions and Code Blocks](topic-closures.md) | Function syntax, scoping, and invocation |
 | [Reference](ref-language.md) | Language specification |
 | [Guide](guide-getting-started.md) | Getting started tutorial |

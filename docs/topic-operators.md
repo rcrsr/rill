@@ -101,7 +101,7 @@ When `->` targets a callable, the runtime decides how to bind the piped value to
 
 **Zero-parameter callables.** Auto-prepend into a zero-parameter callable halts `RILL-R045`; see [A Target Uses the Piped Value](#a-target-uses-the-piped-value).
 
-**Argument blocks stop the scan.** The scanner walks the immediate argument list but stops at block boundaries (`{`). References to `$` inside an argument block are not counted: a block that is a whole argument converts to a function typed by the unnamed parameters its body reads, and the callee binds `$` per call. Only top-level `$` in the argument list triggers explicit placement. See [Closures](topic-closures.md) for argument blocks and [Collections](topic-collections.md) for the exact arity each operator requires.
+**Argument blocks stop the scan.** The scanner walks the immediate argument list but stops at block boundaries (`{`). References to `$` inside an argument block are not counted: a block that is a whole argument converts to a function typed by the unnamed parameters its body reads, and the callee binds `$` per call. Only top-level `$` in the argument list triggers explicit placement. See [Functions and Code Blocks](topic-closures.md) for argument blocks and [Collections](topic-collections.md) for the exact arity each operator requires.
 
 **Sub-expressions are scanned.** The scanner descends into sub-expressions outside blocks. `fn(g($))` contains a top-level `$` inside `g(...)`, so explicit placement is used.
 

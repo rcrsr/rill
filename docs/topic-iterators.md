@@ -462,5 +462,5 @@ See [Collection Slicing](topic-collection-slicing.md) for `take`, `skip`, `cycle
 
 - [Collections](topic-collections.md) — `seq`, `fan`, `filter`, `fold`, `acc`, `sort` operators
 - [Collection Slicing](topic-collection-slicing.md) — `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `debounce`, `throttle`, `sample`
-- [Closures](topic-closures.md) — Function semantics for custom iterators
+- [Functions and Code Blocks](topic-closures.md) — Function semantics for custom iterators
 - [Reference](ref-language.md) — Complete language specification
