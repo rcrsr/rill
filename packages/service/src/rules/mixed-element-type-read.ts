@@ -13,7 +13,7 @@
 
 import type { ASTNode, PostfixExprNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
-import { extractContextLine } from './helpers.js';
+import { chainlessVariableName, extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
 import { isCollectionOpCall } from './collection-ops.js';
 import {
@@ -43,20 +43,6 @@ const DICT_ITERATION_METHODS: ReadonlySet<string> = new Set([
 // ============================================================
 
 type ReceiverKind = 'list' | 'dict' | null;
-
-function chainlessVariableName(node: ASTNode): string | null {
-  if (
-    node.type === 'Variable' &&
-    node.name !== null &&
-    !node.isPipeVar &&
-    node.accessChain.length === 0 &&
-    node.defaultValue === null &&
-    node.existenceCheck === null
-  ) {
-    return node.name;
-  }
-  return null;
-}
 
 /** Whether `input` is a mixed compound list (kind `list`) or a mixed-value dict (kind `dict`). */
 function sourceKind(input: ASTNode, context: RuleContext): ReceiverKind {

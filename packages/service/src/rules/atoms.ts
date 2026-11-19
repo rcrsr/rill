@@ -9,7 +9,7 @@ import { BUILTIN_ATOMS, ERROR_CODES } from '@rcrsr/rill';
 import type { ASTNode, AtomLiteralNode, StatementNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { getInnerStatement } from './capture-chain.js';
-import { extractContextLine } from './helpers.js';
+import { comparedOperands, extractContextLine } from './helpers.js';
 import { unwrapBareLiteral } from './literal-shape.js';
 import { registeredRules } from './rules-registry.js';
 
@@ -36,31 +36,6 @@ function bareAtom(node: ASTNode): AtomLiteralNode | undefined {
 function isCodeProbe(node: ASTNode): boolean {
   const inner = unwrapBareLiteral(node);
   return inner.type === 'StatusProbe' && inner.field === 'code';
-}
-
-/** The two operands an `==`, `!=`, `.eq`, or `.ne` node compares, if it is one. */
-function comparedOperands(node: ASTNode): [ASTNode, ASTNode] | undefined {
-  if (node.type === 'BinaryExpr') {
-    return node.op === '==' || node.op === '!='
-      ? [node.left, node.right]
-      : undefined;
-  }
-  let call: ASTNode | undefined;
-  let receiver: ASTNode;
-  if (node.type === 'PostfixExpr' && node.methods.length === 1) {
-    call = node.methods[0];
-    receiver = node.primary;
-  } else if (node.type === 'PipeChain') {
-    call = node.pipes[0];
-    receiver = node.head;
-  } else {
-    return undefined;
-  }
-  if (call?.type !== 'MethodCall') return undefined;
-  if (call.name !== 'eq' && call.name !== 'ne') return undefined;
-  const arg = call.args[0];
-  if (call.args.length !== 1 || arg === undefined) return undefined;
-  return [receiver, arg];
 }
 
 export const atomCaseMismatch: Rule = {

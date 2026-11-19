@@ -616,7 +616,6 @@ function requireElementOverlap(
   receiver: RillValue,
   receiverDeclared: Carried['declared'],
   operand: Carried,
-  operandDeclared: boolean,
   ctx: RuntimeContext,
   location: SourceLocation | undefined,
   fn: string
@@ -627,8 +626,7 @@ function requireElementOverlap(
     { value: null, declared: element },
     operand,
     { location, sourceId: ctx.sourceId, fn },
-    `.${fn}`,
-    receiverDeclared !== undefined || operandDeclared
+    `.${fn}`
   );
 }
 
@@ -646,7 +644,6 @@ export const mHas: RillMethod = (receiver, args, ctx, location, carried) => {
     receiver,
     carried?.[0],
     { value: searchValue, declared: carried?.[1] },
-    carried?.[1] !== undefined,
     ctx,
     location,
     'has'
@@ -695,7 +692,6 @@ function requireCandidatesOverlap(
         receiver,
         carried?.[0],
         { value: candidate },
-        false,
         ctx,
         location,
         fn
@@ -709,7 +705,6 @@ function requireCandidatesOverlap(
     receiver,
     carried[0],
     { value: null, declared: element },
-    true,
     ctx,
     location,
     fn

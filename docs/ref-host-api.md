@@ -199,6 +199,7 @@ export {
 export {
   commonType,
   compareStructuredFields,
+  formatFieldKey,
   formatRillLiteral,
   formatStructure,
   inferStructure,
@@ -807,12 +808,14 @@ const greet: RillFunctionShorthand = {
 | Literal members | `union("c", "f")` |
 | List type | `list(string)`, or `list()` for an unspecified element type |
 | Built-in type `error_code` | `list(error_code)` |
-| Named dict type | `dict(k: string)` |
+| Named dict type | `dict(k: string)`, `dict("a b": string)` |
 | Tuple type | `tuple(number, string)`; `tuple(number)` is exactly one position |
 | Literal defaults | `n: number = -3`, `s: string = "x"`, `b: bool = true` |
 | Field defaults | `d: dict(a: number, b: number = 0)`, `t: tuple(string, number = 0)` |
 | Parameter annotations | `^(description: "text") name: string` |
 | Function annotations | `^(category: "io") \|a: string\|` before the parameter list |
+
+A parameter typed with a named dict type rejects a dict that has extra fields with `RILL-R001`; see [Extra and Missing Dict Fields](topic-type-system.md#extra-and-missing-dict-fields).
 
 An outer type on `list`, `dict`, or `tuple`, such as `list(number):string`, fails with `RILL-R091` and the message `list takes no outer type`. In script, the same text halts `RILL-P006`.
 
@@ -986,7 +989,7 @@ An empty function map returns `[:]`. Functions created via `callable(fn)` appear
 
 Every entry is a closure-signature literal that evaluates to a type value, never a real closure body. This holds for zero-param functions (`"now"`) and functions with annotated params (`"greet"`) alike.
 
-Parameter defaults are never emitted, because not every `RillValue` round-trips through a rill literal; every signature carries an explicit return type (`:any` when unset) so the generated manifest always parses.
+Manifest names are quoted and escaped, so a name that is not an identifier still parses. Parameter defaults are never emitted, because not every `RillValue` round-trips through a rill literal; every signature carries an explicit return type (`:any` when unset) so the generated manifest always parses.
 
 ---
 
@@ -1393,7 +1396,7 @@ try {
 function structureOverlaps(a: TypeStructure, b: TypeStructure): boolean;
 ```
 
-It implements the strict rule behind the `#TYPE_MISMATCH` halt of `==`, `!=`, `.eq`, `.ne`, `.has`, `.has_any`, and `.has_all`. The runtime relaxes it in one case. When either operand carries a declared type, a dict key on one side only passes. See [Operators](topic-operators.md) for the halt rule.
+It implements the rule behind the `#TYPE_MISMATCH` halt of `==`, `!=`, `.eq`, `.ne`, `.has`, `.has_any`, and `.has_all`, whether or not an operand carries a declared type. See [Operators](topic-operators.md) for the halt rule.
 
 ---
 

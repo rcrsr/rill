@@ -168,7 +168,11 @@ describe('Rill Runtime: Host Integration', () => {
                 name: 'data',
                 type: {
                   kind: 'dict',
-                  fields: { name: { type: { kind: 'string' } } },
+                  fields: {
+                    '1': { type: { kind: 'string' } },
+                    true: { type: { kind: 'string' } },
+                    name: { type: { kind: 'string' } },
+                  },
                 },
                 defaultValue: undefined,
                 annotations: {},

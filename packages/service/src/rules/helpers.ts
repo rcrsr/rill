@@ -271,3 +271,45 @@ export function maskComments(text: string): string {
 
   return result;
 }
+
+/** The name of a plain `$name` reference with no access chain, default, or existence check. */
+export function chainlessVariableName(node: ASTNode): string | null {
+  if (
+    node.type === 'Variable' &&
+    node.name !== null &&
+    !node.isPipeVar &&
+    node.accessChain.length === 0 &&
+    node.defaultValue === null &&
+    node.existenceCheck === null
+  ) {
+    return node.name;
+  }
+  return null;
+}
+
+/** The two operands an `==`, `!=`, `.eq`, or `.ne` node compares, if it is one. */
+export function comparedOperands(
+  node: ASTNode
+): [ASTNode, ASTNode] | undefined {
+  if (node.type === 'BinaryExpr') {
+    return node.op === '==' || node.op === '!='
+      ? [node.left, node.right]
+      : undefined;
+  }
+  let call: ASTNode | undefined;
+  let receiver: ASTNode;
+  if (node.type === 'PostfixExpr' && node.methods.length === 1) {
+    call = node.methods[0];
+    receiver = node.primary;
+  } else if (node.type === 'PipeChain') {
+    call = node.pipes[0];
+    receiver = node.head;
+  } else {
+    return undefined;
+  }
+  if (call?.type !== 'MethodCall') return undefined;
+  if (call.name !== 'eq' && call.name !== 'ne') return undefined;
+  const arg = call.args[0];
+  if (call.args.length !== 1 || arg === undefined) return undefined;
+  return [receiver, arg];
+}

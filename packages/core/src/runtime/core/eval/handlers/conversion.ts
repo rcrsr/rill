@@ -5,6 +5,9 @@
  * matrix. `-> type` (bare type keyword) calls applyConversion directly;
  * `-> type(...)` (parameterized type constructor) and `-> $var` (bound to a
  * type value) share one path, convertToType, so both behave identically.
+ * convertToType returns a Carried pair: a union target carries the union as
+ * the value's declared type. A value that satisfies a union is returned
+ * unchanged, never converted into a member; a miss halts RILL-R036.
  *
  * Compatibility matrix:
  * | Source  | list   | dict   | tuple   | ordered(sig)   | number          | string   | bool                |
@@ -61,6 +64,8 @@ import { hydrateStructure } from '../../callable.js';
 import { setDictField, orderedDictEntries } from '../../types/dict-keys.js';
 import { BUILT_IN_TYPES } from '../../types/registrations.js';
 
+import type { Carried } from '../../types/declared.js';
+import { declarationOf } from '../../types/declared.js';
 import type { EvalState } from '../state.js';
 import type { RillTypeName } from '../../../../types.js';
 import { isRillTypeName } from '../../../../types.js';
@@ -84,35 +89,24 @@ export function convertToType(
   input: RillValue,
   target: RillTypeValue,
   node: ASTNode
-): RillValue {
+): Carried {
   const { structure } = target;
   if (
-    isStructureKind(structure, 'dict') &&
-    structure.fields !== undefined &&
-    !structure.valueType
-  ) {
-    return convertToDictWithSig(s, input, structure.fields, node);
-  }
-  if (
-    isStructureKind(structure, 'ordered') &&
-    structure.fields !== undefined &&
-    !structure.valueType
-  ) {
-    return convertToOrderedWithSig(s, input, structure.fields, node);
-  }
-  if (isStructureKind(structure, 'tuple') && structure.elements !== undefined) {
-    return convertToTupleWithSig(s, input, structure.elements, node);
-  }
-  if (
-    isStructureKind(structure, 'list') ||
     isStructureKind(structure, 'dict') ||
-    isStructureKind(structure, 'ordered')
+    isStructureKind(structure, 'ordered') ||
+    isStructureKind(structure, 'tuple') ||
+    isStructureKind(structure, 'list') ||
+    structure.kind === 'union'
   ) {
-    return convertPart(s, input, structure, node);
+    return {
+      value: convertPart(s, input, structure, node),
+      declared:
+        structure.kind === 'union' ? declarationOf(structure) : undefined,
+    };
   }
   const result = applyConversion(s, input, target.typeName, node);
   assertType(s, result, structure, node.span.start);
-  return result;
+  return { value: result, declared: undefined };
 }
 
 /** Append the failing part (`element 1`, `field 'a'`) to a halt message. */
@@ -201,8 +195,7 @@ function convertPart(
     (isStructureKind(structure, 'closure') &&
       (structure.params !== undefined || structure.ret !== undefined))
   ) {
-    const hydrated = hydrateNested(s, value, structure, node);
-    if (!structureMatches(hydrated, structure)) {
+    if (!structureMatches(value, structure)) {
       throwCatchableHostHalt(
         {
           location: getNodeLocation(s, node),
@@ -217,7 +210,7 @@ function convertPart(
         { source: inferType(value), target: structure.kind }
       );
     }
-    return hydrated;
+    return value;
   }
   if (!isRillTypeName(structure.kind)) {
     return throwCatchableHostHalt(

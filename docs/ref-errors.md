@@ -539,9 +539,9 @@ dict[a: 1] -> destruct<a: $x, _>
 
 ### rill-p027
 
-**Description:** Duplicate key in a dict or ordered literal
+**Description:** Duplicate key in a dict or ordered literal or type
 
-**Cause:** A dict or ordered literal spells the same literal key twice. Identifier, string, number, and boolean keys are compared as strings, so 1 and "1" are the same key.
+**Cause:** A dict or ordered literal, or a dict or ordered type, spells the same key twice. Identifier, string, number, and boolean keys are compared as strings, so 1 and "1" are the same key.
 
 **Resolution:** Remove the repeated key, or give each entry a distinct key.
 
@@ -553,6 +553,9 @@ dict[a: 1, a: 2]
 
 # Number key and string key spell the same key
 dict[1: "x", "1": "y"]
+
+# Type fields spell the same key twice
+dict(a: number, "a": string)
 ```
 
 ---

@@ -3,10 +3,10 @@ id: structural-typing
 title: Structural typing
 status: normative
 since: 0.24.0
-issues: [572, 623]
+issues: [623]
 errors: [TYPE_MISMATCH]
 depends: [type-value, any, list, dict, tuple, ordered, union]
-tests: [equality-gate.test.ts, structural-type-identity.test.ts, structural-type-boundaries.test.ts, structural-type-errors.test.ts, structural-type-defaults.test.ts]
+tests: [equality-gate.test.ts, structural-type-identity.test.ts, structural-type-boundaries.test.ts, structural-type-errors.test.ts, structural-type-defaults.test.ts, type-field-keys.test.ts]
 ---
 
 # Structural typing
@@ -42,13 +42,15 @@ r[structural-typing.empty] An empty collection has every type of its kind
 
 r[structural-typing.exact-position] Tuple and ordered membership is exact
 A `tuple` value MUST have a positional `tuple` type only when it has no position the type
-omits, and none missing unless the type defaults it. An `ordered` value MUST also match
-the field order of the type.
+omits, and none missing unless the type defaults it. An `ordered` value MUST have a named
+`ordered` type only when it holds no field the type omits, and none missing unless the type
+defaults it. An `ordered` value MUST also match the field order of the type.
 
-r[structural-typing.exact-dict] A dict has a field-naming type only without other fields {pending #572}
+r[structural-typing.exact-dict] A dict has a field-naming type only without other fields
 A `dict` value MUST NOT have a type that names fields when the value holds a field the type
-does not name. A value with an extra field is converted first; conversion drops the extra
-field.
+does not name, so `dict[a: 1, b: 2] -> :dict(a: number)` MUST halt with `#TYPE_MISMATCH`. The
+bare `dict` follows `structural-typing.bare-dict`. A value with an extra field is converted
+first; conversion drops the extra field.
 
 r[structural-typing.missing] A missing field without a default fails membership
 A `dict` value that lacks a field the type names, and the type gives that field no default,
@@ -64,6 +66,9 @@ matches the field type.
 
 r[structural-typing.bare-dict] A bare dict type admits every dict
 A bare `dict` MUST admit every dict.
+
+r[structural-typing.bare-ordered] A bare ordered type admits every ordered
+A bare `ordered` MUST admit every ordered value.
 
 r[structural-typing.function] A function has a function type only when its own type equals it {pending #623}
 A function value MUST have a function type only when its own type equals that type.
@@ -114,9 +119,14 @@ ordered(a: number, b: string) == ordered(b: string, a: number)
 # Result: false
 ```
 
-```rill pending=572
+```rill
 dict[a: 1, x: 2] -> :?dict(a: number)
 # Result: false
+```
+
+```rill
+# Error: #TYPE_MISMATCH
+dict[a: 1, b: 2] -> :dict(a: number)
 ```
 
 ## Notes
@@ -124,8 +134,8 @@ dict[a: 1, x: 2] -> :?dict(a: number)
 Value `==` between operands whose types do not overlap halts; the `equality` concept states
 that rule on top of the overlap relation.
 
-Until the pending dict rule is built, a dict with extra fields has a field-naming type, and
-the assertion returns the value with the extra fields kept.
+On 0.23.0 a dict with extra fields has a field-naming type, and the assertion returns the
+value with the extra fields kept.
 
 Two identical structures with different meanings, such as a Celsius and a Fahrenheit
 temperature, are the same type.

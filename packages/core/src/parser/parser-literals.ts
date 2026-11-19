@@ -36,8 +36,11 @@ import {
 } from './state.js';
 import {
   expectVariableName,
-  isDictStart,
+  unescapeBraces,
+  isDictEntryStart,
   isNegativeNumber,
+  readStaticKey,
+  rejectRepeatedKey,
 } from './helpers.js';
 import { ERROR_IDS } from '../error-registry.js';
 
@@ -110,7 +113,6 @@ declare module './parser.js' {
       source: string,
       baseLocation: SourceLocation
     ): InterpolationNode;
-    unescapeBraces(s: string): string;
     parseTuple(start: SourceLocation): ListLiteralNode;
     parseTupleOrDict(): ListLiteralNode | DictNode;
     parseTupleElement(): ExpressionNode | ListSpreadNode;
@@ -309,7 +311,7 @@ Parser.prototype.parseStringParts = function (
       }
 
       if (i > literalStart) {
-        const literal = this.unescapeBraces(raw.slice(literalStart, i));
+        const literal = unescapeBraces(raw.slice(literalStart, i));
         if (literal) parts.push(literal);
       }
 
@@ -491,7 +493,7 @@ Parser.prototype.parseStringParts = function (
   }
 
   if (literalStart < raw.length) {
-    const literal = this.unescapeBraces(raw.slice(literalStart));
+    const literal = unescapeBraces(raw.slice(literalStart));
     if (literal) parts.push(literal);
   }
 
@@ -500,10 +502,6 @@ Parser.prototype.parseStringParts = function (
   }
 
   return parts;
-};
-
-Parser.prototype.unescapeBraces = function (this: Parser, s: string): string {
-  return s.replaceAll('{{', '{').replaceAll('}}', '}');
 };
 
 Parser.prototype.parseInterpolationExpr = function (
@@ -555,17 +553,29 @@ Parser.prototype.parseTuple = function (
   const elements: (ExpressionNode | ListSpreadNode)[] = [];
   elements.push(this.parseTupleElement());
   skipNewlines(this.state);
+  return finishTuple(this, start, elements);
+};
 
-  while (check(this.state, TOKEN_TYPES.COMMA)) {
-    const comma = advance(this.state);
-    skipNewlines(this.state);
-    rejectTrailingComma(this.state, comma, 'tuple');
-    elements.push(this.parseTupleElement());
-    skipNewlines(this.state);
+/**
+ * Parse the remaining `, element` pairs and the closing `]` of a bare list
+ * whose first elements are already collected.
+ * @internal
+ */
+function finishTuple(
+  parser: Parser,
+  start: SourceLocation,
+  elements: (ExpressionNode | ListSpreadNode)[]
+): ListLiteralNode {
+  while (check(parser.state, TOKEN_TYPES.COMMA)) {
+    const comma = advance(parser.state);
+    skipNewlines(parser.state);
+    rejectTrailingComma(parser.state, comma, 'tuple');
+    elements.push(parser.parseTupleElement());
+    skipNewlines(parser.state);
   }
 
   const rbracket = expect(
-    this.state,
+    parser.state,
     TOKEN_TYPES.RBRACKET,
     'Expected ]',
     ERROR_IDS.RILL_P005
@@ -576,7 +586,7 @@ Parser.prototype.parseTuple = function (
     defaultValue: null,
     span: makeSpan(start, rbracket.span.end),
   } satisfies ListLiteralNode;
-};
+}
 
 Parser.prototype.parseTupleOrDict = function (
   this: Parser
@@ -611,12 +621,71 @@ Parser.prototype.parseTupleOrDict = function (
     };
   }
 
-  if (isDictStart(this.state)) {
+  if (check(this.state, TOKEN_TYPES.ELLIPSIS)) {
+    return parseSpreadLedBracket(this, start);
+  }
+
+  if (isDictEntryStart(this.state)) {
     return this.parseDict(start);
   }
 
   return this.parseTuple(start);
 };
+
+/**
+ * Parse a bare bracket that opens with `...` in one pass. Leading spreads are
+ * parsed once; the first non-spread element decides the kind: a keyed entry
+ * makes a dict (the spreads become its spread entries), anything else a list.
+ * A bracket holding only spreads stays a list.
+ * @internal
+ */
+function parseSpreadLedBracket(
+  parser: Parser,
+  start: SourceLocation
+): ListLiteralNode | DictNode {
+  const state = parser.state;
+  const spreads: ListSpreadNode[] = [];
+  let pendingComma: Token | undefined;
+  while (check(state, TOKEN_TYPES.ELLIPSIS)) {
+    const spread = parser.parseTupleElement();
+    if (spread.type !== 'ListSpread') {
+      throw new ParseError(
+        ERROR_IDS.RILL_P004,
+        "Expected expression after '...'",
+        current(state).span.start
+      );
+    }
+    spreads.push(spread);
+    skipNewlines(state);
+    pendingComma = undefined;
+    if (!check(state, TOKEN_TYPES.COMMA)) break;
+    pendingComma = advance(state);
+    skipNewlines(state);
+  }
+
+  if (pendingComma !== undefined && isDictEntryStart(state)) {
+    const entries: DictEntryNode[] = spreads.map((spread) => ({
+      type: 'DictEntry',
+      key: '...',
+      value: spread.expression,
+      span: spread.span,
+    }));
+    const seenKeys = new Set<string>();
+    const first = parseDictEntryOrSpread(parser);
+    rejectDuplicateKey(seenKeys, first, 'dict');
+    entries.push(first);
+    skipNewlines(state);
+    return finishDict(parser, start, entries, seenKeys);
+  }
+
+  const elements: (ExpressionNode | ListSpreadNode)[] = [...spreads];
+  if (pendingComma !== undefined) {
+    rejectTrailingComma(state, pendingComma, 'tuple');
+    elements.push(parser.parseTupleElement());
+    skipNewlines(state);
+  }
+  return finishTuple(parser, start, elements);
+}
 
 Parser.prototype.parseTupleElement = function (
   this: Parser
@@ -663,19 +732,32 @@ Parser.prototype.parseDict = function (
   rejectDuplicateKey(seenKeys, first, 'dict');
   entries.push(first);
   skipNewlines(this.state);
+  return finishDict(this, start, entries, seenKeys);
+};
 
-  while (check(this.state, TOKEN_TYPES.COMMA)) {
-    const comma = advance(this.state);
-    skipNewlines(this.state);
-    rejectTrailingComma(this.state, comma, 'dict');
-    const next = parseDictEntryOrSpread(this);
+/**
+ * Parse the remaining `, entry` pairs and the closing `]` of a bare dict
+ * whose first entries are already collected.
+ * @internal
+ */
+function finishDict(
+  parser: Parser,
+  start: SourceLocation,
+  entries: DictEntryNode[],
+  seenKeys: Set<string>
+): DictNode {
+  while (check(parser.state, TOKEN_TYPES.COMMA)) {
+    const comma = advance(parser.state);
+    skipNewlines(parser.state);
+    rejectTrailingComma(parser.state, comma, 'dict');
+    const next = parseDictEntryOrSpread(parser);
     rejectDuplicateKey(seenKeys, next, 'dict');
     entries.push(next);
-    skipNewlines(this.state);
+    skipNewlines(parser.state);
   }
 
   const rbracket = expect(
-    this.state,
+    parser.state,
     TOKEN_TYPES.RBRACKET,
     'Expected ]',
     ERROR_IDS.RILL_P005
@@ -686,7 +768,7 @@ Parser.prototype.parseDict = function (
     defaultValue: null,
     span: makeSpan(start, rbracket.span.end),
   };
-};
+}
 
 Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   const start = current(this.state).span.start;
@@ -694,6 +776,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   // Parse key: identifier, string, number, boolean, variable, computed, or list literal (multi-key)
   let key: string | ListLiteralNode | DictKeyVariable | DictKeyComputed;
   let keyForm: DictEntryNode['keyForm'] = undefined;
+  let staticKey: ReturnType<typeof readStaticKey>;
 
   if (check(this.state, TOKEN_TYPES.DOLLAR)) {
     // Parse variable key: $variableName
@@ -761,55 +844,9 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
       'Dict entry key must be identifier or list, not dict',
       current(this.state).span.start
     );
-  } else if (check(this.state, TOKEN_TYPES.STRING)) {
-    // Parse string literal as key
-    const keyToken = advance(this.state);
-    key = keyToken.value;
-    keyForm = 'string';
-  } else if (isNegativeNumber(this.state)) {
-    // Parse negative number as key: -NUMBER
-    advance(this.state); // consume MINUS
-    const numToken = advance(this.state); // consume NUMBER
-    key = `-${numToken.value}`;
-    keyForm = 'number';
-  } else if (check(this.state, TOKEN_TYPES.NUMBER)) {
-    // Parse number as key
-    const keyToken = advance(this.state);
-    key = keyToken.value;
-    keyForm = 'number';
-  } else if (check(this.state, TOKEN_TYPES.TRUE)) {
-    // Parse boolean true as key
-    advance(this.state);
-    key = 'true';
-    keyForm = 'bool';
-  } else if (check(this.state, TOKEN_TYPES.FALSE)) {
-    // Parse boolean false as key
-    advance(this.state);
-    key = 'false';
-    keyForm = 'bool';
-  } else if (check(this.state, TOKEN_TYPES.IDENTIFIER)) {
-    // Parse identifier as string key
-    const keyToken = advance(this.state);
-    key = keyToken.value;
-    keyForm = 'identifier';
-  } else if (
-    check(
-      this.state,
-      TOKEN_TYPES.BREAK,
-      TOKEN_TYPES.RETURN,
-      TOKEN_TYPES.YIELD,
-      TOKEN_TYPES.PASS,
-      TOKEN_TYPES.ASSERT,
-      TOKEN_TYPES.ERROR,
-      TOKEN_TYPES.GUARD,
-      TOKEN_TYPES.RETRY,
-      TOKEN_TYPES.WHILE,
-      TOKEN_TYPES.DO
-    )
-  ) {
-    // Reserved keywords parse as identifier-form string keys
-    key = advance(this.state).value;
-    keyForm = 'identifier';
+  } else if ((staticKey = readStaticKey(this.state)) !== undefined) {
+    key = staticKey.key;
+    keyForm = staticKey.keyForm;
   } else {
     // Invalid token at key position
     throw new ParseError(
@@ -919,14 +956,7 @@ function rejectDuplicateKey(
   collection: 'dict' | 'ordered'
 ): void {
   if (entry.keyForm === undefined || typeof entry.key !== 'string') return;
-  if (seenKeys.has(entry.key)) {
-    throw new ParseError(
-      ERROR_IDS.RILL_P027,
-      `Duplicate key '${entry.key}' in ${collection}`,
-      entry.span.start
-    );
-  }
-  seenKeys.add(entry.key);
+  rejectRepeatedKey(seenKeys, entry.key, entry.span.start, collection);
 }
 
 /**

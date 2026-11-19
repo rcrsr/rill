@@ -2,7 +2,8 @@
  * String Literal Formatting
  *
  * The string-quoting primitive shared by formatRillLiteral (operations.ts) and
- * formatNested (protocols/shared.ts).
+ * formatNested (protocols/shared.ts), plus `formatFieldKey`, the one rule for
+ * printing a dict or ordered key (values and type fields alike).
  *
  * Import constraints:
  * - No imports. This module is a leaf so that protocols/shared.ts can quote
@@ -46,4 +47,24 @@ export function escapeRillStringBody(raw: string): string {
  */
 export function quoteRillString(value: string): string {
   return `"${escapeRillStringBody(value)}"`;
+}
+
+const BARE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/** True when `name` matches the lexer's bare identifier grammar. */
+export function isBareIdentifier(name: string): boolean {
+  return BARE_IDENTIFIER.test(name);
+}
+
+/**
+ * Render a dict or ordered key. A key prints bare only when it is a valid
+ * identifier other than `true`/`false` (which would re-parse as booleans);
+ * every other key, including numeric-looking ones, is quoted so the output
+ * re-parses to the same key.
+ */
+export function formatFieldKey(key: string): string {
+  if (isBareIdentifier(key) && key !== 'true' && key !== 'false') {
+    return key;
+  }
+  return quoteRillString(key);
 }

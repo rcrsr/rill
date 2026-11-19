@@ -28,12 +28,6 @@ states. Two declared sets with no common member MUST halt. `.has`, `.has_any`, a
 MUST judge each sought value. Two operands that carry only inferred types are never narrowed, so
 `"a" == "b"` and `#TIMEOUT == #TIMEUOT` MUST yield false. The set holds strings, numbers, bools, or atoms.
 
-r[equality.declared-dict] A declared operand lets a one-sided dict key pass
-When either operand of `==`, `!=`, `.eq`, `.ne`, `.has`, `.has_any`, or `.has_all` carries a type
-from an assertion or a declaration (`carried-type.carriage`), a dict key that only one side names
-MUST NOT halt the comparison, and each key both sides name MUST still overlap. When both operands
-carry only inferred types, a one-sided key MUST halt (`structural-typing.overlap-fields`).
-
 ## Evaluation
 
 r[equality.content] Equal content is equal
@@ -120,9 +114,15 @@ $f == $g
 ```
 
 ```rill
-dict[a: 1, b: 2] => $x:dict(a: number)
+# Error: #TYPE_MISMATCH
+dict[a: 1] => $x:dict(a: number)
 $x == dict[a: 1, b: 2]
-# Result: true
+```
+
+```rill
+dict[a: 1] => $x:dict(a: number, b: number = 0)
+$x == dict[a: 1, b: 2]
+# Result: false
 ```
 
 ```rill
@@ -157,3 +157,7 @@ $l -> seq({ $ == dict[a: 1] })
 
 On 0.23.0 operands of non-overlapping types compare false: `1 == "1"` and `number == string`
 yield false.
+
+On 0.23.0 a declared operand let a dict key that only one side names pass, so a declared
+`dict(a: number)` compared with `dict[a: 1, b: 2]` yielded false. Dict overlap now follows
+`structural-typing.overlap-fields` whether or not an operand is declared.

@@ -799,4 +799,31 @@ describe('Rill Runtime: Signature Registration', () => {
       expect(Object.hasOwn(type?.fields ?? {}, '__proto__')).toBe(true);
     });
   });
+  describe('parseSignatureRegistration: dict type field keys', () => {
+    it('registers a dict type field with a quoted key and accepts a matching dict', async () => {
+      const parsed = parseSignatureRegistration(
+        '|x: dict("a b": string)|',
+        'fn'
+      );
+      const fns: Record<string, RillFunction> = {
+        fn: {
+          params: parsed.params,
+          fn: () => 'ok',
+          returnType: anyTypeValue,
+        },
+      };
+      const accepted = await run('fn(dict["a b": "v"])', { functions: fns });
+      expect(accepted).toBe('ok');
+      await expectRuntimeError(
+        () => run('fn(dict["a b": 1])', { functions: fns }),
+        { code: 'RILL-R001' }
+      );
+    });
+
+    it('fails registration when a dict type repeats a key', () => {
+      expect(() =>
+        parseSignatureRegistration('|x: dict(a: string, a: number)|', 'fn')
+      ).toThrow(/Duplicate key 'a' in dict type/);
+    });
+  });
 });

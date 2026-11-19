@@ -34,6 +34,8 @@ import {
   callable,
   createOrdered,
   createVector,
+  formatFieldKey,
+  formatRillLiteral,
   formatValue,
   RuntimeError,
   serializeValue,
@@ -272,6 +274,52 @@ describe('formatValue', () => {
 // ============================================================
 // serializeValue — JSON serialization
 // ============================================================
+
+describe('formatRillLiteral', () => {
+  it('prints dict entries sorted by key', () => {
+    expect(formatRillLiteral({ b: 1, a: 2 })).toBe('dict[a: 2, b: 1]');
+  });
+
+  it('sorts integer-like keys by code unit, not numerically', () => {
+    expect(formatRillLiteral({ '10': 1, '9': 2 })).toBe(
+      'dict["10": 1, "9": 2]'
+    );
+  });
+
+  it('sorts nested dicts', () => {
+    expect(formatRillLiteral({ z: { y: 1, x: 2 }, a: 0 })).toBe(
+      'dict[a: 0, z: dict[x: 2, y: 1]]'
+    );
+  });
+
+  it('prints dict defaults in a signature in sorted order', async () => {
+    const result = await run('dict(d: dict = dict[b: 1, a: 2]).signature');
+    expect(result).toBe('dict(d: dict = dict[a: 2, b: 1])');
+  });
+});
+
+describe('formatFieldKey', () => {
+  it.each([
+    ['name', 'name'],
+    ['_x1', '_x1'],
+    ['while', 'while'],
+    ['true', '"true"'],
+    ['false', '"false"'],
+    ['1', '"1"'],
+    ['a b', '"a b"'],
+    ['', '""'],
+    ['a{b}', '"a{{b}}"'],
+  ])('prints %j as %s', (key, printed) => {
+    expect(formatFieldKey(key)).toBe(printed);
+  });
+
+  it('matches the key spelling in a printed signature', async () => {
+    const result = await run('dict("a b": number, while: string).signature');
+    expect(result).toBe(
+      `dict(${formatFieldKey('a b')}: number, ${formatFieldKey('while')}: string)`
+    );
+  });
+});
 
 describe('serializeValue', () => {
   describe('serializable types', () => {

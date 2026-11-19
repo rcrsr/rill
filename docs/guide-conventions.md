@@ -138,7 +138,7 @@ Method chains work in block bodies:
   ($ == 3) ? break
   $ * 2
 })
-# Result: [2, 4] (elements processed BEFORE break)
+# Result: list[2, 4]
 ```
 
 ## Loops

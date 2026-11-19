@@ -230,6 +230,20 @@ describe('Rill Language: -> Conversion Operator', () => {
       ]);
     });
 
+    it('halts RILL-R036 naming the element for a list element that matches no member', async () => {
+      await expectHalt(() => run('list[true] -> list(union(number, string))'), {
+        code: 'RILL_R036',
+        messagePattern: /element 0/,
+      });
+    });
+
+    it('returns a list unchanged when every element matches a member', async () => {
+      expect(await run('list[1, "a"] -> list(union(number, string))')).toEqual([
+        1,
+        'a',
+      ]);
+    });
+
     it('halts RILL-R038 naming the failing list element', async () => {
       await expectHalt(() => run('list["1", "x"] -> list(number)'), {
         code: 'RILL_R038',

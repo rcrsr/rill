@@ -120,6 +120,7 @@ export {
   structureEquals,
   structureMatches,
   formatStructure,
+  formatFieldKey,
   buildFieldDescriptor,
   paramsToStructuralType,
   structureToTypeValue,
@@ -197,7 +198,7 @@ Pure function. Variants with different `kind` values always return `false`.
 structureMatches(value: RillValue, type: TypeStructure): boolean
 ```
 
-Checks if a value matches a structural type descriptor. Used by the `:?` runtime type check operator.
+Checks if a value matches a structural type descriptor. Used by the `:?` runtime type check operator. A named dict descriptor is exact: a dict with a key the descriptor does not name does not match.
 
 | Type descriptor | Matching behavior |
 |-----------------|-------------------|
@@ -231,8 +232,25 @@ Formats a structural type descriptor as a human-readable string.
 | `{ kind: 'any' }` | `"any"` |
 | `{ kind: 'list', element: { kind: 'number' } }` | `"list(number)"` |
 | `{ kind: 'dict', valueType: { kind: 'string' } }` | `"dict(string)"` |
+| `{ kind: 'dict', fields: { 'a b': { type: { kind: 'number' } } } }` | `"dict(\"a b\": number)"` (key not spelled as an identifier or reserved word, and `true`/`false`, quoted) |
 | `{ kind: 'closure', params: [{ name: 'x', type: { kind: 'number' } }] }` | `"closure"` |
 | `{ kind: 'tuple', elements: [{ type: { kind: 'number' } }] }` | `"tuple(number)"` |
+
+### `formatFieldKey`
+
+```typescript
+formatFieldKey(key: string): string
+```
+
+Formats a dict or ordered field key the way `formatStructure` prints it. A key spelled as a letter or `_` followed by letters, digits, or `_` prints bare, reserved words included. `true`, `false`, and every other key print as a quoted rill string, so the output parses back to the same key.
+
+| Input | Output |
+|-------|--------|
+| `'name'` | `name` |
+| `'while'` | `while` |
+| `'true'` | `"true"` |
+| `'1'` | `"1"` |
+| `'a b'` | `"a b"` |
 
 ### `buildFieldDescriptor`
 

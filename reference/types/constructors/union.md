@@ -3,11 +3,11 @@ id: union
 title: Union types
 status: normative
 since: 0.24.0
-issues: [574]
+issues: []
 grammar: [union-type, union-member, union-literal]
 errors: [RILL-P001, RILL-P003, RILL-P006, RILL-R001, RILL-R003, RILL-R036, INVALID_INPUT, TYPE_MISMATCH]
 depends: [type-value, atom]
-tests: [union-types.test.ts, type-inner-outer.test.ts, type-form-outer.test.ts]
+tests: [union-types.test.ts, type-inner-outer.test.ts, type-form-outer.test.ts, conversion.test.ts]
 ---
 
 # Union types
@@ -123,7 +123,7 @@ union(string, "a") == string
 # Result: true
 ```
 
-```rill pending=574
+```rill
 "5" -> union(number, string)
 # Result: "5"
 ```

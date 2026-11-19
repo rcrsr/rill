@@ -273,3 +273,14 @@ $user -> log
     expect(hover?.contents).toBe('variable `user`');
   });
 });
+
+describe('getHover field keys', () => {
+  it('quotes a non-identifier dict type key', () => {
+    const source = `|x: dict("a b": number)| ($x) => $f
+`;
+    const parsed = parseWithRecovery(source);
+    const hover = getHover(parsed, source.indexOf('($x)') + 2);
+
+    expect(hover?.type).toBe('dict("a b": number)');
+  });
+});

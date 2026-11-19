@@ -41,22 +41,19 @@ function overlapKind(s: TypeStructure): string {
 }
 
 /**
- * Overlap of keyed fields: shared fields overlap. A one-sided field is
- * defaulted when strict; when lenient (a declared dict type lets extra keys
- * pass) it is ignored.
+ * Overlap of keyed fields: shared fields overlap, and a field only one side
+ * names must carry a default.
  */
 function fieldsOverlap(
   aFields: Record<string, RillFieldDef>,
-  bFields: Record<string, RillFieldDef>,
-  lenient: boolean
+  bFields: Record<string, RillFieldDef>
 ): boolean {
   for (const [key, aField] of Object.entries(aFields)) {
     const bField = Object.hasOwn(bFields, key) ? bFields[key] : undefined;
     if (bField === undefined) {
-      if (!lenient && aField.defaultValue === undefined) return false;
-    } else if (!overlaps(aField.type, bField.type, lenient)) return false;
+      if (aField.defaultValue === undefined) return false;
+    } else if (!overlaps(aField.type, bField.type)) return false;
   }
-  if (lenient) return true;
   for (const [key, bField] of Object.entries(bFields)) {
     if (!Object.hasOwn(aFields, key) && bField.defaultValue === undefined) {
       return false;
@@ -66,17 +63,13 @@ function fieldsOverlap(
 }
 
 /** Overlap of positional elements: common prefix overlaps, extras are defaulted. */
-function positionsOverlap(
-  a: RillFieldDef[],
-  b: RillFieldDef[],
-  lenient: boolean
-): boolean {
+function positionsOverlap(a: RillFieldDef[], b: RillFieldDef[]): boolean {
   const shared = Math.min(a.length, b.length);
   for (let i = 0; i < shared; i++) {
     const aField = a[i];
     const bField = b[i];
     if (aField === undefined || bField === undefined) return false;
-    if (!overlaps(aField.type, bField.type, lenient)) return false;
+    if (!overlaps(aField.type, bField.type)) return false;
   }
   return a
     .slice(shared)
@@ -85,29 +78,24 @@ function positionsOverlap(
 }
 
 /** Overlap of ordered fields: matched by name, order ignored. */
-function orderedOverlap(
-  a: RillFieldDef[],
-  b: RillFieldDef[],
-  lenient: boolean
-): boolean {
+function orderedOverlap(a: RillFieldDef[], b: RillFieldDef[]): boolean {
   const toRecord = (fields: RillFieldDef[]): Record<string, RillFieldDef> => {
     const out: Record<string, RillFieldDef> = {};
     for (const f of fields) setDictField(out, f.name ?? '', f);
     return out;
   };
-  return fieldsOverlap(toRecord(a), toRecord(b), lenient);
+  return fieldsOverlap(toRecord(a), toRecord(b));
 }
 
 /** Every field of a dict/ordered type overlaps a uniform value type. */
 function fieldsOverlapValueType(
   s: TypeStructure,
-  valueType: TypeStructure,
-  lenient: boolean
+  valueType: TypeStructure
 ): boolean {
   let fields: RillFieldDef[] = [];
   if (isStructureKind(s, 'dict')) fields = Object.values(s.fields ?? {});
   else if (isStructureKind(s, 'ordered')) fields = s.fields ?? [];
-  return fields.every((f) => overlaps(f.type, valueType, lenient));
+  return fields.every((f) => overlaps(f.type, valueType));
 }
 
 /** The uniform value type of a dict/ordered structure, if it has one. */
@@ -118,41 +106,28 @@ function valueTypeOf(s: TypeStructure): TypeStructure | undefined {
   return undefined;
 }
 
-function overlapCallbacksFor(
-  lenient: boolean
-): FieldComparisonCallbacks<boolean> {
-  return {
-    onValueType: (a, b) => overlaps(a, b, lenient),
-    onValueTypeMismatch(a, b) {
-      const aValue = valueTypeOf(a);
-      const bValue = valueTypeOf(b);
-      if (aValue !== undefined)
-        return fieldsOverlapValueType(b, aValue, lenient);
-      if (bValue !== undefined)
-        return fieldsOverlapValueType(a, bValue, lenient);
-      return true;
-    },
-    onBothEmpty: () => true,
-    onFieldPresenceMismatch: () => true,
-    onDictFields: (a, b) => fieldsOverlap(a, b, lenient),
-    onTupleElements: (a, b) => positionsOverlap(a, b, lenient),
-    onOrderedFields: (a, b) => orderedOverlap(a, b, lenient),
-  };
-}
+const OVERLAP_CALLBACKS: FieldComparisonCallbacks<boolean> = {
+  onValueType: (a, b) => overlaps(a, b),
+  onValueTypeMismatch(a, b) {
+    const aValue = valueTypeOf(a);
+    const bValue = valueTypeOf(b);
+    if (aValue !== undefined) return fieldsOverlapValueType(b, aValue);
+    if (bValue !== undefined) return fieldsOverlapValueType(a, bValue);
+    return true;
+  },
+  onBothEmpty: () => true,
+  onFieldPresenceMismatch: () => true,
+  onDictFields: (a, b) => fieldsOverlap(a, b),
+  onTupleElements: (a, b) => positionsOverlap(a, b),
+  onOrderedFields: (a, b) => orderedOverlap(a, b),
+};
 
-const STRICT_CALLBACKS = overlapCallbacksFor(false);
-const LENIENT_CALLBACKS = overlapCallbacksFor(true);
-
-function overlaps(
-  a: TypeStructure,
-  b: TypeStructure,
-  lenient: boolean
-): boolean {
+function overlaps(a: TypeStructure, b: TypeStructure): boolean {
   if (a.kind === 'any' || b.kind === 'any') return true;
   if (isStructureKind(a, 'union')) {
-    return a.members.some((m) => overlaps(m, b, lenient));
+    return a.members.some((m) => overlaps(m, b));
   }
-  if (isStructureKind(b, 'union')) return overlaps(b, a, lenient);
+  if (isStructureKind(b, 'union')) return overlaps(b, a);
 
   const kind = overlapKind(a);
   if (kind !== overlapKind(b)) return false;
@@ -161,30 +136,21 @@ function overlaps(
   }
 
   if (isStructureKind(a, 'list') && isStructureKind(b, 'list')) {
-    return overlaps(
-      a.element ?? { kind: 'any' },
-      b.element ?? { kind: 'any' },
-      lenient
-    );
+    return overlaps(a.element ?? { kind: 'any' }, b.element ?? { kind: 'any' });
   }
   if (kind === 'dict' || kind === 'tuple' || kind === 'ordered') {
-    return compareStructuredFields(
-      a,
-      b,
-      lenient ? LENIENT_CALLBACKS : STRICT_CALLBACKS,
-      true
-    );
+    return compareStructuredFields(a, b, OVERLAP_CALLBACKS, true);
   }
   return true;
 }
 
 /**
  * True when some value could satisfy both structures. Pure, symmetric,
- * total. A literal is judged by the kind of its value. Strict: a dict key
- * present on one side only must be defaulted.
+ * total. A literal is judged by the kind of its value. A dict key present on
+ * one side only must be defaulted.
  */
 export function structureOverlaps(a: TypeStructure, b: TypeStructure): boolean {
-  return overlaps(a, b, false);
+  return overlaps(a, b);
 }
 
 /**
@@ -248,17 +214,14 @@ function messageStructure(
 
 /**
  * Halt `#TYPE_MISMATCH` (catchable) when the operands' types cannot overlap.
- * When either operand carries a declared type, a dict key present on one side
- * only passes, as it does when the value is matched against that type.
- * `lenient` overrides that default for callers whose operand structure is
- * inferred rather than declared.
+ * A dict key present on one side only must be defaulted, whether or not an
+ * operand carries a declared type.
  */
 export function requireOverlap(
   left: Carried,
   right: Carried,
   site: TypeHaltSite,
-  op: string,
-  lenient: boolean = left.declared !== undefined || right.declared !== undefined
+  op: string
 ): void {
   const l = carriedStructure(
     left.value,
@@ -270,7 +233,7 @@ export function requireOverlap(
     right.declared,
     left.declared !== undefined
   );
-  if (overlaps(l, r, lenient)) return;
+  if (overlaps(l, r)) return;
   const lt = formatStructure(messageStructure(left, l));
   const rt = formatStructure(messageStructure(right, r));
   throwTypeHalt(

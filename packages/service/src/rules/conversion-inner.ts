@@ -18,6 +18,7 @@ import type {
 } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
+import { formatFieldKey } from '@rcrsr/rill';
 import { literalKind, unwrapBareLiteral } from './literal-shape.js';
 import { registeredRules } from './rules-registry.js';
 
@@ -144,7 +145,7 @@ function findMismatch(
 function renderArg(arg: FieldArg): string | null {
   const kind = argKind(arg);
   if (kind === null) return null;
-  return arg.name === undefined ? kind : `${arg.name}: ${kind}`;
+  return arg.name === undefined ? kind : `${formatFieldKey(arg.name)}: ${kind}`;
 }
 
 /** The target as written, or the constructor name alone when an argument is not a scalar. */

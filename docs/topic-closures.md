@@ -218,12 +218,12 @@ $fn()
 
 ### Reflecting Parameters and Return Type
 
-`$fn.^type` returns the closure's type. Its `.inner` holds the parameters as an `ordered` of types, and its `.outer` holds the declared return type. Anonymous params use `$` as the key name. Named params use their declared name.
+`$fn.^type` returns the closure's type. Its `.inner` holds the parameters as an `ordered` of types, and its `.outer` holds the declared return type. Anonymous params use `"$"` as the key name, quoted because `$` is not an identifier. Named params use their declared name.
 
 | Receiver Kind | `.^type.inner` |
 |---|---|
-| Bare block `{ ... }` | `ordered[$: any]` |
-| Anonymous typed `\|string\| { ... }` | `ordered[$: string]` |
+| Bare block `{ ... }` | `ordered["$": any]` |
+| Anonymous typed `\|string\| { ... }` | `ordered["$": string]` |
 | Named param `\|x: string\| { ... }` | `ordered[x: string]` |
 | Named with default `\|a: string, b: string = "hi"\| { ... }` | `ordered[a: string, b: string]` |
 | Non-callable value, such as `1` | Raises RILL-R003 |
@@ -231,19 +231,19 @@ $fn()
 ```rill
 |string|{ $ } => $fn
 $fn.^type.inner
-# Result: ordered[$: string]
+# Result: ordered["$": string]
 ```
 
 ```rill
 |list(string)|{ $ } => $fn
 $fn.^type.inner
-# Result: ordered[$: list(string)]
+# Result: ordered["$": list(string)]
 ```
 
 ```rill
 { $ * 2 } => $fn
 $fn.^type.inner
-# Result: ordered[$: any]
+# Result: ordered["$": any]
 ```
 
 Defaults sit under `.defaults`, which lists only the parameters that have one:
@@ -647,7 +647,7 @@ A typed closure may use a body without braces, such as `|x: number| $x` or `|x: 
 
 ```rill
 [1, 2, 3] -> fan(|x: number| $x, dict[concurrency: 2])
-# Result: [1, 2, 3]
+# Result: list[1, 2, 3]
 ```
 
 ```rill

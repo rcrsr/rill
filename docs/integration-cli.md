@@ -167,6 +167,8 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `PIPE_CONVERTS_INNER` | types | info | Pipe into `list(T)`, `dict(...)`, or `tuple(...)` of a statically known source with elements of another scalar kind, so `->` converts them; write `-> :T` to check without converting |
 | `PIPE_ZERO_PARAM_TARGET` | closures | warning | Pipe target closure with no parameters, so the call halts `RILL-R045` |
 | `MIXED_ELEMENT_TYPE_READ` | types | info | `.^type` or `.^effective` read from a list literal of distinct compound shapes, or from the result of iterating a dict literal of distinct value shapes, where the read reports a union element type |
+| `TYPE_EXTRA_KEY` | types | warning | Typed check, capture, or parameter on a statically known dict or ordered literal with a key the type does not name, so it halts `#TYPE_MISMATCH` or `RILL-R001` |
+| `SIGNATURE_BARE_KEY` | types | warning | `.signature` compared with a string literal that spells a non-identifier key bare, so the comparison is always false (true for `!=`) |
 | `ATOM_CASE_MISMATCH` | errors | warning | Atom differs from a builtin only by case |
 | `ATOM_NOT_ERROR_CODE` | errors | warning | `.!code` compared with `==`, `!=`, `.eq`, or `.ne` (operator, method, or pipe form) to an atom that is not `#ok` or a core error code, so the comparison halts `#TYPE_MISMATCH` |
 | `ATOM_DISCARDED` | anti-patterns | warning | Bare atom as a discarded statement; a comment needs a space after `#` |

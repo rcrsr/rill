@@ -1,5 +1,5 @@
 /**
- * Type-node rendering for hover output.
+ * Type-node rendering shared by hover output and lint rule messages.
  *
  * Reimplemented from core's `runtime/core/introspection.ts` private helper
  * `typeRefToString` rather than imported: that helper is not part of the
@@ -9,6 +9,7 @@
  * `introspectHandlerFromAST` would have produced for the same shape.
  */
 
+import { formatFieldKey, formatRillLiteral } from '@rcrsr/rill';
 import type { FieldArg, LiteralNode, TypeRef } from '@rcrsr/rill';
 
 function literalToString(node: LiteralNode): string | undefined {
@@ -20,7 +21,7 @@ function literalToString(node: LiteralNode): string | undefined {
       return `#${node.name}`;
     case 'StringLiteral':
       return node.parts.every((p): p is string => typeof p === 'string')
-        ? JSON.stringify(node.parts.join(''))
+        ? formatRillLiteral(node.parts.join(''))
         : undefined;
     default:
       return undefined;
@@ -29,7 +30,10 @@ function literalToString(node: LiteralNode): string | undefined {
 
 function fieldArgToString(arg: FieldArg): string {
   const valueStr = typeRefToString(arg.value);
-  const named = arg.name !== undefined ? `${arg.name}: ${valueStr}` : valueStr;
+  const named =
+    arg.name !== undefined
+      ? `${formatFieldKey(arg.name)}: ${valueStr}`
+      : valueStr;
   const literal =
     arg.defaultValue !== undefined
       ? literalToString(arg.defaultValue)

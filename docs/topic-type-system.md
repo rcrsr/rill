@@ -56,7 +56,7 @@ Type constructor fields accept a default value using `= literal` syntax after th
 
 ```rill
 [b: "b"] -> dict(b: string, a: string = "a")
-# Result: [b: "b", a: "a"]
+# Result: dict[a: "a", b: "b"]
 ```
 
 The input `[b: "b"]` omits `a`. The conversion fills `a` with `"a"` from the default.
@@ -216,7 +216,7 @@ The string representation of structural types follows this format:
 | List | `"list(number)"`, `"list(list(number))"` |
 | Dict (uniform) | `"dict(number)"` (all values same type) |
 | Ordered (uniform) | `"ordered(string)"` (all values same type) |
-| Dict | `"dict(a: number, b: string)"` (fields alphabetically sorted) |
+| Dict | `"dict(a: number, b: string)"` (fields alphabetically sorted; a key not spelled as an identifier or reserved word, and `true`/`false`, is quoted, as in `"dict(\"a b\": number)"`) |
 | Tuple | `"tuple(number, string, bool)"` (positional) |
 | Ordered | `"ordered(a: number, b: string)"` (named, order-sensitive) |
 | Closure | `"\|x: number\| :string"` (pipe-delimited params with colon-return) |
@@ -292,7 +292,7 @@ The table shows how each operation treats a dict value whose keys differ from th
 
 | Operation | Extra fields | Missing field with a default | Missing field with no default | Field or element of another type |
 |-----------|--------------|------------------------------|-------------------------------|----------------------------------|
-| `:T` / `:?T` | Accepted; value returned unchanged, extras kept | Accepted; not filled | `:` halts `#TYPE_MISMATCH`; `:?` returns false | `:T` halts `#TYPE_MISMATCH`; `:?` returns false |
+| `:T` / `:?T` | `:` halts `#TYPE_MISMATCH`; `:?` returns false. Bare `dict` and `dict()` accept any keys | Accepted; not filled | `:` halts `#TYPE_MISMATCH`; `:?` returns false | `:T` halts `#TYPE_MISMATCH`; `:?` returns false |
 | `-> T` | Dropped | Filled with the default | Halts RILL-R044, except a collection-typed field whose children all have defaults (see [Nested Collection Synthesis](#nested-collection-synthesis)) | Converts; halts RILL-R036 or RILL-R038 naming the part |
 | `.^type == T` (undeclared dict) | false | false | false | false |
 
@@ -314,8 +314,8 @@ list[1, 2] -> :list(string)
 `.^type == T` requires the exact key set, field types, and default presence on the dict's own type.
 
 ```rill
+# Error: #TYPE_MISMATCH
 dict[a: 1, x: 2] -> :dict(a: number)
-# Result: dict[a: 1, x: 2]
 ```
 
 ```rill
@@ -377,6 +377,8 @@ dict(b: string, a: string) => $dt
 dict[b: "b"] -> :$dt
 # Error: type assertion fails
 ```
+
+Inside a bare bracket, `$x:` and `(expr):` read as dict keys, so `[$x:number]` is a dict. Write an inline assertion on a list element in parentheses, as in `[($x:number)]`.
 
 ### Check Type (`:?type`)
 
@@ -612,6 +614,32 @@ The one-value type is `union("c")`. A bare literal after a colon is a parse erro
 "c" => $a:"c"
 ```
 
+### Conversion into a Union
+
+`-> union(...)` returns a member value unchanged and declares it as the union. A value that is not a member halts `RILL-R036`, not the `#TYPE_MISMATCH` of an assertion. Members are never tried in turn, so a string is not converted into a number member.
+
+```rill
+"5" -> union(number, string)
+# Result: "5"
+```
+
+```rill
+"5" -> union(number, string) => $v
+$v.^type.signature
+# Result: "union(number, string)"
+```
+
+```rill
+"5" -> union(number, string) => $v
+$v.^effective.signature
+# Result: "string"
+```
+
+```rill
+# Error: RILL-R036
+"5" -> union(number, bool)
+```
+
 ### Closed-Set Dispatch
 
 An atom is not a dict key. Convert a value from a closed set of atoms to its name before selecting:
@@ -674,6 +702,7 @@ A union is a set. These rules apply when the union is built:
 | A duplicate member is rejected | `union(string, string)` | halts `#INVALID_INPUT` |
 | A nested union merges | `union(union(string, number), bool)` | `union(string, number, bool)` |
 | A subsumed member is dropped | `union(list(string), list)` | `list` |
+| A member that keeps a default survives a broader member | `union(dict(a: string, b: string = "x"), dict)` | both kept |
 | One type member equals that type | `union(string) == string` | `true` |
 | An empty union is rejected | `union()` | halts `#INVALID_INPUT` |
 | A compound literal is rejected | `union(list[1, 2])` | halts `#INVALID_INPUT` |
@@ -687,7 +716,7 @@ union(list(union(string, number)), list(string)).signature
 
 ### Defaults Under a Union
 
-When a value matches several members, the narrowest matching member fills defaults. A member is narrower when its accepted values are a strict subset of another matching member's. Matches that are incomparable use the first in canonical order. The order you list members in never decides. The rule applies to closure parameters, host parameters, and fields during `-> type`.
+Reduction comes first. Members that differ only by an omittable defaulted field reduce to the wide member, so `union(dict(a: number), dict(a: number, b: number = 9))` is `dict(a: number, b: number = 9)` and its default fills in either written order.
 
 ```rill
 |d: union(dict(a: number), dict(a: number, b: number = 9))| { $d.b } => $f
@@ -696,7 +725,23 @@ tuple[$f(dict[a: 1]), $g(dict[a: 1])]
 # Result: tuple[9, 9]
 ```
 
-Both members accept `dict[a: 1]`. The member with the `b` default accepts fewer values, so it fills `b` in both closures.
+Among members that survive reduction, a call fills defaults from the narrowest member the argument matches, whatever the written order. Incomparable matches resolve by canonical order. The rule applies to closure and host parameters.
+
+```rill
+|d: union(dict(a: number, b: number = 9), dict)| { $d.b } => $f
+|d: union(dict, dict(a: number, b: number = 9))| { $d.b } => $g
+tuple[$f(dict[a: 1]), $g(dict[a: 1])]
+# Result: tuple[9, 9]
+```
+
+A pipe into a union fills nothing (see [Conversion into a Union](#conversion-into-a-union)). A union that reduces to one member is that member, so it converts:
+
+```rill
+dict[] -> union(dict(a: number = 1), dict(a: number = 1, b: number = 2)) => $one
+dict[] -> union(dict(a: number = 1), string) => $two
+tuple[$one, $two]
+# Result: tuple[dict[a: 1, b: 2], dict[]]
+```
 
 ### Reserved Name
 
@@ -820,7 +865,7 @@ $x.^effective.signature
 # Result: "number"
 ```
 
-A declaration comes from a capture annotation, a `:T` assertion, a typed parameter, or `.!code`. It stays with `$`, captures, grouped expressions, `pass`, destructures, and closure parameters. Element and field reads on a declared collection project the declared element type:
+A declaration comes from a capture annotation, a `:T` assertion, a pipe into a union, a typed parameter, or `.!code`. It stays with `$`, captures, grouped expressions, `pass`, destructures, and closure parameters. Element and field reads on a declared collection project the declared element type:
 
 ```rill
 list[1, 2] => $xs:list(union(string, number))

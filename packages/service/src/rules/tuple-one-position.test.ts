@@ -1,3 +1,4 @@
+import { parse } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 import { runRules } from './run-rules.js';
 import { tupleOnePosition } from './tuple-one-position.js';
@@ -101,5 +102,20 @@ describe('TUPLE_ONE_POSITION', () => {
     const config = makeConfig({ rules: { TUPLE_ONE_POSITION: 'off' } });
 
     expect(run('$x -> :tuple(number)\n', config)).toEqual([]);
+  });
+
+  it.each([
+    ['$x -> :tuple(dict("a b": number))\n', 'dict("a b": number)'],
+    ['$x -> :tuple(stream(number):string)\n', 'stream(number):string'],
+    ['$x -> :tuple(union("a{{b", "c"))\n', 'union("a{{b", "c")'],
+  ])('suggests a list type that parses for %s', (source, element) => {
+    const result = run(source);
+
+    expect(result).toHaveLength(1);
+    const message = result[0]?.message ?? '';
+    expect(message).toContain(`tuple(${element}) names`);
+    const match = /-> (list\(.*\)) for a sequence/.exec(message);
+    expect(match).not.toBeNull();
+    expect(() => parse(`$x -> :${match?.[1] ?? ''}`)).not.toThrow();
   });
 });

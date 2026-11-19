@@ -5,57 +5,11 @@
  * through union members and every argument value.
  */
 
-import type {
-  ASTNode,
-  FieldArg,
-  LiteralNode,
-  SourceLocation,
-  TypeRef,
-} from '@rcrsr/rill';
+import type { ASTNode, FieldArg, SourceLocation, TypeRef } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
+import { typeRefToString } from '../type-rendering.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
-
-function literalToString(node: LiteralNode): string {
-  switch (node.type) {
-    case 'NumberLiteral':
-    case 'BoolLiteral':
-      return String(node.value);
-    case 'AtomLiteral':
-      return `#${node.name}`;
-    case 'StringLiteral':
-      return node.parts.every((p): p is string => typeof p === 'string')
-        ? JSON.stringify(node.parts.join(''))
-        : 'any';
-    default:
-      return 'any';
-  }
-}
-
-/** Renders a type reference as source-like text for the diagnostic message. */
-function typeRefToString(ref: TypeRef): string {
-  switch (ref.kind) {
-    case 'static': {
-      if (ref.args === undefined || ref.args.length === 0) return ref.typeName;
-      const args = ref.args
-        .map((arg) =>
-          arg.name === undefined
-            ? typeRefToString(arg.value)
-            : `${arg.name}: ${typeRefToString(arg.value)}`
-        )
-        .join(', ');
-      return `${ref.typeName}(${args})`;
-    }
-    case 'union':
-      return `union(${ref.members.map(typeRefToString).join(', ')})`;
-    case 'dynamic':
-      return 'any';
-    case 'literal':
-      return literalToString(ref.value);
-    default:
-      return 'any';
-  }
-}
 
 /** Collects the element type of every one-argument tuple in the arguments. */
 function collectFromArgs(args: readonly FieldArg[], out: string[]): void {

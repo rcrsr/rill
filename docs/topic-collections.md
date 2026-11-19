@@ -24,15 +24,15 @@ Every operator accepts these sources: list, tuple, string, dict, ordered, iterat
 ```rill
 # Sequential: results in order, one at a time
 [1, 2, 3] -> seq({ $ * 2 })
-# Result: [2, 4, 6]
+# Result: list[2, 4, 6]
 
 # Parallel: results in order, concurrent execution
 [1, 2, 3] -> fan({ $ * 2 })
-# Result: [2, 4, 6]
+# Result: list[2, 4, 6]
 
 # Parallel filter: keep matching elements
 [1, 2, 3, 4, 5] -> filter({ $ > 2 })
-# Result: [3, 4, 5]
+# Result: list[3, 4, 5]
 
 # Reduction: accumulates to single value
 [1, 2, 3] -> fold(0, { $@ + $ })
@@ -40,7 +40,7 @@ Every operator accepts these sources: list, tuple, string, dict, ordered, iterat
 
 # Scan: accumulates, returns all intermediate values
 [1, 2, 3] -> acc(0, { $@ + $ })
-# Result: [1, 3, 6]
+# Result: list[1, 3, 6]
 ```
 
 ---
@@ -56,11 +56,11 @@ Every operator accepts these sources: list, tuple, string, dict, ordered, iterat
 ```rill
 # Auto-prepend form (pipe supplies the list)
 [1, 2, 3] -> seq({ $ * 2 })
-# Result: [2, 4, 6]
+# Result: list[2, 4, 6]
 
 # Explicit form (list slot filled explicitly)
 seq([1, 2, 3], { $ * 2 })
-# Result: [2, 4, 6]
+# Result: list[2, 4, 6]
 ```
 
 > **Backward compatibility:** Existing `$list -> seq({...})` forms continue to work via auto-prepend. No migration needed.
@@ -68,11 +68,11 @@ seq([1, 2, 3], { $ * 2 })
 ```rill
 # Transform strings
 ["a", "b", "c"] -> seq({ "{$}!" })
-# Result: ["a!", "b!", "c!"]
+# Result: list["a!", "b!", "c!"]
 
 # Iterate string characters
 "hello" -> seq({ $ })
-# Result: ["h", "e", "l", "l", "o"]
+# Result: list["h", "e", "l", "l", "o"]
 ```
 
 ### Dict Iteration
@@ -81,10 +81,10 @@ When iterating over a dict, `$` contains `key` and `value` fields. Iteration vis
 
 ```rill
 [name: "alice", age: 30] -> seq({ "{$.key}: {$.value}" })
-# Result: ["age: 30", "name: alice"]
+# Result: list["age: 30", "name: alice"]
 
 [a: 1, b: 2, c: 3] -> seq({ $.value * 2 })
-# Result: [2, 4, 6]
+# Result: list[2, 4, 6]
 ```
 
 ### Variable Closure
@@ -94,7 +94,7 @@ Pass a pre-defined closure by reference.
 ```rill
 |x| ($x * 2) => $double
 [1, 2, 3] -> seq($double)
-# Result: [2, 4, 6]
+# Result: list[2, 4, 6]
 ```
 
 ### Early Termination
@@ -106,7 +106,7 @@ Pass a pre-defined closure by reference.
   ($ == 3) ? break
   $ * 2
 })
-# Result: [2, 4]
+# Result: list[2, 4]
 ```
 
 ### Empty Collections
@@ -115,7 +115,7 @@ Pass a pre-defined closure by reference.
 
 ```rill
 [] -> seq({ $ * 2 })
-# Result: []
+# Result: list[]
 ```
 
 ### Streams with seq
@@ -145,17 +145,17 @@ An empty stream returns `[]` without executing the body.
 ```rill
 # Auto-prepend form (pipe supplies the list)
 ["a", "b", "c"] -> fan({ "{$}!" })
-# Result: ["a!", "b!", "c!"]
+# Result: list["a!", "b!", "c!"]
 
 # Explicit form (list slot filled explicitly)
 fan(["a", "b", "c"], { "{$}!" })
-# Result: ["a!", "b!", "c!"]
+# Result: list["a!", "b!", "c!"]
 ```
 
 ```rill
 # Block expression (implicit $)
 [1, 2, 3] -> fan({ $ * 2 })
-# Result: [2, 4, 6]
+# Result: list[2, 4, 6]
 ```
 
 ### Concurrency Limit
@@ -164,7 +164,7 @@ Pass an options dict as the second argument to cap concurrent operations.
 
 ```rill
 [1, 2, 3, 4, 5] -> fan({ $ * $ }, [concurrency: 2])
-# Result: [1, 4, 9, 16, 25]
+# Result: list[1, 4, 9, 16, 25]
 ```
 
 ### Key Differences from seq
@@ -183,7 +183,7 @@ Use `fan` when:
 ```rill
 # CPU-bound: same result as seq, but runs in parallel
 [1, 2, 3, 4, 5] -> fan({ $ * $ })
-# Result: [1, 4, 9, 16, 25]
+# Result: list[1, 4, 9, 16, 25]
 ```
 
 ### Empty Collections
@@ -192,7 +192,7 @@ Use `fan` when:
 
 ```rill
 [] -> fan({ $ * 2 })
-# Result: []
+# Result: list[]
 ```
 
 ### Streams with fan
@@ -222,25 +222,25 @@ An empty stream returns `[]`.
 ```rill
 # Auto-prepend form (pipe supplies the list)
 [1, 2, 3, 4, 5] -> filter({ $ > 2 })
-# Result: [3, 4, 5]
+# Result: list[3, 4, 5]
 
 # Explicit form (list slot filled explicitly)
 filter([1, 2, 3, 4, 5], { $ > 2 })
-# Result: [3, 4, 5]
+# Result: list[3, 4, 5]
 ```
 
 ```rill
 # Keep numbers greater than 2
 [1, 2, 3, 4, 5] -> filter({ $ > 2 })
-# Result: [3, 4, 5]
+# Result: list[3, 4, 5]
 
 # Keep non-empty strings
 ["hello", "", "world", ""] -> filter({ !.empty })
-# Result: ["hello", "world"]
+# Result: list["hello", "world"]
 
 # Keep even numbers
 [1, 2, 3, 4, 5, 6] -> filter({ ($ % 2) == 0 })
-# Result: [2, 4, 6]
+# Result: list[2, 4, 6]
 ```
 
 ### Variable Closure
@@ -250,7 +250,7 @@ Pass a pre-defined closure by reference.
 ```rill
 |x| ($x > 2) => $gtTwo
 [1, 2, 3, 4, 5] -> filter($gtTwo)
-# Result: [3, 4, 5]
+# Result: list[3, 4, 5]
 ```
 
 ### Dict Filtering
@@ -259,7 +259,7 @@ When filtering a dict, `$` contains `key` and `value` fields. Returns list of ma
 
 ```rill
 [a: 1, b: 5, c: 3] -> filter({ $.value > 2 })
-# Result: [[key: "b", value: 5], [key: "c", value: 3]]
+# Result: list[dict[key: "b", value: 5], dict[key: "c", value: 3]]
 ```
 
 ### String Filtering
@@ -268,7 +268,7 @@ Filters characters in a string.
 
 ```rill
 "hello" -> filter({ $ != "l" })
-# Result: ["h", "e", "o"]
+# Result: list["h", "e", "o"]
 ```
 
 ### Chaining with Other Operators
@@ -276,11 +276,11 @@ Filters characters in a string.
 ```rill
 # Filter then transform
 [1, 2, 3, 4, 5] -> filter({ $ > 2 }) -> fan({ $ * 2 })
-# Result: [6, 8, 10]
+# Result: list[6, 8, 10]
 
 # Transform then filter
 [1, 2, 3, 4, 5] -> fan({ $ * 2 }) -> filter({ $ > 5 })
-# Result: [6, 8, 10]
+# Result: list[6, 8, 10]
 
 # Filter, transform, reduce
 [1, 2, 3, 4, 5] -> filter({ $ > 2 }) -> fan({ $ * 2 }) -> fold(0, { $@ + $ })
@@ -293,10 +293,10 @@ Filters characters in a string.
 
 ```rill
 [] -> filter({ $ > 0 })
-# Result: []
+# Result: list[]
 
 [1, 2, 3] -> filter({ $ > 10 })
-# Result: []
+# Result: list[]
 ```
 
 ### Streams with filter
@@ -454,21 +454,21 @@ An empty stream returns the initial value without executing the body.
 ```rill
 # Auto-prepend form (pipe supplies the list)
 [1, 2, 3] -> acc(0, { $@ + $ })
-# Result: [1, 3, 6]
+# Result: list[1, 3, 6]
 
 # Explicit form (list slot filled explicitly)
 acc([1, 2, 3], 0, { $@ + $ })
-# Result: [1, 3, 6]
+# Result: list[1, 3, 6]
 ```
 
 ```rill
 # Running sum (scan pattern)
 [1, 2, 3] -> acc(0, { $@ + $ })
-# Result: [1, 3, 6]
+# Result: list[1, 3, 6]
 
 # String concatenation scan
 ["a", "b", "c"] -> acc("", { "{$@}{$}" })
-# Result: ["a", "ab", "abc"]
+# Result: list["a", "ab", "abc"]
 ```
 
 ### Typed Accumulator Closure
@@ -477,7 +477,7 @@ Use a two-type anonymous closure to declare element and accumulator types.
 
 ```rill
 [1, 2, 3] -> acc(0, |number, number|{ $@ + $ })
-# Result: [1, 3, 6]
+# Result: list[1, 3, 6]
 ```
 
 ### Early Termination
@@ -489,7 +489,7 @@ Use a two-type anonymous closure to declare element and accumulator types.
   ($ == 3) ? break
   $@ + $
 })
-# Result: [1, 3]
+# Result: list[1, 3]
 ```
 
 ### Empty Collections
@@ -498,7 +498,7 @@ Use a two-type anonymous closure to declare element and accumulator types.
 
 ```rill
 [] -> acc(0, { $@ + $ })
-# Result: []
+# Result: list[]
 ```
 
 ### Streams with acc
@@ -528,11 +528,11 @@ An empty stream returns `[]`.
 ```rill
 # Default: sort ascending by element value
 [3, 1, 2] -> sort
-# Result: [1, 2, 3]
+# Result: list[1, 2, 3]
 
 # With key extractor: sort strings by length
 ["banana", "fig", "apple"] -> sort({ $ -> .len })
-# Result: ["fig", "apple", "banana"]
+# Result: list["fig", "apple", "banana"]
 ```
 
 ### Dict and Ordered Form
@@ -582,7 +582,7 @@ Pipe through `.reverse` after sorting to get descending order. `.reverse` is a z
 
 ```rill
 [3, 1, 2] -> sort -> .reverse
-# Result: [3, 2, 1]
+# Result: list[3, 2, 1]
 ```
 
 ### Indexing the sorted result
@@ -602,7 +602,7 @@ This is the same postfix `[i]` that follows `-> .reverse[0]`.
 
 ```rill
 range(0, 5) -> sort
-# Result: [0, 1, 2, 3, 4]
+# Result: list[0, 1, 2, 3, 4]
 ```
 
 ### Empty Input
@@ -611,7 +611,7 @@ Empty list returns `[]`. Empty dict returns an empty `ordered`.
 
 ```rill
 [] -> sort
-# Result: []
+# Result: list[]
 ```
 
 ### Error Cases
@@ -641,7 +641,7 @@ Both `acc` and `fold` support accumulators. The difference is what they return.
 ```rill
 # acc: returns every intermediate result
 [1, 2, 3] -> acc(0, { $@ + $ })
-# Result: [1, 3, 6]
+# Result: list[1, 3, 6]
 ```
 
 ```rill
@@ -657,7 +657,7 @@ Use `acc` when you need intermediate states (scan pattern):
 ```rill
 # Running balance
 [100, -50, 200, -75] -> acc(0, { $@ + $ })
-# Result: [100, 50, 250, 175]
+# Result: list[100, 50, 250, 175]
 ```
 
 Use `fold` when you only need the final result:
@@ -750,11 +750,11 @@ Combine operators for multi-stage transformations.
 
 # Filter even numbers (using parallel filter)
 [1, 2, 3, 4, 5] -> filter({ ($ % 2) == 0 })
-# Result: [2, 4]
+# Result: list[2, 4]
 
 # Complex pipeline: filter, then transform
 [1, 2, 3, 4, 5] -> filter({ $ > 2 }) -> fan({ $ * 10 })
-# Result: [30, 40, 50]
+# Result: list[30, 40, 50]
 ```
 
 ---
@@ -780,7 +780,7 @@ Combine operators for multi-stage transformations.
 
 ```rill
 [1, 2, 3] -> seq({ $ * 2 })
-# Result: [2, 4, 6]
+# Result: list[2, 4, 6]
 ```
 
 ### Strings
@@ -789,7 +789,7 @@ Iterates over characters.
 
 ```rill
 "abc" -> seq({ "{$}!" })
-# Result: ["a!", "b!", "c!"]
+# Result: list["a!", "b!", "c!"]
 ```
 
 ### Dicts
@@ -798,7 +798,7 @@ Iterates over entries with `key` and `value` fields.
 
 ```rill
 [a: 1, b: 2] -> seq({ "{$.key}={$.value}" })
-# Result: ["a=1", "b=2"]
+# Result: list["a=1", "b=2"]
 ```
 
 ### Tuples
@@ -807,7 +807,7 @@ Iterates over elements like a list.
 
 ```rill
 tuple[1, "a"] -> seq({ "{$}" })
-# Result: ["1", "a"]
+# Result: list["1", "a"]
 ```
 
 ### Ordereds
@@ -816,7 +816,7 @@ Iterates over entries with `key` and `value` fields, in insertion order.
 
 ```rill
 ordered[b: 1, a: 2] -> seq({ $.key })
-# Result: ["b", "a"]
+# Result: list["b", "a"]
 ```
 
 ---
@@ -828,7 +828,7 @@ Process nested structures with nested operators.
 ```rill
 # Double nested values
 [list[1, 2], list[3, 4]] -> fan({ $ -> seq({ $ * 2 }) })
-# Result: [[2, 4], [6, 8]]
+# Result: list[list[2, 4], list[6, 8]]
 ```
 
 ```rill

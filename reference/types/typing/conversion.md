@@ -3,11 +3,11 @@ id: conversion
 title: Conversion
 status: normative
 since: 0.24.0
-issues: [574]
+issues: []
 grammar: []
 errors: [RILL-R036, RILL-R037, RILL-R038, RILL-R044]
 depends: [type-value, structural-typing, any, union, defaults, carried-type, inference, list, dict, tuple, ordered]
-tests: [conversion.test.ts, structural-type-defaults.test.ts, vectors.test.ts, uniform-value-type.test.ts, type-assertions.test.ts]
+tests: [conversion.test.ts, structural-type-defaults.test.ts, vectors.test.ts, uniform-value-type.test.ts, type-assertions.test.ts, union-types.test.ts]
 ---
 
 # Conversion
@@ -79,11 +79,11 @@ r[conversion.failure] An inner failure reports a conversion error
 A part that cannot convert MUST halt with RILL-R036 or RILL-R038, never as a failed assertion.
 The message MUST name the element or field.
 
-r[conversion.union] A value that has a member passes unchanged {pending #574}
+r[conversion.union] A value that has a member passes unchanged
 A pipe into a union MUST return a value that already has a member unchanged, and the value MUST
 carry the union as its asserted type. `"5" -> union(number, string)` ⇒ `"5"`.
 
-r[conversion.union-miss] A value with no member halts {pending #574}
+r[conversion.union-miss] A value with no member halts
 A value with no member of the union MUST halt with RILL-R036, never `#TYPE_MISMATCH`. Members
 MUST NOT be tried in turn.
 
@@ -148,7 +148,7 @@ list[1, 2] -> list(string)
 # Result: list["1", "2"]
 ```
 
-```rill pending=574
+```rill
 5 -> union(number, string) => $v
 $v.^type -> .signature
 # Result: "union(number, string)"
@@ -157,8 +157,8 @@ $v.^type -> .signature
 ## Notes
 
 On 0.23.0 a pipe into a parameterized type converts the outer kind and asserts the inner types, so
-`list[1, 2] -> list(string)` halts `#TYPE_MISMATCH`. Until #574 is built, a pipe into a union
-halts RILL-R036.
+`list[1, 2] -> list(string)` halts `#TYPE_MISMATCH`. On 0.23.0 a pipe into a union halts
+RILL-R036.
 
 On 0.23.0 a conversion through a variable skips fill and drop, and does not check field types.
 

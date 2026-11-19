@@ -191,25 +191,37 @@ describe('Rill Language: equality gate', () => {
     }
   );
 
-  const declaredDict = 'dict[a: 1, b: 2] => $x:dict(a: number)\n';
+  const declaredDict = 'dict[a: 1] => $x:dict(a: number)\n';
+  const defaultedDict = 'dict[a: 1] => $x:dict(a: number, b: number = 0)\n';
 
-  rule('equality.declared-dict').it(
-    'passes a one-sided dict key when an operand carries a declared type',
+  rule('structural-typing.overlap-fields').it(
+    'halts when a one-sided dict key meets a declared type',
     async () => {
-      expect(await run(`${declaredDict}$x == dict[a: 1, b: 2]`)).toBe(true);
-      expect(await run(`${declaredDict}dict[a: 1, b: 2] != $x`)).toBe(false);
-      expect(await run(`${declaredDict}$x -> .eq(dict[a: 1, b: 2])`)).toBe(
-        true
-      );
-      expect(
-        await run(
-          'list[dict[a: 1, b: 2]] => $l:list(dict(a: number))\n$l -> .has(dict[a: 1, b: 2])'
-        )
-      ).toBe(true);
+      const sources = [
+        `${declaredDict}$x == dict[a: 1, b: 2]`,
+        `${declaredDict}dict[a: 1, b: 2] != $x`,
+        `${declaredDict}$x -> .eq(dict[a: 1, b: 2])`,
+        `${declaredDict}$x -> .ne(dict[a: 1, b: 2])`,
+        'list[dict[a: 1]] => $l:list(dict(a: number))\n$l -> .has(dict[a: 1, b: 2])',
+      ];
+      for (const source of sources) {
+        await expectHalt(() => run(source), { code: 'TYPE_MISMATCH' });
+      }
     }
   );
 
-  rule('equality.declared-dict').it(
+  rule('structural-typing.overlap-fields').it(
+    'compares unequal without halting when the one-sided key of a declared dict is defaulted',
+    async () => {
+      expect(await run(`${defaultedDict}$x == dict[a: 1, b: 2]`)).toBe(false);
+      expect(await run(`${defaultedDict}$x != dict[a: 1, b: 2]`)).toBe(true);
+      expect(await run(`${defaultedDict}$x -> .eq(dict[a: 1, b: 2])`)).toBe(
+        false
+      );
+    }
+  );
+
+  rule('structural-typing.overlap-fields').it(
     'still halts when a shared key of a declared dict has another type',
     async () => {
       await expectHalt(() => run(`${declaredDict}$x == dict[a: "x", b: 2]`), {
@@ -218,7 +230,7 @@ describe('Rill Language: equality gate', () => {
     }
   );
 
-  rule('equality.declared-dict', 'carried-type.own-element').it(
+  rule('structural-typing.overlap-fields', 'carried-type.own-element').it(
     'halts on an undeclared list whose element dicts differ in keys',
     async () => {
       await expectHalt(

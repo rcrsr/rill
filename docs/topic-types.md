@@ -232,6 +232,30 @@ dict[name: "alice", age: 30]     # keyword form (canonical)
 dict[]                            # empty dict (canonical)
 ```
 
+A bare bracket takes every `dict[...]` entry, spreads included. A bracket of only spreads is a list, so write a spread-only dict as `dict[...$d]`. `[]` is the empty list and `[:]` the empty dict. Mixing positional and keyed entries halts `RILL-P001`.
+
+```rill
+dict[a: 1] => $d
+[...$d, b: 2]
+# Result: dict[a: 1, b: 2]
+```
+
+```rill
+dict[a: 1] => $d
+dict[...$d]
+# Result: dict[a: 1]
+```
+
+```rill
+list[[] == list[], [:] == dict[]]
+# Result: list[true, true]
+```
+
+```rill
+# Error: RILL-P001
+[1, a: 2]
+```
+
 ```rill
 # Identifier keys
 [name: "alice", age: 30] => $person
@@ -303,6 +327,23 @@ Every dict key is a string. A single number or boolean key in a literal names th
 ```rill
 [1: "one", true: "yes"] -> .keys
 # Result: list["1", "true"]
+```
+
+A dict type names its fields with the same key forms. An identifier, quoted, number, or boolean key works, and a signature quotes a key not spelled as an identifier or reserved word, and `true`/`false`. A repeated key halts `RILL-P027`.
+
+```rill
+dict("a b": number) == dict["a b": 1].^type
+# Result: true
+```
+
+```rill
+dict(1: string) == dict("1": string)
+# Result: true
+```
+
+```rill
+# Error: RILL-P027
+dict(a: number, "a": string)
 ```
 
 ```text

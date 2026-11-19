@@ -134,14 +134,14 @@ When piped, the piped value becomes `seed` automatically:
 
 ```rill
 0 -> iterate({ $ + 1 }) -> take(5)
-# Result: [0, 1, 2, 3, 4]
+# Result: list[0, 1, 2, 3, 4]
 ```
 
 ### Explicit form
 
 ```rill
 iterate(0, { $ + 1 }) -> take(5)
-# Result: [0, 1, 2, 3, 4]
+# Result: list[0, 1, 2, 3, 4]
 ```
 
 ### Bounding the stream
@@ -150,7 +150,7 @@ Use `take(n)` to collect a fixed count:
 
 ```rill
 iterate(1, { $ * 2 }) -> take(6)
-# Result: [1, 2, 4, 8, 16, 32]
+# Result: list[1, 2, 4, 8, 16, 32]
 ```
 
 Use `stop_when` to bound by a content condition. Because `iterate` produces an infinite stream, you must combine `stop_when` with `take` as a safety bound:
@@ -159,7 +159,7 @@ Use `stop_when` to bound by a content condition. Because `iterate` produces an i
 # stop_when without take exhausts the iteration ceiling on an infinite stream
 # Use take first to cap the search range:
 iterate(1, { $ + 1 }) -> take(20) -> stop_when({ $ >= 5 })
-# Result: [1, 2, 3, 4, 5]
+# Result: list[1, 2, 3, 4, 5]
 ```
 
 ### Fibonacci sequence
@@ -168,7 +168,7 @@ Use a dict pair as the seed to carry two values between steps. The closure advan
 
 ```rill
 iterate(dict[a: 0, b: 1], { dict[a: $.b, b: ($.a + $.b)] }) -> take(8) -> seq({ $.a })
-# Result: [0, 1, 1, 2, 3, 5, 8, 13]
+# Result: list[0, 1, 1, 2, 3, 5, 8, 13]
 ```
 
 ### Iteration ceiling

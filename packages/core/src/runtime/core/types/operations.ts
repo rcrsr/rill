@@ -36,8 +36,8 @@ import {
 } from './registrations.js';
 import type { RillFieldDef, RillValue, TypeStructure } from './structures.js';
 import type { DefaultMismatch } from './field-defaults.js';
-import { quoteRillString } from './format-string.js';
-import { setDictField } from './dict-keys.js';
+import { formatFieldKey, quoteRillString } from './format-string.js';
+import { orderedDictEntries, setDictField } from './dict-keys.js';
 import { formatUnion } from './error-code.js';
 // oxlint-disable-next-line import/no-cycle -- unions.ts imports this file; the edge is used only at call time, never at module init
 import { reduceUnionMembers } from './unions.js';
@@ -168,10 +168,9 @@ export function formatRillLiteral(value: RillValue): string {
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (value === null) return 'null';
 
-  // List: bare bracket form [elem, ...]
+  // List: list[elem, ...]
   if (Array.isArray(value)) {
-    if (value.length === 0) return '[]';
-    return `[${value.map(formatRillLiteral).join(', ')}]`;
+    return `list[${value.map(formatRillLiteral).join(', ')}]`;
   }
 
   // Tuple: tuple[elem, ...]
@@ -182,7 +181,7 @@ export function formatRillLiteral(value: RillValue): string {
   // Ordered: ordered[key: val, ...]
   if (isOrdered(value)) {
     const inner = value.entries
-      .map(([k, v]) => `${k}: ${formatRillLiteral(v)}`)
+      .map(([k, v]) => `${formatFieldKey(k)}: ${formatRillLiteral(v)}`)
       .join(', ');
     return `ordered[${inner}]`;
   }
@@ -201,14 +200,15 @@ export function formatRillLiteral(value: RillValue): string {
   // Atom: #name
   if (isAtom(value)) return `#${value.atom.name}`;
 
-  // Dict: bare bracket form [key: val, ...] or [:] for empty
+  // Dict: dict[key: val, ...]; dict[] for empty
   if (isDict(value)) {
-    const entries = Object.entries(value);
-    if (entries.length === 0) return '[:]';
-    const inner = entries
-      .map(([k, v]) => `${k}: ${formatRillLiteral(v)}`)
+    const inner = orderedDictEntries(value)
+      .map(
+        ({ key: k, value: v }) =>
+          `${formatFieldKey(k)}: ${formatRillLiteral(v)}`
+      )
       .join(', ');
-    return `[${inner}]`;
+    return `dict[${inner}]`;
   }
 
   return registryFormatValue(value);
@@ -382,8 +382,9 @@ export function structureEquals(a: TypeStructure, b: TypeStructure): boolean {
 
 /**
  * Create structureMatches callbacks that capture the runtime value.
- * Dict checks keys against type fields. Tuple and ordered check
- * entries against type elements/fields.
+ * Dict membership is exact: every own key must be a named field, and a
+ * defaulted field may be absent. Tuple and ordered check entries against
+ * type elements/fields.
  */
 function createMatchesCallbacks(
   value: RillValue
@@ -410,8 +411,11 @@ function createMatchesCallbacks(
       const dictKeys = Object.keys(fields);
       if (dictKeys.length === 0) return true;
       if (!isDict(value)) return false;
+      for (const key of Object.keys(value)) {
+        if (!Object.hasOwn(fields, key)) return false;
+      }
       for (const [key, field] of Object.entries(fields)) {
-        if (!(key in value)) {
+        if (!Object.hasOwn(value, key)) {
           if (field.defaultValue !== undefined) continue;
           return false;
         }
@@ -610,7 +614,7 @@ const formatCallbacks: FieldComparisonCallbacks<string | null> = {
     const parts = Object.entries(fields)
       .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
       .map(([k, field]) => {
-        const base = `${k}: ${formatStructure(field.type)}`;
+        const base = `${formatFieldKey(k)}: ${formatStructure(field.type)}`;
         if (field.defaultValue === undefined) return base;
         return `${base} = ${formatRillLiteral(field.defaultValue)}`;
       });
@@ -626,7 +630,7 @@ const formatCallbacks: FieldComparisonCallbacks<string | null> = {
   },
   onOrderedFields(fields) {
     const parts = fields.map((field) => {
-      const base = `${field.name}: ${formatStructure(field.type)}`;
+      const base = `${formatFieldKey(field.name ?? '')}: ${formatStructure(field.type)}`;
       if (field.defaultValue === undefined) return base;
       return `${base} = ${formatRillLiteral(field.defaultValue)}`;
     });

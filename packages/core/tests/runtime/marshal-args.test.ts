@@ -378,11 +378,11 @@ describe('marshalArgs', () => {
   });
 
   // ============================================================
-  // Extra key/entry preservation (structural match allows extras)
+  // Extra keys reach Stage 3, which rejects a wider dict
   // ============================================================
 
-  describe('dict extra key preservation', () => {
-    it('preserves extra keys not declared in type.fields', () => {
+  describe('dict extra key rejection', () => {
+    it('halts RILL-R001 on an extra key not declared in type.fields', () => {
       const params: RillParam[] = [
         {
           name: 'opts',
@@ -397,17 +397,12 @@ describe('marshalArgs', () => {
           annotations: {},
         },
       ];
-      const result = marshalArgs(
-        [{ a: 1, b: 2, extra: 'preserved' }],
-        params,
-        opts
-      );
-      expect(result).toEqual({
-        opts: { a: 1, b: 2, extra: 'preserved' },
-      });
+      expect(() =>
+        marshalArgs([{ a: 1, b: 2, extra: 'preserved' }], params, opts)
+      ).toThrow(expect.objectContaining({ errorId: 'RILL-R001' }));
     });
 
-    it('preserves extra keys alongside default hydration', () => {
+    it('halts RILL-R001 on an extra key alongside default hydration', () => {
       const params: RillParam[] = [
         {
           name: 'cfg',
@@ -423,10 +418,9 @@ describe('marshalArgs', () => {
         },
       ];
       // a is missing (hydrated from default), extra key present
-      const result = marshalArgs([{ b: 42, bonus: true }], params, opts);
-      expect(result).toEqual({
-        cfg: { a: 'hello', b: 42, bonus: true },
-      });
+      expect(() => marshalArgs([{ b: 42, bonus: true }], params, opts)).toThrow(
+        expect.objectContaining({ errorId: 'RILL-R001' })
+      );
     });
   });
 
@@ -783,7 +777,7 @@ describe('marshalArgs', () => {
   // ============================================================
 
   describe('nested field hydration keeps extras (divergence lock)', () => {
-    it('nested dict-in-dict field keeps extra keys', () => {
+    it('nested dict-in-dict field with an extra key halts RILL-R001', () => {
       const params: RillParam[] = [
         {
           name: 'data',
@@ -805,12 +799,9 @@ describe('marshalArgs', () => {
           annotations: {},
         },
       ];
-      const result = marshalArgs(
-        [{ outer: { a: 1, b: 2, extra: 99 } }],
-        params,
-        opts
-      );
-      expect(result).toEqual({ data: { outer: { a: 1, b: 2, extra: 99 } } });
+      expect(() =>
+        marshalArgs([{ outer: { a: 1, b: 2, extra: 99 } }], params, opts)
+      ).toThrow(expect.objectContaining({ errorId: 'RILL-R001' }));
     });
 
     it('nested ordered-in-dict field keeps extra entries (hydrateFieldDefaults called directly, structureMatches rejects ordered extras)', () => {

@@ -91,6 +91,12 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
     Wrong: $data -> dict(name: string)     # converts and fills, does not validate
     Right: $data -> :dict(name: string)    # asserts the shape
 
+    Wrong: dict[a: 1, b: 2] -> :dict(a: number)   # halts #TYPE_MISMATCH: extra key
+    Right: dict[a: 1, b: 2] -> dict(a: number)
+
+    Wrong: "5" -> union(number, bool)      # halts RILL-R036: not a member
+    Right: "5" -> number
+
 ## Loops
 
     Wrong: for item in list { ... }

@@ -4,7 +4,12 @@
  * @internal This module contains internal parser utilities
  */
 
-import type { BlockNode, HostCallNode, SourceSpan } from '../types.js';
+import type {
+  BlockNode,
+  HostCallNode,
+  SourceLocation,
+  SourceSpan,
+} from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import {
   type ParserState,
@@ -204,6 +209,113 @@ export function isNegativeNumber(state: ParserState): boolean {
 }
 
 /**
+ * Reserved-keyword token types that spell an identifier-form key.
+ * @internal
+ */
+const KEYWORD_KEY_TYPES: readonly string[] = [
+  TOKEN_TYPES.BREAK,
+  TOKEN_TYPES.RETURN,
+  TOKEN_TYPES.YIELD,
+  TOKEN_TYPES.PASS,
+  TOKEN_TYPES.ASSERT,
+  TOKEN_TYPES.ERROR,
+  TOKEN_TYPES.GUARD,
+  TOKEN_TYPES.RETRY,
+  TOKEN_TYPES.WHILE,
+  TOKEN_TYPES.DO,
+];
+
+/**
+ * Token count of a static dict or type key at the cursor, or 0 when the
+ * cursor does not start one. Static keys are a string, a number, a negative
+ * number (two tokens), true, false, an identifier, or a reserved keyword.
+ * @internal
+ */
+export function staticKeyWidth(state: ParserState): number {
+  if (isNegativeNumber(state)) return 2;
+  const type = current(state).type;
+  if (
+    type === TOKEN_TYPES.STRING ||
+    type === TOKEN_TYPES.NUMBER ||
+    type === TOKEN_TYPES.TRUE ||
+    type === TOKEN_TYPES.FALSE ||
+    type === TOKEN_TYPES.IDENTIFIER ||
+    KEYWORD_KEY_TYPES.includes(type)
+  ) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Unescape `{{` and `}}` in a string literal body to `{` and `}`.
+ * @internal
+ */
+export function unescapeBraces(raw: string): string {
+  return raw.replaceAll('{{', '{').replaceAll('}}', '}');
+}
+
+/**
+ * Read a static key, consuming its tokens, and return its string spelling
+ * with the form it was written in. Returns undefined, consuming nothing, when
+ * the cursor does not start a static key.
+ * @internal
+ */
+export function readStaticKey(
+  state: ParserState
+):
+  | { key: string; keyForm: 'identifier' | 'string' | 'number' | 'bool' }
+  | undefined {
+  if (isNegativeNumber(state)) {
+    advance(state); // consume MINUS
+    return { key: `-${advance(state).value}`, keyForm: 'number' };
+  }
+  const type = current(state).type;
+  if (type === TOKEN_TYPES.STRING) {
+    const raw = advance(state).value;
+    return {
+      key: unescapeBraces(raw),
+      keyForm: 'string',
+    };
+  }
+  if (type === TOKEN_TYPES.NUMBER) {
+    return { key: advance(state).value, keyForm: 'number' };
+  }
+  if (type === TOKEN_TYPES.TRUE || type === TOKEN_TYPES.FALSE) {
+    advance(state);
+    return {
+      key: type === TOKEN_TYPES.TRUE ? 'true' : 'false',
+      keyForm: 'bool',
+    };
+  }
+  if (type === TOKEN_TYPES.IDENTIFIER || KEYWORD_KEY_TYPES.includes(type)) {
+    return { key: advance(state).value, keyForm: 'identifier' };
+  }
+  return undefined;
+}
+
+/**
+ * Record a static key in `seen`, or raise RILL-P027 when it was already seen.
+ * @throws ParseError RILL-P027
+ * @internal
+ */
+export function rejectRepeatedKey(
+  seen: Set<string>,
+  key: string,
+  at: SourceLocation,
+  collection: string
+): void {
+  if (seen.has(key)) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P027,
+      `Duplicate key '${key}' in ${collection}`,
+      at
+    );
+  }
+  seen.add(key);
+}
+
+/**
  * Check if current token is one of the given types and followed by colon
  * @internal
  */
@@ -278,6 +390,59 @@ export function isDictStart(state: ParserState): boolean {
   }
 
   return false;
+}
+
+/**
+ * Token index just past the dict entry key at `pos`, or -1 when no key starts
+ * there. Covers every key `parseDictEntry` reads: identifier, keyword,
+ * string, number, negative number, bool, `$name`, parenthesized computed
+ * expression, and a bracketed multi-key list.
+ * @internal
+ */
+function skipDictKey(state: ParserState, pos: number): number {
+  const token = state.tokens[pos];
+  if (token === undefined) return -1;
+  const type = token.type;
+  if (
+    type === TOKEN_TYPES.IDENTIFIER ||
+    type === TOKEN_TYPES.STRING ||
+    type === TOKEN_TYPES.NUMBER ||
+    type === TOKEN_TYPES.TRUE ||
+    type === TOKEN_TYPES.FALSE ||
+    KEYWORD_KEY_TYPES.includes(type)
+  ) {
+    return pos + 1;
+  }
+  if (type === TOKEN_TYPES.MINUS) {
+    return state.tokens[pos + 1]?.type === TOKEN_TYPES.NUMBER ? pos + 2 : -1;
+  }
+  if (type === TOKEN_TYPES.DOLLAR) {
+    const name = state.tokens[pos + 1];
+    return name !== undefined && isVariableNameToken(name) ? pos + 2 : -1;
+  }
+  const isParen = type === TOKEN_TYPES.LPAREN;
+  if (!isParen && !BRACKET_OPENERS.includes(type)) return -1;
+  const closer = isParen ? TOKEN_TYPES.RPAREN : TOKEN_TYPES.RBRACKET;
+  const opens = (t: string): boolean =>
+    isParen ? t === TOKEN_TYPES.LPAREN : BRACKET_OPENERS.includes(t);
+  let depth = 0;
+  for (let i = pos; i < state.tokens.length; i++) {
+    const t = state.tokens[i]?.type;
+    if (t === undefined || t === TOKEN_TYPES.EOF) return -1;
+    if (opens(t)) depth++;
+    else if (t === closer && --depth === 0) return i + 1;
+  }
+  return -1;
+}
+
+/**
+ * Check whether a dict entry (`key: value`) starts at the cursor: any key
+ * `dict[...]` accepts, followed by a colon. Does not consume tokens.
+ * @internal
+ */
+export function isDictEntryStart(state: ParserState): boolean {
+  const after = skipDictKey(state, state.pos);
+  return after >= 0 && state.tokens[after]?.type === TOKEN_TYPES.COLON;
 }
 
 /**

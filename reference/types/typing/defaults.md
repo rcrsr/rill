@@ -18,7 +18,7 @@ A default is a literal written after a field or parameter type that states the v
 
 ```ebnf
 field-arg-list   = field-arg , { "," , field-arg } , [ "," ] ;
-field-arg        = [ annotation ] , identifier , ":" , type-ref , [ "=" , literal ]
+field-arg        = [ annotation ] , field-key , ":" , type-ref , [ "=" , literal ]
                  | [ annotation ] , type-ref , [ "=" , literal ] ;
 ```
 

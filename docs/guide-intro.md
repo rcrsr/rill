@@ -24,7 +24,7 @@ If you've used Unix pipes (`cat file | grep pattern | sort`), the core idea will
 
 ```rill
 "  hello world  " -> .trim -> .upper -> .split(" ")
-# Result: ["HELLO", "WORLD"]
+# Result: list["HELLO", "WORLD"]
 ```
 
 Notice how each step feeds into the next. You only name intermediate results when the same value appears more than once.

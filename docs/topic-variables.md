@@ -255,7 +255,7 @@ While loops use `$` as the accumulator since named variables in the body don't p
 [1, 2, 3] -> seq({
   $x + $      # Reads outer $x = 10
 })
-# Result: [11, 12, 13]
+# Result: list[11, 12, 13]
 ```
 
 ---

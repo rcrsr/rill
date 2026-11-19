@@ -16,7 +16,11 @@ import {
   formatStructure,
 } from './types/operations.js';
 import type { FieldComparisonCallbacks } from './types/operations.js';
-import { escapeRillStringBody } from './types/format-string.js';
+import {
+  escapeRillStringBody,
+  formatFieldKey,
+  quoteRillString,
+} from './types/format-string.js';
 import { declaredParams, isScriptCallable } from './callable.js';
 import type { RillParam } from './callable.js';
 import { LANGUAGE_REFERENCE } from '../../generated/introspection-data.js';
@@ -220,7 +224,9 @@ const signatureFieldCallbacks: FieldComparisonCallbacks<string | null> = {
     for (const k of Object.keys(fields).sort()) {
       const field = fields[k];
       if (field !== undefined) {
-        parts.push(`${k}: ${serializeSignatureType(field.type)}`);
+        parts.push(
+          `${formatFieldKey(k)}: ${serializeSignatureType(field.type)}`
+        );
       }
     }
     return parts.join(', ');
@@ -231,7 +237,8 @@ const signatureFieldCallbacks: FieldComparisonCallbacks<string | null> = {
   },
   onOrderedFields(fields) {
     const parts = fields.map(
-      (field) => `${field.name}: ${serializeSignatureType(field.type)}`
+      (field) =>
+        `${formatFieldKey(field.name ?? '')}: ${serializeSignatureType(field.type)}`
     );
     return parts.join(', ');
   },
@@ -390,7 +397,7 @@ export function generateManifest(ctx: RuntimeContext): string {
       annotationDescription(callable.annotations)
     );
 
-    entries.push(`  "${name}": ${signature}`);
+    entries.push(`  ${quoteRillString(name)}: ${signature}`);
   }
 
   if (entries.length === 0) {
@@ -521,7 +528,10 @@ export interface HandlerMetadataStatic {
 /** Render one type argument, appending ` = <literal>` when it has a default. */
 function fieldArgToString(arg: FieldArg): string {
   const valueStr = typeRefToString(arg.value);
-  const named = arg.name !== undefined ? `${arg.name}: ${valueStr}` : valueStr;
+  const named =
+    arg.name !== undefined
+      ? `${formatFieldKey(arg.name)}: ${valueStr}`
+      : valueStr;
   const literal =
     arg.defaultValue !== undefined
       ? extractLiteralValue(arg.defaultValue)

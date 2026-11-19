@@ -121,7 +121,12 @@ Parser.prototype.parseTypeConstructor = function (
   const args: FieldArg[] =
     constructorName === 'union'
       ? parseUnionMembers(this.state, opts).map((value) => ({ value }))
-      : parseFieldArgList(this.state, opts);
+      : parseFieldArgList(
+          this.state,
+          constructorName === 'dict' || constructorName === 'ordered'
+            ? { ...opts, keyedCollection: `${constructorName} type` as const }
+            : opts
+        );
 
   const rparen = expect(
     this.state,

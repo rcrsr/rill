@@ -12,6 +12,7 @@
 import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
 import { isOrdered } from '../guards.js';
+import { formatFieldKey } from '../format-string.js';
 import { setDictField } from '../dict-keys.js';
 import {
   formatNested,
@@ -29,7 +30,9 @@ function formatOrdered(v: RillValue): string {
   const o = isOrdered(v)
     ? v
     : requireReceiver(v, isOrdered, { fn: 'format-ordered' }, 'ordered');
-  const parts = o.entries.map(([k, val]) => `${k}: ${formatNested(val)}`);
+  const parts = o.entries.map(
+    ([k, val]) => `${formatFieldKey(k)}: ${formatNested(val)}`
+  );
   return `ordered[${parts.join(', ')}]`;
 }
 

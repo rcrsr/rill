@@ -128,6 +128,24 @@ $person.?age ? "has age" ! "no age"
 # Result: "no age"
 ```
 
+## Dict Assertion Halts on Extra Fields
+
+A `:dict(...)` assertion names every key the dict may hold. A dict with an extra key halts `#TYPE_MISMATCH`.
+
+```text
+dict[a: 1, b: 2] -> :dict(a: number)
+# Error: #TYPE_MISMATCH
+```
+
+**Fix:** Convert with `-> dict(...)` to drop the extra key, or name the key in the type.
+
+```rill
+dict[a: 1, b: 2] -> dict(a: number)
+# Result: dict[a: 1]
+```
+
+See [Extra and Missing Dict Fields](topic-type-system.md#extra-and-missing-dict-fields) for the full table.
+
 ## List Index Out of Bounds
 
 ```text
@@ -194,7 +212,7 @@ List spread requires a list or tuple operand. Dict spread requires a dict operan
 ```rill
 "hello" -> .split("") => $chars
 [...$chars]
-# Result: ["h", "e", "l", "l", "o"]
+# Result: list["h", "e", "l", "l", "o"]
 ```
 
 ## Closure Parameter Count
@@ -268,7 +286,7 @@ Insert `:type` assertions at pipe boundaries to catch unexpected types early.
 
 ```rill
 [1, 2, 3] -> :list(number) -> fan({ $ * 2 })
-# Result: [2, 4, 6]
+# Result: list[2, 4, 6]
 ```
 
 ## Stream Pitfalls

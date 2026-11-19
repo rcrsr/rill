@@ -164,7 +164,7 @@ These examples demonstrate iterate sequences, timeout recovery, and fire-and-for
 
 ```rill
 iterate(0, { $ + 1 }) -> take(5)
-# Result: [0, 1, 2, 3, 4]
+# Result: list[0, 1, 2, 3, 4]
 ```
 
 ### Timeout with Fallback

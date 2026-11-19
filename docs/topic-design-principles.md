@@ -34,7 +34,7 @@ No `=` operator exists. Data moves via `->`, values captured via `=>`.
 ```rill
 # Data flows through transformations
 "  hello world  " -> .trim -> .upper -> .split(" ")
-# Result: ["HELLO", "WORLD"]
+# Result: list["HELLO", "WORLD"]
 ```
 
 ```text

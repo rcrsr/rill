@@ -217,6 +217,30 @@ pnpm publish --dry-run --access public
 gh api repos/rcrsr/rill/pulls/<NUMBER> --method PATCH -f body="new body"
 ```
 
+## Specification Authority
+
+`reference/` is the normative specification of the language. When sources disagree, the order of authority is:
+
+1. `reference/` rules
+2. Locked tests in `packages/core/tests/language/`
+3. Source code
+4. `docs/`, source comments, and issue text
+
+A decided issue that backs a `{pending #N}` rule is the decision of record for that unbuilt behavior; the pending rule states it, and code that predates it is not evidence against it.
+
+Before implementing a language change, read the `reference/` concepts it touches and design from their rules. A rule outranks existing code: when the code disagrees with a built rule, the code is the defect. Fix the code; never edit a rule or a locked test to match it.
+
+Consult the owner before acting when the reference:
+
+- is under-specified for the case at hand,
+- contradicts itself, across rules or between a rule and its examples,
+- conflicts with an accepted ADR or a decided issue, or
+- otherwise looks wrong.
+
+Never resolve such an ambiguity alone, and never encode the runtime's current behavior as a rule. Bring the question with the rules involved, the evidence, and a proposed amendment. Every rule change, once agreed, follows `reference/CLAUDE.md` and its gates (`pnpm ref lint`, `pnpm ref check`).
+
+ADRs record why a decision was made; `reference/` records what the language does. An ADR that contradicts a rule is a defect to raise with the owner, not a tiebreaker.
+
 ## Architecture
 
 ```
