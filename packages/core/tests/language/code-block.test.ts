@@ -13,6 +13,7 @@ import {
   execute,
   isPipeChainNode,
   parse,
+  toNative,
 } from '../../src/index.js';
 import type { ConditionalNode, PipeChainNode } from '../../src/index.js';
 import { expectHalt } from '../helpers/halt.js';
@@ -830,6 +831,220 @@ describe('Rill Language: Code Blocks', () => {
       );
 
       rule('code-block.non-selecting').it(
+        'halts TYPE_MISMATCH naming the entry when it slices a list holding a block',
+        async () => {
+          await expectHalt(() => run('list[{ 1 }, 2] -> slice<0:1>'), {
+            code: 'TYPE_MISMATCH',
+            messagePattern: /index 0/,
+          });
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'halts TYPE_MISMATCH naming the entry when it reverses a list holding a block',
+        async () => {
+          await expectHalt(() => run('list[{ 1 }, 2] -> .reverse'), {
+            code: 'TYPE_MISMATCH',
+            messagePattern: /index 0/,
+          });
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'halts TYPE_MISMATCH naming the entry when it reads .head when the first entry is a block',
+        async () => {
+          await expectHalt(() => run('list[{ 1 }, 2] -> .head'), {
+            code: 'TYPE_MISMATCH',
+            messagePattern: /index 0/,
+          });
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'halts TYPE_MISMATCH naming the entry when it reads .tail when the last entry is a block',
+        async () => {
+          await expectHalt(() => run('list[2, { 1 }] -> .tail'), {
+            code: 'TYPE_MISMATCH',
+            messagePattern: /index 1/,
+          });
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'halts TYPE_MISMATCH naming the entry when it joins a list holding a block',
+        async () => {
+          await expectHalt(() => run('list[{ 1 }] -> .join(",")'), {
+            code: 'TYPE_MISMATCH',
+            messagePattern: /index 0/,
+          });
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'halts TYPE_MISMATCH naming the entry when it tests membership in a list holding a block',
+        async () => {
+          await expectHalt(() => run('list[{ 1 }] -> .has(1)'), {
+            code: 'TYPE_MISMATCH',
+            messagePattern: /index 0/,
+          });
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'halts TYPE_MISMATCH naming the entry when it passes a list holding a block to take',
+        async () => {
+          await expectHalt(() => run('list[{ 1 }, 2] -> take(1)'), {
+            code: 'TYPE_MISMATCH',
+            messagePattern: /index 0/,
+          });
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'halts TYPE_MISMATCH naming the entry when it passes a list holding a block to skip',
+        async () => {
+          await expectHalt(() => run('list[{ 1 }, 2] -> skip(1)'), {
+            code: 'TYPE_MISMATCH',
+            messagePattern: /index 0/,
+          });
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'halts TYPE_MISMATCH naming the entry when it passes a list holding a block to batch',
+        async () => {
+          await expectHalt(() => run('list[{ 1 }, 2] -> batch(1)'), {
+            code: 'TYPE_MISMATCH',
+            messagePattern: /index 0/,
+          });
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'halts TYPE_MISMATCH naming the entry when it passes a list holding a block to window',
+        async () => {
+          await expectHalt(() => run('list[{ 1 }, 2] -> window(1)'), {
+            code: 'TYPE_MISMATCH',
+            messagePattern: /index 0/,
+          });
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'halts TYPE_MISMATCH naming the entry when it passes a list holding a block to cycle',
+        async () => {
+          await expectHalt(() => run('list[{ 1 }, 2] -> cycle'), {
+            code: 'TYPE_MISMATCH',
+            messagePattern: /index 0/,
+          });
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'halts TYPE_MISMATCH naming the entry when it passes a list holding a block to start_when',
+        async () => {
+          await expectHalt(
+            () => run('list[{ 1 }, 2] -> start_when({ true })'),
+            {
+              code: 'TYPE_MISMATCH',
+              messagePattern: /index 0/,
+            }
+          );
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'halts TYPE_MISMATCH naming the entry when it passes a list holding a block to stop_when',
+        async () => {
+          await expectHalt(() => run('list[{ 1 }, 2] -> stop_when({ true })'), {
+            code: 'TYPE_MISMATCH',
+            messagePattern: /index 0/,
+          });
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'halts TYPE_MISMATCH naming the entry when it chains a list of transforms holding a block',
+        async () => {
+          await expectHalt(() => run('list[{ 1 }] => $fs\n5 -> chain($fs)'), {
+            code: 'TYPE_MISMATCH',
+            messagePattern: /index 0/,
+          });
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'halts TYPE_MISMATCH naming the entry when it converts a list holding a block with list(any)',
+        async () => {
+          await expectHalt(() => run('list[{ 1 }] -> list(any)'), {
+            code: 'TYPE_MISMATCH',
+            messagePattern: /index 0/,
+          });
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'halts TYPE_MISMATCH naming the entry when it converts a dict holding a block with dict(any)',
+        async () => {
+          await expectHalt(() => run('dict[a: { 1 }] -> dict(any)'), {
+            code: 'TYPE_MISMATCH',
+            messagePattern: /'a'/,
+          });
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'halts TYPE_MISMATCH naming the entry when it converts a list holding a block with tuple(any)',
+        async () => {
+          await expectHalt(() => run('list[{ 1 }] -> tuple(any)'), {
+            code: 'TYPE_MISMATCH',
+            messagePattern: /index 0/,
+          });
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'halts TYPE_MISMATCH naming the entry when it converts a list holding a nested block to string',
+        async () => {
+          await expectHalt(() => run('list[list[{ 1 }]] -> string'), {
+            code: 'TYPE_MISMATCH',
+            messagePattern: /index 0/,
+          });
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'halts TYPE_MISMATCH naming the entry when it logs a list holding a block',
+        async () => {
+          await expectHalt(() => run('list[{ 1 }] -> log'), {
+            code: 'TYPE_MISMATCH',
+            messagePattern: /index 0/,
+          });
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'keeps the function message when it converts a list holding a function to string',
+        async () => {
+          await expectHalt(() => run('fn() { 1 } => $f\nlist[$f] -> string'), {
+            code: 'RILL_R036',
+            messagePattern: /contains fn/,
+          });
+        }
+      );
+
+      rule('code-block.non-selecting').it(
+        'lets guard catch the conversion halt',
+        async () => {
+          expect(
+            await run(
+              'guard { list[{ 1 }] -> string } => $r\n$r.!code == #TYPE_MISMATCH'
+            )
+          ).toBe(true);
+        }
+      );
+
+      rule('code-block.non-selecting').it(
         'lets guard catch the halt',
         async () => {
           const result = await run(
@@ -839,5 +1054,157 @@ describe('Rill Language: Code Blocks', () => {
         }
       );
     });
+  });
+  describe('access by .at and destructure', () => {
+    rule('code-block.access').it(
+      'runs a held block selected by .at on a list with the enclosing $',
+      async () => {
+        expect(
+          await run('7 -> {\n  list[{ $ + 1 }, 2] => $l\n  $l.at(0)\n}')
+        ).toBe(8);
+      }
+    );
+
+    rule('code-block.access').it(
+      'runs a held block selected by .at on a tuple',
+      async () => {
+        expect(await run('tuple[{ 1 }, 2] => $t\n$t.at(0)')).toBe(1);
+      }
+    );
+
+    rule('code-block.access').it(
+      'runs a held block selected by .at with a negative index',
+      async () => {
+        expect(await run('list[2, { 3 }] => $l\n$l.at(-1)')).toBe(3);
+      }
+    );
+
+    rule('code-block.access').it(
+      'runs a held block selected by .at every time',
+      async () => {
+        expect(
+          await run(
+            'list[{ 1 }] => $l\n$l.at(0) => $a\n$l.at(0) => $b\n$a + $b'
+          )
+        ).toBe(2);
+      }
+    );
+
+    rule('code-block.access').it(
+      'binds the result of a held block in a list destructure position',
+      async () => {
+        expect(await run('list[{ 1 }, 2] -> destruct<$a, $b>\n$a + $b')).toBe(
+          3
+        );
+      }
+    );
+
+    rule('code-block.access').it(
+      'binds the result of a held block in a tuple destructure position',
+      async () => {
+        expect(await run('tuple[{ 1 }, 2] -> destruct<$a, $b>\n$a + $b')).toBe(
+          3
+        );
+      }
+    );
+
+    rule('code-block.access').it(
+      'binds the result of a held block in a dict key destructure',
+      async () => {
+        expect(
+          await run('dict[a: { 1 }, b: 2] -> destruct<a: $x, b: $y>\n$x + $y')
+        ).toBe(3);
+      }
+    );
+
+    rule('code-block.access').it(
+      'binds the result of a held block in an ordered key destructure',
+      async () => {
+        expect(
+          await run(
+            'ordered[a: { 1 }, b: 2] -> destruct<a: $x, b: $y>\n$x + $y'
+          )
+        ).toBe(3);
+      }
+    );
+  });
+
+  describe('check on a held entry', () => {
+    rule('code-block.check').it(
+      'yields true when the held block result has the type',
+      async () => {
+        expect(await run('"a" -> dict[a: { 5 }:?number]')).toBe(true);
+      }
+    );
+
+    rule('code-block.check').it(
+      'yields false when the held block result lacks the type',
+      async () => {
+        expect(await run('dict[a: { "x" }:?number] => $d\n$d.a')).toBe(false);
+      }
+    );
+  });
+
+  describe('pipe-variable access as a pipe target', () => {
+    rule('code-block.access-target').it(
+      'runs a held list element selected by $[i] with the piped value',
+      async () => {
+        expect(await run('list[{ $.len }] -> $[0]')).toBe(1);
+      }
+    );
+
+    rule('code-block.access-target').it(
+      'runs a held dict entry selected by $.name with the piped value',
+      async () => {
+        expect(await run('dict[a: { $.len }] -> $.a')).toBe(1);
+      }
+    );
+  });
+
+  describe('reads covered by the non-selecting gate', () => {
+    for (const src of [
+      'list[{ 1 }] -> .has_any(list[1])',
+      'list[{ 1 }] -> .has_all(list[1])',
+      'list[{ 1 }] -> ordered',
+      'dict[a: { 1 }] -> ordered(a: any)',
+    ]) {
+      rule('code-block.non-selecting').it(
+        `halts TYPE_MISMATCH for ${src}`,
+        async () => {
+          await expectHalt(() => run(src), { code: 'TYPE_MISMATCH' });
+        }
+      );
+    }
+  });
+
+  describe('destructure runs a held block before its type assertion', () => {
+    rule('code-block.access').it(
+      'asserts the block result against the position type',
+      async () => {
+        expect(await run('list[{ "x" }] -> destruct<$a:string>\n$a')).toBe('x');
+        await expectHalt(
+          () => run('list[{ "x" }] -> destruct<$a:number>\n$a'),
+          { code: 'TYPE_MISMATCH' }
+        );
+      }
+    );
+
+    rule('code-block.access').it(
+      'leaves a fn entry uncalled when .at selects it',
+      async () => {
+        expect(await run('list[fn { 5 }] -> .at(0) => $f\n$f()')).toBe(5);
+      }
+    );
+  });
+
+  describe('host conversion', () => {
+    rule('code-block.host').it(
+      'reports a held entry as the signature of fn() without running it',
+      async () => {
+        const native = toNative(await run('dict[a: { 1 }]'));
+        expect(native.value).toEqual({ a: { signature: 'fn():any' } });
+        expect(native.rillTypeSignature).toBe('dict(a: fn():any)');
+      }
+    );
   });
 });

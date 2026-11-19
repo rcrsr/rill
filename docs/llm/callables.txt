@@ -53,15 +53,15 @@ A block written as a dict value, ordered value, list element, or tuple element i
     dict[a: fn { $ + 1 }] => $f
     $f.a(1)                            # 2; fn entries are values and are called with parens
 
-Selection runs a held block each time. Dispatch (`sel -> $c`) binds `$` to the selector. Access (`$c.name`, `$c.$k`, `$c[sel]`) binds `$` to the enclosing `$`. An intermediate dispatch path step that selects a held block runs it with the step key as `$`. `$c.name(args)` selects, which runs the held block, then calls the result. `$c.name` without parens is a selection.
+Selection runs a held block each time. Dispatch (`sel -> $c`) binds `$` to the selector. Access (`$c.name`, `$c.$k`, `$c[sel]`, `.at(i)`, a `destruct<>` position) binds `$` to the enclosing `$`. An intermediate dispatch path step that selects a held block runs it with the step key as `$`. `$c.name(args)` selects, which runs the held block, then calls the result. `$c.name` without parens is a selection.
 
-A read that selects no entry halts `#TYPE_MISMATCH` naming the entry when it reaches a held block: iteration, `.values`, `.entries`, `.first`, spread, equality, and interpolation. `.keys` and `.len` do not read the entries. `.^type` and a type lock see a held entry as `fn()`, so `{ 1 }:number` held in a dict has type `fn()`. `$@` inside a held block is lexical.
+A read that selects no entry halts `#TYPE_MISMATCH` naming the entry when it reaches a held block: iteration, `.values`, `.entries`, `.first`, `.head`, `.tail`, `.reverse`, `.join`, `.has`, spread, `slice<>`, `take`, `skip`, `chain`, equality, interpolation, conversion, and `log`. A host receives a held entry as `fn():any`. `.keys` and `.len` do not read the entries. `.^type` and a type lock see a held entry as `fn()`, so `{ 1 }:number` held in a dict has type `fn()`. `$@` inside a held block is lexical.
 
 An annotation on an argument or an entry attaches to the function or held block. On a head block it is ignored.
 
 ## Block arguments
 
-A block that is a whole argument converts to a function. Its unnamed parameters are the ones the body reads: no read gives `fn()`, `$` gives one parameter, `$` and `$@` give two. An assertion after the block sets the function's outer type.
+A block that is a whole argument converts to a function. Its unnamed parameters are the ones the body reads: no read gives `fn()`, `$` gives one parameter, `$` and `$@` give two. An assertion after the block sets the function's outer type. A check (`{ $ }:?number`) makes a function that returns `bool`.
 
     list[1, 2, 3] -> seq({ $ * 2 })           # list[2, 4, 6]
     list[1, 2, 3] -> fold(0, { $@ + $ })      # 6

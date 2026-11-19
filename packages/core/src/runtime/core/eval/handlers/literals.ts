@@ -947,26 +947,40 @@ interface ArgumentBlock {
   readonly block: BlockNode;
   readonly annotations: readonly AnnotationArg[];
   readonly outer: TypeRef | undefined;
+  /** The written expression when a `:?T` check wraps the block; it is the body. */
+  readonly check: BodyNode | undefined;
 }
 
 /**
- * Peel the wrappers around an argument code block: annotations and a `:T`
- * assertion. Returns undefined when a `:?T` check wraps the block, which is
- * not converted.
+ * Peel the wrappers around an argument code block: annotations, a `:T`
+ * assertion, or a `:?T` check. A check keeps the written expression, which
+ * becomes the function body and yields a bool. Returns undefined for any other
+ * wrapper.
  */
 function peelArgumentBlock(node: ASTNode): ArgumentBlock | undefined {
   const annotations: AnnotationArg[] = [];
   let outer: TypeRef | undefined;
+  let check: BodyNode | undefined;
+  let written: BodyNode | undefined;
   let current: ASTNode = node;
   for (;;) {
     switch (current.type) {
       case 'Block':
-        return { block: current, annotations, outer };
+        return { block: current, annotations, outer, check };
       case 'PostfixExpr':
+        written ??= current;
         current = current.primary;
         break;
       case 'PipeChain':
+        written ??= current;
         current = current.head;
+        break;
+      case 'TypeCheck':
+        if (current.operand === null || written === undefined) {
+          return undefined;
+        }
+        check ??= written;
+        current = current.operand;
         break;
       case 'AnnotatedExpr':
         annotations.push(...current.annotations);
@@ -1010,7 +1024,7 @@ async function createArgumentFunction(
     }))
   );
   const outer =
-    arg.outer === undefined
+    arg.outer === undefined || arg.check !== undefined
       ? undefined
       : (
           await resolveTypeRef(
@@ -1023,10 +1037,13 @@ async function createArgumentFunction(
 
   return buildScriptCallable({
     params,
-    body: arg.block,
+    body: arg.check ?? arg.block,
     definingScope,
     annotations,
-    returnType: outerTypeValue(outer),
+    returnType:
+      arg.check === undefined
+        ? outerTypeValue(outer)
+        : structureToTypeValue({ kind: 'bool' }),
   });
 }
 

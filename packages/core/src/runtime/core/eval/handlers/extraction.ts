@@ -39,6 +39,8 @@ import {
 } from '../../types/guards.js';
 import { inferType } from '../../types/registrations.js';
 import { getVariable } from '../../context.js';
+import { pipeDeclaredOf } from '../../types/declared.js';
+import { resolveSelected } from './code-block.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { resolveTypeRef, assertType } from './types.js';
@@ -56,6 +58,33 @@ import {
   evaluateDictMultiKeyFromList,
   evaluateEntryValue,
 } from './literals.js';
+
+/**
+ * Read one destructure position. A held block runs with the enclosing `$`,
+ * as the bracket read does, and its result is bound; any other value is bound
+ * with the declared type its position projects.
+ */
+async function pickDestructured(
+  s: EvalState,
+  located: Extract<ReturnType<typeof locateField>, { found: true }>,
+  inputDeclared: TypeStructure | undefined,
+  at: { readonly location: SourceLocation }
+): Promise<{
+  readonly value: RillValue;
+  readonly declared: TypeStructure | undefined;
+}> {
+  const resolved = await resolveSelected(
+    s,
+    located.value,
+    s.ctx.pipeValue,
+    pipeDeclaredOf(s.ctx),
+    at.location
+  );
+  return {
+    value: resolved.value,
+    declared: resolved.ran ? undefined : projectLocated(inputDeclared, located),
+  };
+}
 
 /**
  * Evaluate destructure operator: destruct<$a, $b, $c>
@@ -137,6 +166,9 @@ export async function evaluateDestructure(
         );
       }
 
+      const dictPicked = await pickDestructured(s, located, inputDeclared, {
+        location: elem.span.start,
+      });
       const dictResolved =
         elem.typeRef !== null
           ? await resolveTypeRef(s, elem.typeRef, (name: string) =>
@@ -144,15 +176,20 @@ export async function evaluateDestructure(
             )
           : undefined;
       if (dictResolved !== undefined) {
-        assertType(s, located.value, dictResolved.structure, elem.span.start);
+        assertType(
+          s,
+          dictPicked.value,
+          dictResolved.structure,
+          elem.span.start
+        );
       }
       setVariable(
         s,
         elem.name,
-        located.value,
+        dictPicked.value,
         dictResolved?.structure,
         elem.span.start,
-        projectLocated(inputDeclared, located)
+        dictPicked.declared
       );
     }
   } else {
@@ -191,12 +228,16 @@ export async function evaluateDestructure(
       const located = locateField(input, i);
       if (!located.found) continue;
 
+      const listPicked = await pickDestructured(s, located, inputDeclared, {
+        location: elem.span.start,
+      });
+
       if (elem.kind === 'nested' && elem.nested) {
         await evaluateDestructure(
           s,
           elem.nested,
-          located.value,
-          projectLocated(inputDeclared, located)
+          listPicked.value,
+          listPicked.declared
         );
         continue;
       }
@@ -220,15 +261,20 @@ export async function evaluateDestructure(
             )
           : undefined;
       if (listResolved !== undefined) {
-        assertType(s, located.value, listResolved.structure, elem.span.start);
+        assertType(
+          s,
+          listPicked.value,
+          listResolved.structure,
+          elem.span.start
+        );
       }
       setVariable(
         s,
         elem.name,
-        located.value,
+        listPicked.value,
         listResolved?.structure,
         elem.span.start,
-        projectLocated(inputDeclared, located)
+        listPicked.declared
       );
     }
   }
@@ -277,6 +323,16 @@ export async function evaluateSlice(
     );
   }
 
+  rejectHeldEntries(
+    input,
+    'slice',
+    {
+      location: node.span.start,
+      sourceId: s.ctx.sourceId,
+      fn: 'evaluateSlice',
+    },
+    'direct'
+  );
   const bounds = await evaluateSliceBounds(s, node);
   const picked = applySlice(
     s,

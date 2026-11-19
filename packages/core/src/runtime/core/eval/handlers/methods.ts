@@ -28,7 +28,7 @@ import {
   transferArgsDeclared,
 } from '../../types/declared.js';
 import { inferType, inferTypeName } from '../../types/registrations.js';
-import { isTypeValue, isStream } from '../../types/guards.js';
+import { isTypeValue, isStream, isTuple } from '../../types/guards.js';
 import { inferStructure, formatStructure } from '../../types/operations.js';
 import { structureToTypeValue } from '../../values.js';
 import type { EvalState } from '../state.js';
@@ -179,7 +179,28 @@ export async function evaluateMethod(
   const typeDict = s.ctx.typeMethodDicts.get(typeName);
   const typeMethod = typeDict?.[node.name];
   if (typeMethod !== undefined && isApplicationCallable(typeMethod)) {
-    return invokeTypeMethod(s, node, typeMethod, receiver, args, declared);
+    const result = await invokeTypeMethod(
+      s,
+      node,
+      typeMethod,
+      receiver,
+      args,
+      declared
+    );
+    // `.at` selects one entry of a list or tuple. A held block runs with the
+    // enclosing `$`, as the bracket read does.
+    if (node.name === 'at' && (Array.isArray(receiver) || isTuple(receiver))) {
+      return (
+        await resolveSelected(
+          s,
+          result,
+          s.ctx.pipeValue,
+          pipeDeclaredOf(s.ctx),
+          getNodeLocation(s, node)
+        )
+      ).value;
+    }
+    return result;
   }
   // Locate the field once.
   const ownLocation = locateMethodOwnField(receiver, node.name);

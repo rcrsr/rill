@@ -159,4 +159,33 @@ describe('Rill Language: Block Arguments', () => {
       }
     );
   });
+  describe('block with a type check', () => {
+    rule('fn.block-check').it(
+      'converts to a function typed fn(any):bool through .^type',
+      async () => {
+        expect(
+          await run(`${IDENTITY}$id({ $ }:?number) -> .^type -> string`)
+        ).toBe('fn(any):bool');
+      }
+    );
+
+    rule('fn.block-check').it(
+      'yields whether the result has the type on each call',
+      async () => {
+        expect(await run('list[1, "a"] -> seq({ $ }:?number)')).toEqual([
+          true,
+          false,
+        ]);
+      }
+    );
+
+    rule('fn.block-check').it(
+      'does not run the block where it is written',
+      async () => {
+        expect(await run(`${IDENTITY}$id({ $ }:?number) => $g\n5 -> $g`)).toBe(
+          true
+        );
+      }
+    );
+  });
 });

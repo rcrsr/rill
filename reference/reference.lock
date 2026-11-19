@@ -110,19 +110,20 @@ carried-type.replace 92d0ac2c5056 assertion.any@c486fea6b8eb
 carried-type.reserved-key 482d6a7d0ebf
 carried-type.type-probe eaad72137ace
 code-block 04aeb7890b7b break.return-body@23c89e6d85e2 dispatch.fn@f6d568543692 fn.bare-literal@da926d363944 fn.block-outer@d1fc49ffe0c9 fn.block-type@52e90c07026e pipe.uses-value@b0a557eb924b statement.result@4c84cfa0816c
-code-block.access 637eeb58bb69
+code-block.access 3a85d15f615c
 code-block.access-target 3681f2360105
 code-block.assert adcd030a8f58 assertion.mismatch@9dc0075657b2 assertion.pass@1a0a1da3896c
 code-block.assert-construct 90d23d3203a9
 code-block.assert-scope cf3fccd7bc92
-code-block.check 9c82a7b0cc87
+code-block.check 7405304063e8
 code-block.construct 70936e7ddf4a
 code-block.dispatch 8decd7894edc
 code-block.each-time 85492459e40a
 code-block.head 50fc507875b8
-code-block.held c23db73053b7
+code-block.held 3e6bfe9018e1
+code-block.host e816d5479960
 code-block.no-params 1c1a7753352f
-code-block.non-selecting d408654bfcec
+code-block.non-selecting a76a3f590590
 code-block.not-value f7293a3f40a0
 code-block.parens 7d9c790478e5
 code-block.pipe-target 10cd486fec05
@@ -342,6 +343,7 @@ filter.map 4100d2d447e0
 filter.options 9d8d2a71a7be fan.concurrency@da9c8948cfa0 fan.options-dict@6932795c473b fan.options-number@e1eb0f26d539 fan.options-positive@c5ec919ab770 fan.options-unknown@de8f23d23359
 fn.bare c9f7a5dead8c
 fn.bare-literal da926d363944
+fn.block-check 4369a2fff0e4
 fn.block-outer d1fc49ffe0c9
 fn.block-reads-acc 499598c8a33a
 fn.block-reads-none e3685c5b74be

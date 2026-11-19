@@ -341,6 +341,13 @@ An assertion on an argument block sets the function's outer, and each call asser
 # Result: list[2, 3]
 ```
 
+A check on an argument block makes a function that returns `bool`:
+
+```rill
+list[1, "a"] -> seq({ $ }:?number)
+# Result: list[true, false]
+```
+
 Operators take exact arity. `seq`, `fan`, `filter`, and `sort` call their function with one argument. `fold` and `acc` call it with the element and the accumulator.
 
 ```text
@@ -386,7 +393,7 @@ list["a", "x"] -> dict[a: { dict[x: 1] }]
 
 ### Access
 
-`$c.name`, `$c.$k`, and `$c[sel]` run a held block with the enclosing `$`. `$@` inside a held block is lexical, so it reads the enclosing accumulator:
+`$c.name`, `$c.$k`, `$c[sel]`, `.at(i)`, and a `destruct<>` position each select one entry, so they run a held block with the enclosing `$`. `$@` inside a held block is lexical, so it reads the enclosing accumulator:
 
 ```rill
 5 -> {
@@ -414,7 +421,7 @@ $d -> $d.double
 
 ### Reads That Do Not Select
 
-Iteration, `.values`, `.entries`, `.first`, spread, equality, and interpolation that reach a held block halt `#TYPE_MISMATCH` naming the entry. `.^type` and a type lock see the entry as `fn()`, even for `{ 1 }:number`.
+A read that does not select one entry halts `#TYPE_MISMATCH` naming the entry when it reaches a held block, so a held block never escapes as a value. These reads are iteration, `.values`, `.entries`, `.first`, `.head`, `.tail`, `.reverse`, `.join`, `.has`, `.has_any`, `.has_all`, spread, `slice<>`, `take`, `skip`, `chain`, equality, interpolation, conversion (`-> list(any)`, `-> string`), and `log`. `.keys` and `.len` do not read entries. `.^type` and a type lock see the entry as `fn()`, even for `{ 1 }:number`, and a host receives it as the signature `fn():any` without running it.
 
 ```rill
 guard { list[{ 5 }] -> seq({ $ }) } => $r

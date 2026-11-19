@@ -3,7 +3,7 @@ id: code-block
 title: Code blocks
 status: normative
 since: 0.24.0
-issues: [568]
+issues: []
 grammar: [block]
 errors: [RILL-R005, TYPE_MISMATCH]
 depends: [dispatch, selection, fn, assertion]
@@ -61,24 +61,29 @@ Reading `$` or `$@` in a code block where the enclosing scope binds none MUST ha
 RILL-R005.
 
 r[code-block.held] A collection entry holds the block uncalled
-A code block written as a dict value, an ordered value, a map value {pending #568}, a list element, or a
-tuple element MUST be held as a code block. It MUST NOT convert to a function.
+A code block written as a dict value, an ordered value, a list element, or a tuple element
+MUST be held as a code block. It MUST NOT convert to a function.
 
 r[code-block.dispatch] Dispatch runs a held block with the selector
 `sel -> $c` that selects a held block MUST run it with `$` bound to `sel`, and yield its result.
 
 r[code-block.access] Access runs a held block with the enclosing $
-`$c.name`, `$c.$k`, and `$c[sel]` that select a held block MUST run it with `$` bound to the
-enclosing `$`, and yield its result.
+`$c.name`, `$c.$k`, `$c[sel]`, `.at(i)`, and a destructure position that select a held block
+MUST run it with `$` bound to the enclosing `$`, and yield its result.
 
 r[code-block.access-target] In a pipe target the enclosing $ is the piped value
 Access written as a pipe target MUST run a held block with `$` bound to the piped value.
 With `dict[n: 2, double: { $.n * 2 }] => $d`, `$d -> $d.double` MUST yield 4.
 
 r[code-block.non-selecting] A read that selects no entry halts on a held block
-Iteration, `.values`, `.entries`, `.first`, spread, equality, interpolation, and host conversion {pending #568}
-that reach a held block MUST halt with `#TYPE_MISMATCH` naming the entry. `.^type` and a type
-lock MUST see a held entry as `fn()`.
+Iteration, `.values`, `.entries`, `.first`, `.head`, `.tail`, `.reverse`, `.join`, `.has`,
+`.has_any`, `.has_all`, spread, slicing, `take`, `skip`, `chain`, equality, interpolation,
+conversion, and `log` that reach a held block MUST halt with `#TYPE_MISMATCH` naming the entry.
+`.^type` and a type lock MUST see a held entry as `fn()`.
+
+r[code-block.host] Host conversion reports a held entry as fn()
+Converting a collection that holds a block to a host value MUST report the entry as the
+signature of `fn()` (`fn():any`), and MUST NOT run it.
 
 r[code-block.each-time] A held block runs on every selection
 Each selection of a held block MUST run it again.
@@ -100,7 +105,8 @@ r[code-block.assert] An assertion on a code block checks its result
 block, a block in parentheses, a construct body, and a selected entry each assert on every run.
 
 r[code-block.check] A check on a code block tests its result
-`{ body }:?T` MUST run the block, then yield whether its result has type `T`.
+`{ body }:?T` MUST run the block where its position runs it, then yield whether its result
+has type `T`. A selected held entry checks on every run.
 
 r[code-block.assert-scope] The assertion covers the whole block
 A `:T` or `:?T` after the closing brace MUST apply to the block's result, never to its last

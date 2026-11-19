@@ -15,6 +15,7 @@ import {
   isStream,
 } from '../../../core/types/guards.js';
 import { requireFixedDuration } from '../../../core/types/duration-limit.js';
+import { rejectHeldEntries } from '../../../core/types/held-block.js';
 import { anyTypeValue } from '../../../core/values.js';
 import { getIterableElements } from '../../../core/eval/handlers/collections.js';
 import { getEvalState } from '../../../core/eval/state.js';
@@ -99,6 +100,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
 
       // List input: pure array slice, return list
       if (Array.isArray(input)) {
+        rejectHeldEntries(input, 'take', site, 'direct');
         assertWithinLimit(input.length);
         return input.slice(0, n);
       }
@@ -189,6 +191,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
 
       // List input: pure array slice, return list
       if (Array.isArray(input)) {
+        rejectHeldEntries(input, 'skip', site, 'direct');
         return input.slice(n);
       }
 

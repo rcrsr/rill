@@ -11,6 +11,7 @@ import {
   formatValue,
   serializeValue,
 } from '../../../core/types/registrations.js';
+import { rejectHeldEntries } from '../../../core/types/held-block.js';
 import { anyTypeValue, structureToTypeValue } from '../../../core/values.js';
 import { invokeCallable } from '../../../core/eval/index.js';
 import { createChildContext } from '../../../core/context.js';
@@ -51,8 +52,14 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       },
     ],
     returnType: anyTypeValue,
-    fn: (args, ctx) => {
+    fn: (args, ctx, location) => {
       const value = args['message'] ?? null;
+      rejectHeldEntries(
+        value,
+        'log',
+        { location, sourceId: ctx.sourceId, fn: 'log' },
+        'deep'
+      );
       ctx.callbacks.onLog(formatValue(value));
       return value;
     },
@@ -257,6 +264,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       };
 
       if (Array.isArray(arg)) {
+        rejectHeldEntries(arg, 'chain', site, 'direct');
         // List of functions: fold left-to-right
         let result = value;
         for (const item of arg) {

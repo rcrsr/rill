@@ -21,7 +21,10 @@ import {
   orderedValueEntries,
 } from '../../../core/types/guards.js';
 import { orderedDictEntries } from '../../../core/types/dict-keys.js';
-import { rejectHeldEntries } from '../../../core/types/held-block.js';
+import {
+  isHeldBlock,
+  rejectHeldEntries,
+} from '../../../core/types/held-block.js';
 import { createTuple } from '../../../core/types/constructors.js';
 import { isEmpty } from '../../../core/values.js';
 import {
@@ -33,6 +36,7 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import {
   throwCatchableHostHalt,
   throwFatalHostHalt,
+  throwHeldEntryHalt,
 } from '../../../core/types/halt.js';
 import {
   findIndexPosition,
@@ -77,6 +81,39 @@ export const mLen: RillMethod = (receiver) => {
 /** Trim whitespace from string */
 export const mTrim: RillMethod = (receiver) => formatValue(receiver).trim();
 
+/** Halt when the one entry a read selects is a held block. */
+function rejectHeldSelection(
+  entry: RillValue,
+  index: number,
+  op: string,
+  at: {
+    readonly location: SourceLocation | undefined;
+    readonly ctx: RuntimeContext;
+    readonly fn: string;
+  }
+): void {
+  if (isHeldBlock(entry)) {
+    throwHeldEntryHalt(op, index, {
+      location: at.location,
+      sourceId: at.ctx.sourceId,
+      fn: at.fn,
+    });
+  }
+}
+
+/** Halt when a membership read compares a held block, in the list or an operand. */
+function rejectHeldMembership(
+  receiver: RillValue,
+  operands: readonly RillValue[],
+  op: string,
+  ctx: RuntimeContext,
+  location: SourceLocation | undefined
+): void {
+  const site = { location, sourceId: ctx.sourceId, fn: op };
+  rejectHeldEntries(receiver, op, site, 'deep');
+  for (const operand of operands) rejectHeldEntries(operand, op, site, 'deep');
+}
+
 /** Get first element of list or first char of string */
 export const mHead: RillMethod = (receiver, _args, ctx, location) => {
   if (Array.isArray(receiver)) {
@@ -88,6 +125,7 @@ export const mHead: RillMethod = (receiver, _args, ctx, location) => {
         'Cannot get head of empty list'
       );
     }
+    rejectHeldSelection(first, 0, 'head', { location, ctx, fn: 'head' });
     return first;
   }
   if (typeof receiver === 'string') {
@@ -120,6 +158,11 @@ export const mTail: RillMethod = (receiver, _args, ctx, location) => {
         'Cannot get tail of empty list'
       );
     }
+    rejectHeldSelection(last, receiver.length - 1, 'tail', {
+      location,
+      ctx,
+      fn: 'tail',
+    });
     return last;
   }
   if (typeof receiver === 'string') {
@@ -228,6 +271,12 @@ export const mSplit: RillMethod = (receiver, args) => {
 /** Join list elements with separator */
 export const mJoin: RillMethod = (receiver, args, ctx, location) => {
   const sep = typeof args[0] === 'string' ? args[0] : ',';
+  rejectHeldEntries(
+    receiver,
+    'join',
+    { location, sourceId: ctx.sourceId, fn: 'join' },
+    'deep'
+  );
   // A function, iterator, or vector at any depth has no printed form.
   const noStringForm = describeNoStringForm(receiver, 'print');
   if (noStringForm !== undefined) {
@@ -659,6 +708,7 @@ export const mHas: RillMethod = (receiver, args, ctx, location, carried) => {
     );
   }
   const searchValue = args[0] ?? null;
+  rejectHeldMembership(receiver, [searchValue], 'has', ctx, location);
   requireElementOverlap(
     receiver,
     carried?.[0],
@@ -745,6 +795,7 @@ export const mHasAny: RillMethod = (receiver, args, ctx, location, carried) => {
     );
   }
   const candidates = listArg(args[0], 'candidates', 'has_any', ctx, location);
+  rejectHeldMembership(receiver, [args[0] ?? null], 'has_any', ctx, location);
   requireCandidatesOverlap(
     receiver,
     args[0] ?? null,
@@ -776,6 +827,7 @@ export const mHasAll: RillMethod = (receiver, args, ctx, location, carried) => {
     );
   }
   const candidates = listArg(args[0], 'candidates', 'has_all', ctx, location);
+  rejectHeldMembership(receiver, [args[0] ?? null], 'has_all', ctx, location);
   requireCandidatesOverlap(
     receiver,
     args[0] ?? null,
@@ -811,6 +863,12 @@ export const mReverse: RillMethod = (receiver, _args, ctx, location) => {
       `reverse() requires list receiver, got ${inferType(receiver)}`
     );
   }
+  rejectHeldEntries(
+    receiver,
+    'reverse',
+    { location, sourceId: ctx.sourceId, fn: 'reverse' },
+    'direct'
+  );
   return [...receiver].reverse();
 };
 

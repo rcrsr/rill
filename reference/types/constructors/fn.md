@@ -102,6 +102,11 @@ r[fn.block-outer] An assertion on an argument block is its outer
 `{ body }:T` passed as a whole argument MUST convert to a function whose outer is `T`, and
 each call MUST assert its result against `T`. `seq({ $ + 1 }:number)` passes `fn(any):number`.
 
+r[fn.block-check] A check on an argument block makes a bool function
+`{ body }:?T` passed as a whole argument MUST convert to a function whose outer is `bool`, and
+each call MUST yield whether its result has type `T`. `seq({ $ }:?number)` passes
+`fn(any):bool`.
+
 r[fn.block-reads-none] A block that reads no unnamed parameter has no parameters
 A block that reads neither `$` nor `$@` MUST have `fn():any`.
 
