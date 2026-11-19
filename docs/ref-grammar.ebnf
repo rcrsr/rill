@@ -16,8 +16,8 @@
    - Primitives: value equality
    - Lists: same length + element-wise equality
    - Dicts: same keys + value-wise equality (order-independent)
-   - Closures: same params + body AST structure + captured values
-     (Source location does not affect equality - two identical closures
+   - Functions: same params + body AST structure + captured values
+     (Source location does not affect equality - two identical functions
      defined in different places are equal if their structure matches) *)
 
 (* ============================================================ *)
@@ -79,10 +79,10 @@ yaml-char     = letter | digit | ":" | " " | "-" | "_" | "." | "[" | "]" | "," |
        + $z
 
    Statement-start tokens — these begin a new statement:
-     "$"          variable or closure call
+     "$"          variable or function call
      identifier   host function call
-     "{"          block (when not continuing a closure)
-     "|" "||"     closure definition
+     "{"          block (when not continuing a function body)
+     "fn"         function literal
      literals     strings, numbers, bools, lists, dicts
 
    After any complete expression, if the next non-whitespace token
@@ -160,8 +160,8 @@ comparison-op = "==" | "!=" | "<" | ">" | "<=" | ">=" ;
 
 chain-terminator = "break" | "return" | "yield" ;
               (* Note: capture can appear mid-chain or at end; handled in pipe-chain.
-                 "yield" is only valid inside a closure declared with a stream return type
-                 (e.g. |x| { ... }:stream(T):R). RILL-P006 raised on misuse. *)
+                 "yield" is only valid inside a function declared with a stream return type
+                 (e.g. fn(x):stream(T):R { ... }). RILL-P006 raised on misuse. *)
 
 assert-statement = "assert" , expression , [ string ] ;
               (* Assert statement: validates boolean expression, halts on false.
@@ -181,7 +181,7 @@ postfix-expr  = primary
                           | postfix-type-op } ;
               (* invoke: trailing "(" args ")" applied to a primary that is callable
                  (e.g. host-name(...) is parsed via host-call; bare invocation chains
-                 like (closure-expr)(args) attach an InvokeNode in the postfix loop).
+                 like (fn-expr)(args) attach an InvokeNode in the postfix loop).
                  bracket-access: trailing "[" pipe-chain "]" applied to any primary
                  in the postfix loop, not only "$"-prefixed variable chains (see the
                  property-access comment below for the full set of example forms).
@@ -216,10 +216,9 @@ status-probe  = ".!" , [ identifier ] ;
 primary       = literal
               | atom-literal        (* #NAME — symbolic constant, e.g. #FORBIDDEN, #QUOTA_EXCEEDED *)
               | type-constructor    (* list(T), dict(k:T), tuple(T, T2), ordered(k:T), stream(T):R, union(T, ...) *)
-              | closure-sig-lit     (* |p: T| -> R — closure signature type expression *)
               | type-name           (* type name as value — produces structural type value e.g. list(number), dict *)
               | variable
-              | closure-call
+              | fn-call
               | host-call
               | conditional
               | loop
@@ -334,36 +333,34 @@ timeout-option = ( "total" | "idle" ) , ":" , expression ;
 (* Annotated expression: attach metadata to any primary expression.
    ^(key: value, ...) expression
    The annotation is bound to the expression node, accessible at runtime.
-   Example: ^(description: "increment") |x| ($x + 1)
+   Example: ^(description: "increment") fn(x) { $x + 1 }
    Example: ^("user input") $data *)
 annotated-expr = annotation , primary ;
 
-(* Annotation access: read annotation values from closures.
-   .^key reads the annotation named "key" from a closure value.
+(* Annotation access: read annotation values from functions.
+   .^key reads the annotation named "key" from a function value.
    Chained with method calls: $fn.^type, $fn.^description.
    .^type reports the declared type, else the own type, on any value.
    .^effective reports the own type on any value.
-   Other keys read closure annotations; a missing key errors.
+   Other keys read function annotations; a missing key errors.
    Example: $fn.^type           -- read the declared type
    Example: $fn.^description    -- read "description" annotation *)
 annotation-access = "." , "^" , identifier ;
 
 (* Annotation existence: $fn.?^key returns bool.
    Tests stored annotations only: $fn.?^type and $fn.?^effective are false
-   unless the closure stores those keys, although .^type and .^effective read.
-   On a value that is not a closure the result is false; it never halts. *)
+   unless the function stores those keys, although .^type and .^effective read.
+   On a value that is not a function the result is false; it never halts. *)
 annotation-existence = ".?" , "^" , identifier ;
 
-use-expr      = "use" "<" use-id ">" [ ":" , ( type-ref | use-closure-annotation ) ] ;
+use-expr      = "use" "<" use-id ">" [ ":" , type-ref ] ;
               (* Semantic: resolves a module by scheme and path.
                  Static form (identifier ":" identifier { "." identifier }) is checker-resolvable.
                  Variable form ("$" identifier) and computed form ("(" pipe-chain ")") are runtime-only.
                  Strict mode rejects variable and computed forms.
-                 Closure annotation form describes the expected callable signature. *)
-
-use-closure-annotation = "|" , param-type-item , { "," , param-type-item } , "|" ;
-              (* Closure annotation on use<>: describes parameter types of the resolved callable.
-                 Example: use<ext:tool>:|input: string, count: number| *)
+                 A fn-type annotation describes the expected callable signature:
+                 use<ext:tool>:fn(input: string, count: number).
+                 The removed use<..>:|params| form raises RILL-P012. *)
 
 use-id        = identifier ":" identifier { "." identifier }
               | "$" identifier
@@ -375,25 +372,32 @@ use-id        = identifier ":" identifier { "." identifier }
 (* implicit-primary: used in contexts where implicit $ is available (body, pipe targets).
    Includes method-call because .method() expands to $ -> .method().
    primary excludes method-call since statements cannot start with a bare method call. *)
-implicit-primary = literal | variable | closure-call | host-call | method-call | block | grouped-expr ;
+implicit-primary = literal | variable | fn-call | host-call | method-call | block | grouped-expr ;
 
 (* ============================================================ *)
 (* LITERALS                                                     *)
 (* ============================================================ *)
 
-literal       = string | number | bool | list | dict | tuple | ordered | closure ;
+literal       = string | number | bool | list | dict | tuple | ordered | fn-literal ;
 
-(* Closures are first-class values with optional typed parameters.
-   The body can be a block, grouped expression, or postfix expression.
+(* Functions are first-class values. A function literal is a function type
+   written in front of a block.
 
-   || { "hello" } -> $greet                    -- no params, block body
-   |x| { $x -> .len } -> $strlen               -- untyped param
-   |x: string| { $x -> .len } -> $strlen       -- typed param
-   |x: string = "default"| { $x } -> $fn       -- typed with default
-   |x = "default"| { $x } -> $fn               -- default with inferred type
-   |a: number, b: number = 0| { } -> $add      -- mixed params
-   |x| ($x + 1) -> $inc                        -- grouped expression body
-   |x| $x -> $identity                         -- postfix expression body
+   fn() { "hello" } => $greet                  -- no params
+   fn(x) { $x -> .len } => $strlen             -- untyped param
+   fn(x: string) { $x -> .len } => $strlen     -- typed param
+   fn(x: string = "default") { $x } => $fn     -- typed with default
+   fn(x = "default") { $x } => $fn             -- default param has type any
+   fn(a: number, b: number = 0) { $a + $b } => $add   -- mixed params
+   fn(x: number):string { "{$x}" } => $show    -- return type
+   fn { $ + 1 } => $inc                        -- unnamed param bound to $
+   fn { $@ + $ } => $sum                       -- unnamed params $ and $@
+
+   Unnamed params bind $ and $@, at most two, never mixed with named params,
+   and take no default (RILL-P028). A fn() body that reads $ or $@ raises
+   RILL-P029. The removed |params| closure literal raises RILL-P012.
+   fn with no parentheses written as a type accepts any function; fn() names
+   a function that takes no parameters.
 
    Scope rules (same as blocks):
    - Captures outer scope variables (read-only)
@@ -407,43 +411,25 @@ literal       = string | number | bool | list | dict | tuple | ordered | closure
    - "value" -> $fn()  -- pipe value as first arg
    - $fn(...dict[a: 1, b: 2])  -- dict spread unpacking at invocation *)
 
-closure-param    = [ annotation ] , identifier , [ ":" , param-type ] , [ "=" , literal ]
-              | [ annotation ] , identifier , "=" , literal ;   (* type inferred from default *)
-param-type    = type-ref ;  (* type-ref here supports defaults in field-args:
-                                |a: dict(b: number = 5)| fills b when caller omits it *)
+fn-type    = "fn" , [ "(" , [ fn-param , { "," , fn-param } ] , ")" ] , [ ":" , type-form ] ;
+fn-param   = identifier , [ ":" , type-form ] , [ "=" , literal ] | type-form ;
+fn-literal = fn-type , block ;
+              (* type-form is the reference spelling of a type (concept type-form);
+                 this file writes it as type-ref.
+                 An fn-param that starts with a type name or "$" is an unnamed
+                 param (the type-ref alternative): fn(number) takes one unnamed
+                 number param. Any other identifier names the param: fn(x) is
+                 fn(x: any).
+                 A ^(...) annotation may precede a fn literal and a fn param.
+                 Declared return type (outer) is enforced at runtime (RILL-R004 on mismatch)
+                 and readable via $fn.^type.outer; .^type.inner reads the parameters.
+                 fn(x = 5) gives x the type any: a default does not infer the type.
+                 The removed |x: T|:R type literal and `closure` type name raise RILL-P012.
+
+                 A bare block { body } is a function whose type depends on what it
+                 reads: fn():any, fn(any):any, or fn(any, any):any. *)
+
 body   = block | grouped-expr | postfix-expr ;
-closure = "|" , [ closure-param , { "," , closure-param } ] , "|" , body , [ ":" , type-target ]
-              | "|" , type-name , "|" , body , [ ":" , type-target ]
-              | "|" , type-name , "," , type-name , "|" , body , [ ":" , type-target ] ;
-              (* Return type assertion — enforced at runtime (RILL-R004 on mismatch).
-                 |x: number| { "{$x}" }:string  -- asserts string return type
-                 Whitespace and newlines allowed between "}" and ":".
-                 Declared return type accessible via $fn.^type.outer.
-
-                 Anonymous typed closure (second alternative):
-                 When the single token between | ... | is a type-name keyword, the parser
-                 produces an anonymous typed closure. The implicit parameter is $ and the
-                 declared type is enforced at pipe invocation (RILL-R001 on mismatch).
-                 Example: "hello" -> |string|{ $ -> .upper }
-
-                 Disambiguation rule: the reserved type keywords trigger anonymous typed
-                 parsing when they appear as the sole token between | ... |. These keywords
-                 are: string, number, bool, closure, list, dict, tuple, ordered, vector,
-                 iterator, stream, datetime, duration, atom, any, type.
-                 Any other identifier between | ... | is parsed as a named parameter.
-                 Using a reserved type keyword as a named parameter name (e.g., |string: string|)
-                 raises a parse error (RILL-P003).
-
-                 Two-type anonymous closure: |T1, T2| body — the parser synthesizes two
-                 implicit parameters: "$" (current element, declared type T1) and "@"
-                 (accumulator, declared type T2). The accumulator is referenced in
-                 surface syntax as `$@`; the lexer recognises `$@` as a variable token
-                 and the runtime resolves it to the parameter named "@". Used by
-                 reduce-style operators (fold, acc) where $ is the current element and
-                 $@ is the accumulator. Example: |number, number|{ $@ + $ }
-
-                 Bare block desugar: { body } desugars to |any|{ body }:any — an anonymous
-                 typed closure that accepts any piped value without type enforcement. *)
 
 string        = '"' , { char | escape | brace-escape | interpolation } , '"'
               | '"""' , { char | escape | brace-escape | interpolation } , '"""' ;
@@ -517,7 +503,7 @@ dict-entry    = ( dict-key | "[" , expression , { "," , expression } , "]" ) , "
                  Computed key: [($x -> .upper): value] evaluates expression as key (must be string).
                  Multi-key syntax [k1, k2]: expr maps multiple keys to same value.
                  Semantic: keys "keys", "values", "entries" are reserved (cannot be used as dict keys).
-                 Semantic: closure values become "dict closures" where $ is late-bound
+                 Semantic: function values are bound to the containing dict, so $ is late-bound
                  to the containing dict at invocation time (like "this" in other languages). *)
 
 (* Tuple literal: keyword-prefixed ordered positional container.
@@ -552,12 +538,12 @@ variable      = "$" , identifier , { property-access } , [ default-value ] , [ e
               (* $ARGS and $ENV are outer-scope variables provided by the runtime,
                  not grammar-level constructs. Same scoping rules apply. *)
 
-(* Closure calls invoke closures stored in variables:
-   $strlen("hello")     -- call closure with string arg
-   $add(1, 2)           -- call closure with multiple args
-   $transform($data)    -- call closure with variable arg
+(* Function calls invoke functions stored in variables:
+   $strlen("hello")     -- call function with string arg
+   $add(1, 2)           -- call function with multiple args
+   $transform($data)    -- call function with variable arg
    In string interpolation: "Length: {$strlen("word")}" *)
-closure-call = "$" , identifier , "(" , [ arguments ] , ")" ;
+fn-call = "$" , identifier , "(" , [ arguments ] , ")" ;
 
 (* Property access chain supports both dot and bracket access in any order:
    $data.user.name          -- literal fields
@@ -613,8 +599,8 @@ digits        = digit , { digit } ;
    "hello" => $name -> .upper -- capture, then transform (result: "HELLO")
    "hello" => $name:string    -- capture type assertion (validated on assignment)
 
-   Pipe arrow (-> $var) invokes closure stored in $var:
-   "hello" -> $fn             -- invoke $fn("hello") if $fn is closure
+   Pipe arrow (-> $var) invokes function stored in $var:
+   "hello" -> $fn             -- invoke $fn("hello") if $fn is a function
    "hello" -> $fn -> .len     -- invoke, then continue chain
 
    Type locking:
@@ -638,7 +624,7 @@ host-name = identifier ;
                  - identity($value) -- returns value unchanged
                  - range(start, end, step?) -- iterator from start (inclusive) to end (exclusive)
                  - repeat(value, count) -- iterator repeating value count times
-                 - chain($fn) or chain([$f, $g]) -- compose closures left-to-right
+                 - chain($fn) or chain([$f, $g]) -- compose functions left-to-right
 
                  Collection slicing and restructuring built-ins:
                  - take(list, n: int) -> list     -- first n elements
@@ -650,14 +636,14 @@ host-name = identifier ;
                                                   -- drop_partial: discard final incomplete batch when stream ends
                  - window(list, n: int, step: int = n) -> stream(list)
                                                   -- sliding windows of size n, advancing by step
-                 - start_when(list, predicate: closure) -> stream
+                 - start_when(list, predicate: fn) -> stream
                                                   -- yield from first matching element onward
-                 - stop_when(list, predicate: closure) -> stream
+                 - stop_when(list, predicate: fn) -> stream
                                                   -- yield through first matching element (inclusive)
-                 - iterate(seed, closure) -> stream
-                                                  -- infinite source stream: emit seed, call closure to produce next;
-                                                  -- pipe form: seed -> iterate(closure) auto-prepends piped value;
-                                                  -- closure receives $ = current value, returns next value;
+                 - iterate(seed, fn) -> stream
+                                                  -- infinite source stream: emit seed, call function to produce next;
+                                                  -- pipe form: seed -> iterate(fn) auto-prepends piped value;
+                                                  -- function receives $ = current value, returns next value;
                                                   -- stream-only; combine with take/stop_when to bound output
                  - debounce(stream, duration) -> stream
                                                   -- suppress rapid emissions; emit latest chunk after duration of silence;
@@ -738,12 +724,12 @@ method-name   = "contains" | "match" | "is_match"     (* pattern: 1 arg *)
    "$ -> greet" ≡ "greet($)" — piped value becomes implicit first arg. *)
 
 pipe-target   = host-call       (* $ -> greet("world") — call with explicit args *)
-              | closure-call      (* $ -> $fn("arg") — invoke closure with args *)
-              | pipe-invoke        (* $ -> $() — invoke $ as closure, $ -> $(args) with args *)
-              | variable           (* $ -> $fn — invoke closure stored in $fn with $ as arg *)
+              | fn-call           (* $ -> $fn("arg") — invoke function with args *)
+              | pipe-invoke        (* $ -> $() — invoke $ as function, $ -> $(args) with args *)
+              | variable           (* $ -> $fn — invoke function stored in $fn with $ as arg *)
               | host-name      (* $ -> greet — bare name, $ becomes implicit first arg *)
               | method-call        (* $ -> .len — method on $, $ -> .at(0) with args *)
-              | closure            (* $ -> |x| ($x + 1) — inline closure *)
+              | fn-literal         (* $ -> fn(x) { $x + 1 } — inline function *)
               | assert-statement   (* $ -> assert ($ > 0) "positive" — assert with optional message *)
               | pipe-error         (* 42 -> error "msg" or 42 -> error — message optional *)
               | use-expr           (* $ -> use<scheme:resource> — resolver import *)
@@ -787,7 +773,7 @@ pipe-error    = "error" , [ string ] ;
       ["users", 0, "name"] -> [users: [[name: "X"]]] -- "X"
 
    Path elements: strings for dict keys, numbers for list indexes.
-   Negative indexes supported. Terminal closures receive $ = final key.
+   Negative indexes supported. Terminal functions receive $ = final key.
    See docs/topic-operators.md for complete dispatch documentation. *)
 
 (* ============================================================ *)
@@ -832,7 +818,7 @@ slice-bound       = number | variable | grouped-expr ;
      - String keys (from dict) match parameters by name
 
    Example:
-     |a, b| { [$b, $a] } => $flip
+     fn(a, b) { [$b, $a] } => $flip
      $flip(...dict[a: 1, b: 2])   -- $a=1, $b=2, returns [2, 1]
 
    Strict validation: missing or extra arguments error at invocation.
@@ -867,10 +853,10 @@ slice-bound       = number | variable | grouped-expr ;
    dict[] -> dict(a: dict(x: number = 1)) -- nested synthesis fills a.x *)
 type-conversion   = type-ref | type-constructor ;
 
-(* Pipe-invoke: call the pipe value ($) as a closure
-   ||{ "hello" } -> $()          -- invoke with no args
-   |x|$x -> $("world")           -- invoke with args
-   $closure -> $()               -- invoke variable that holds a closure *)
+(* Pipe-invoke: call the pipe value ($) as a function
+   fn() { "hello" } -> $()       -- invoke with no args
+   fn(x) { $x } -> $("world")    -- invoke with args
+   $fn -> $()                    -- invoke variable that holds a function *)
 pipe-invoke   = "$" , "(" , [ arguments ] , ")" ;
 
 (* Type assertion: assert value is a specific type, error if mismatch.
@@ -903,7 +889,7 @@ type-assertion = ":" , type-target ;
    $val -> :?list ? process()      -- conditional on type *)
 type-check    = ":" , "?" , type-target ;
 
-type-name     = "string" | "number" | "bool" | "closure"
+type-name     = "string" | "number" | "bool" | "fn"
               | "list" | "dict" | "tuple" | "ordered"
               | "vector" | "iterator" | "stream"
               | "datetime" | "duration" | "atom"
@@ -930,13 +916,15 @@ type-name     = "string" | "number" | "bool" | "closure"
      dict(a: number = 5)             -- parameterized with default (annotation context) *)
 type-ref          = type-ref-member ;
 type-ref-member   = "stream" , [ "(" , [ field-arg-list ] , ")" ] , [ ":" , type-ref ]
+                  | fn-type
                   | type-name , [ "(" , [ field-arg-list ] , ")" ]
                   | "$" , identifier
                   | union-type ;
-              (* Only stream takes an outer type, after the parentheses or after
-                 the bare name: stream:number is stream(any):number. An outer
+              (* Only stream and fn take an outer type, after the parentheses or
+                 after the bare name: stream:number is stream(any):number. An outer
                  written after list, dict, tuple, ordered, or union halts with
-                 RILL-P006. A ":" not followed by a type name is not an outer.
+                 RILL-P006. A ":" not followed by a type name is not an outer, except
+                 that fn also takes a "$" type: fn(x):$t.
                  Inside a field-arg-list, "name :" starts a named field, so a
                  bare stream with an outer is written stream():R there. *)
 
@@ -964,10 +952,10 @@ type-target   = type-ref ;
 
    Default values (= literal) are context-dependent:
    - Type constructors: always supported
-   - Closure param annotations: supported (defaults fill missing fields)
+   - Function param annotations: supported (defaults fill missing fields)
    - Assertion/check position: defaults allow omitting trailing tuple/ordered fields, or any dict field, that has a default
-   - Capture, destructure, existence-check, use<>, anonymous closure
-     parameter, and closure return types: same rule as assertion position
+   - Capture, destructure, existence-check, use<>, unnamed function
+     parameter, and function return types: same rule as assertion position
 
    Field annotations (optional ^(...) prefix):
    - dict, ordered, and tuple type constructors support ^() annotations per field
@@ -1045,21 +1033,7 @@ type-constructor = ( "list" | "dict" | "tuple" | "ordered" ) , "(" , [ field-arg
                  - stream(string):number       -- chunk type + resolution type
                  - stream():number             -- any-chunked stream resolving to number
                  The resolution type is the value produced when the stream completes;
-                 chunks are produced by `yield` inside the closure body. *)
-
-(* Closure signature literal: a type expression for closure type inspection.
-   Syntax mirrors closure definition but uses "|" delimiters and ": return".
-   This is a PRIMARY expression, not a closure body.
-
-   Examples:
-   |x: number| :string             -- closure taking number, returning string
-   |a: number, b: number| :number  -- two-param closure
-   ||:string                       -- zero-param closure; param-type-list may be empty
-   |^("label") x: string|:int      -- annotated param, mirrors closure-param *)
-
-closure-sig-lit  = "|" , param-type-list , "|" , ":" , expression ;
-param-type-list  = [ param-type-item , { "," , param-type-item } ] ;
-param-type-item  = [ annotation ] , identifier , ":" , expression , [ "=" , literal ] ;
+                 chunks are produced by `yield` inside the function body. *)
 
 (* ============================================================ *)
 (* CONTROL FLOW                                                 *)
@@ -1204,20 +1178,20 @@ on-clause     = "on" , ":" , ( atom-literal | "list[" , atom-literal , { "," , a
 block         = "{" , statement , { statement } , "}" ;
               (* Block expression semantics depend on context:
 
-                 EXPRESSION POSITION (creates closure):
-                 - { body } => $fn                  -- stored as closure
-                 - [key: { body }]               -- dict value is closure
-                 - log({ body })                    -- arg is closure
+                 EXPRESSION POSITION (creates function):
+                 - { body } => $fn                  -- stored as function
+                 - [key: { body }]               -- dict value is function
+                 - log({ body })                    -- arg is function
                  Block creates ScriptCallable with implicit $ parameter.
 
                  PIPE TARGET (creates then invokes):
-                 - value -> { body }                -- creates closure, invokes with value
+                 - value -> { body }                -- creates function, invokes with value
                  Observable result identical to eager evaluation.
 
                  SYNTACTIC BODY (eager evaluation):
                  - while (cond) do { }              -- while loop body
                  - cond ? { } ! { }                 -- conditional branches
-                 - |x| { }                          -- closure body
+                 - fn(x) { }                        -- function body
                  These use BlockNode as grammar body, not expression.
 
                  VS GROUPED EXPRESSION:
@@ -1266,7 +1240,7 @@ block         = "{" , statement , { statement } , "}" ;
    - As standalone expressions: (5 + 3)
    - As pipe targets: 5 -> ($ * 2)
    - Nested: ((1 + 2) * 3)
-   - As closure bodies: |x| ($x + 1)
+   - As function bodies: fn { ($ + 1) }
 
    Note: Arithmetic works everywhere now, not just in grouped expressions.
    5 + 3, { 5 + 3 }, and (5 + 3) all work. Grouped expressions provide

@@ -39,15 +39,11 @@ const INNER_KINDS: ReadonlySet<string> = new Set([
   'ordered',
   'tuple',
   'union',
-  'closure',
+  'fn',
   'stream',
 ]);
-const OUTER_KINDS: ReadonlySet<string> = new Set(['closure', 'stream']);
-const DEFAULTS_KINDS: ReadonlySet<string> = new Set([
-  'dict',
-  'ordered',
-  'closure',
-]);
+const OUTER_KINDS: ReadonlySet<string> = new Set(['fn', 'stream']);
+const DEFAULTS_KINDS: ReadonlySet<string> = new Set(['dict', 'ordered', 'fn']);
 
 // ============================================================
 // PRESENCE
@@ -133,12 +129,15 @@ function unionInner(
   });
 }
 
-function closureInner(
-  type: Extract<TypeStructure, { kind: 'closure' }>
-): RillValue {
-  if (type.params === undefined) return anyTypeValue;
+/** Named params read as an ordered of types, unnamed as a tuple, none as `ordered[]`. */
+function fnInner(type: Extract<TypeStructure, { kind: 'fn' }>): RillValue {
+  const params = type.params;
+  if (params === undefined) return anyTypeValue;
+  if (params.length > 0 && params.every((f) => f.name === undefined)) {
+    return createTuple(params.map((f) => structureToTypeValue(f.type)));
+  }
   return createOrdered(
-    type.params.map((f, i): [string, RillValue] => [
+    params.map((f, i): [string, RillValue] => [
       fieldName(f, i),
       structureToTypeValue(f.type),
     ])
@@ -151,7 +150,7 @@ function readInner(structure: TypeStructure): RillValue {
   if (isStructureKind(structure, 'ordered')) return orderedInner(structure);
   if (isStructureKind(structure, 'tuple')) return tupleInner(structure);
   if (isStructureKind(structure, 'union')) return unionInner(structure);
-  if (isStructureKind(structure, 'closure')) return closureInner(structure);
+  if (isStructureKind(structure, 'fn')) return fnInner(structure);
   // Stream: the chunk type; any other inner-bearing kind never reaches here.
   return typeOrAny(
     isStructureKind(structure, 'stream') ? structure.chunk : undefined
@@ -179,7 +178,7 @@ function readDefaults(structure: TypeStructure): RillValue {
       (structure.fields ?? []).map((f, i) => [fieldName(f, i), f] as const)
     );
   }
-  if (isStructureKind(structure, 'closure')) {
+  if (isStructureKind(structure, 'fn')) {
     return defaultsOf(
       (structure.params ?? []).map((f, i) => [fieldName(f, i), f] as const)
     );
@@ -205,9 +204,8 @@ export function readTypeProperty(
     case 'inner':
       return readInner(structure);
     case 'outer': {
-      const ret = isStructureKind(structure, 'stream')
-        ? structure.ret
-        : isStructureKind(structure, 'closure')
+      const ret =
+        isStructureKind(structure, 'stream') || isStructureKind(structure, 'fn')
           ? structure.ret
           : undefined;
       return typeOrAny(ret);

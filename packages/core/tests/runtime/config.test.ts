@@ -149,7 +149,7 @@ describe('Rill Runtime: Configuration', () => {
     // call is under it: only a per-call timeout lets the chain complete.
     it('timeout applies to each function call independently', async () => {
       let callCount = 0;
-      const fn = {
+      const slow = {
         returnType: anyTypeValue,
         params: [
           {
@@ -168,8 +168,8 @@ describe('Rill Runtime: Configuration', () => {
         },
       };
       const outcome = await runWithFakeTimers(
-        '"x" -> fn -> fn -> fn',
-        { functions: { fn }, timeout: 50 },
+        '"x" -> slow -> slow -> slow',
+        { functions: { slow }, timeout: 50 },
         100
       );
       expect(outcome.error).toBeUndefined();

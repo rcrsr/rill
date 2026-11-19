@@ -24,8 +24,8 @@ import { run } from '../helpers/runtime.js';
 
 describe('$stream() invocation propagates halts', () => {
   it('propagates an `error` halt from the stream body', async () => {
-    const src = `|| { "x" -> yield
-error "boom" } :stream() => $gen
+    const src = `fn():stream() { "x" -> yield
+error "boom" } => $gen
 $gen() => $s
 $s()`;
     await expectHalt(() => run(src), {
@@ -36,8 +36,8 @@ $s()`;
   });
 
   it('propagates an `assert` halt from the stream body', async () => {
-    const src = `|| { "x" -> yield
-assert false "nope" } :stream() => $gen
+    const src = `fn():stream() { "x" -> yield
+assert false "nope" } => $gen
 $gen() => $s
 $s()`;
     await expectHalt(() => run(src), {
@@ -48,8 +48,8 @@ $s()`;
   });
 
   it('matches the `$s -> seq({ $ })` drain behavior for the same body', async () => {
-    const src = `|| { "x" -> yield
-error "boom" } :stream() => $gen
+    const src = `fn():stream() { "x" -> yield
+error "boom" } => $gen
 $gen() => $s
 $s -> seq({ $ })`;
     await expectHalt(() => run(src), {
@@ -60,7 +60,7 @@ $s -> seq({ $ })`;
   });
 
   it('a stream body that completes normally still resolves via $s()', async () => {
-    const src = `|| { "x" -> yield } :stream() => $gen
+    const src = `fn():stream() { "x" -> yield } => $gen
 $gen() => $s
 $s()`;
     // No error in the body: draining to completion must not throw.

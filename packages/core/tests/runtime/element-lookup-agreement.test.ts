@@ -620,26 +620,26 @@ describe('element lookup: literal list dispatch', () => {
 });
 
 describe('element lookup: selected callable', () => {
-  it('passes the key as the argument of a variable dict closure with params', async () => {
-    expect(await run('dict[a: |x|("k{$x}")] => $d\n"a" -> $d')).toBe('ka');
+  it('passes the key as the argument of a variable dict fn with params', async () => {
+    expect(await run('dict[a: fn(x) { "k{$x}" }] => $d\n"a" -> $d')).toBe('ka');
   });
 
-  it('runs a zero-param variable dict closure with the key as $', async () => {
+  it('runs a zero-param variable dict fn with the key as $', async () => {
     expect(await run('dict[a: { "k{$}" }] => $d\n"a" -> $d')).toBe('ka');
   });
 
-  it('runs a literal dict closure with the key as $', async () => {
+  it('runs a literal dict fn with the key as $', async () => {
     expect(await run('"a" -> dict[a: { "k{$}" }]')).toBe('ka');
   });
 
-  it('halts for a literal dict closure with user-named params', async () => {
-    await expectHalt(() => run('"a" -> dict[a: |x|("k{$x}")]'), {
+  it('halts for a literal dict fn with user-named params', async () => {
+    await expectHalt(() => run('"a" -> dict[a: fn(x) { "k{$x}" }]'), {
       code: 'RILL_R002',
       messagePattern: 'Dispatch does not provide arguments',
     });
   });
 
-  it('invokes the terminal closure of a hierarchical path with the last key', async () => {
+  it('invokes the terminal fn of a hierarchical path with the last key', async () => {
     expect(
       await run('dict[a: dict[b: { "k{$}" }]] => $d\nlist["a", "b"] -> $d')
     ).toBe('kb');
@@ -726,7 +726,7 @@ describe('element lookup: dispatch with a key that cannot address a field', () =
   const KEYS = [
     ['a tuple', 'tuple[1]', 'tuple'],
     ['a dict', 'dict[a: 1]', 'dict'],
-    ['a closure', '|x| ($x)', 'closure'],
+    ['a fn', 'fn(x) { $x }', 'fn'],
   ] as const;
 
   describe.each(KEYS)('%s key', (_label, key, typeName) => {

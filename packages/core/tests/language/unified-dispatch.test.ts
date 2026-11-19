@@ -45,7 +45,7 @@ describe('Unified Dispatch', () => {
       // AC-9: Closure value is auto-invoked when dispatched
       // Zero-param closure invoked with args=[], pipeValue="fn", returns "result"
       const result = await run(`
-        dict[fn: ||{ "result" }] => $dict
+        dict[fn: fn() { "result" }] => $dict
         "fn" -> $dict
       `);
       expect(result).toBe('result');
@@ -55,7 +55,7 @@ describe('Unified Dispatch', () => {
       // AC-10: Closure value is auto-invoked when indexed
       // Zero-param closure invoked with args=[], pipeValue=0
       const result = await run(`
-        list[||{ "first" }] => $list
+        list[fn() { "first" }] => $list
         0 -> $list
       `);
       expect(result).toBe('first');
@@ -390,7 +390,7 @@ describe('Unified Dispatch', () => {
       await expectRuntimeError(
         () =>
           run(`
-        list[||{ $ * 2 }] => $list
+        list[fn() { 2 }] => $list
         5 -> $list[0]
       `),
         { code: 'RILL-R045', messagePattern: /expects 0 arguments, got 1/ }
@@ -441,7 +441,7 @@ describe('Unified Dispatch', () => {
       await expectHalt(
         () =>
           run(`
-          list[||{ $undefined }] => $list
+          list[fn() { $undefined }] => $list
           0 -> $list
         `),
         {
@@ -458,7 +458,7 @@ describe('Unified Dispatch', () => {
       await expectHalt(
         () =>
           run(`
-          list[|x|{ $undefined }] => $list
+          list[fn(x) { $undefined }] => $list
           0 -> $list
         `),
         {

@@ -588,16 +588,16 @@ describe('Rill Language: Structural Type Default Values', () => {
   describe('BC-5 (1.11): closure params with defaults display correctly', () => {
     it('closure with default param displays default in ^type string', async () => {
       const result = await run(
-        '|x: string, y: number = 42| { $x } => $fn\n$fn.^type -> string'
+        'fn(x: string, y: number = 42) { $x } => $fn\n$fn.^type -> string'
       );
-      expect(result).toBe('|x: string, y: number = 42| :any');
+      expect(result).toBe('fn(x: string, y: number = 42):any');
     });
 
     it('closure with string default param displays quoted default', async () => {
       const result = await run(
-        '|name: string = "world"| { $name } => $fn\n$fn.^type -> string'
+        'fn(name: string = "world") { $name } => $fn\n$fn.^type -> string'
       );
-      expect(result).toBe('|name: string = "world"| :any');
+      expect(result).toBe('fn(name: string = "world"):any');
     });
   });
 
@@ -915,14 +915,14 @@ describe('Rill Language: Structural Type Default Values', () => {
 
     it('closure return type accepts a default', async () => {
       const result = await run(
-        '|v: number| { dict[a: $v] }:dict(a: number, b: number = 0) => $f\n$f(1)'
+        'fn(v: number):dict(a: number, b: number = 0) { dict[a: $v] } => $f\n$f(1)'
       );
       expect(result).toEqual({ a: 1 });
     });
 
     it('stream closure return type accepts a default in its chunk type', async () => {
       const result = await run(
-        '|v: number| { $v }:stream(dict(a: number, b: number = 0)):number => $f\n$f.^type.outer -> .signature'
+        'fn(v: number):stream(dict(a: number, b: number = 0)):number { $v } => $f\n$f.^type.outer -> .signature'
       );
       expect(result).toBe('stream(dict(a: number, b: number = 0)):number');
     });
@@ -931,7 +931,7 @@ describe('Rill Language: Structural Type Default Values', () => {
       await expectHaltMessage(
         () =>
           run(
-            '|v: number| { dict[b: $v] }:dict(a: number, b: number = 0) => $f\n$f(1)'
+            'fn(v: number):dict(a: number, b: number = 0) { dict[b: $v] } => $f\n$f(1)'
           ),
         /Type assertion failed/
       );
@@ -939,14 +939,14 @@ describe('Rill Language: Structural Type Default Values', () => {
 
     it('anonymous typed closure parameter accepts a default and fills it', async () => {
       const result = await run(
-        '|dict(a: number, b: number = 0)|{ $.b } => $f\n$f(dict[a: 1])'
+        'fn(dict(a: number, b: number = 0)) { $.b } => $f\n$f(dict[a: 1])'
       );
       expect(result).toBe(0);
     });
 
     it('anonymous typed closure parameter still halts when a required field is missing', async () => {
       await expect(
-        run('dict[b: 1] -> |dict(a: number, b: number = 0)|{ $.b }')
+        run('dict[b: 1] -> fn(dict(a: number, b: number = 0)) { $.b }')
       ).rejects.toThrow(/Parameter type mismatch/);
     });
 
@@ -956,7 +956,7 @@ describe('Rill Language: Structural Type Default Values', () => {
       ).not.toThrow();
       expect(() =>
         parse(
-          '|v: number| { $v }:stream(number):dict(a: number, b: number = 0) => $f'
+          'fn(v: number):stream(number):dict(a: number, b: number = 0) { $v } => $f'
         )
       ).not.toThrow();
     });

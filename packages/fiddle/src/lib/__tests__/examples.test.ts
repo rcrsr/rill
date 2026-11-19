@@ -106,6 +106,9 @@ describe('examples demonstrate their construct', () => {
       42,
       ['Doubles a number', 'ordered[x: number]', 'number'],
     ],
+    ['dict-methods', [12, 23], ['51', '23']],
+    ['typed-closures', 100, ['HELLO', '10', '11', '1']],
+    ['closures', 256, []],
     [
       'context-use',
       'playground allows 4096 tokens, timeout 30',

@@ -17,8 +17,8 @@ Use **snake_case** for all identifiers in rill:
 true => $is_valid
 
 # closures
-|x|($x * 2) => $double_value
-|s|($s -> .trim) => $cleanup_text
+fn(x) { $x * 2 } => $double_value
+fn(s) { $s -> .trim } => $cleanup_text
 
 # dict keys
 [first_name: "Alice", last_name: "Smith", is_active: true] => $user
@@ -36,7 +36,7 @@ Use descriptive snake_case names with `$` prefix:
 For loop variables, short names are acceptable when scope is small:
 
 ```rill
-[1, 2, 3] -> seq(|x| ($x * 2))    # fine: small scope
+[1, 2, 3] -> seq(fn(x) { $x * 2 })    # fine: small scope
 ```
 
 ### Closures
@@ -44,9 +44,9 @@ For loop variables, short names are acceptable when scope is small:
 Name closures for their action:
 
 ```rill
-|x|($x * 2) => $double            # verb describing transformation
-|s|($s -> .trim) => $cleanup      # verb describing action
-||{ $.count * $.price } => $total # noun for computed value
+fn(x) { $x * 2 } => $double            # verb describing transformation
+fn(s) { $s -> .trim } => $cleanup      # verb describing action
+fn(item) { $item.count * $item.price } => $total # noun for computed value
 true
 ```
 
@@ -102,7 +102,7 @@ $result -> .contains("OK") ? {
 ["hello", "world"] -> fan({ $.upper })
 
 # equivalent closure form
-["hello", "world"] -> fan(|x| { $x.upper() })
+["hello", "world"] -> fan(fn(x) { $x.upper() })
 ```
 
 Method chains work in block bodies:
@@ -254,10 +254,10 @@ condition
 
 ```rill
 # simple: parentheses ok
-|x|($x * 2) => $double
+fn(x) { $x * 2 } => $double
 
 # complex: braces required
-|n| {
+fn(n) {
   ($n < 1) ? 1 ! ($n * $factorial($n - 1))
 } => $factorial
 true
@@ -269,7 +269,7 @@ true
 # good: explicit capture per iteration
 [1, 2, 3] -> seq({
   $ => $item
-  || { $item }
+  fn() { $item }
 }) => $closures
 
 # result: closures return [1, 2, 3] when called
@@ -283,7 +283,7 @@ Zero-arg closures auto-invoke when accessed:
 ```rill
 [
   items: [1, 2, 3],
-  count: ||{ $.items -> .len }
+  count: fn() { 3 }
 ] => $data
 
 $data.count    # 3 (auto-invokes)
@@ -294,7 +294,7 @@ Parameterized closures work as methods:
 ```rill
 [
   name: "test",
-  greet: |x|{ "{$.name}: {$x}" }
+  greet: fn(x) { "{$.name}: {$x}" }
 ] => $obj
 
 $obj.greet("hello")    # "test: hello"
@@ -305,7 +305,7 @@ $obj.greet("hello")    # "test: hello"
 ### Annotate closure parameters for clarity
 
 ```rill
-|name: string, count: number| {
+fn(name: string, count: number) {
   "{$name}: {$count}"
 } => $format
 $format("test", 1)
@@ -409,10 +409,10 @@ Variables lock to their first type. Reassigning suggests misuse:
 
 ```rill
 # confusing: what is $?
-|| { $ + 1 } => $fn    # $ is undefined when called
+fn { $ + 1 } => $fn    # $ is the first argument, easy to misread
 
 # clear: explicit parameter
-|x| { $x + 1 } => $fn
+fn(x) { $x + 1 } => $fn
 $fn(5)
 ```
 
@@ -468,7 +468,7 @@ $x->.upper
 # good
 ($x + 1)
 ($ > 3) ? "big"
-[1, 2, 3] -> seq(|x| ($x * 2))
+[1, 2, 3] -> seq(fn(x) { $x * 2 })
 
 # avoid
 ( $x + 1 )
@@ -481,7 +481,7 @@ $x->.upper
 # good
 { $x + 1 }
 [1, 2, 3] -> seq({ $ * 2 })
-|x| { $x -> .trim }
+fn(x) { $x -> .trim }
 
 # avoid
 {$x + 1}
@@ -528,17 +528,18 @@ $[ 0 ]
 [name:"alice",age:30]
 ```
 
-**Closure parameters**: no space before pipe, space after
+**Function parameters**: no space between `fn` and `(`, none inside the parentheses
 
 ```text
 # good
-|x| ($x * 2)
-|a, b| { $a + $b }
-|| { $.count }
+fn(x) { $x * 2 }
+fn(a, b) { $a + $b }
+fn() { 1 }
 
 # avoid
-| x | ($x * 2)
-|a,b|{ $a + $b }
+fn (x) { $x * 2 }
+fn( x ) { $x * 2 }
+fn(a,b){ $a + $b }
 ```
 
 **Method calls**: no space before dot or parentheses
@@ -576,7 +577,7 @@ $list.join (", ")
 
 # avoid
 "hello" -> $.upper() -> $.len
-# (no shorthand form for -> type operators — closure form is canonical)
+# (no shorthand form for -> type operators — fn form is canonical)
 
 # global functions: foo($) -> foo
 # good
@@ -589,7 +590,7 @@ $val.^type()
 
 # closures: $fn($) -> $fn
 # good
-|x| ($x * 2) => $double
+fn(x) { $x * 2 } => $double
 5 -> $double
 
 # avoid

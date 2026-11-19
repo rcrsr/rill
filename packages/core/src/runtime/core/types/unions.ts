@@ -237,7 +237,7 @@ const PARAMETERIZED_KINDS: ReadonlySet<string> = new Set([
   'tuple',
   'ordered',
   'stream',
-  'closure',
+  'fn',
 ]);
 
 /** What a member contributes to the absorb pass. */
@@ -283,7 +283,7 @@ function scanMember(ts: TypeStructure, scan: MemberScan): void {
   if (isStructureKind(ts, 'tuple') && ts.elements !== undefined) {
     fieldLists.push(ts.elements);
   }
-  if (isStructureKind(ts, 'closure')) {
+  if (isStructureKind(ts, 'fn')) {
     if (ts.params !== undefined) fieldLists.push(ts.params);
     if (ts.ret !== undefined) children.push(ts.ret);
   }

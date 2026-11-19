@@ -222,7 +222,7 @@ describe('ref-llms-full: Callable Types', () => {
   });
 
   it('$name() calls closure', async () => {
-    expect(await run('|x|($x + 1) => $inc\n$inc(5)')).toBe(6);
+    expect(await run('fn(x) { $x + 1 } => $inc\n$inc(5)')).toBe(6);
   });
 
   it('name alone is dict key literal', async () => {
@@ -298,7 +298,7 @@ describe('ref-llms-full: Syntax Quick Reference', () => {
   });
 
   it('closure syntax', async () => {
-    expect(await run('|x|($x + 1) => $f\n$f(5)')).toBe(6);
+    expect(await run('fn(x) { $x + 1 } => $f\n$f(5)')).toBe(6);
   });
 
   it('type annotation on capture', async () => {
@@ -492,12 +492,12 @@ describe('ref-llms-full: Collection Operators', () => {
   });
 
   it('body form: inline closure', async () => {
-    expect(await run('list[1, 2] -> seq(|x| ($x * 2))')).toEqual([2, 4]);
+    expect(await run('list[1, 2] -> seq(fn(x) { $x * 2 })')).toEqual([2, 4]);
   });
 
   it('body form: variable closure', async () => {
     expect(
-      await run('|x|($x * 2) => $double\nlist[1, 2] -> seq($double)')
+      await run('fn(x) { $x * 2 } => $double\nlist[1, 2] -> seq($double)')
     ).toEqual([2, 4]);
   });
 
@@ -552,34 +552,34 @@ describe('ref-llms-full: Closures', () => {
   });
 
   it('type check of closure', async () => {
-    expect(await run('{ "hi" }:?closure')).toBe(true);
+    expect(await run('{ "hi" }:?fn')).toBe(true);
   });
 
   it('explicit closure: named parameter', async () => {
-    expect(await run('|x|($x + 1) => $inc\n$inc(5)')).toBe(6);
+    expect(await run('fn(x) { $x + 1 } => $inc\n$inc(5)')).toBe(6);
   });
 
   it('explicit closure: multiple params', async () => {
-    expect(await run('|a, b|($a + $b) => $add\n$add(3, 4)')).toBe(7);
+    expect(await run('fn(a, b) { $a + $b } => $add\n$add(3, 4)')).toBe(7);
   });
 
   it('explicit closure: default value', async () => {
-    expect(await run('|x = 0|($x + 1) => $inc\n$inc()')).toBe(1);
+    expect(await run('fn(x = 0) { $x + 1 } => $inc\n$inc()')).toBe(1);
   });
 
   it('explicit closure: type annotation', async () => {
-    expect(await run('|x: number|($x + 1) => $typed\n$typed(5)')).toBe(6);
+    expect(await run('fn(x: number) { $x + 1 } => $typed\n$typed(5)')).toBe(6);
   });
 
   it('return type assertion: passes', async () => {
-    expect(await run('|x: number| { "{$x}" }:string => $fn\n$fn(42)')).toBe(
+    expect(await run('fn(x: number):string { "{$x}" } => $fn\n$fn(42)')).toBe(
       '42'
     );
   });
 
   it('return type assertion: fails (halts typed-atom)', async () => {
     await expectHalt(
-      () => run('|x: number| { $x * 2 }:string => $fn\n$fn(5)'),
+      () => run('fn(x: number):string { $x * 2 } => $fn\n$fn(5)'),
       { code: 'TYPE_MISMATCH', messagePattern: 'expected string, got number' }
     );
   });
@@ -587,7 +587,7 @@ describe('ref-llms-full: Closures', () => {
   it('description shorthand', async () => {
     expect(
       await run(
-        '^("Get weather for city") |city: string|($city) => $weather\n$weather.^description'
+        '^("Get weather for city") fn(city: string) { $city } => $weather\n$weather.^description'
       )
     ).toBe('Get weather for city');
   });
@@ -595,25 +595,27 @@ describe('ref-llms-full: Closures', () => {
   it('description shorthand with extra annotations', async () => {
     expect(
       await run(
-        '^("Fetch profile", cache: true) |id|($id) => $get_user\n$get_user.^cache'
+        '^("Fetch profile", cache: true) fn(id) { $id } => $get_user\n$get_user.^cache'
       )
     ).toBe(true);
   });
 
   it('{ body } is deferred (closure)', async () => {
-    expect(await run('{ $ + 1 } => $fn\n$fn:?closure')).toBe(true);
+    expect(await run('{ $ + 1 } => $fn\n$fn:?fn')).toBe(true);
   });
 
   it('( expr ) is eager (immediate eval)', async () => {
     expect(await run('( 5 + 1 ) => $x\n$x')).toBe(6);
   });
 
-  it('zero-param dict closure (method)', async () => {
-    expect(
-      await run(
-        'dict[count: 3, double: ||{ $.count * 2 }] => $obj\n$obj.double'
-      )
-    ).toBe(6);
+  it('fn() body reading $ is rejected with RILL-P029', () => {
+    try {
+      parse('dict[count: 3, double: fn() { $.count * 2 }]');
+      expect.fail('Should have thrown ParseError');
+    } catch (err) {
+      expect(err).toBeInstanceOf(ParseError);
+      expect((err as ParseError).errorId).toBe('RILL-P029');
+    }
   });
 });
 
@@ -837,13 +839,15 @@ describe('ref-llms-full: List Spread', () => {
 describe('ref-llms-full: Tuples and Ordered', () => {
   it('tuple positional spread', async () => {
     expect(
-      await run('|a, b, c|($a + $b + $c) => $fn\ntuple[1, 2, 3] -> $fn(...)')
+      await run(
+        'fn(a, b, c) { $a + $b + $c } => $fn\ntuple[1, 2, 3] -> $fn(...)'
+      )
     ).toBe(6);
   });
 
   it('ordered named spread (keys must match parameter order)', async () => {
     expect(
-      await run('|a, b|($a - $b) => $fn\nordered[a: 10, b: 2] -> $fn(...)')
+      await run('fn(a, b) { $a - $b } => $fn\nordered[a: 10, b: 2] -> $fn(...)')
     ).toBe(8);
   });
 });
@@ -1056,7 +1060,7 @@ describe('ref-llms-full: Built-in Functions', () => {
   it('chain applies closures in sequence', async () => {
     expect(
       await run(
-        '|x|($x + 1) => $inc\n|x|($x * 2) => $double\nchain(5, list[$inc, $double])'
+        'fn(x) { $x + 1 } => $inc\nfn(x) { $x * 2 } => $double\nchain(5, list[$inc, $double])'
       )
     ).toBe(12);
   });
@@ -1140,7 +1144,7 @@ describe('ref-llms-full: Implicit $ Shorthand', () => {
   });
 
   it('closure shorthand: 5 -> $double', async () => {
-    expect(await run('|x|($x * 2) => $double\n5 -> $double')).toBe(10);
+    expect(await run('fn(x) { $x * 2 } => $double\n5 -> $double')).toBe(10);
   });
 });
 

@@ -76,15 +76,15 @@ describe('Multi-Server Composition', () => {
       const ghGetPr = typedCallable({
         params: [
           {
-            name: 'number',
+            name: 'pr_number',
             type: { kind: 'number' },
             defaultValue: undefined,
             annotations: {},
           },
         ],
         fn: (args) => ({
-          number: args['number']!,
-          title: `PR #${args['number']}`,
+          number: args['pr_number']!,
+          title: `PR #${args['pr_number']}`,
           state: 'open',
         }),
         returnType: anyTypeValue,

@@ -73,9 +73,9 @@ describe('NAMING_SNAKE_CASE fix: dynamic field-key reference (.$var)', () => {
   });
 });
 
-describe('NAMING_SNAKE_CASE fix: closure-call callee and argument in the same call', () => {
+describe('NAMING_SNAKE_CASE fix: fn-call callee and argument in the same call', () => {
   it('rewrites the callee and the argument as disjoint $name-width edits', () => {
-    const source = '|x|($x) => $userName\n$userName($userName)\n';
+    const source = 'fn(x) { $x } => $userName\n$userName($userName)\n';
     const parsed = parse(source);
 
     const result = runRules(parsed, source, createDefaultConfig(), [
@@ -148,7 +148,8 @@ describe('NAMING_SNAKE_CASE fix: withheld on snake_case collision', () => {
 
 describe('NAMING_SNAKE_CASE fix: withheld on ambiguous binding identity', () => {
   it('withholds the fix when the same name is captured in two different scopes', () => {
-    const source = '|| (5 => $userName) => $f1\n|| (10 => $userName) => $f2\n';
+    const source =
+      'fn() { 5 => $userName } => $f1\nfn() { 10 => $userName } => $f2\n';
     const parsed = parse(source);
 
     const result = runRules(parsed, source, createDefaultConfig(), [
@@ -228,9 +229,9 @@ describe('NAMING_SNAKE_CASE fix: dict key withheld on existence probe', () => {
 });
 
 describe('NAMING_SNAKE_CASE fix: withheld on nested-scope reference', () => {
-  it('withholds the fix when the name is also referenced inside a sibling closure body', () => {
+  it('withholds the fix when the name is also referenced inside a sibling fn body', () => {
     const source =
-      '"a" => $userName\n|x| ($userName -> log) => $f\n$userName -> log\n';
+      '"a" => $userName\nfn(x) { $userName -> log } => $f\n$userName -> log\n';
     const parsed = parse(source);
 
     const result = runRules(parsed, source, createDefaultConfig(), [

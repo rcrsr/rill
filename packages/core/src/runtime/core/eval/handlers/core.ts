@@ -90,7 +90,7 @@ import { evaluateUseExpr, resolveUseExpr } from './use.js';
 import {
   evaluateTypeCheck,
   evaluateTypeConstructor,
-  evaluateClosureSigLiteral,
+  evaluateFnType,
 } from './types.js';
 import { ERROR_CODE_STRUCTURE } from '../../types/error-code.js';
 import {
@@ -496,7 +496,7 @@ export async function evaluatePrimary(
           primary.typeName === 'string' ||
           primary.typeName === 'number' ||
           primary.typeName === 'bool' ||
-          primary.typeName === 'closure' ||
+          primary.typeName === 'fn' ||
           primary.typeName === 'list' ||
           primary.typeName === 'dict' ||
           primary.typeName === 'tuple' ||
@@ -515,8 +515,8 @@ export async function evaluatePrimary(
     case 'TypeConstructor':
       return evaluateTypeConstructor(s, primary);
 
-    case 'ClosureSigLiteral':
-      return evaluateClosureSigLiteral(s, primary);
+    case 'FnType':
+      return evaluateFnType(s, primary);
 
     case 'ListLiteral':
     case 'DictLiteral':
@@ -657,6 +657,14 @@ export async function evaluatePipeTarget(
       s,
       carried.value,
       await evaluateTypeConstructor(s, target),
+      target
+    );
+  }
+  if (target.type === 'FnType') {
+    return convertToType(
+      s,
+      carried.value,
+      await evaluateFnType(s, target),
       target
     );
   }

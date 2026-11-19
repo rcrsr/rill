@@ -61,10 +61,10 @@ describe('Rill Language: Type Value Expressions', () => {
       expect(result.typeName).toBe('vector');
     });
 
-    it('closure evaluates as a RillTypeValue with typeName "closure"', async () => {
-      const result = (await run('closure')) as any;
+    it('fn evaluates as a RillTypeValue with typeName "fn"', async () => {
+      const result = (await run('fn')) as any;
       expect(result.__rill_type).toBe(true);
-      expect(result.typeName).toBe('closure');
+      expect(result.typeName).toBe('fn');
     });
 
     it('any evaluates as a RillTypeValue with typeName "any"', async () => {
@@ -110,8 +110,8 @@ describe('Rill Language: Type Value Expressions', () => {
       expect(result).toBe(true);
     });
 
-    it('closure.^type.name == "closure" evaluates to true (EC-4: .^type never errors)', async () => {
-      const result = await run('|| { 1 } => $v\n$v.^type.name == "closure"');
+    it('fn.^type.name == "fn" evaluates to true (EC-4: .^type never errors)', async () => {
+      const result = await run('fn() { 1 } => $v\n$v.^type.name == "fn"');
       expect(result).toBe(true);
     });
 
@@ -405,12 +405,12 @@ describe('Rill Language: Type Value Expressions', () => {
       expect(result).toBe('number');
     });
 
-    it('$fn.^type.signature returns "|y: string| :string" for typed closure (AC-15)', async () => {
+    it('$fn.^type.signature returns "fn(y: string):string" for typed closure (AC-15)', async () => {
       // rill return-type annotation syntax: body followed by :type
       const result = await run(
-        '|y: string| { y }:string => $fn\n$fn.^type.signature'
+        'fn(y: string):string { y } => $fn\n$fn.^type.signature'
       );
-      expect(result).toBe('|y: string| :string');
+      expect(result).toBe('fn(y: string):string');
     });
   });
 

@@ -3,7 +3,7 @@ id: defaults
 title: Defaults in types
 status: normative
 since: 0.24.0
-issues: [623, 624]
+issues: []
 grammar: [field-arg-list, field-arg]
 errors: [RILL-P001, RILL-P014, RILL-R044, TYPE_MISMATCH, INVALID_INPUT]
 depends: [type-value, structural-typing, union, tuple, dict, ordered, fn]
@@ -22,7 +22,7 @@ field-arg        = [ annotation ] , field-key , ":" , type-ref , [ "=" , literal
                  | [ annotation ] , type-ref , [ "=" , literal ] ;
 ```
 
-r[defaults.param-form] A parameter default follows the parameter type in an fn type {pending #623}
+r[defaults.param-form] A parameter default follows the parameter type in an fn type
 An `fn` type MUST accept `= literal` after a parameter type, as in `fn(x: number = 3):string { $x -> string }`.
 
 r[defaults.literal] A default is a literal, never an expression
@@ -125,7 +125,7 @@ dict[x: dict[a: 1]] -> dict(x: union(dict(a: number), dict(a: number, b: number 
 # Result: dict[x: dict[a: 1, b: 9]]
 ```
 
-```rill pending=624
+```rill
 fn(x: dict(a: number, b: number = 4)) { $x.b } => $f
 dict[a: 1] -> $f()
 # Result: 4

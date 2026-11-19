@@ -39,7 +39,7 @@ describe('formatDocument', () => {
     });
 
     it('is idempotent: formatting the output of formatDocument is byte-identical', () => {
-      const source = '1 => $a  \n|x| ($x * 2) => $double  \n5 -> $double\n';
+      const source = '1 => $a  \nfn(x) { $x * 2 } => $double  \n5 -> $double\n';
       const parsed = toParseResult(source);
 
       const [firstEdit] = formatDocument(parsed, source);

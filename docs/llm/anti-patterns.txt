@@ -23,7 +23,7 @@ Wrong/Right pairs aimed at TypeScript and Python reflexes. Load when generating 
 
 ## Curly braces (dict literals)
 
-In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict literal. Dicts use `dict[...]`.
+In rill, `{ ... }` is a block (function body, loop body, etc.), not a dict literal. Dicts use `dict[...]`.
 
     Wrong: {name: "alice"}
     Right: dict[name: "alice"]
@@ -83,7 +83,7 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
     Wrong: $x -> "label"                   # RILL-P031: string target ignores the value
     Right: $x -> "label {$}"
 
-    Wrong: 42 -> $zero                     # RILL-R045: zero-parameter closure gets an argument
+    Wrong: 42 -> $zero                     # RILL-R045: zero-parameter function gets an argument
     Right: $zero()
 
 ## Conversion versus assertion
@@ -184,6 +184,50 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
     Wrong: obj["computed-" + key]
     Right: $obj["{$prefix}-{$key}"]        # computed key
 
+## Function literals
+
+The `|params| body` literal is removed (RILL-P012 names the fn form). The body of `fn` is always a block on the same line.
+
+    Wrong: |x| ($x * 2) => $double         # RILL-P012
+    Right: fn(x) { $x * 2 } => $double
+
+    Wrong: || { "hi" } => $hi              # RILL-P012
+    Right: fn() { "hi" } => $hi
+
+    Wrong: fn(x) ($x * 2) => $double       # paren or bare body; the body must be a block
+    Right: fn(x) { $x * 2 } => $double
+
+    Wrong: fn double(x) { $x * 2 }         # no named declaration form
+    Right: fn(x) { $x * 2 } => $double
+
+    Wrong: fn() { $ + 1 } => $inc          # RILL-P029: fn() takes no params, so it cannot read $
+    Right: fn { $ + 1 } => $inc
+
+    Wrong: fn(number = 1) { $ } => $f      # RILL-P028: an unnamed param carries no default
+    Right: fn(n: number = 1) { $n } => $f
+
+    Wrong: fn(x: number, string) { $x } => $f   # RILL-P028: named and unnamed params do not mix
+    Right: fn(x: number, y: string) { $x } => $f
+
+    Wrong: fn(x = "d") { $x } => $f        # a default does not infer the type; x is any
+    Right: fn(x: string = "d") { $x } => $f
+
+## Function types
+
+`fn` is the type of every function. `closure` in a type position is removed (RILL-P012 names fn).
+
+    Wrong: $f -> :closure                  # RILL-P012
+    Right: $f -> :fn
+
+    Wrong: $f -> :|x: string|:string       # RILL-P012
+    Right: $f -> :fn(x: string):string
+
+    Wrong: $fns -> :list(closure)          # RILL-P012
+    Right: $fns -> :list(fn(x: string):bool)
+
+    Wrong: $f -> :fn(x: number)            # exact: a function with a default or a different outer does not match
+    Right: $f -> :fn(x: number = 0):any
+
 ## Function calls vs closures
 
     Wrong: $double(5)                      # if $double is a built-in or host fn
@@ -192,8 +236,8 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
     Wrong: log($x)                         # if log was assigned to $log
     Right: $log($x)                        # script closures need $
 
-    Wrong: |x| ($x * 2) => double          # capture name needs $
-    Right: |x| ($x * 2) => $double
+    Wrong: fn(x) { $x * 2 } => double      # capture name needs $
+    Right: fn(x) { $x * 2 } => $double
 
     Wrong: app::fetch($url)                # removed namespaced call (RILL-P012)
     Right: use<ext:app> => $app

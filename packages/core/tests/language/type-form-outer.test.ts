@@ -67,8 +67,10 @@ describe('Rill Language: Type form outer', () => {
     'accepts an outer in a closure parameter type',
     async () => {
       expect(
-        await run('|s: stream(number):string| ($s) => $f\n$f.^type.signature')
-      ).toBe('|s: stream(number):string| :any');
+        await run(
+          'fn(s: stream(number):string) { $s } => $f\n$f.^type.signature'
+        )
+      ).toBe('fn(s: stream(number):string):any');
     }
   );
 
@@ -176,8 +178,8 @@ describe('Rill Language: Type form outer', () => {
       expect(await run('(stream:number).signature')).toBe('stream(any):number');
       expect(await run('"x" -> :?stream:number')).toBe(false);
       expect(
-        await run('|s: stream:string| { $s } => $f\n$f.^type.signature')
-      ).toBe('|s: stream(any):string| :any');
+        await run('fn(s: stream:string) { $s } => $f\n$f.^type.signature')
+      ).toBe('fn(s: stream(any):string):any');
       expect(
         await run('dict(a: stream:number) == dict(a: stream(any):number)')
       ).toBe(true);

@@ -144,14 +144,14 @@ const BODY_PAIRS: readonly BodyPair[] = [
     variant: 'pass<on_error: #IGNORE> { 2 }',
   },
   {
-    name: 'nested closure param annotation',
-    base: '|^("a") y| { $y }',
-    variant: '|^("b") y| { $y }',
+    name: 'nested fn param annotation',
+    base: 'fn(^("a") y) { $y }',
+    variant: 'fn(^("b") y) { $y }',
   },
   {
-    name: 'nested closure return type',
-    base: '|y| { $y }:string',
-    variant: '|y| { $y }:number',
+    name: 'nested fn return type',
+    base: 'fn(y):string { $y }',
+    variant: 'fn(y):number { $y }',
   },
   {
     name: 'dict variable key',
@@ -167,13 +167,13 @@ const BODY_PAIRS: readonly BodyPair[] = [
 
 function buildScript(first: string, second: string): string {
   return `
-    |x|{ ${first} } => $a
-    |x|{ ${second} } => $b
+    fn(x) { ${first} } => $a
+    fn(x) { ${second} } => $b
     $a == $b
   `;
 }
 
-describe('closure body equality', () => {
+describe('fn body equality', () => {
   describe.each(BODY_PAIRS)('$name', ({ base, variant }) => {
     it('identical bodies compare equal', async () => {
       expect(await run(buildScript(base, base))).toBe(true);

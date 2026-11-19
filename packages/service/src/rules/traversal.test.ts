@@ -243,14 +243,14 @@ describe('traverseForRules / walkAst parity: targeted constructs', () => {
 
   it('ClosureParam with a parameterized :type default', () => {
     const { viaRules, viaCore } = computeParity(
-      '5 -> |x: list(item: string = "a")| ($x)\n'
+      '5 -> fn(x: list(item: string = "a")) { $x }\n'
     );
     expect(viaRules).toEqual(viaCore);
   });
 
   it('Closure returnTypeTarget as a parameterized TypeRef', () => {
     const { viaRules, viaCore } = computeParity(
-      '5 -> |x| ($x) :list(string)\n'
+      '5 -> fn(x):list(string) { $x }\n'
     );
     expect(viaRules).toEqual(viaCore);
   });
@@ -279,13 +279,13 @@ describe('traverseForRules / walkAst parity: targeted constructs', () => {
     expect(viaRules).toEqual(viaCore);
   });
 
-  it('ClosureSigLiteral with a parameter annotation', () => {
+  it('FnType with a parameter annotation', () => {
     const { viaRules, viaCore } = computeParity(
-      '|^("label") x: string| :number\n'
+      'fn(^("label") x: string):number\n'
     );
     expect(viaRules).toEqual(viaCore);
     // The annotation's NamedArg node ("description" -> "label") must be
-    // reachable as a ClosureSigLiteral child, not skipped by either
+    // reachable as an FnType child, not skipped by either
     // traversal.
     const annotationNodes = viaCore.filter(
       (node) => node.type === 'NamedArg' && node.name === 'description'

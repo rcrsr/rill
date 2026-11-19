@@ -76,7 +76,7 @@ $task
     technical: $app.handle_technical,
     general:   $app.handle_general
   ] ?? $app.handle_general
-  -> |handler|{ $handler($task) }
+  -> fn(handler) { $handler($task) }
 ```
 
 Every defensive check in the Python maps to a failure category rill eliminates:
@@ -239,10 +239,10 @@ $items -> seq({ "Processing: {$}" -> log })
 Fan out work concurrently. Results preserve order.
 
 ```rill
-# Parallel fan-out with closure
+# Parallel fan-out with fn
 use<ext:app> => $app
 
-["security", "performance", "style"] -> fan(|aspect| {
+["security", "performance", "style"] -> fan(fn(aspect) {
   $app.prompt("Review for {$aspect} issues")
 })
 ```
@@ -257,7 +257,7 @@ use<ext:app> => $app
 First-class functions with captured environment.
 
 ```rill
-|x| ($x * 2) => $double
+fn(x) { $x * 2 } => $double
 [1, 2, 3] -> fan($double)  # [2, 4, 6]
 5 -> $double               # 10
 ```
@@ -331,7 +331,7 @@ We asked LLMs to review rill. They had opinions.
 | `seq`, `fan`, `filter` | Collection operator callables |
 | `fold(init, body)` | Reduction |
 | `acc(init, body)` | Scan (intermediate accumulator values) |
-| `\|args\| { }` | Closure |
+| `fn(params) { }` | Function |
 
 ## Use Cases
 

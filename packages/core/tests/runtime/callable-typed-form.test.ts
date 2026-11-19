@@ -80,7 +80,9 @@ describe('Rill Runtime: typed-only callable form', () => {
   });
 
   it('binds a spread tuple into chain and returns the transformed value', async () => {
-    const result = await run('|x| ($x * 2) => $f\ntuple[5, $f] -> chain(...)');
+    const result = await run(
+      'fn(x) { $x * 2 } => $f\ntuple[5, $f] -> chain(...)'
+    );
     expect(result).toBe(10);
   });
 
@@ -211,9 +213,9 @@ describe('Rill Runtime: typed-only callable form', () => {
       });
     });
 
-    it('halts when a closure type check reads its params', () => {
+    it('halts when a fn type check reads its params', () => {
       const closureType: TypeStructure = {
-        kind: 'closure',
+        kind: 'fn',
         params: [],
         ret: { kind: 'any' },
       };

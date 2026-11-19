@@ -180,7 +180,7 @@ list[$a, $b]`;
     });
 
     it('interpolates closure call', async () => {
-      const script = `|x| { $x } => $fn
+      const script = `fn(x) { $x } => $fn
 "result: {$fn("test")}"`;
       expect(await run(script)).toBe('result: test');
     });
@@ -260,8 +260,8 @@ list[$s, $t]`;
     });
 
     it('interpolates nested function calls', async () => {
-      const script = `|x| ($x * 2) => $double
-|x| ($x + 1) => $inc
+      const script = `fn(x) { $x * 2 } => $double
+fn(x) { $x + 1 } => $inc
 "result: {$double($inc(5))}"`;
       expect(await run(script)).toBe('result: 12');
     });

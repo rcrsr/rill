@@ -68,7 +68,7 @@ describe('IMPLICIT_DOLLAR_FUNCTION', () => {
 });
 
 describe('IMPLICIT_DOLLAR_CLOSURE', () => {
-  it('fires on a single bare-$ argument to a closure call', () => {
+  it('fires on a single bare-$ argument to a fn call', () => {
     const source = '$myclosure($)\n';
     const parsed = toParseResult(source);
 
@@ -101,7 +101,7 @@ describe('IMPLICIT_DOLLAR_CLOSURE', () => {
 });
 
 describe('shared bareDollarSingleArgDiagnostic display-name construction', () => {
-  it('prefixes the closure name with $ and its access chain', () => {
+  it('prefixes the fn name with $ and its access chain', () => {
     const source = '1 -> $math.double($)\n';
     const parsed = toParseResult(source);
 

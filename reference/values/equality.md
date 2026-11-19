@@ -102,8 +102,8 @@ list[dict[b: 2, a: 1] == dict[a: 1, b: 2], list[1, 2] == list[2, 1]]
 ```
 
 ```rill
-|x| { $x } => $f
-|x| { $x } => $g
+fn(x) { $x } => $f
+fn(x) { $x } => $g
 $f == $g
 # Result: true
 ```

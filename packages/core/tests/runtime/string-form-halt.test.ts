@@ -36,25 +36,25 @@ async function haltFrom(script: string): Promise<RillValue> {
 
 describe('string-form halts', () => {
   it('attributes an interpolation halt to evaluateString', async () => {
-    const signal = await haltFrom('||(1) => $f\n"{$f}"');
+    const signal = await haltFrom('fn() { 1 } => $f\n"{$f}"');
     expect(getStatus(signal).trace[0]?.fn).toBe('evaluateString');
   });
 
   it('attributes a conversion halt to convertType', async () => {
-    const signal = await haltFrom('||(1) => $f\nlist[$f] -> string');
+    const signal = await haltFrom('fn() { 1 } => $f\nlist[$f] -> string');
     expect(getStatus(signal).trace[0]?.fn).toBe('convertType');
   });
 
-  it('logs a list holding a closure without halting', async () => {
+  it('logs a list holding a fn without halting', async () => {
     const logs: string[] = [];
-    await run('||(1) => $f\nlog(list[$f])', {
+    await run('fn() { 1 } => $f\nlog(list[$f])', {
       callbacks: {
         onLog: (m: string) => {
           logs.push(m);
         },
       },
     });
-    expect(logs).toEqual(['list[type(closure)]']);
+    expect(logs).toEqual(['list[type(fn)]']);
   });
 
   it('converts a list holding a stream to its string form', async () => {

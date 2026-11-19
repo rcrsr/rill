@@ -22,30 +22,30 @@ import {
 describe('Rill Runtime: Pipe Targets', () => {
   describe('Invoke Pipe Target (-> $())', () => {
     it('invokes closure pipe value with no args', async () => {
-      expect(await run('|| { "hello" } -> $()')).toBe('hello');
+      expect(await run('fn() { "hello" } -> $()')).toBe('hello');
     });
 
     it('invokes closure pipe value with args', async () => {
-      expect(await run('|x| { $x } -> $("world")')).toBe('world');
+      expect(await run('fn(x) { $x } -> $("world")')).toBe('world');
     });
 
     it('invokes closure variable with pipe-style', async () => {
-      expect(await run('|x| { $x } => $fn\n"test" -> $fn()')).toBe('test');
+      expect(await run('fn(x) { $x } => $fn\n"test" -> $fn()')).toBe('test');
     });
 
     it('invokes zero-param closure from variable', async () => {
-      expect(await run('|| { "result" } => $fn\n$fn -> $()')).toBe('result');
+      expect(await run('fn() { "result" } => $fn\n$fn -> $()')).toBe('result');
     });
 
     it('chains multiple invoke targets', async () => {
-      const script = `|x| { "{$x}!" } => $exclaim
-|x| { $x } => $identity
+      const script = `fn(x) { "{$x}!" } => $exclaim
+fn(x) { $x } => $identity
 "hi" -> $identity() -> $exclaim()`;
       expect(await run(script)).toBe('hi!');
     });
 
     it('invokes with multiple arguments', async () => {
-      const script = `|a, b| { list[$a, $b] } -> $("x", "y")`;
+      const script = `fn(a, b) { list[$a, $b] } -> $("x", "y")`;
       expect(await run(script)).toEqual(['x', 'y']);
     });
 
@@ -89,14 +89,15 @@ describe('Rill Runtime: Pipe Targets', () => {
 
     it('json errors on direct closure serialization', async () => {
       await expectHaltMessage(
-        () => run('|x|{ $x * 2 } -> json'),
+        () => run('fn(x) { $x * 2 } -> json'),
         'closures are not JSON-serializable'
       );
     });
 
     it('json throws on closures in dicts', async () => {
       await expectHaltMessage(
-        () => run('dict[name: "user", age: 30, greet: ||{ "Hello" }] -> json'),
+        () =>
+          run('dict[name: "user", age: 30, greet: fn() { "Hello" }] -> json'),
         'closures are not JSON-serializable'
       );
     });
@@ -104,7 +105,7 @@ describe('Rill Runtime: Pipe Targets', () => {
     it('json throws on closures in lists', async () => {
       // A list of only closures is homogeneous, so list construction succeeds
       // and json reaches the serialization check.
-      await expectHalt(() => run('list[||{ "fn" }] -> json'), {
+      await expectHalt(() => run('list[fn() { "fn" }] -> json'), {
         code: 'INVALID_INPUT',
         messagePattern: 'closures are not JSON-serializable',
       });
@@ -112,7 +113,7 @@ describe('Rill Runtime: Pipe Targets', () => {
 
     it('json throws on nested containers with closures', async () => {
       await expectHalt(
-        () => run('dict[items: list[||{ 0 }], fn: ||{ 0 }] -> json'),
+        () => run('dict[items: list[fn() { 0 }], fn: fn() { 0 }] -> json'),
         {
           code: 'INVALID_INPUT',
           messagePattern: 'closures are not JSON-serializable',
@@ -171,23 +172,23 @@ describe('Rill Runtime: Pipe Targets', () => {
 
   describe('Variable Calls in Pipe (-> $fn())', () => {
     it('calls closure variable with piped value', async () => {
-      expect(await run('|x| { "{$x}!" } => $fn\n"hi" -> $fn()')).toBe('hi!');
+      expect(await run('fn(x) { "{$x}!" } => $fn\n"hi" -> $fn()')).toBe('hi!');
     });
 
     it('calls closure with explicit args', async () => {
-      const script = `|a, b| { list[$a, $b] } => $fn
+      const script = `fn(a, b) { list[$a, $b] } => $fn
 $fn("x", "y")`;
       expect(await run(script)).toEqual(['x', 'y']);
     });
 
     it('calls closure in for loop', async () => {
-      const script = `|x| { ($x * 2) } => $double
+      const script = `fn(x) { ($x * 2) } => $double
 list[1, 2, 3] -> seq({ $double($) })`;
       expect(await run(script)).toEqual([2, 4, 6]);
     });
 
     it('calls closure with explicit args receiving the piped value first', async () => {
-      const script = `|a, b| { "{$a}-{$b}" } => $fn
+      const script = `fn(a, b) { "{$a}-{$b}" } => $fn
 "piped" -> $fn("used")`;
       expect(await run(script)).toBe('piped-used');
     });
@@ -256,46 +257,46 @@ list[$x, $y]`;
 
   describe('Inline Closures as Pipe Targets', () => {
     it('pipes to inline closure with single param', async () => {
-      expect(await run('5 -> |x| { $x + 1 }')).toBe(6);
+      expect(await run('5 -> fn(x) { $x + 1 }')).toBe(6);
     });
 
     it('pipes to inline closure with block body', async () => {
-      expect(await run('"hello" -> |s| { $s -> .upper }')).toBe('HELLO');
+      expect(await run('"hello" -> fn(s) { $s -> .upper }')).toBe('HELLO');
     });
 
     it('pipes to inline closure with default param', async () => {
-      expect(await run('5 -> |a, b = 10| { $a + $b }')).toBe(15);
+      expect(await run('5 -> fn(a, b = 10) { $a + $b }')).toBe(15);
     });
 
     it('chains multiple inline closures', async () => {
-      expect(await run('5 -> |x| { $x * 2 } -> |y| { $y + 1 }')).toBe(11);
+      expect(await run('5 -> fn(x) { $x * 2 } -> fn(y) { $y + 1 }')).toBe(11);
     });
 
     it('pipes to inline closure outside of dict context', async () => {
-      const script = `"test" -> |r| { $r -> .upper }`;
+      const script = `"test" -> fn(r) { $r -> .upper }`;
       expect(await run(script)).toBe('TEST');
     });
 
     it('pipes to inline closure with multiple params uses defaults', async () => {
-      expect(await run('3 -> |a, b = 10| { list[$a, $b] }')).toEqual([3, 10]);
+      expect(await run('3 -> fn(a, b = 10) { list[$a, $b] }')).toEqual([3, 10]);
     });
 
     it('inline closure with type annotations', async () => {
-      expect(await run('42 -> |x: number| { $x * 2 }')).toBe(84);
+      expect(await run('42 -> fn(x: number) { $x * 2 }')).toBe(84);
     });
 
     it('inline closure mixed with method calls', async () => {
-      expect(await run('"hello" -> |s| { $s -> .upper } -> .len')).toBe(5);
+      expect(await run('"hello" -> fn(s) { $s -> .upper } -> .len')).toBe(5);
     });
 
     it('inline closure in each loop', async () => {
       expect(
-        await run('list[1, 2, 3] -> seq({ $ -> |x| { $x * 2 } })')
+        await run('list[1, 2, 3] -> seq({ $ -> fn(x) { $x * 2 } })')
       ).toEqual([2, 4, 6]);
     });
 
     it('inline closure with complex expression body', async () => {
-      const script = `10 -> |n| {
+      const script = `10 -> fn(n) {
   ($n > 5) ? "large" ! "small"
 }`;
       expect(await run(script)).toBe('large');
@@ -303,26 +304,26 @@ list[$x, $y]`;
 
     it('inline closure preserves pipe value semantics', async () => {
       const script = `"test" => $val
-$val -> |x| { $x -> .len }`;
+$val -> fn(x) { $x -> .len }`;
       expect(await run(script)).toBe(4);
     });
 
     it('inline closure with zero params halts on the piped argument', async () => {
-      await expectRuntimeError(() => run('7 -> || { $ * 3 }'), {
+      await expectRuntimeError(() => run('7 -> fn() { 3 }'), {
         code: 'RILL-R045',
         messagePattern: /expects 0 arguments, got 1/,
       });
     });
 
     it('zero-param closure variable as pipe target halts on the piped argument', async () => {
-      await expectRuntimeError(() => run('|| { 1 } => $f\n3 -> $f'), {
+      await expectRuntimeError(() => run('fn() { 1 } => $f\n3 -> $f'), {
         code: 'RILL-R045',
         messagePattern: /expects 0 arguments, got 1/,
       });
     });
 
     it('calling a zero-param closure with an argument halts with the same id', async () => {
-      await expectRuntimeError(() => run('|| { 1 } => $f\n$f(3)'), {
+      await expectRuntimeError(() => run('fn() { 1 } => $f\n$f(3)'), {
         code: 'RILL-R045',
         messagePattern: /expects 0 arguments, got 1/,
       });
@@ -378,13 +379,13 @@ $val -> |x| { $x -> .len }`;
     });
 
     it('returns a callable field un-invoked', async () => {
-      const script = `dict[f: |x| { $x * 2 }] -> $.f => $fn
+      const script = `dict[f: fn(x) { $x * 2 }] -> $.f => $fn
 $fn(3)`;
       expect(await run(script)).toBe(6);
     });
 
     it('returns a callable field that can be invoked with pipe-invoke syntax', async () => {
-      const script = `dict[f: |x| { $x * 2 }] -> $.f -> $(3)`;
+      const script = `dict[f: fn(x) { $x * 2 }] -> $.f -> $(3)`;
       expect(await run(script)).toBe(6);
     });
   });
@@ -395,25 +396,25 @@ $fn(3)`;
 
   describe('Piped Value as First Closure Argument', () => {
     it('prepends the piped value before written arguments', async () => {
-      const script = `|a, b| { list[$a, $b] } => $h
+      const script = `fn(a, b) { list[$a, $b] } => $h
 3 -> $h(4)`;
       expect(await run(script)).toEqual([3, 4]);
     });
 
     it('leaves arguments unchanged when a top-level $ places the value', async () => {
-      const script = `|a, b| { list[$a, $b] } => $h
+      const script = `fn(a, b) { list[$a, $b] } => $h
 3 -> $h($, 4)`;
       expect(await run(script)).toEqual([3, 4]);
     });
 
     it('prepends when $ appears only inside a nested block argument', async () => {
-      const script = `|a, f, c| { list[$a, $c] } => $h
+      const script = `fn(a, f, c) { list[$a, $c] } => $h
 3 -> $h({ $ + 1 }, 5)`;
       expect(await run(script)).toEqual([3, 5]);
     });
 
     it('prepends to a zero-param closure and halts on the excess argument', async () => {
-      const script = `|| { "none" } => $h
+      const script = `fn() { "none" } => $h
 3 -> $h()`;
       await expectRuntimeError(() => run(script), {
         code: 'RILL-R045',
@@ -422,7 +423,7 @@ $fn(3)`;
     });
 
     it('uses only written arguments for a call in primary position', async () => {
-      const script = `|a, b| { list[$a, $b] } => $h
+      const script = `fn(a, b) { list[$a, $b] } => $h
 5 -> { $
 $h(1, 2) }`;
       expect(await run(script)).toEqual([1, 2]);
@@ -734,14 +735,14 @@ $h(1, 2) }`;
 
   describe('Operand placement in a call argument', () => {
     it('prepends the operand when $ sits only in a later pipe target', async () => {
-      const script = `|a, b| { list[$a, $b] } => $f
-|x| { $x * 10 } => $g
+      const script = `fn(a, b) { list[$a, $b] } => $f
+fn(x) { $x * 10 } => $g
 5 -> $f(2 -> $g($))`;
       expect(await run(script)).toEqual([5, 20]);
     });
 
     it('does not prepend when $ sits in a conditional branch', async () => {
-      const script = `|a| { $a } => $f
+      const script = `fn(a) { $a } => $f
 5 -> $f(true ? { $ } ! { 0 })`;
       expect(await run(script)).toBe(5);
     });

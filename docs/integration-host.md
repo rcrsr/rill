@@ -16,7 +16,7 @@ const ast = parse(source);
 const ctx = createRuntimeContext({
   functions: {
     prompt: {
-      signature: '|text: string|:any',
+      signature: 'fn(text: string):any',
       fn: async (args) => {
         return await callYourLLM(args.text);
       },
@@ -62,7 +62,7 @@ Host functions must follow these rules to ensure correct script behavior:
 // WRONG: Mutates input array
 functions: {
   addItem: {
-    signature: '|list: list|:any',
+    signature: 'fn(list: list):any',
     fn: (args) => {
       const list = args.list as unknown[];
       list.push('new');  // DON'T DO THIS
@@ -74,7 +74,7 @@ functions: {
 // CORRECT: Return new value
 functions: {
   addItem: {
-    signature: '|list: list|:any',
+    signature: 'fn(list: list):any',
     fn: (args) => {
       const list = args.list as unknown[];
       return [...list, 'new'];  // Create new array
@@ -92,7 +92,7 @@ import { deepFreeze } from './utils'; // Your utility
 
 functions: {
   process: {
-    signature: '|input: string|:any',
+    signature: 'fn(input: string):any',
     fn: (args) => {
       const frozen = deepFreeze(args.input);
       return transform(frozen);  // Any mutation throws
@@ -134,13 +134,13 @@ const ctx = createRuntimeContext({
   functions: {
     // Sync function
     add: {
-      signature: '|a: number, b: number|:any',
+      signature: 'fn(a: number, b: number):any',
       fn: (args) => args.a + args.b,
     },
 
     // Async function
     fetch: {
-      signature: '|url: string|:any',
+      signature: 'fn(url: string):any',
       fn: async (args, ctx, location) => {
         const response = await fetch(args.url);
         return await response.text();
@@ -149,7 +149,7 @@ const ctx = createRuntimeContext({
 
     // Function with context access
     getVar: {
-      signature: '|name: string|:any',
+      signature: 'fn(name: string):any',
       fn: (args, ctx) => {
         return ctx.variables.get(args.name) ?? null;
       },
@@ -157,7 +157,7 @@ const ctx = createRuntimeContext({
 
     // Function with location for error reporting
     validate: {
-      signature: '|value: string|:any',
+      signature: 'fn(value: string):any',
       fn: (args, ctx, location) => {
         if (!args.value) {
           throw new Error(`Validation failed at line ${location?.line}`);
@@ -183,21 +183,21 @@ const ctx = createRuntimeContext({
       ext: {
         math: {
           add: toCallable({
-            signature: '|a: number, b: number|:any',
+            signature: 'fn(a: number, b: number):any',
             fn: (args) => args.a + args.b,
           }),
           multiply: toCallable({
-            signature: '|a: number, b: number|:any',
+            signature: 'fn(a: number, b: number):any',
             fn: (args) => args.a * args.b,
           }),
         },
         str: {
           upper: toCallable({
-            signature: '|text: string|:any',
+            signature: 'fn(text: string):any',
             fn: (args) => args.text.toUpperCase(),
           }),
           lower: toCallable({
-            signature: '|text: string|:any',
+            signature: 'fn(text: string):any',
             fn: (args) => args.text.toLowerCase(),
           }),
         },
@@ -205,11 +205,11 @@ const ctx = createRuntimeContext({
         io: {
           file: {
             read: toCallable({
-              signature: '|path: string|:any',
+              signature: 'fn(path: string):any',
               fn: async (args) => fs.readFile(args.path, 'utf-8'),
             }),
             write: toCallable({
-              signature: '|path: string, content: string|:any',
+              signature: 'fn(path: string, content: string):any',
               fn: async (args) => fs.writeFile(args.path, args.content),
             }),
           },
@@ -294,7 +294,7 @@ Read metadata in a host function:
 ```typescript
 functions: {
   trace: {
-    signature: '|msg: string|:any',
+    signature: 'fn(msg: string):any',
     fn: (args, ctx) => {
       const correlationId = ctx.metadata?.correlationId ?? 'unknown';
       console.log(`[${correlationId}] ${args.msg}`);
@@ -449,7 +449,7 @@ Declare parameter types in the `signature` string. Each parameter takes a name, 
 const ctx = createRuntimeContext({
   functions: {
     repeat: {
-      signature: '|str: string, count: number = 1|:any',
+      signature: 'fn(str: string, count: number = 1):any',
       fn: (args) => {
         // args.str guaranteed to be string
         // args.count guaranteed to be number (or default)
@@ -504,7 +504,7 @@ Common leaf types:
 | `{ kind: 'dict' }` | Any dict |
 | `{ kind: 'any' }` or `undefined` | Any type (no validation) |
 
-See [Type System](topic-type-system.md) for the full `TypeStructure` discriminated union, including `closure`, `tuple`, `ordered`, and `union` variants.
+See [Type System](topic-type-system.md) for the full `TypeStructure` discriminated union, including `fn`, `tuple`, `ordered`, and `union` variants.
 
 ### Default Values
 
@@ -513,7 +513,7 @@ Parameters with default values are optional. The default applies when the argume
 ```typescript
 functions: {
   greet: {
-    signature: '|name: string, greeting: string = "Hello"|:any',
+    signature: 'fn(name: string, greeting: string = "Hello"):any',
     fn: (args) => `${args.greeting}, ${args.name}!`,
   },
 }
@@ -615,7 +615,7 @@ const ctx = createRuntimeContext({
   requireDescriptions: true,
   functions: {
     greet: {
-      signature: '|^(description: "Person to greet") name: string|:string',
+      signature: 'fn(^(description: "Person to greet") name: string):string',
       description: 'Generate a greeting message',
       fn: (args) => `Hello, ${args.name}!`,
     },
@@ -629,7 +629,7 @@ Missing descriptions throw clear errors:
 
 ## Manifest Generation
 
-`generateManifest(ctx)` returns a valid rill file string: a dict literal of closure type signatures for all registered functions. The dict is the last expression and becomes the script's result value.
+`generateManifest(ctx)` returns a valid rill file string: a dict literal of fn type signatures for all registered functions. The dict is the last expression and becomes the script's result value.
 
 ```typescript
 import { generateManifest } from '@rcrsr/rill';
@@ -642,8 +642,8 @@ Example output for a context with `greet` and `repeat` functions:
 
 ```text
 [
-  "greet": |name: string|:string,
-  "repeat": |count: number = 3, text: string|:string
+  "greet": fn(name: string):string,
+  "repeat": fn(count: number, text: string):string
 ]
 ```
 
@@ -668,7 +668,7 @@ import {
 
 // Create a callable with a declared parameter
 const greet = toCallable({
-  signature: '|name: string|:any',
+  signature: 'fn(name: string):any',
   fn: (args) => `Hello, ${args.name}!`,
 });
 
@@ -727,7 +727,7 @@ const ctx = createRuntimeContext({
   variables: {
     math: {
       add: toCallable({
-        signature: '|a: number, b: number|:any',
+        signature: 'fn(a: number, b: number):any',
         fn: (args) => Number(args.a) + Number(args.b),
       }),
     },
@@ -779,7 +779,7 @@ const ctx = createRuntimeContext({
   signal: controller.signal,
   functions: {
     longTask: {
-      signature: '||:any',
+      signature: 'fn():any',
       fn: async () => {
         await new Promise((r) => setTimeout(r, 10000));
         return 'done';
@@ -841,7 +841,7 @@ Host functions receive a `ctx.signal` (`AbortSignal | undefined`). Cooperative c
 ```typescript
 functions: {
   fetchData: {
-    signature: '|url: string|:any',
+    signature: 'fn(url: string):any',
     fn: async (args, ctx) => {
       const response = await fetch(args.url as string, {
         signal: ctx.signal,  // propagate abort to the fetch
@@ -1021,7 +1021,7 @@ const ctx = createRuntimeContext({
   timeout: 30000, // 30 seconds per call
   functions: {
     slowOperation: {
-      signature: '||:any',
+      signature: 'fn():any',
       fn: async () => {
         // Halts with catchable RILL-R012 if this call exceeds 30s
         await longRunningTask();
@@ -1051,7 +1051,7 @@ const ctx = createRuntimeContext({
   ],
   functions: {
     process: {
-      signature: '|input: string|:any',
+      signature: 'fn(input: string):any',
       fn: (args) => {
         // If this returns "error: invalid input",
         // execution halts with a non-catchable RuntimeHaltSignal (atom #R999)

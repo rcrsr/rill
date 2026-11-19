@@ -354,7 +354,7 @@ describe('Dict Field Annotations', () => {
   describe('AC-9: closure .^type forwards annotations through paramToFieldDef', () => {
     it('closure .^type params reflects description annotation on parameter', async () => {
       const result = await run(
-        '|^("label") x: string|{ $x } => $fn\n$fn.^type'
+        'fn(^("label") x: string) { $x } => $fn\n$fn.^type'
       );
       const shape = result as {
         __rill_type: true;
@@ -369,7 +369,7 @@ describe('Dict Field Annotations', () => {
         };
       };
       expect(shape.__rill_type).toBe(true);
-      expect(shape.structure.kind).toBe('closure');
+      expect(shape.structure.kind).toBe('fn');
       expect(shape.structure.params).toHaveLength(1);
       expect(shape.structure.params[0]!.name).toBe('x');
       expect(shape.structure.params[0]!.type).toEqual({ kind: 'string' });
@@ -380,7 +380,7 @@ describe('Dict Field Annotations', () => {
 
     it('closure .^type params reflects multi-key annotations on parameter', async () => {
       const result = await run(
-        '|^(description: "name", min: 1) x: string|{ $x } => $fn\n$fn.^type'
+        'fn(^(description: "name", min: 1) x: string) { $x } => $fn\n$fn.^type'
       );
       const shape = result as {
         __rill_type: true;
@@ -401,7 +401,7 @@ describe('Dict Field Annotations', () => {
     });
 
     it('closure .^type params omits annotations for unannotated parameters', async () => {
-      const result = await run('|x: number|{ $x } => $fn\n$fn.^type');
+      const result = await run('fn(x: number) { $x } => $fn\n$fn.^type');
       const shape = result as {
         __rill_type: true;
         typeName: string;
@@ -420,7 +420,7 @@ describe('Dict Field Annotations', () => {
 
     it('closure .^type params forwards annotations on multiple parameters', async () => {
       const result = await run(
-        '|^("first") a: string, ^("second") b: number|{ $a } => $fn\n$fn.^type'
+        'fn(^("first") a: string, ^("second") b: number) { $a } => $fn\n$fn.^type'
       );
       const shape = result as {
         __rill_type: true;

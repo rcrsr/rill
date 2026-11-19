@@ -59,7 +59,7 @@ export type NodeType =
   | 'Error'
   | 'TypeNameExpr'
   | 'TypeConstructor'
-  | 'ClosureSigLiteral'
+  | 'FnType'
   | 'ListLiteral'
   | 'DictLiteral'
   | 'TupleLiteral'

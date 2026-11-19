@@ -14,7 +14,7 @@ describe('annotation own-key lookup', () => {
   it.each(['nope', 'constructor', '__proto__', 'toString', 'hasOwnProperty'])(
     'halts with the missing-annotation halt for ^%s',
     async (key) => {
-      await expectHalt(() => run(`|x|($x) => $f\n$f.^${key}`), {
+      await expectHalt(() => run(`fn(x) { $x } => $f\n$f.^${key}`), {
         code: 'RILL_R008',
         messagePattern: `Annotation '${key}' not found`,
       });
@@ -24,7 +24,9 @@ describe('annotation own-key lookup', () => {
   it.each(['constructor', '__proto__'])(
     'reads an own annotation key named %s',
     async (key) => {
-      expect(await run(`^(${key}: "x") |x|($x) => $f\n$f.^${key}`)).toBe('x');
+      expect(await run(`^(${key}: "x") fn(x) { $x } => $f\n$f.^${key}`)).toBe(
+        'x'
+      );
     }
   );
 });

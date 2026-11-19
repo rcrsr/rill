@@ -134,7 +134,7 @@ describe('EC-8: RuntimeHaltSignal trace-frame enrichment', () => {
     // The signal originates in thrower (site 1), then crosses the
     // script-callable boundary (site 2), gaining another trace frame.
     const signal = await catchHaltSignal(() =>
-      run('|| { thrower() } => $fn\n$fn()', {
+      run('fn() { thrower() } => $fn\n$fn()', {
         functions: { thrower: makeThrowingHostFn() },
       })
     );
@@ -146,7 +146,7 @@ describe('EC-8: RuntimeHaltSignal trace-frame enrichment', () => {
 
   it('site 2: catchable flag is preserved after enrichment', async () => {
     const signal = await catchHaltSignal(() =>
-      run('|| { thrower() } => $fn\n$fn()', {
+      run('fn() { thrower() } => $fn\n$fn()', {
         functions: { thrower: makeThrowingHostFn() },
       })
     );
@@ -426,7 +426,7 @@ describe('AC-NOD-4: isExtensionThrow tag on enriched signals', () => {
     // The closure calls thrower(). Site 2 enrichment constructs a new signal
     // and calls markExtensionThrow on it (the AC-NOD-4 fix being tested).
     const signal = await catchHaltSignal(() =>
-      run('|| { thrower() } => $fn\n$fn()', {
+      run('fn() { thrower() } => $fn\n$fn()', {
         functions: { thrower: makeThrowingHostFn() },
       })
     );

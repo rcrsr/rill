@@ -9,15 +9,16 @@
  * - evaluateTypeAssertionCarried(node, input) -> Promise<Carried>
  * - evaluateTypeCheck(node, value) -> Promise<boolean>
  * - evaluateTypeConstructor(node) -> Promise<RillTypeValue>
- * - evaluateClosureSigLiteral(node) -> Promise<RillTypeValue>
+ * - evaluateFnType(s, node) -> Promise<RillTypeValue>
  * - resolveTypeRef(typeRef, getVariable) -> Promise<RillTypeValue>
- * - buildCollectionType(name, args, resolveArg, evaluateDefault, location?) -> Promise<RillTypeValue>
+ * - buildCollectionType(name, args, resolveArg, evaluateDefault, location?, fnParams?) -> Promise<RillTypeValue>
  *
  * Error Handling:
  * - Type assertion failures halt with #TYPE_MISMATCH
  * - Type constructor argument errors halt via the halt builders (#INVALID_INPUT,
  *   #TYPE_MISMATCH, or RILL-R002 for reserved brand keys)
- * - Closure sig literal errors halt via the halt builders
+ * - fn type errors halt via the halt builders (a default that does not match
+ *   its declared type halts with #TYPE_MISMATCH)
  *
  * @internal
  */
@@ -26,13 +27,15 @@ import type {
   TypeAssertionNode,
   TypeCheckNode,
   TypeConstructorNode,
-  ClosureSigLiteralNode,
+  ClosureParamNode,
+  FnTypeNode,
   LiteralNode,
   RillTypeName,
   SourceLocation,
   TypeRef,
   FieldArg,
 } from '../../../../types.js';
+import { isUnnamedParam } from '../../../../types.js';
 import type {
   RillValue,
   RillTypeValue,
@@ -71,12 +74,7 @@ import { declarationOf, type Carried } from '../../types/declared.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { evaluateAnnotations } from './annotations.js';
-import { evaluateAnnotations as evaluateAnnotationArgs } from './literals.js';
-import {
-  evaluatePrimary,
-  evaluatePostfixExpr,
-  evaluateExpression,
-} from './core.js';
+import { evaluatePrimary } from './core.js';
 
 type CollectionTypeName = 'list' | 'dict' | 'tuple' | 'ordered';
 
@@ -128,7 +126,8 @@ async function buildCollectionType(
   args: FieldArg[],
   resolveArg: (arg: FieldArg) => Promise<TypeStructure>,
   evaluateDefault: (node: LiteralNode) => Promise<RillValue>,
-  location?: SourceLocation
+  location?: SourceLocation,
+  fnParams = false
 ): Promise<RillTypeValue> {
   if (name === 'list') {
     // list requires exactly 1 positional arg
@@ -165,7 +164,8 @@ async function buildCollectionType(
       }
     }
 
-    for (const { name: argName } of named) {
+    // fn params bind variables, not value keys, so a brand key is harmless.
+    for (const { name: argName } of fnParams ? [] : named) {
       if (isReservedBrandKey(argName)) {
         throwCatchableHostHalt(
           { location, sourceId: s.ctx.sourceId, fn: name },
@@ -284,8 +284,8 @@ async function buildCollectionType(
         const defaultVal = await evaluateDefault(arg.defaultValue);
         requireDefaultMatch(
           s,
-          'ordered',
-          `field '${arg.name}'`,
+          fnParams ? 'fn' : 'ordered',
+          fnParams ? `parameter '${argName}'` : `field '${arg.name}'`,
           defaultVal,
           resolvedType,
           location
@@ -518,6 +518,10 @@ export async function resolveTypeRef(
     );
   }
 
+  if (typeRef.kind === 'fn') {
+    return resolveFnType(s, typeRef, getVariableFn, location);
+  }
+
   // Literal refs exist only as members of a union; reaching one here means
   // the parser produced a tree the resolver cannot interpret.
   if (typeRef.kind === 'literal') {
@@ -582,7 +586,7 @@ export async function resolveTypeRef(
  * Determine whether a TypeStructure carries sub-fields that require
  * deep structural matching (via structureMatches) rather than a bare
  * type-name comparison. Covers collection shapes (element, fields,
- * elements, members, valueType) as well as closure shapes (params, ret)
+ * elements, members, valueType) as well as fn shapes (params, ret)
  * and stream shapes (chunk, ret).
  */
 function hasStructuralSubFields(structure: TypeStructure): boolean {
@@ -763,89 +767,95 @@ export async function evaluateTypeConstructor(
   );
 }
 
+/** The `any` type reference an untyped fn param resolves through. */
+const ANY_TYPE_REF: TypeRef = { kind: 'static', typeName: 'any' };
+
 /**
- * Evaluate a closure signature literal into a RillTypeValue.
- *
- * Creates a closure type value from |param: T, ...|: R syntax.
- * Each parameter produces a [name, TypeStructure] entry.
- *
- * Error contracts:
- * - missing return type -> TYPE_MISMATCH (enforced at parse time; node always has returnType)
- * - non-type in parameter position -> TYPE_MISMATCH
+ * Resolve an fn type reference. Named params build an ordered, unnamed params
+ * a tuple, both through buildCollectionType, so defaults, annotations and
+ * default-versus-type checks match every other parameterized type. An omitted
+ * outer is `any` whenever params are written.
  */
-export async function evaluateClosureSigLiteral(
+async function resolveFnType(
   s: EvalState,
-  node: ClosureSigLiteralNode
+  typeRef: Extract<TypeRef, { kind: 'fn' }>,
+  getVariableFn: (name: string) => RillValue | undefined,
+  location: SourceLocation | undefined
 ): Promise<RillTypeValue> {
-  const location = node.span.start;
-
-  // Helper: evaluate a type expression and extract TypeStructure
-  // oxlint-disable-next-line require-await -- throwTypeHalt raises synchronously; the async boundary turns it into a rejection
-  const resolveTypeExpr = async (argVal: RillValue): Promise<TypeStructure> => {
-    if (!isTypeValue(argVal)) {
-      throwTypeHalt(
-        {
-          location,
-          sourceId: s.ctx.sourceId,
-          fn: 'closure-sig',
-        },
-        'TYPE_MISMATCH',
-        `Parameter type must be a type value, got ${inferType(argVal)}`,
-        'runtime',
-        { actualType: inferType(argVal) }
-      );
-    }
-    return argVal.structure.kind === 'any' &&
-      argVal.typeName !== ('any' as RillTypeName)
-      ? { kind: argVal.typeName }
-      : argVal.structure;
+  const resolveRef = async (ref: TypeRef): Promise<TypeStructure> => {
+    const resolved = await resolveTypeRef(s, ref, getVariableFn);
+    return resolved.structure.kind === 'any' &&
+      resolved.typeName !== ('any' as RillTypeName)
+      ? { kind: resolved.typeName }
+      : resolved.structure;
   };
+  const outer =
+    typeRef.outer === undefined ? undefined : await resolveRef(typeRef.outer);
 
-  // Evaluate parameter types
-  const params: RillFieldDef[] = [];
-  for (const param of node.params) {
-    const paramVal: RillValue = await evaluateExpression(s, param.typeExpr);
-    const paramType = await resolveTypeExpr(paramVal);
-    const paramAnnotations = param.annotations;
-    if (paramAnnotations !== undefined && paramAnnotations.length > 0) {
-      const annotations = await evaluateAnnotationArgs(
-        paramAnnotations,
-        (expr) => evaluateExpression(s, expr),
-        s.ctx.sourceId
-      );
-      params.push({ name: param.name, type: paramType, annotations });
-    } else {
-      params.push({ name: param.name, type: paramType });
-    }
+  if (typeRef.params === undefined) {
+    const bare: TypeStructure =
+      outer === undefined ? { kind: 'fn' } : { kind: 'fn', ret: outer };
+    return structureToTypeValue(bare);
   }
 
-  // Evaluate return type (required -- parser enforces this at parse time)
-  // returnType is PostfixExprNode (stops before pipe operators) so the
-  // return type annotation cannot accidentally consume a trailing pipe chain.
-  const retVal: RillValue = await evaluatePostfixExpr(s, node.returnType);
-  if (!isTypeValue(retVal)) {
-    throwTypeHalt(
-      {
-        location,
-        sourceId: s.ctx.sourceId,
-        fn: 'closure-sig',
-      },
-      'TYPE_MISMATCH',
-      `Closure type literal requires return type after |, got ${inferType(retVal)}`,
-      'runtime',
-      { actualType: inferType(retVal) }
-    );
-  }
-  const ret: TypeStructure =
-    retVal.structure.kind === 'any' &&
-    retVal.typeName !== ('any' as RillTypeName)
-      ? { kind: retVal.typeName }
-      : retVal.structure;
-
-  const structure: TypeStructure = { kind: 'closure', params, ret };
-  return Object.freeze({
-    __rill_type: true as const,
-    typeName: 'closure',
-    structure,
+  const params = await buildFnParams(
+    s,
+    typeRef.params,
+    resolveRef,
+    (node: LiteralNode): Promise<RillValue> => evaluatePrimary(s, node),
+    location
+  );
+  return structureToTypeValue({
+    kind: 'fn',
+    params,
+    ret: outer ?? { kind: 'any' },
   });
+}
+
+/** Build the field definitions of an fn param list. */
+async function buildFnParams(
+  s: EvalState,
+  params: readonly ClosureParamNode[],
+  resolveRef: (ref: TypeRef) => Promise<TypeStructure>,
+  evaluateDefault: (node: LiteralNode) => Promise<RillValue>,
+  location: SourceLocation | undefined
+): Promise<RillFieldDef[]> {
+  if (params.length === 0) return [];
+  const unnamed = params.every(isUnnamedParam);
+  const args: FieldArg[] = params.map((param) => {
+    const arg: FieldArg = { value: param.typeRef ?? ANY_TYPE_REF };
+    if (!unnamed) arg.name = param.name;
+    if (param.defaultValue !== null) arg.defaultValue = param.defaultValue;
+    if (param.annotations !== undefined) arg.annotations = param.annotations;
+    return arg;
+  });
+  const built = await buildCollectionType(
+    s,
+    unnamed ? 'tuple' : 'ordered',
+    args,
+    (arg) => resolveRef(arg.value),
+    evaluateDefault,
+    location,
+    true
+  );
+  const structure = built.structure;
+  if (isStructureKind(structure, 'tuple')) return structure.elements ?? [];
+  if (isStructureKind(structure, 'ordered')) return structure.fields ?? [];
+  return [];
+}
+
+/**
+ * Evaluate an fn type expression (`fn`, `fn()`, `fn(x: number):string`) into
+ * a RillTypeValue.
+ */
+export function evaluateFnType(
+  s: EvalState,
+  node: FnTypeNode
+): Promise<RillTypeValue> {
+  return resolveTypeRef(
+    s,
+    node.typeRef,
+    (name) => getVariable(s.ctx, name),
+    node.span.start
+  );
 }

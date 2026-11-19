@@ -37,9 +37,9 @@ describe('Rill Runtime: Call Stack Integration', () => {
       expect(result).toBe('ok');
     });
 
-    it('pushes frame before closure invocation', async () => {
+    it('pushes frame before fn invocation', async () => {
       let capturedStack: CallFrame[] = [];
-      await run('|x|{ capture() }(42)', {
+      await run('fn(x) { capture() }(42)', {
         functions: {
           capture: {
             returnType: anyTypeValue,
@@ -115,9 +115,9 @@ describe('Rill Runtime: Call Stack Integration', () => {
       expect(ctx!.callStack).toHaveLength(0);
     });
 
-    it('pops frame after closure returns', async () => {
+    it('pops frame after fn returns', async () => {
       let ctx: RuntimeContext | undefined;
-      await run('|x|{ capture() }(5)', {
+      await run('fn(x) { capture() }(5)', {
         functions: {
           capture: {
             returnType: anyTypeValue,
@@ -249,9 +249,9 @@ describe('Rill Runtime: Call Stack Integration', () => {
       expect(depth3).toBe(1);
     });
 
-    it('maintains correct order in nested closure calls', async () => {
+    it('maintains correct order in nested fn calls', async () => {
       let capturedStack: CallFrame[] = [];
-      await run('||{ ||{ capture() }() }()', {
+      await run('fn() { fn() { capture() }() }()', {
         functions: {
           capture: {
             returnType: anyTypeValue,
@@ -274,7 +274,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
   describe('method calls', () => {
     it('pushes frame for dict-bound callable', async () => {
       let capturedStack: CallFrame[] = [];
-      await run('dict[fn: |x|{ capture($x) }].fn(42)', {
+      await run('dict[fn: fn(x) { capture($x) }].fn(42)', {
         functions: {
           capture: {
             returnType: anyTypeValue,

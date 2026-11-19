@@ -93,28 +93,28 @@ describe('take/skip head-step counting on host streams (#274)', () => {
 });
 
 describe('take/skip on stream closures (#274)', () => {
-  it('take(2) on a :stream(number) closure yields the first two chunks', async () => {
+  it('take(2) on a :stream(number) fn yields the first two chunks', async () => {
     const result = await run(
       `
-        || {
+        fn():stream(number) {
           1 -> yield
           2 -> yield
           3 -> yield
-        } :stream(number) => $gen
+        } => $gen
         $gen() -> take(2)
       `
     );
     expect(result).toEqual([1, 2]);
   });
 
-  it('skip(1) on a :stream(number) closure drops the first chunk', async () => {
+  it('skip(1) on a :stream(number) fn drops the first chunk', async () => {
     const result = await run(
       `
-        || {
+        fn():stream(number) {
           1 -> yield
           2 -> yield
           3 -> yield
-        } :stream(number) => $gen
+        } => $gen
         $gen() -> skip(1)
       `
     );

@@ -45,9 +45,10 @@ $lt.^type.name
 | `dict(k: T, ...)` | `dict(a: number, b: string)` | Dict type (fields alpha-sorted in output) |
 | `tuple(T, T2, ...)` | `tuple(number, string)` | Positional tuple type |
 | `ordered(k: T, ...)` | `ordered(a: number, b: string)` | Named ordered type |
-| `\|p: T\| :R` | `\|x: number\| :string` | Closure signature type |
-| `\|\|:R` | `\|\|:string` | Closure signature type, zero params |
-| `\|^(...) p: T\|:R` | `\|^("label") x: string\|:int` | Closure signature type, annotated param |
+| `fn(p: T):R` | `fn(x: number):string` | Function type, named param |
+| `fn():R` | `fn():string` | Function type, zero params |
+| `fn(T, U):R` | `fn(number, string):bool` | Function type, unnamed params (bound as `$` and `$@`) |
+| `fn(^(...) p: T):R` | `fn(^("label") x: string):int` | Function type, annotated param |
 | `stream(T):R` | `stream(string):number` | Stream type with chunk type T and resolution type R |
 
 ### Default Values in Type Constructors
@@ -103,20 +104,20 @@ dict[] -> dict(a: dict(x: number = 1, y: number = 2) = [x: 10])
 
 The explicit default `[x: 10]` omits `y`. The runtime fills `y` with `2` from the nested type constructor.
 
-#### Defaults in Closure Parameter Annotations
+#### Defaults in Function Parameter Annotations
 
-Type constructor defaults also work in closure parameter type annotations. When the caller passes an incomplete value, the runtime fills in missing fields from the annotation defaults.
+Type constructor defaults also work in function parameter type annotations. When the caller passes an incomplete value, the runtime fills in missing fields from the annotation defaults.
 
 ```rill
-|a: dict(b: number = 5)| { $a.b } => $fn
+fn(a: dict(b: number = 5)) { $a.b } => $fn
 $fn(dict[])
 # Result: 5
 ```
 
-The closure expects a dict with field `b` defaulting to `5`. Calling with an empty dict causes the runtime to fill `b` from the annotation default.
+The function expects a dict with field `b` defaulting to `5`. Calling with an empty dict causes the runtime to fill `b` from the annotation default.
 
 ```rill
-|a: tuple(number = 0, string = "")| { $a } => $fn
+fn(a: tuple(number = 0, string = "")) { $a } => $fn
 $fn(tuple[])
 # Result: tuple[0, ""]
 ```
@@ -219,14 +220,14 @@ The string representation of structural types follows this format:
 | Dict | `"dict(a: number, b: string)"` (fields alphabetically sorted; a key not spelled as an identifier or reserved word, and `true`/`false`, is quoted, as in `"dict(\"a b\": number)"`) |
 | Tuple | `"tuple(number, string, bool)"` (positional) |
 | Ordered | `"ordered(a: number, b: string)"` (named, order-sensitive) |
-| Closure | `"\|x: number\| :string"` (pipe-delimited params with colon-return) |
+| Function | `"fn(x: number):string"` (named params with colon-return) |
 | Stream | `"stream(string):number"` (chunk type and resolution type) |
 | Unspecified container | `"list"`, `"dict"`, `"tuple"`, `"ordered"`, `"stream"`: `list[].^type` and `list(any)` both print `"list"` |
 | Bare list (no element type) | `"list"` |
 | Bare dict (no fields) | `"dict"` |
 | Bare tuple (no elements) | `"tuple"` |
 | Bare ordered (no fields) | `"ordered"` |
-| Bare closure (no params) | `"closure"` |
+| Bare function | `"fn"` |
 
 ### Stream Reflection
 
@@ -241,10 +242,10 @@ list[$t.inner, $t.outer]
 A script stream value reports its declared chunk and resolution types:
 
 ```rill
-|input: string| {
+fn(input: string):stream(string):number {
   yield $input
   return 3
-}:stream(string):number => $producer
+} => $producer
 $producer("x") => $s
 list[$s.^type.inner, $s.^type.outer]
 # Result: list[string, number]
@@ -404,27 +405,27 @@ Type checks work in conditionals:
 $val -> :?list ? process() ! skip()   # branch on type
 ```
 
-**Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `stream`, `any`, `type`
+**Supported types:** `string`, `number`, `bool`, `fn`, `list`, `dict`, `ordered`, `tuple`, `vector`, `stream`, `any`, `type`
 
 Parameterized forms accept a type argument list: `list(string)`, `dict(a: number, b: string)`, `tuple(number, string)`. The runtime deep-validates element types on match.
 
-The `vector` type matches host-provided typed arrays. The `any` type name accepts any value type — useful for generic closures. The `ordered` type matches containers produced by `*dict` spread.
+The `vector` type matches host-provided typed arrays. The `any` type name accepts any value type — useful for generic functions. The `ordered` type matches containers produced by `*dict` spread.
 
-Both types are valid in closure parameter positions, capture type assertions, and type assertions:
+Both types are valid in function parameter positions, capture type assertions, and type assertions:
 
 ```text
 use<ext:app> => $app
 
-# Closure parameter with vector type annotation
-|x: vector| { $x } => $fn
+# Function parameter with vector type annotation
+fn(x: vector) { $x } => $fn
 $app.embed("hello") => $v
 $fn($v) -> .model
 # Result: "mock-embed"
 ```
 
 ```rill
-# Closure parameter with any type annotation
-|x: any| { $x } => $fn
+# Function parameter with any type annotation
+fn(x: any) { $x } => $fn
 $fn("hello")
 # Result: "hello"
 ```
@@ -512,13 +513,13 @@ Attempting to convert a non-stream value to a stream with `-> stream` halts exec
 
 ```rill
 # Validate function input
-|data| {
+fn(data) {
   $data -> :list              # assert input is list
   $data -> seq({ $ * 2 })
 } => $process_items
 
 # Type-safe branching
-|val| {
+fn(val) {
   $val -> :?number ? ($val * 2) ! ($val -> .len)
 } => $process
 $process(5)        # 10
@@ -527,45 +528,48 @@ $process("hello")  # 5
 
 ### Defaults in Type Expressions
 
-Closure parameters accept an optional `= literal` default in the annotation position:
+Function parameters accept an optional `= literal` default in the annotation position:
 
 ```text
-|name: type = literal| body
+fn(name: type = literal) { body }
 ```
 
-This default participates in structural type matching via `:?`. The rule is one-directional:
+A default is part of the function type. `:?` compares function types exactly: parameter names, parameter types, defaults, and the outer type must all be equal. A function with an extra defaulted parameter, or with a default the type omits, does not match.
 
 | Value param has default | Type param has default | `:?` result |
 |------------------------|----------------------|-------------|
-| Yes | No | `true` (superset satisfies) |
-| No | Yes | `false` (missing contract) |
+| Yes | No | `false` (default not in the type) |
+| No | Yes | `false` (default missing from the value) |
 | Yes | Yes | `true` if defaults are equal |
 | No | No | `true` |
 
-A closure with defaults satisfies a type annotation without defaults, because the value provides more than the annotation requires. A closure without defaults fails an annotation that requires defaults, because it cannot fulfil the contract.
-
 ```rill
-# A closure type without defaults (the annotation contract)
-|x: string, y: number|{ $x } => $ref
+fn(x: string, y: number) { $x } => $ref
 $ref.^type => $refType
 
-# A closure WITH defaults satisfies the annotation WITHOUT defaults
-|x: string = "a", y: number = 0|{ $x } => $fn
-$fn -> :?$refType
-# Result: true
-```
-
-The reverse fails: a closure without defaults does not satisfy an annotation that declares defaults.
-
-```text
-# A closure type WITH defaults (requires caller-omittable params)
-|x: string = "a", y: number = 0|{ $x } => $ref
-$ref.^type => $refType
-
-# A closure WITHOUT defaults fails the annotation WITH defaults
-|x: string, y: number|{ $x } => $fn
+# A function WITH defaults does not match the type WITHOUT defaults
+fn(x: string = "a", y: number = 0) { $x } => $fn
 $fn -> :?$refType
 # Result: false
+```
+
+A function without defaults does not match a type that declares them either.
+
+```rill
+fn(x: string = "a", y: number = 0) { $x } => $ref
+$ref.^type => $refType
+
+fn(x: string, y: number) { $x } => $fn
+$fn -> :?$refType
+# Result: false
+```
+
+A default does not infer the parameter type. `fn(x = "d")` gives `x` the type `any`; write `fn(x: string = "d")` to constrain it.
+
+```rill
+fn(x = "d") { $x } => $fn
+$fn.^type.inner
+# Result: ordered[x: any]
 ```
 
 See [Type System: Defaults in Type Expressions](#defaults-in-type-expressions) and [Host API Types](ref-host-api-types.md) for the `structureMatches` TypeScript API.
@@ -690,7 +694,7 @@ The check form reports membership without halting:
 # Result: false
 ```
 
-`error_code` is a reserved type name like `union`, so `|error_code: string|` is a parse error. `$error_code` variables and dict keys are unaffected. `error_code.inner` lists its codes in canonical order. See [Error Handling](topic-error-handling.md) for the `.!code` probe, whose value is always a member of `union(#ok, error_code)`.
+`error_code` is a reserved type name like `union`, so `fn(error_code: string)` is a parse error. `$error_code` variables and dict keys are unaffected. `error_code.inner` lists its codes in canonical order. See [Error Handling](topic-error-handling.md) for the `.!code` probe, whose value is always a member of `union(#ok, error_code)`.
 
 ### Set Rules
 
@@ -719,17 +723,17 @@ union(list(union(string, number)), list(string)).signature
 Reduction comes first. Members that differ only by an omittable defaulted field reduce to the wide member, so `union(dict(a: number), dict(a: number, b: number = 9))` is `dict(a: number, b: number = 9)` and its default fills in either written order.
 
 ```rill
-|d: union(dict(a: number), dict(a: number, b: number = 9))| { $d.b } => $f
-|d: union(dict(a: number, b: number = 9), dict(a: number))| { $d.b } => $g
+fn(d: union(dict(a: number), dict(a: number, b: number = 9))) { $d.b } => $f
+fn(d: union(dict(a: number, b: number = 9), dict(a: number))) { $d.b } => $g
 tuple[$f(dict[a: 1]), $g(dict[a: 1])]
 # Result: tuple[9, 9]
 ```
 
-Among members that survive reduction, a call fills defaults from the narrowest member the argument matches, whatever the written order. Incomparable matches resolve by canonical order. The rule applies to closure and host parameters.
+Among members that survive reduction, a call fills defaults from the narrowest member the argument matches, whatever the written order. Incomparable matches resolve by canonical order. The rule applies to script function and host parameters.
 
 ```rill
-|d: union(dict(a: number, b: number = 9), dict)| { $d.b } => $f
-|d: union(dict, dict(a: number, b: number = 9))| { $d.b } => $g
+fn(d: union(dict(a: number, b: number = 9), dict)) { $d.b } => $f
+fn(d: union(dict, dict(a: number, b: number = 9))) { $d.b } => $g
 tuple[$f(dict[a: 1]), $g(dict[a: 1])]
 # Result: tuple[9, 9]
 ```
@@ -796,11 +800,11 @@ $y
 Type annotations validate on assignment and prevent accidental type changes:
 
 ```rill
-|x|$x => $fn                  # locked as closure
+fn(x) { $x } => $fn                  # locked as fn
 ```
 
 ```text
-"text" => $fn                 # ERROR: cannot assign string to closure
+"text" => $fn                 # ERROR: cannot assign string to fn
 ```
 
 ## Type Values
@@ -834,8 +838,8 @@ ordered[a: 1, b: 2] => $o
 $o.^type.name
 # Result: "ordered"
 
-||{ $ } => $fn
-$fn.^type.name == "closure"
+fn(x) { $x } => $fn
+$fn.^type.name == "fn"
 # Result: true
 ```
 
@@ -865,7 +869,7 @@ $x.^effective.signature
 # Result: "number"
 ```
 
-A declaration comes from a capture annotation, a `:T` assertion, a pipe into a union, a typed parameter, or `.!code`. It stays with `$`, captures, grouped expressions, `pass`, destructures, and closure parameters. Element and field reads on a declared collection project the declared element type:
+A declaration comes from a capture annotation, a `:T` assertion, a pipe into a union, a typed parameter, or `.!code`. It stays with `$`, captures, grouped expressions, `pass`, destructures, and function parameters. Element and field reads on a declared collection project the declared element type:
 
 ```rill
 list[1, 2] => $xs:list(union(string, number))
@@ -977,9 +981,9 @@ $t.signature
 ```
 
 ```rill
-|y: string|($y):string => $fn
+fn(y: string):string { $y } => $fn
 $fn.^type.signature
-# Result: "|y: string| :string"
+# Result: "fn(y: string):string"
 ```
 
 Combining `.^type` with `.name` and `.signature` gives both coarse and structural information:
@@ -998,9 +1002,10 @@ tuple[42.^type.name, 42.^type.signature]
 | `ordered(a: T)` | `ordered[a: T]` |
 | `tuple(T, U)`, `tuple(T)` | `tuple[T, U]`, `tuple[T]` (always a tuple) |
 | `union(...)`, `error_code` | `list` of members in canonical order |
-| function `\|a: T\|` | `ordered[a: T]` |
+| `fn(a: T)` | `ordered[a: T]` |
+| `fn(T, U)` | `tuple[T, U]` |
 | `stream(T):R` | `T` |
-| `list`, `dict`, `tuple`, `ordered`, `stream`, `closure` without arguments | `any` |
+| `list`, `dict`, `tuple`, `ordered`, `stream`, `fn` without arguments | `any` |
 | `string`, `number`, `bool`, `atom`, `vector`, `datetime`, `duration`, `type`, `any` | halts RILL-R003 |
 
 A union's `.inner` sorts type members by name first, then literals by kind (atom, bool, number, string) and by value. Equal unions return equal lists, and `.signature` prints the same order:
@@ -1010,7 +1015,7 @@ union("x", list, #a, 1, true).inner
 # Result: list[list, #a, true, 1, "x"]
 ```
 
-`.outer` is defined on function and stream types and returns the declared result type, `any` when undeclared; bare `closure.outer` is `any` and `closure.defaults` is `dict[]`, so `tuple[closure.inner, closure.outer, closure.defaults]` is `tuple[any, any, dict[]]`. Any other type halts RILL-R003. A leaf type has no `.inner`; guard the read with `??`, or test with `.?`. `.defaults` lists only the fields that declare a default: `dict(a: string = "x", b: number).defaults` is `dict[a: "x"]`. It halts RILL-R003 on types other than dict, ordered, and function:
+`.outer` is defined on function and stream types and returns the declared result type, `any` when undeclared; bare `fn.outer` is `any` and `fn.defaults` is `dict[]`, so `tuple[fn.inner, fn.outer, fn.defaults]` is `tuple[any, any, dict[]]`. Any other type halts RILL-R003. A leaf type has no `.inner`; guard the read with `??`, or test with `.?`. `.defaults` lists only the fields that declare a default: `dict(a: string = "x", b: number).defaults` is `dict[a: "x"]`. It halts RILL-R003 on types other than dict, ordered, and function:
 
 ```rill
 string => $t

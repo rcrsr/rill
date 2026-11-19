@@ -9,23 +9,17 @@ Closures expose parameter metadata via the `.params` property. This enables runt
 ### Basic Usage
 
 ```rill
-|x, y| { $x + $y } => $add
+fn(x, y) { $x + $y } => $add
 $add.params
-# [
-#   x: [type: ""],
-#   y: [type: ""]
-# ]
+# dict[x: dict[], y: dict[]]
 ```
 
 ### Typed Parameters
 
 ```rill
-|name: string, age: number| { "{$name}: {$age}" } => $format
+fn(name: string, age: number) { "{$name}: {$age}" } => $format
 $format.params
-# [
-#   name: [type: "string"],
-#   age: [type: "number"]
-# ]
+# dict[age: dict[type: "number"], name: dict[type: "string"]]
 ```
 
 ### Union Type Parameters
@@ -33,7 +27,7 @@ $format.params
 Parameters accept union types written `union(T1, T2)`:
 
 ```rill
-|x: union(string, number)| { $x } => $fn
+fn(x: union(string, number)) { $x } => $fn
 $fn("hello")
 # Result: "hello"
 ```
@@ -45,17 +39,15 @@ Block-closures have an implicit `$` parameter:
 ```rill
 { $ * 2 } => $double
 $double.params
-# [
-#   $: [type: ""]
-# ]
+# dict["$": dict[]]
 ```
 
 ### Zero-Parameter Closures
 
 ```rill
-|| { 42 } => $constant
+fn() { 42 } => $constant
 $constant.params
-# []
+# dict[]
 ```
 
 ### Practical Use Cases
@@ -63,25 +55,25 @@ $constant.params
 **Generic Function Wrapper:**
 
 ```rill
-|fn| {
-  $fn.params -> .keys -> .len => $count
+fn(f) {
+  $f.params -> .keys -> .len => $count
   "Function has {$count} parameter(s)"
 } => $describe
 
-|x, y| { $x + $y } => $add
+fn(x, y) { $x + $y } => $add
 $describe($add)    # "Function has 2 parameter(s)"
 ```
 
 **Validation:**
 
 ```text
-|fn| {
-  $fn.params -> .entries -> seq({
+fn(f) {
+  $f.params -> .entries -> seq({
     $[1].type -> .empty ? "Missing type annotation: {$[0]}" ! ""
   }) -> filter({ !$ -> .empty })
 } => $checkTypes
 
-|x, y: number| { $x + $y } => $partial
+fn(x, y: number) { $x + $y } => $partial
 $checkTypes($partial)    # ["Missing type annotation: x"]
 ```
 
@@ -96,7 +88,7 @@ Parameters can have their own annotations using `^(key: value)` syntax after the
 Parameter annotations appear in a specific order:
 
 ```text
-|^(annotations) paramName: type = default| body
+fn(^(annotations) paramName: type = default) { body }
 ```
 
 **Ordering rules:**
@@ -105,12 +97,12 @@ Parameter annotations appear in a specific order:
 3. Type annotation with `:` (optional)
 4. Default value with `= literal` (optional)
 
-The `= literal` default also appears in type expressions used with `:?` and `:`. A closure whose params carry defaults satisfies a type annotation that omits those defaults. The reverse does not hold. See [Type System: Defaults in Type Expressions](topic-type-system.md#defaults-in-type-expressions) for the matching rules.
+The `= literal` default also appears in type expressions used with `:?` and `:`. A default does not infer the parameter type: `count = 0` gives `count` the type `any`, and `count: number = 0` constrains it. Function types match exactly, defaults included, so a function with a default that a type omits does not satisfy that type. See [Type System: Defaults in Type Expressions](topic-type-system.md#defaults-in-type-expressions) for the matching rules.
 
 ```rill
-|^(min: 0, max: 100) x: number|($x) => $validate
-|^(required: true) name: string = "guest"|($name) => $greet
-|^(cache: true) count = 0|($count) => $process
+fn(^(min: 0, max: 100) x: number) { $x } => $validate
+fn(^(required: true) name: string = "guest") { $name } => $greet
+fn(^(cache: true) count = 0) { $count } => $process
 true
 ```
 
@@ -119,7 +111,7 @@ true
 Parameter annotations are accessed via `.params.paramName.__annotations.key`:
 
 ```rill
-|^(min: 0, max: 100) x: number, y: string|($x + $y) => $fn
+fn(^(min: 0, max: 100) x: number, y: string) { $x + $y } => $fn
 
 $fn.params
 # Returns:
@@ -138,7 +130,7 @@ $fn.params.y.?__annotations     # false (no annotations on y)
 Use parameter annotations to specify constraints:
 
 ```rill
-|^(min: 0, max: 100) value: number|($value) => $bounded
+fn(^(min: 0, max: 100) value: number) { $value } => $bounded
 
 $bounded.params.value.__annotations.min  # 0
 $bounded.params.value.__annotations.max  # 100
@@ -147,8 +139,8 @@ $bounded.params.value.__annotations.max  # 100
 **Generic validator pattern:**
 
 ```text
-|fn, arg| {
-  $fn.params -> .entries -> .head -> destruct<$name, $meta>
+fn(f, arg) {
+  $f.params -> .entries -> .head -> destruct<$name, $meta>
   $meta.?__annotations ? {
     ($arg < $meta.__annotations.min) ? "Value {$arg} below min {$meta.__annotations.min}" !
     ($arg > $meta.__annotations.max) ? "Value {$arg} above max {$meta.__annotations.max}" !
@@ -156,7 +148,7 @@ $bounded.params.value.__annotations.max  # 100
   } ! ""
 } => $validate
 
-|^(min: 0, max: 10) x: number|($x) => $ranged
+fn(^(min: 0, max: 10) x: number) { $x } => $ranged
 $validate($ranged, 15)  # "Value 15 above max 10"
 ```
 
@@ -165,7 +157,7 @@ $validate($ranged, 15)  # "Value 15 above max 10"
 Mark parameters that should trigger caching behavior:
 
 ```rill
-|^(cache: true) key: string|($key) => $fetch
+fn(^(cache: true) key: string) { $key } => $fetch
 
 $fetch.params.key.__annotations.cache  # true
 ```
@@ -175,7 +167,7 @@ $fetch.params.key.__annotations.cache  # true
 Attach formatting metadata to parameters:
 
 ```rill
-|^(format: "ISO8601") timestamp: string|($timestamp) => $formatDate
+fn(^(format: "ISO8601") timestamp: string) { $timestamp } => $formatDate
 
 $formatDate.params.timestamp.__annotations.format  # "ISO8601"
 ```
@@ -185,7 +177,7 @@ $formatDate.params.timestamp.__annotations.format  # "ISO8601"
 Parameters can have multiple annotations:
 
 ```rill
-|^(required: true, pattern: ".*@.*", maxLength: 100) email: string|($email) => $validateEmail
+fn(^(required: true, pattern: ".*@.*", maxLength: 100) email: string) { $email } => $validateEmail
 
 $validateEmail.params.email.__annotations.required    # true
 $validateEmail.params.email.__annotations.pattern     # ".*@.*"
@@ -197,7 +189,7 @@ $validateEmail.params.email.__annotations.maxLength   # 100
 Use parameter annotations to drive runtime behavior:
 
 ```text
-|processor| {
+fn(processor) {
   $processor.params -> .entries -> seq({
     $[1].?__annotations ? {
       $[1].__annotations.?required ? "Parameter {$[0]} is required" ! ""
@@ -205,7 +197,7 @@ Use parameter annotations to drive runtime behavior:
   }) -> filter({ !$ -> .empty })
 } => $getRequiredParams
 
-|x, ^(required: true) y: string, z|($x) => $fn
+fn(x, ^(required: true) y: string, z) { $x } => $fn
 $getRequiredParams($fn)  # ["Parameter y is required"]
 ```
 
@@ -214,7 +206,7 @@ $getRequiredParams($fn)  # ["Parameter y is required"]
 Use existence check `.?__annotations` to determine if a parameter has annotations:
 
 ```rill
-|^(min: 0) x: number, y: string|($x + $y) => $fn
+fn(^(min: 0) x: number, y: string) { $x + $y } => $fn
 
 $fn.params.x.?__annotations  # true
 $fn.params.y.?__annotations  # false
@@ -228,7 +220,7 @@ A bare string in `^(...)` expands to `description: <string>`. This shorthand wor
 
 ```rill
 ^("Get current weather for a city")
-|city: string|($city) => $weather
+fn(city: string) { $city } => $weather
 $weather.^description    # "Get current weather for a city"
 ```
 
@@ -236,7 +228,7 @@ The shorthand is equivalent to the explicit key form:
 
 ```rill
 ^(description: "Get current weather for a city")
-|city: string|($city) => $weather
+fn(city: string) { $city } => $weather
 $weather.^description    # "Get current weather for a city"
 ```
 
@@ -244,7 +236,7 @@ Mix explicit keys with the shorthand in the same annotation:
 
 ```rill
 ^("Fetch user profile", cache: true)
-|id: string|($id) => $get_user
+fn(id: string) { $id } => $get_user
 $get_user.^description    # "Fetch user profile"
 $get_user.^cache          # true
 ```
@@ -253,39 +245,39 @@ $get_user.^cache          # true
 
 ## Return Type Assertions
 
-The `:type-target` postfix after the closing `}` declares and enforces the closure's return type. The runtime validates the return value on every call — a mismatch halts with `RILL-R004`.
+The `:type-target` after the parameter list declares and enforces the closure's return type. The runtime validates the return value on every call — a mismatch halts with `#TYPE_MISMATCH`.
 
 ```rill
-|x: number| { "{$x}" }:string => $fn
+fn(x: number):string { "{$x}" } => $fn
 $fn(42)    # "42" (string from interpolation)
 ```
 
-Valid return type targets: any type name (`string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `ordered`, `vector`, `any`, `type`), or a parameterized type constructor (`list(string)`, `dict(a: number, b: string)`).
+Valid return type targets: any type name (`string`, `number`, `bool`, `fn`, `list`, `dict`, `tuple`, `ordered`, `vector`, `any`, `type`), or a parameterized type constructor (`list(string)`, `dict(a: number, b: string)`).
 
 ```rill
-|items: list(number)| { $items -> seq({ $ * 2 }) }:list(number) => $double_all
+fn(items: list(number)):list(number) { $items -> seq({ $ * 2 }) } => $double_all
 $double_all(list[1, 2, 3])
 # Result: list[2, 4, 6]
 ```
 
 ```text
 # Mismatch: string list cannot satisfy list(number)
-|items| { $items }:list(number) => $fn
+fn(items):list(number) { $items } => $fn
 list["a", "b"] -> $fn
-# Error: RILL-R004: Type assertion failed: expected list(number), got list(string)
+# Error: #TYPE_MISMATCH: Type assertion failed: expected list(number), got list(string)
 ```
 
-Mismatched return type halts with `RILL-R004`:
+Mismatched return type halts with `#TYPE_MISMATCH`:
 
 ```text
-|x: number| { $x * 2 }:string => $double
-$double(5)    # RILL-R004: Type assertion failed: expected string, got number
+fn(x: number):string { $x * 2 } => $double
+$double(5)    # #TYPE_MISMATCH: Type assertion failed: expected string, got number
 ```
 
-Declared return type is accessible via `$fn.^type.outer`. Whitespace and newlines are allowed between `}` and `:`:
+Declared return type is accessible via `$fn.^type.outer`. The return type sits between the parameter list and the body:
 
 ```rill
-|a: number, b: number| { $a + $b }:number => $add
+fn(a: number, b: number):number { $a + $b } => $add
 $add(3, 4)    # 7
 ```
 
@@ -300,7 +292,7 @@ Closures support annotation reflection via `.^key` syntax. Annotations attach me
 ### Basic Annotation Access
 
 ```rill
-^(min: 0, max: 100) |x|($x) => $fn
+^(min: 0, max: 100) fn(x) { $x } => $fn
 
 $fn.^min     # 0
 $fn.^max     # 100
@@ -311,7 +303,7 @@ $fn.^max     # 100
 Annotations record documentation and versioning alongside the closure:
 
 ```rill
-^(doc: "validates user input", version: 2) |input|($input) => $validate
+^(doc: "validates user input", version: 2) fn(input) { $input } => $validate
 
 $validate.^doc      # "validates user input"
 $validate.^version  # 2
@@ -322,7 +314,7 @@ $validate.^version  # 2
 Annotations carry per-closure configuration that a host reads at call time:
 
 ```rill
-^(timeout: 30000, max_retries: 3) |url|($url) => $fetch
+^(timeout: 30000, max_retries: 3) fn(url) { $url } => $fetch
 
 $fetch.^timeout      # 30000
 $fetch.^max_retries  # 3
@@ -333,7 +325,7 @@ $fetch.^max_retries  # 3
 Annotations can hold any value type:
 
 ```rill
-^(config: [timeout: 30, endpoints: ["a", "b"]]) |x|($x) => $fn
+^(config: [timeout: 30, endpoints: ["a", "b"]]) fn(x) { $x } => $fn
 
 $fn.^config.timeout      # 30
 $fn.^config.endpoints[0] # "a"
@@ -344,17 +336,17 @@ $fn.^config.endpoints[0] # "a"
 Use the default value operator for optional annotations:
 
 ```rill
-|x|($x) => $fn
+fn(x) { $x } => $fn
 $fn.^timeout ?? 30  # 30 (uses default when annotation missing)
 
-^(timeout: 60) |x|($x) => $withTimeout
+^(timeout: 60) fn(x) { $x } => $withTimeout
 $withTimeout.^timeout ?? 30  # 60 (uses annotated value)
 ```
 
 ### Annotation-Driven Logic
 
 ```rill
-^(enabled: true) |x|($x) => $processor
+^(enabled: true) fn(x) { $x } => $processor
 
 $processor.^enabled ? "processing" ! "disabled"  # "processing"
 ```
@@ -365,7 +357,7 @@ Annotation values are evaluated at closure creation:
 
 ```rill
 10 => $base
-^(budget: $base * 10) |x|($x) => $fn
+^(budget: $base * 10) fn(x) { $x } => $fn
 $fn.^budget  # 100
 ```
 
@@ -383,7 +375,7 @@ $fn.^description    # "doubles input"
 # Nested closure does NOT inherit outer annotation
 ^(version: 2)
 "" -> {
-  |x|($x) => $fn
+  fn(x) { $x } => $fn
 }
 $fn.^version    # Error: RILL-R008
 ```
@@ -395,7 +387,7 @@ Nesting does not copy an annotation inward: only the closure immediately followi
 Several `^(...)` blocks before one target merge into one annotation map:
 
 ```rill
-^(first: 1) ^(second: 2) |x|($x) => $fn
+^(first: 1) ^(second: 2) fn(x) { $x } => $fn
 tuple[$fn.^first, $fn.^second]
 # Result: tuple[1, 2]
 ```
@@ -405,7 +397,7 @@ tuple[$fn.^first, $fn.^second]
 **Undefined Annotation Key:**
 
 ```rill
-|x|($x) => $fn
+fn(x) { $x } => $fn
 $fn.^missing   # Error: RILL-R008
 ```
 
@@ -423,7 +415,7 @@ All primitive types (string, number, boolean, list, dict) halt `RILL-R003` when 
 `.?^key` tests whether a closure carries an annotation and yields a bool. It yields `false` for a missing key and for a value that is not a function:
 
 ```rill
-^(timeout: 30) |x|($x) => $fn
+^(timeout: 30) fn(x) { $x } => $fn
 tuple[$fn.?^timeout, $fn.?^retries, "text".?^timeout]
 # Result: tuple[true, false, false]
 ```
@@ -540,7 +532,7 @@ list(^("label") string)   # Error: RILL-P001
 
 | Context | Syntax | Host API path |
 |---------|--------|---------------|
-| Closure parameter | `\|^("label") x: string\|` | `TypeStructure.params[index].annotations` |
+| Function parameter | `fn(^("label") x: string)` | `TypeStructure.params[index].annotations` |
 | `dict` field | `dict(^("label") x: string)` | `TypeStructure.fields["x"].annotations` |
 | `ordered` field | `ordered(^("label") x: string)` | `TypeStructure.fields[index].annotations` |
 | `tuple` element | `tuple(^("x") number)` | `TypeStructure.elements[index].annotations` |
@@ -552,27 +544,27 @@ All four positions use the same `^()` syntax and the same description shorthand.
 `$fn.^type` keeps parameter annotations on its structure at `TypeStructure.params[i].annotations` for hosts. `.inner` lists parameter types only. Scripts read parameter annotations through `.params`:
 
 ```rill
-|^("label") x: string|{ $x } => $fn
+fn(^("label") x: string) { $x } => $fn
 $fn.^type.inner
 # Result: ordered[x: string]
 ```
 
 ```rill
-|^("label") x: string|{ $x } => $fn
+fn(^("label") x: string) { $x } => $fn
 $fn.params.x.__annotations.description
 # Result: "label"
 ```
 
-### Annotations in Closure Signature Literals
+### Annotations in Function Type Literals
 
-A bodyless closure signature literal carries the same per-param annotations as a closure definition:
+A bodyless function type literal carries the same per-param annotations as a function definition:
 
 ```rill
-|^("label") x: string|:number => $t
+fn(^("label") x: string):number => $t
 $t
 ```
 
-The result is a `closure` type value. `structure.params[0].annotations` equals `{ description: "label" }`, the same forwarding rule host code sees on `.^type` of a closure value.
+The result is a `fn` type value. `structure.params[0].annotations` equals `{ description: "label" }`, the same forwarding rule host code sees on `.^type` of a function value.
 
 ---
 

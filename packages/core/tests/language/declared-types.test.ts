@@ -188,7 +188,7 @@ describe('Rill Language: declared types', () => {
 
     it('takes the own type for a spread argument', async () => {
       expect(
-        await run(`${DECL}|a| { $a.^type == number } => $f\n$f(...tuple[$x])`)
+        await run(`${DECL}fn(a) { $a.^type == number } => $f\n$f(...tuple[$x])`)
       ).toBe(true);
     });
 
@@ -214,13 +214,13 @@ describe('Rill Language: declared types', () => {
     });
 
     it('takes the own type for a closure result', async () => {
-      await expectLocked(`${DECL}|a| { $a } => $f\n$f($x) => $y\n"a" => $y`);
+      await expectLocked(`${DECL}fn(a) { $a } => $f\n$f($x) => $y\n"a" => $y`);
     });
 
     it('takes the own type for a closure result with a declared return type', async () => {
       expect(
         await run(
-          `${DECL}|a: ${U}| { $a }:${U} => $f\n$f(1) -> .^type => $t\n$t == number`
+          `${DECL}fn(a: ${U}):${U} { $a } => $f\n$f(1) -> .^type => $t\n$t == number`
         )
       ).toBe(true);
     });
@@ -283,7 +283,7 @@ describe('Rill Language: declared types', () => {
     });
 
     it('reports the argument own type for an any param', async () => {
-      expect(await run('|v: any| { $v.^type == number } => $f\n$f(1)')).toBe(
+      expect(await run('fn(v: any) { $v.^type == number } => $f\n$f(1)')).toBe(
         true
       );
     });
@@ -329,12 +329,12 @@ describe('Rill Language: declared types', () => {
 
   describe('parameters', () => {
     it('reports the declared param type for .^type and own type for .^effective', async () => {
-      const f = `|v: union(string, number)| { list[$v.^type == union(string, number), $v.^effective == number] } => $f\n`;
+      const f = `fn(v: union(string, number)) { list[$v.^type == union(string, number), $v.^effective == number] } => $f\n`;
       expect(await run(`${f}$f(1)`)).toEqual([true, true]);
     });
 
     it('halts when a param body reassigns a variable from the child scope', async () => {
-      await expectHalt(() => run('|x: number| { "a" => $x } => $f\n$f(1)'), {
+      await expectHalt(() => run('fn(x: number) { "a" => $x } => $f\n$f(1)'), {
         code: 'RILL_R001',
         hostErrorId: 'RILL-R001',
         messagePattern: 'Cannot reassign outer variable $x',
@@ -343,7 +343,7 @@ describe('Rill Language: declared types', () => {
 
     it('locks a capture of a typed param to the declared param type', async () => {
       await expectHalt(
-        () => run(`|k: ${U}| { $k => $y\ntrue => $y\n$y } => $f\n$f(1)`),
+        () => run(`fn(k: ${U}) { $k => $y\ntrue => $y\n$y } => $f\n$f(1)`),
         {
           code: 'RILL_R001',
           hostErrorId: 'RILL-R001',
@@ -354,29 +354,29 @@ describe('Rill Language: declared types', () => {
 
     it('lets a union param accept another member after a capture', async () => {
       expect(
-        await run(`|k: ${U}| { $k => $y\n"a" => $y\n$y } => $f\n$f(1)`)
+        await run(`fn(k: ${U}) { $k => $y\n"a" => $y\n$y } => $f\n$f(1)`)
       ).toBe('a');
     });
 
     it('carries the caller declaration into an untyped param by positional call', async () => {
-      expect(await run(`${DECL}|v| { $v.^type == ${U} } => $f\n$f($x)`)).toBe(
+      expect(await run(`${DECL}fn(v) { $v.^type == ${U} } => $f\n$f($x)`)).toBe(
         true
       );
     });
 
     it('carries the caller declaration into an untyped param by pipe', async () => {
-      expect(await run(`${DECL}|v| { $v.^type == ${U} } => $f\n$x -> $f`)).toBe(
-        true
-      );
+      expect(
+        await run(`${DECL}fn(v) { $v.^type == ${U} } => $f\n$x -> $f`)
+      ).toBe(true);
     });
 
     it('dispatches on .^effective.name under a declared union', async () => {
-      const f = `|v: union(string, number)| { $v.^effective.name -> dict[string: "s", number: "n"] } => $f\n`;
+      const f = `fn(v: union(string, number)) { $v.^effective.name -> dict[string: "s", number: "n"] } => $f\n`;
       expect(await run(`${f}$f(1)`)).toBe('n');
     });
 
     it('halts a dispatch on .^type.name under a declared union', async () => {
-      const f = `|v: union(string, number)| { $v.^type.name -> dict[string: "s", number: "n"] } => $f\n`;
+      const f = `fn(v: union(string, number)) { $v.^type.name -> dict[string: "s", number: "n"] } => $f\n`;
       await expectHalt(() => run(`${f}$f(1)`), {
         code: 'RILL_R009',
         hostErrorId: 'RILL-R009',
@@ -385,7 +385,9 @@ describe('Rill Language: declared types', () => {
 
     it('keeps -> :?number working under a declared union', async () => {
       expect(
-        await run('|v: union(string, number)| { $v -> :?number } => $f\n$f(1)')
+        await run(
+          'fn(v: union(string, number)) { $v -> :?number } => $f\n$f(1)'
+        )
       ).toBe(true);
     });
   });
@@ -500,7 +502,7 @@ describe('Rill Language: declared types', () => {
 
   describe('parsing', () => {
     it('rejects ^(effective: 1) as a reserved annotation key', () => {
-      expect(() => parse('^(effective: 1) |x| { $x }')).toThrow(ParseError);
+      expect(() => parse('^(effective: 1) fn(x) { $x }')).toThrow(ParseError);
     });
   });
 });

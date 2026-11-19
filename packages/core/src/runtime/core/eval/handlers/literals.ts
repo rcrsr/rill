@@ -34,23 +34,24 @@ import type {
   PostfixExprNode,
   ExpressionNode,
   SourceLocation,
-  AnnotationArg,
   PassNode,
   PassBlockNode,
 } from '../../../../types.js';
 import { isPipeChainNode } from '../../../../types.js';
-import type { TypeStructure, RillValue } from '../../types/structures.js';
+import type { RillValue } from '../../types/structures.js';
 import {
   deepEquals,
   formatValue,
   inferType,
 } from '../../types/registrations.js';
-import { isTypeValue } from '../../types/guards.js';
+import { isStructureKind } from '../../types/guards.js';
+import { fieldDefsToParams } from '../../types/fn-params.js';
 import {
   anyTypeValue,
   isReservedBrandKey,
   isReservedMethod,
   RESERVED_DICT_METHODS,
+  structureToTypeValue,
 } from '../../values.js';
 import {
   isCallable,
@@ -77,11 +78,7 @@ import { getEvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getNodeLocation, setDictField, withChildScope } from '../shared.js';
 import { orderedDictEntries } from '../../types/dict-keys.js';
-import {
-  evaluateExpression,
-  evaluatePipeChain,
-  evaluatePrimary,
-} from './core.js';
+import { evaluateExpression, evaluatePipeChain } from './core.js';
 import {
   invokeSelected,
   rejectParameterizedClosure,
@@ -90,8 +87,7 @@ import { accessHaltGateFast } from './access.js';
 import { describeNoStringForm } from './conversion.js';
 import { copyExtensionIdentity } from '../../policy/identity.js';
 import { evaluateBody, evaluateBodyExpression } from './control-flow.js';
-import { assertUsableAnnotationKey } from './annotations.js';
-import { resolveTypeRef, evaluateTypeConstructor } from './types.js';
+import { resolveTypeRef } from './types.js';
 import { evaluateListLiteralElements } from './extraction.js';
 import { dictSelectorKey, throwUndefinedDictKey } from './field-access.js';
 
@@ -116,80 +112,13 @@ function captureClosureAnnotations(ctx: RuntimeContext): Promise<{
 }> {
   // Capture closure-level annotations from immediateAnnotation field.
   // When a closure is created within a directly-annotated statement like:
-  // ^(doc: "test") |x|($x * 2) :> $fn
+  // ^(doc: "test") fn(x) { $x * 2 } => $fn
   // immediateAnnotation holds the evaluated annotations set by executeAnnotatedStatement.
   // Consumed once: cleared after capture to prevent unintended re-use.
   const annotations: Record<string, RillValue> = ctx.immediateAnnotation ?? {};
   ctx.immediateAnnotation = undefined;
 
   return Promise.resolve({ annotations });
-}
-
-/**
- * Evaluate annotation arguments to a dict of key-value pairs.
- * Handles both named arguments and spread arguments.
- *
- * @param annotations - Annotation arguments from AST
- * @param evalExpr - Expression evaluator function
- * @param sourceId - Source identifier for error reporting
- * @returns Record of annotation key-value pairs
- *
- * @internal
- */
-export async function evaluateAnnotations(
-  annotations: AnnotationArg[],
-  evalExpr: (expr: ExpressionNode) => Promise<RillValue>,
-  sourceId?: string
-): Promise<Record<string, RillValue>> {
-  const result: Record<string, RillValue> = {};
-
-  for (const arg of annotations) {
-    if (arg.type === 'NamedArg') {
-      const namedArg = arg;
-      assertUsableAnnotationKey(namedArg.name, namedArg.span.start, sourceId);
-      setDictField(result, namedArg.name, await evalExpr(namedArg.value));
-    } else {
-      // SpreadArg: spread tuple/dict keys as annotations
-      const spreadArg = arg;
-      const spreadValue = await evalExpr(spreadArg.expression);
-
-      if (
-        typeof spreadValue === 'object' &&
-        spreadValue !== null &&
-        !Array.isArray(spreadValue) &&
-        !isCallable(spreadValue)
-      ) {
-        // Dict: spread all key-value pairs
-        for (const [k, v] of Object.entries(spreadValue)) {
-          assertUsableAnnotationKey(k, spreadArg.span.start, sourceId);
-          setDictField(result, k, v);
-        }
-      } else if (Array.isArray(spreadValue)) {
-        // Tuple/list: not valid for annotations (need named keys)
-        throwCatchableHostHalt(
-          {
-            location: spreadArg.span.start,
-            sourceId,
-            fn: 'evaluateAnnotations',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          'Annotation spread requires dict with named keys, got list'
-        );
-      } else {
-        throwCatchableHostHalt(
-          {
-            location: spreadArg.span.start,
-            sourceId,
-            fn: 'evaluateAnnotations',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          `Annotation spread requires dict, got ${typeof spreadValue}`
-        );
-      }
-    }
-  }
-
-  return result;
 }
 
 /**
@@ -905,86 +834,28 @@ export async function createClosure(
   // Capture annotations at closure creation time
   const { annotations } = await captureClosureAnnotations(s.ctx);
 
-  const rillParams: RillParam[] = [];
-  for (const param of node.params) {
-    let defaultValue: RillValue | undefined = undefined;
-    if (param.defaultValue) {
-      defaultValue = await evaluatePrimary(s, param.defaultValue);
-    }
-
-    // Resolve typeRef at closure-creation time.
-    // Dynamic refs ($var) are resolved against the current context now,
-    // so the closure captures the concrete type, not the variable reference.
-    let resolvedType: TypeStructure | undefined = undefined;
-    if (param.typeRef !== null) {
-      const resolved = await resolveTypeRef(s, param.typeRef, (name: string) =>
-        getVariable(s.ctx, name)
-      );
-      if (!isTypeValue(resolved)) {
-        throwTypeHalt(
-          {
-            sourceId: s.ctx.sourceId,
-            fn: 'closure-param',
-          },
-          'TYPE_MISMATCH',
-          `Closure parameter '${param.name}' type must be a type value, not a shape`,
-          'runtime',
-          { paramName: param.name }
-        );
-      }
-      resolvedType = resolved.structure;
-    }
-
-    // Infer type from default value when no explicit typeRef is present.
-    // Primitive defaults (string, number, bool) constrain the parameter type.
-    // Complex defaults (list, dict, closure) leave the parameter any-typed.
-    if (resolvedType === undefined && defaultValue !== undefined) {
-      const defaultKind = typeof defaultValue;
-      if (defaultKind === 'string') {
-        resolvedType = { kind: 'string' };
-      } else if (defaultKind === 'number') {
-        resolvedType = { kind: 'number' };
-      } else if (defaultKind === 'boolean') {
-        resolvedType = { kind: 'bool' };
-      }
-    }
-
-    // Evaluate per-param annotations inline
-    let paramAnnots: Record<string, RillValue> = {};
-    if (param.annotations && param.annotations.length > 0) {
-      paramAnnots = await evaluateAnnotations(
-        param.annotations,
-        (expr) => evaluateExpression(s, expr),
-        s.ctx.sourceId
-      );
-    }
-
-    rillParams.push({
-      name: param.name,
-      type: resolvedType,
-      defaultValue,
-      annotations: paramAnnots,
-    });
-  }
-
+  // The fn type is the one resolver of params and outer: dynamic refs
+  // resolve now, so the closure captures concrete types.
+  const fnType = await resolveTypeRef(
+    s,
+    node.returnTypeTarget === undefined
+      ? { kind: 'fn', params: node.params }
+      : { kind: 'fn', params: node.params, outer: node.returnTypeTarget },
+    (name: string) => getVariable(s.ctx, name),
+    node.span.start
+  );
+  const fnStructure = fnType.structure;
+  const rillParams = isStructureKind(fnStructure, 'fn')
+    ? fieldDefsToParams(fnStructure.params ?? [])
+    : [];
   const isProperty = rillParams.length === 0;
-
-  // Evaluate returnTypeTarget at closure creation time.
-  // TypeConstructorNode → resolve via evaluateTypeConstructor() (e.g., stream(T):R).
-  // TypeRef → resolve via resolveTypeRef() — returns RillTypeValue.
-  // Absent → returnType defaults to anyTypeValue (omission implies :any).
-  let returnType = anyTypeValue;
-  if (node.returnTypeTarget !== undefined) {
-    if ('type' in node.returnTypeTarget) {
-      returnType = await evaluateTypeConstructor(s, node.returnTypeTarget);
-    } else {
-      returnType = await resolveTypeRef(
-        s,
-        node.returnTypeTarget,
-        (name: string) => getVariable(s.ctx, name)
-      );
-    }
-  }
+  const outer = isStructureKind(fnStructure, 'fn')
+    ? fnStructure.ret
+    : undefined;
+  const returnType =
+    outer === undefined || outer.kind === 'any'
+      ? anyTypeValue
+      : structureToTypeValue(outer);
 
   return {
     __type: 'callable',
@@ -1013,8 +884,8 @@ export function createBlockClosure(
   const definingScope = s.ctx;
 
   // Block-closures have exactly one parameter: $
-  // type is undefined (any-typed) so paramsToStructuralType produces { type: 'any' },
-  // matching the structural type of an explicit `|any|{}` closure.
+  // type is undefined (any-typed), matching the structural type of an
+  // explicit `fn(any) { }` function.
   const rillParams: readonly RillParam[] = [
     {
       name: '$',

@@ -60,7 +60,7 @@ describe('trace-frame kind reflects real halt origin', () => {
 
   it('a halt escaping a script-defined closure body does not append a second `host` frame at the call boundary', async () => {
     const src = `
-      |x| ($x.bogus) => $f
+      fn(x) { $x.bogus } => $f
       guard { $f(dict[a: 1]) }
     `;
     const result = await run(src);
@@ -90,7 +90,7 @@ describe('trace-frame kind reflects real halt origin', () => {
     expect(hostTrace.some((f) => f.kind === 'host')).toBe(true);
 
     const scriptSrc = `
-      |x| ($x.bogus) => $f
+      fn(x) { $x.bogus } => $f
       guard { $f(dict[a: 1]) }
     `;
     const scriptResult = await run(scriptSrc);

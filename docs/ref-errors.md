@@ -183,7 +183,7 @@ Parse errors occur when token sequences violate rill syntax rules during AST con
 
 **Description:** Invalid type annotation
 
-**Cause:** Type name not recognized. Rill supports: string, number, bool, closure, list, dict, tuple.
+**Cause:** Type name not recognized. Rill supports: string, number, bool, fn, list, dict, tuple.
 
 **Resolution:** Use valid type name from supported set. Check spelling and casing (types are lowercase).
 
@@ -260,7 +260,7 @@ func($a, $b
 $x.method(...$args)  # spread not supported in method calls
 
 # yield outside stream closure
-|x| yield  # yield requires :stream() return type
+fn(x) { yield }  # yield requires :stream() return type
 ```
 
 ---
@@ -385,6 +385,15 @@ math::add(1, 2)  # Error: use use<ext:math> => $math, then $math.add(1, 2)
 # Computed-selector dot forms removed
 dict[a: 1] => $d
 $d.("a")  # Error: use $d["a"], or $d.?["a"] to probe
+
+# |params| closure literal removed
+|x| ($x * 2)  # Error: use fn(x) { $x * 2 }
+
+# |x: T|:R closure type literal removed
+$f -> :|x: number|:string  # Error: use :fn(x: number):string
+
+# closure type name removed
+$f -> :closure  # Error: use :fn
 ```
 
 ---
@@ -560,6 +569,49 @@ dict(a: number, "a": string)
 
 ---
 
+### rill-p028
+
+**Description:** Invalid unnamed fn parameters
+
+**Cause:** An fn parameter list declares a third unnamed param, mixes named and unnamed params, or gives an unnamed param a default. Unnamed params bind '$' and '$@', so at most two are allowed, and they take no name or default.
+
+**Resolution:** Declare at most two unnamed params, keep a parameter list all named or all unnamed, and move any default onto a named param.
+
+**Example:**
+
+```text
+# Three unnamed params
+fn(number, number, number) { $ }
+
+# Named and unnamed params mixed
+fn(x: number, string) { $x }
+
+# Default on an unnamed param
+fn(number = 1) { $ }
+```
+
+---
+
+### rill-p029
+
+**Description:** fn() body reads '$' or '$@'
+
+**Cause:** A function written fn() declares an empty parameter list, so nothing binds '$' or '$@' in its body.
+
+**Resolution:** Declare the params the body reads, as in 'fn(number) { $ }', or drop the read.
+
+**Example:**
+
+```text
+# Empty fn() reading '$'
+fn() { $ + 1 }
+
+# Empty fn() reading '$@'
+fn() { $@ }
+```
+
+---
+
 ### rill-p030
 
 **Description:** List or dict literal pipe target reads '$'
@@ -616,8 +668,8 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 ```text
 # String passed to number parameter
-|x: number| $x * 2
-"5" -> $()
+fn(x: number) { $x * 2 } => $double
+"5" -> $double()
 
 # Number assigned to string-locked variable
 "a" => $x
@@ -1388,7 +1440,7 @@ list[1, 2, 3] -> start_when(42)  # 42 is not a closure
 
 ```text
 # Empty closure body
-|x: number| { }  # No value produced
+fn(x: number) { }  # No value produced
 
 # Script with only comments
 # just a comment  # No value produced
@@ -1428,7 +1480,7 @@ tuple["a"] -> tuple(string, number)  # element at position 1 is missing
 
 ```text
 # Too many arguments to a two-param closure
-|x: number, y: number| { $x + $y } => $add
+fn(x: number, y: number) { $x + $y } => $add
 $add(1, 2, 3)  # 3 args, 2 params
 ```
 
@@ -1748,7 +1800,7 @@ export:
 
 ```text
 # Closure in JSON context
-|x| $x + 1 -> as(string)  # Error: closures not serializable
+fn(x) { $x + 1 } -> as(string)  # Error: functions not serializable
 ```
 
 ---
@@ -2173,16 +2225,16 @@ $r.! ? "not permitted" ! $r
 
 **Cause:** A host function definition carries a signature that cannot be registered. The signature string fails to lex, parse, or convert to a type structure; the definition supplies signature together with params or returnType; the signature is not a string; the description is not a string; the annotations field is not an object; or one annotation key is declared by more than one source, such as the signature and the annotations field.
 
-**Resolution:** Fix the signature string so it reads |param: type, ...|: return_type, supply either signature or params and returnType but not both, pass strings for signature and description, pass an object for annotations, and declare each annotation key in one place only.
+**Resolution:** Fix the signature string so it reads fn(param: type, ...):return_type with parentheses and named params (an unnamed param is rejected), supply either signature or params and returnType but not both, pass strings for signature and description, pass an object for annotations, and declare each annotation key in one place only.
 
 **Example:**
 
 ```text
 # Signature string with an unclosed parameter list
-# Host code: { signature: "|x: string", fn }  # rejected
+# Host code: { signature: "fn(x: string", fn }  # rejected
 
 # Signature combined with an explicit params list
-# Host code: { signature: "|x: string|", params: [], fn }  # rejected
+# Host code: { signature: "fn(x: string)", params: [], fn }  # rejected
 ```
 
 ---
@@ -2291,15 +2343,15 @@ Provide fallbacks for missing properties:
 
 ```rill
 # Field with default
-[name: "Alice", age: 30] => $user
+dict[name: "Alice", age: 30] => $user
 $user.email ?? "no-email@example.com"
 
 # Annotation with default
-|x|($x) => $fn
+fn(x) { $x } => $fn
 $fn.^timeout ?? 30
 
 # Dict dispatch with default
-[a: 1, b: 2, c: 3] => $lookup
+dict[a: 1, b: 2, c: 3] => $lookup
 "b" -> $lookup ?? "not found"
 ```
 

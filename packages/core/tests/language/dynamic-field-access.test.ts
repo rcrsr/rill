@@ -341,13 +341,13 @@ describe('Dynamic Field Access', () => {
       it('halts #TYPE_MISMATCH when computed expression returns closure', async () => {
         // EC-4: Result is closure → RILL-R002
         const code = `
-          |x|($x + 1) => $fn
+          fn(x) { $x + 1 } => $fn
           dict[name: "alice"] => $data
           $data[$fn]
         `;
         await expectHalt(() => run(code), {
           code: 'TYPE_MISMATCH',
-          messagePattern: /Dict key must be string, got closure/,
+          messagePattern: /Dict key must be string, got fn/,
         });
       });
 

@@ -17,14 +17,14 @@ $x + 1
 $x -> .not_a_real_method   # Error: bogus method demo, must halt
 ```
 
-## Case B: a block ending in a bare closure fails
+## Case B: a block ending in a bare function fails
 
-No `# Result:` annotation is present, and the closure is captured into
+No `# Result:` annotation is present, and the function is captured into
 `$double` and then referenced bare on the final line without being
 invoked. This must fail with an "unapplied callable" error.
 
 ```rill
-|x|($x * 2) => $double
+fn(x) { $x * 2 } => $double
 $double
 ```
 

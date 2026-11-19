@@ -1,6 +1,6 @@
 /**
  * Hierarchical document outline: one `DocumentSymbol` per top-level capture
- * (`=> $name`), closure literal (`|params| body`), and dict entry key.
+ * (`=> $name`), closure literal (`fn(params) { body }`), and dict entry key.
  * A symbol whose range fully contains another symbol's range (e.g. a dict
  * entry whose value is itself a dict) nests the contained symbol under
  * `children` instead of surfacing it as a flat sibling.
@@ -94,7 +94,7 @@ export function documentSymbols(parsed: ParseResult): DocumentSymbol[] {
   const symbols: DocumentSymbol[] = [];
 
   // ClosureNode is anonymous: it carries no name of its own. When a closure
-  // literal is captured directly (`|x| (...) => $name`), the enclosing
+  // literal is captured directly (`fn(x) { ... } => $name`), the enclosing
   // PipeChain's terminator holds the name. PipeChain is visited before its
   // `head` subtree (walkAst is parent-before-children), and the full AST
   // already exists in memory, so `node.terminator` is readable at that point
@@ -119,7 +119,7 @@ export function documentSymbols(parsed: ParseResult): DocumentSymbol[] {
           head.defaultValue === null &&
           head.primary.type === 'Closure'
         ) {
-          // A directly-captured closure (`|x| (...) => $name`) surfaces the
+          // A directly-captured closure (`fn(x) { ... } => $name`) surfaces the
           // capture as either the sole entry in `pipes` (bare `=>`/`->`
           // capture) or as `terminator` (capture ending a longer chain);
           // either shape names the same closure literal.

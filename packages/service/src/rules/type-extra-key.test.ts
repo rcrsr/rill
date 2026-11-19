@@ -43,8 +43,8 @@ const FIRES: ReadonlyArray<readonly [string, string, string]> = [
     'This dict has key b that dict(a: number) does not name, so the check halts #TYPE_MISMATCH; name the key in the type, or convert first with -> dict(a: number).',
   ],
   [
-    'inline closure target',
-    'dict[a: 1, b: 2] -> |p: dict(a: number)| { $p }\n',
+    'inline fn target',
+    'dict[a: 1, b: 2] -> fn(p: dict(a: number)) { $p }\n',
     'This dict has key b that dict(a: number) does not name, so the parameter halts RILL-R001; name the key in the type, or convert first with -> dict(a: number).',
   ],
   [
@@ -86,7 +86,7 @@ describe('TYPE_EXTRA_KEY', () => {
 
   it('fires on a typed parameter default and the call halts when the argument is omitted', async () => {
     const source =
-      '|p: dict(a: number) = dict[a: 1, b: 2]| { $p } => $f\n$f()\n';
+      'fn(p: dict(a: number) = dict[a: 1, b: 2]) { $p } => $f\n$f()\n';
     const result = run(source);
 
     expect(result).toHaveLength(1);

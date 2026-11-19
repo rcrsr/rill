@@ -15,7 +15,7 @@
  *   chain() detects pipe position (single arg with pipeValue set) and
  *   uses the pipe value as the first argument.
  *
- * Closures must be parameterized (|x|{ $x * 2 }) so chain can pass
+ * Closures must be parameterized (fn(x) { $x * 2 }) so chain can pass
  * the value as a positional argument.
  */
 
@@ -30,21 +30,23 @@ describe('Rill Language: chain() Built-in', () => {
 
   describe('single closure (AC-16)', () => {
     it('chains value through single parameterized closure', async () => {
-      // |x|{ $x * 2 } is a closure with param x; chain passes 5 as $x
-      const result = await run('|x|{ $x * 2 } => $double\nchain(5, $double)');
+      // fn(x) { $x * 2 } is a closure with param x; chain passes 5 as $x
+      const result = await run(
+        'fn(x) { $x * 2 } => $double\nchain(5, $double)'
+      );
       expect(result).toBe(10);
     });
 
     it('chains string value through closure', async () => {
       const result = await run(
-        '|x|{ "{$x}!" } => $exclaim\nchain("hello", $exclaim)'
+        'fn(x) { "{$x}!" } => $exclaim\nchain("hello", $exclaim)'
       );
       expect(result).toBe('hello!');
     });
 
     it('chains boolean through closure', async () => {
       const result = await run(
-        '|x|{ $x ? false ! true } => $negate\nchain(true, $negate)'
+        'fn(x) { $x ? false ! true } => $negate\nchain(true, $negate)'
       );
       expect(result).toBe(false);
     });
@@ -58,7 +60,7 @@ describe('Rill Language: chain() Built-in', () => {
     it('pipes through list[$inc, $double] left-to-right', async () => {
       // inc first: 5 + 1 = 6, then double: 6 * 2 = 12
       const result = await run(
-        '|x|{ $x + 1 } => $inc\n|x|{ $x * 2 } => $double\nchain(5, list[$inc, $double])'
+        'fn(x) { $x + 1 } => $inc\nfn(x) { $x * 2 } => $double\nchain(5, list[$inc, $double])'
       );
       expect(result).toBe(12);
     });
@@ -66,7 +68,7 @@ describe('Rill Language: chain() Built-in', () => {
     it('pipes through list[$double, $inc] in reversed order', async () => {
       // double first: 5 * 2 = 10, then inc: 10 + 1 = 11
       const result = await run(
-        '|x|{ $x + 1 } => $inc\n|x|{ $x * 2 } => $double\nchain(5, list[$double, $inc])'
+        'fn(x) { $x + 1 } => $inc\nfn(x) { $x * 2 } => $double\nchain(5, list[$double, $inc])'
       );
       expect(result).toBe(11);
     });
@@ -74,7 +76,7 @@ describe('Rill Language: chain() Built-in', () => {
     it('pipes through three closures', async () => {
       // 1 + 1 = 2, * 2 = 4, + 10 = 14
       const result = await run(
-        '|x|{ $x + 1 } => $inc\n|x|{ $x * 2 } => $dbl\n|x|{ $x + 10 } => $add10\nchain(1, list[$inc, $dbl, $add10])'
+        'fn(x) { $x + 1 } => $inc\nfn(x) { $x * 2 } => $dbl\nfn(x) { $x + 10 } => $add10\nchain(1, list[$inc, $dbl, $add10])'
       );
       expect(result).toBe(14);
     });
@@ -87,7 +89,7 @@ describe('Rill Language: chain() Built-in', () => {
   describe('list variable as pipeline (AC-18)', () => {
     it('accepts a list variable as the closure list', async () => {
       const result = await run(
-        '|x|{ $x + 1 } => $inc\n|x|{ $x * 2 } => $double\nlist[$inc, $double] => $pipeline\nchain(5, $pipeline)'
+        'fn(x) { $x + 1 } => $inc\nfn(x) { $x * 2 } => $double\nlist[$inc, $double] => $pipeline\nchain(5, $pipeline)'
       );
       expect(result).toBe(12);
     });
@@ -161,13 +163,15 @@ describe('Rill Language: chain() Built-in', () => {
 
   describe('pipe form: value -> chain($closure)', () => {
     it('pipes value through single closure via pipe position', async () => {
-      const result = await run('|x|{ $x * 2 } => $double\n5 -> chain($double)');
+      const result = await run(
+        'fn(x) { $x * 2 } => $double\n5 -> chain($double)'
+      );
       expect(result).toBe(10);
     });
 
     it('pipes string through closure via pipe position', async () => {
       const result = await run(
-        '|x|{ "{$x}!" } => $exclaim\n"hello" -> chain($exclaim)'
+        'fn(x) { "{$x}!" } => $exclaim\n"hello" -> chain($exclaim)'
       );
       expect(result).toBe('hello!');
     });
@@ -175,7 +179,7 @@ describe('Rill Language: chain() Built-in', () => {
     it('pipes through list of closures via pipe position', async () => {
       // inc: 5 + 1 = 6, double: 6 * 2 = 12
       const result = await run(
-        '|x|{ $x + 1 } => $inc\n|x|{ $x * 2 } => $double\n5 -> chain(list[$inc, $double])'
+        'fn(x) { $x + 1 } => $inc\nfn(x) { $x * 2 } => $double\n5 -> chain(list[$inc, $double])'
       );
       expect(result).toBe(12);
     });

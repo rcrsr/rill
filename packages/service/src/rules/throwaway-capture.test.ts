@@ -80,8 +80,8 @@ describe('THROWAWAY_CAPTURE', () => {
       expect(result).toEqual([]);
     });
 
-    it('on a top-level capture shadowed by a closure param used inside the closure body', () => {
-      const source = '1 => $x\n|x|($x * 2) => $double\n$double(1)\n';
+    it('on a top-level capture shadowed by a fn param used inside the fn body', () => {
+      const source = '1 => $x\nfn(x) { $x * 2 } => $double\n$double(1)\n';
       const parsed = toParseResult(source);
 
       const result = runRules(parsed, source, makeConfig(), [throwawayCapture]);

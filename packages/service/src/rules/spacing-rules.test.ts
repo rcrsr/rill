@@ -220,8 +220,8 @@ describe('SPACING_BRACES', () => {
     expect(runRules(parsed, source, makeConfig(), [spacingBraces])).toEqual([]);
   });
 
-  it('does not fire the closing-brace check on a grouped-expression closure body', () => {
-    const source = '|x| ($x * 2)\n';
+  it('does not fire the closing-brace check on a grouped-expression fn body', () => {
+    const source = 'fn(x) { $x * 2 }\n';
     const parsed = toParseResult(source);
 
     expect(runRules(parsed, source, makeConfig(), [spacingBraces])).toEqual([]);
@@ -419,8 +419,8 @@ describe('SPACING_MEMBER', () => {
 });
 
 describe('SPACING_CLOSURE', () => {
-  it('fires when a mid-line closure has a space before its opening pipe', () => {
-    const source = '[1, 2] -> seq( |x| { $x })\n';
+  it('fires when a mid-line fn has a space after an opening bracket', () => {
+    const source = '[1, 2] -> seq( fn(x) { $x })\n';
     const parsed = toParseResult(source);
 
     const result = runRules(parsed, source, makeConfig(), [spacingClosure]);
@@ -429,14 +429,14 @@ describe('SPACING_CLOSURE', () => {
     expect(result[0]).toMatchObject({
       code: 'SPACING_CLOSURE',
       severity: 'info',
-      message: 'No space before opening pipe in closure parameters',
+      message: 'No space before closure after an opening bracket',
       location: { line: 1, column: 16, offset: 15 },
       fix: null,
     });
   });
 
-  it('does not fire for a closure at offset 0', () => {
-    const source = '|x| ($x)\n';
+  it('does not fire for a fn at offset 0', () => {
+    const source = 'fn(x) { $x }\n';
     const parsed = toParseResult(source);
 
     expect(runRules(parsed, source, makeConfig(), [spacingClosure])).toEqual(
@@ -444,8 +444,8 @@ describe('SPACING_CLOSURE', () => {
     );
   });
 
-  it('does not fire for a no-space inline closure', () => {
-    const source = '[1, 2] -> seq(|x| { $x })\n';
+  it('does not fire for a no-space inline fn', () => {
+    const source = '[1, 2] -> seq(fn(x) { $x })\n';
     const parsed = toParseResult(source);
 
     expect(runRules(parsed, source, makeConfig(), [spacingClosure])).toEqual(
@@ -453,8 +453,8 @@ describe('SPACING_CLOSURE', () => {
     );
   });
 
-  it('does not fire for an indented closure alone on its own line', () => {
-    const source = '[1, 2]\n-> seq(\n  |x| { $x }\n)\n';
+  it('does not fire for an indented fn alone on its own line', () => {
+    const source = '[1, 2]\n-> seq(\n  fn(x) { $x }\n)\n';
     const parsed = toParseResult(source);
 
     expect(runRules(parsed, source, makeConfig(), [spacingClosure])).toEqual(
@@ -463,7 +463,7 @@ describe('SPACING_CLOSURE', () => {
   });
 
   it('does not fire on a space after the pipe operator, which SPACING_OPERATOR requires', () => {
-    const source = '5 -> |number|{ $ * 2 }\n';
+    const source = '5 -> fn(number) { $ * 2 }\n';
     const parsed = toParseResult(source);
 
     expect(runRules(parsed, source, makeConfig(), [spacingClosure])).toEqual(
@@ -471,8 +471,8 @@ describe('SPACING_CLOSURE', () => {
     );
   });
 
-  it('does not fire on the idiomatic space after a closure annotation', () => {
-    const source = '^(doc: "test") |x|($x * 2) => $fn\n';
+  it('does not fire on the idiomatic space after a fn annotation', () => {
+    const source = '^(doc: "test") fn(x) { $x * 2 } => $fn\n';
     const parsed = toParseResult(source);
 
     expect(runRules(parsed, source, makeConfig(), [spacingClosure])).toEqual(
@@ -530,7 +530,7 @@ describe('INDENT_CONTINUATION', () => {
 describe('with all spacing rules on', () => {
   it('emits zero diagnostics on a clean, idiomatically spaced script', () => {
     const source =
-      '1 + 2\n"a" -> log\n5 => $x\nseq({ $x }) -> log\n$x[0]\n|x| { $x }\n"hello" -> .upper -> .len\n';
+      '1 + 2\n"a" -> log\n5 => $x\nseq({ $x }) -> log\n$x[0]\nfn(x) { $x }\n"hello" -> .upper -> .len\n';
     const parsed = toParseResult(source);
 
     const result = runRules(parsed, source, makeConfig(), [

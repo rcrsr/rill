@@ -82,7 +82,7 @@ describe('iterate: basic integer sequence (AC-6, IR-7)', () => {
 
   it('captured closure as iterator step function', async () => {
     const result = await run(`
-      |x| ($x * 2) => $double
+      fn(x) { $x * 2 } => $double
       iterate(1, $double) -> take(5)
     `);
     expect(result).toEqual([1, 2, 4, 8, 16]);

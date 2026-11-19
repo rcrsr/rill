@@ -37,14 +37,14 @@ Iterators are dicts with three fields:
 |-------|------|-------------|
 | `value` | any | Current element (absent when done) |
 | `done` | bool | True if exhausted |
-| `next` | closure | Returns new iterator at next position |
+| `next` | fn | Returns new iterator at next position |
 
 ```text
 # Iterator structure
 [
   value: 0,
   done: false,
-  next: || { ... }   # returns new iterator
+  next: fn() { ... }   # returns new iterator
 ]
 ```
 
@@ -124,7 +124,7 @@ $r.!code -> string
 
 **Signature:** `iterate(seed, closure): stream of T`
 
-`iterate` produces an unbounded stream. It starts with `seed` as the first emitted value. After each emission, it calls `closure` with the current value in `$` to produce the next value, which becomes both the next emission and the next seed.
+`iterate` produces an unbounded stream. It starts with `seed` as the first emitted value. After each emission, it calls the function with the current value in `$` to produce the next value, which becomes both the next emission and the next seed.
 
 The stream is always infinite. You must bound it externally with `take(n)`, or accept that the iteration ceiling (`RILL_R010`) will halt execution.
 
@@ -306,11 +306,11 @@ Create custom iterators by implementing the protocol:
 
 ```rill
 # Counter from start to max
-|start, max| [
+fn(start, max) { [
   value: $start,
   done: ($start > $max),
-  next: || { $counter($.value + 1, $max) }
-] => $counter
+  next: fn() { $counter($start + 1, $max) }
+] } => $counter
 
 $counter(1, 5) -> seq({ $ })    # [1, 2, 3, 4, 5]
 ```
@@ -318,11 +318,11 @@ $counter(1, 5) -> seq({ $ })    # [1, 2, 3, 4, 5]
 **Fibonacci sequence:**
 
 ```text
-|a, b, max| [
+fn(a, b, max) { [
   value: $a,
   done: ($a > $max),
-  next: || { $fib($.b, $.a + $.b, $max) }
-] => $fib
+  next: fn() { $fib($b, $a + $b, $max) }
+] } => $fib
 
 $fib(0, 1, 50) -> seq({ $ })    # [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
 ```
@@ -330,11 +330,11 @@ $fib(0, 1, 50) -> seq({ $ })    # [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
 **Infinite iterator (use with limit):**
 
 ```text
-|n| [
+fn(n) { [
   value: $n,
   done: false,
-  next: || { $naturals($.value + 1) }
-] => $naturals
+  next: fn() { $naturals($n + 1) }
+] } => $naturals
 
 # Take first 5 using fold with compound accumulator
 $naturals(1) -> .first() -> fold([list: [], it: $], {
@@ -442,7 +442,7 @@ range(1, 4) -> seq({ $ => $row -> range(1, 4) -> seq({ $row * $ }) })
 
 ```text
 # This would error after 10000 elements
-|n| [value: $n, done: false, next: || { $inf($.value + 1) }] => $inf
+fn(n) { [value: $n, done: false, next: fn() { $inf($n + 1) }] } => $inf
 $inf(0) -> seq({ $ })    # ERROR: Iterator exceeded 10000 elements
 ```
 

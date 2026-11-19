@@ -3,7 +3,7 @@ id: annotation
 title: Annotations
 status: normative
 since: 0.24.0
-issues: [624]
+issues: []
 grammar: []
 errors: [RILL-P001, RILL-R081]
 depends: []
@@ -80,7 +80,7 @@ annotations are read from the type (`introspection.annotations`).
 
 ## Examples
 
-```rill pending=624
+```rill
 5 => $n
 ^(k: $n + 1) fn(x) { $x } => $f
 $f.^k
@@ -92,7 +92,7 @@ $f.^k
 # Result: 3
 ```
 
-```rill pending=624
+```rill
 # Error: Annotation key "type" is reserved
 ^(type: "x") fn(x) { $x }
 ```

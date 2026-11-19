@@ -43,10 +43,10 @@ describe('stream type expression', () => {
 
   describe('unspecified slots in a type check', () => {
     const make = `
-      || {
+      fn():stream(number):string {
         1 -> yield
         "done"
-      } :stream(number):string => $gen
+      } => $gen
       $gen() => $s
     `;
 
@@ -79,11 +79,11 @@ describe('stream type expression', () => {
       ).toBe('stream(number):dict(a: number = 1)');
     });
 
-    it('parses a bare stream outer in a closure return position', async () => {
+    it('parses a bare stream outer in a fn return position', async () => {
       expect(
         await run(
-          `|| { 1 -> yield
-          dict[a: 1] } :stream:dict(a: number = 1) => $f
+          `fn():stream:dict(a: number = 1) { 1 -> yield
+          dict[a: 1] } => $f
           $f.^type.signature`
         )
       ).toContain('stream');

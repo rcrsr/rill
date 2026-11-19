@@ -35,7 +35,7 @@ describe('Rill Runtime: Type Assertions', () => {
     });
 
     it('asserts closure type on pipe value', async () => {
-      expect(await run('|| "x" -> :closure -> $()')).toBe('x');
+      expect(await run('fn() { "x" } -> :fn -> $()')).toBe('x');
     });
 
     it('errors on type mismatch - string expected, got number', async () => {
@@ -116,11 +116,11 @@ describe('Rill Runtime: Type Assertions', () => {
     });
 
     it('returns true when type matches - closure', async () => {
-      expect(await run('|| "x" -> :?closure')).toBe(true);
+      expect(await run('fn() { "x" } -> :?fn')).toBe(true);
     });
 
     it('returns false when type mismatches - closure', async () => {
-      expect(await run('"fn" -> :?closure')).toBe(false);
+      expect(await run('"fn" -> :?fn')).toBe(false);
     });
   });
 
@@ -246,7 +246,7 @@ describe('Rill Runtime: Type Assertions', () => {
   describe('Complex Scenarios', () => {
     it('type assertion in closure body', async () => {
       const script = `
-        |x| { $x -> :number -> ($ * 2) } => $double
+        fn(x) { $x -> :number -> ($ * 2) } => $double
         $double(21)
       `;
       expect(await run(script)).toBe(42);
@@ -254,7 +254,7 @@ describe('Rill Runtime: Type Assertions', () => {
 
     it('type assertion in closure body - failure', async () => {
       const script = `
-        |x| { $x -> :number -> ($ * 2) } => $double
+        fn(x) { $x -> :number -> ($ * 2) } => $double
         $double("hello")
       `;
       await expectHalt(() => run(script), {
@@ -266,7 +266,7 @@ describe('Rill Runtime: Type Assertions', () => {
     it('type check for conditional dispatch', async () => {
       // Test type check followed by conditional processing
       const script = `
-        |val| {
+        fn(val) {
           $val -> :?number ? ($val * 2) ! ($val -> :?string ? ($val -> .len) ! 0)
         } => $process
         list[$process(5), $process("hello"), $process(true)]
@@ -348,10 +348,10 @@ describe('Rill Runtime: Type Assertions', () => {
       );
     });
 
-    it('AC-18: :closure(string, number) halts with "closure does not accept type arguments"', async () => {
+    it('AC-18: :fn(string, number) is a fn type with two unnamed params, not a leaf type with arguments', async () => {
       await expectHaltMessage(
-        () => run('"hello" :closure(string, number)'),
-        'closure does not accept type arguments'
+        () => run('"hello" :fn(string, number)'),
+        'Type assertion failed: expected fn(string, number):any, got string'
       );
     });
   });

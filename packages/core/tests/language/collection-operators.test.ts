@@ -93,26 +93,28 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
 
     it('AC-7: seq with variable-bound callable', async () => {
       const script = `
-        |x| ($x * 10) => $fn
+        fn(x) { $x * 10 } => $fn
         list[1, 2] -> seq($fn)
       `;
       expect(await run(script)).toEqual([10, 20]);
     });
 
     it('AC-8: fold with single named-param closure referencing $@ accumulator', async () => {
-      // Named param |item| binds element; $@ binds accumulator from fold context.
-      expect(await run('list[1, 2, 3] -> fold(0, |item|($@ + $item))')).toBe(6);
+      // Named param fn(item) binds element; $@ binds accumulator from fold context.
+      expect(
+        await run('list[1, 2, 3] -> fold(0, fn(item) { $@ + $item })')
+      ).toBe(6);
     });
 
     it('AC-9 (acc): two-type anonymous closure parses and binds in acc', async () => {
       expect(
-        await run('list[1, 2, 3] -> acc(0, |number, number|{ $@ + $ })')
+        await run('list[1, 2, 3] -> acc(0, fn(number, number) { $@ + $ })')
       ).toEqual([1, 3, 6]);
     });
 
     it('AC-9 (fold): two-type anonymous closure parses and binds in fold', async () => {
       expect(
-        await run('list[1, 2, 3] -> fold(0, |number, number|{ $@ + $ })')
+        await run('list[1, 2, 3] -> fold(0, fn(number, number) { $@ + $ })')
       ).toBe(6);
     });
 
@@ -325,20 +327,20 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
 
     it('AC-19/EC-2 (fold): 3-parameter named closure raises arity mismatch', async () => {
       await expectRuntimeError(
-        () => run('list[1, 2, 3] -> fold(0, |a, b, c|($a + $b + $c))'),
+        () => run('list[1, 2, 3] -> fold(0, fn(a, b, c) { $a + $b + $c })'),
         { code: 'RILL-R044' }
       );
     });
 
     it('EC-2 (seq): 2-arg named closure raises arity error', async () => {
       await expectRuntimeError(
-        () => run('list[1, 2, 3] -> seq(|a, b| ($a + $b))'),
+        () => run('list[1, 2, 3] -> seq(fn(a, b) { $a + $b })'),
         { code: 'RILL-R044' }
       );
     });
 
     it('AC-20/EC-NOD-3: named param mixed with bare $ raises undefined-variable error', async () => {
-      await expect(run('list[1] -> fan(|x|{ $ + 1 })')).rejects.toThrow(
+      await expect(run('list[1] -> fan(fn(x) { $ + 1 })')).rejects.toThrow(
         expect.objectContaining({ errorId: 'RILL-R005' })
       );
     });
@@ -378,9 +380,9 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     });
 
     it('AC-26/EC-11 (fold): typed closure with mismatched element type raises RILL-R001', async () => {
-      // |string, number| declares $ as string, but list has numbers.
+      // fn(string, number) declares $ as string, but list has numbers.
       await expect(
-        run('list[1, 2, 3] -> fold(0, |string, number|{ $@ + $ })')
+        run('list[1, 2, 3] -> fold(0, fn(string, number) { $@ + $ })')
       ).rejects.toThrow(expect.objectContaining({ errorId: 'RILL-R001' }));
     });
 

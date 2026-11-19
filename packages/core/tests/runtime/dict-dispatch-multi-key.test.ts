@@ -39,10 +39,10 @@ describe('Dict dispatch with multi-key entries', () => {
       });
     });
 
-    it('auto-invokes a closure value with the input as $', async () => {
-      expect(await run('[["1", "2"]: |x| "got {$x}"] => $d\n"2" -> $d')).toBe(
-        'got 2'
-      );
+    it('auto-invokes a fn value with the input as $', async () => {
+      expect(
+        await run('[["1", "2"]: fn(x) { "got {$x}" }] => $d\n"2" -> $d')
+      ).toBe('got 2');
     });
   });
 

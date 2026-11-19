@@ -172,7 +172,7 @@ describe('Rill Runtime: Block Scoping', () => {
     it('closures cannot shadow outer variables', async () => {
       const script = `
         "outer" => $x
-        ||("closure" => $x) => $fn
+        fn() { "closure" => $x } => $fn
         $fn()
         $x
       `;
@@ -184,7 +184,7 @@ describe('Rill Runtime: Block Scoping', () => {
     it('closures resolve variables at call time (late binding)', async () => {
       const script = `
         10 => $x
-        ||($x + 5) => $fn
+        fn() { $x + 5 } => $fn
         20 => $x
         $fn()
       `;

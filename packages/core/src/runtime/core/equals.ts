@@ -195,6 +195,9 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
     case 'ClosureParam':
       return sameNodeType(a, b) && closureParamEquals(a, b);
 
+    case 'FnType':
+      return sameNodeType(a, b) && typeRefEquals(a.typeRef, b.typeRef);
+
     case 'BinaryExpr':
       return sameNodeType(a, b) && binaryExprEquals(a, b);
 
@@ -605,10 +608,6 @@ function returnTypeTargetEquals(
   b: ClosureNode['returnTypeTarget']
 ): boolean {
   if (a === undefined || b === undefined) return a === b;
-  if ('type' in a || 'type' in b) {
-    if (!('type' in a) || !('type' in b)) return false;
-    return astEquals(a, b);
-  }
   return typeRefEquals(a, b);
 }
 
@@ -736,7 +735,25 @@ function typeRefEquals(a: TypeRef, b: TypeRef): boolean {
   if (a.kind === 'literal' && b.kind === 'literal') {
     return literalNodeEquals(a.value, b.value);
   }
+  if (a.kind === 'fn' && b.kind === 'fn') return fnTypeRefEquals(a, b);
   return false;
+}
+
+/**
+ * Compare two fn type refs: params (absent differs from empty) and outer.
+ */
+function fnTypeRefEquals(
+  a: TypeRef & { kind: 'fn' },
+  b: TypeRef & { kind: 'fn' }
+): boolean {
+  if (a.params === undefined || b.params === undefined) {
+    if (a.params !== b.params) return false;
+  } else if (!arrayEquals(a.params, b.params, closureParamEquals)) {
+    return false;
+  }
+  if (a.outer === undefined || b.outer === undefined)
+    return a.outer === b.outer;
+  return typeRefEquals(a.outer, b.outer);
 }
 
 /**

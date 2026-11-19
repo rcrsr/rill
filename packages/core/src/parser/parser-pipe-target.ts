@@ -42,11 +42,16 @@ import {
   canStartPipeInvoke,
   isAnnotationAccess,
   isMethodCall,
-  isClosureStart,
+  isFnStart,
+  rejectRemovedClosureLiteral,
   parseBareHostCall,
   describeToken,
 } from './helpers.js';
-import { parseScriptTypeRef, throwBareUnion } from './parser-types.js';
+import {
+  parseScriptTypeRef,
+  throwBareUnion,
+  throwRemovedClosureType,
+} from './parser-types.js';
 import { atTypeConstructor } from './parser-shape.js';
 import { ERROR_IDS } from '../error-registry.js';
 import { removedSelectorError } from './parser-variables.js';
@@ -509,9 +514,12 @@ function parseUncheckedPipeTarget(this: Parser): PipeTargetNode {
     );
   }
 
-  // Inline closure: -> |x| { body }
-  if (isClosureStart(this.state)) {
-    return this.parseClosure();
+  // Removed closure literals: -> |x| { body }, -> || { body }
+  rejectRemovedClosureLiteral(this.state);
+
+  // Inline fn literal or fn type value: -> fn(x) { body }
+  if (isFnStart(this.state)) {
+    return this.parseFnForm();
   }
 
   // Closure call as pipe target (supports property access: $math.double())
@@ -548,6 +556,15 @@ function parseUncheckedPipeTarget(this: Parser): PipeTargetNode {
   if (atTypeConstructor(this.state)) {
     const name = current(this.state).value;
     return attachPipeTargetIndex.call(this, this.parseTypeConstructor(name));
+  }
+
+  // The removed `closure` type name as a pipe target
+  if (
+    check(this.state, TOKEN_TYPES.IDENTIFIER) &&
+    current(this.state).value === 'closure' &&
+    this.state.tokens[this.state.pos + 1]?.type !== TOKEN_TYPES.LPAREN
+  ) {
+    throwRemovedClosureType(current(this.state).span.start);
   }
 
   // Bare type keyword as pipe target: -> string, -> number, -> bool, ...

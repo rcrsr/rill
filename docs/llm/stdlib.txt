@@ -144,9 +144,9 @@ Errors:
 
 ## iterate
 
-`iterate(seed, closure): stream of T`
+`iterate(seed, fn): stream of T`
 
-Produces an infinite source stream. Emits `seed` first, then calls `closure` with the current value in `$` to produce the next value. The stream never terminates on its own; bound it externally with `take(n)`, or the iteration ceiling (`RILL_R010`) will halt execution.
+Produces an infinite source stream. Emits `seed` first, then calls `fn` with the current value in `$` to produce the next value. The stream never terminates on its own; bound it externally with `take(n)`, or the iteration ceiling (`RILL_R010`) will halt execution.
 
 Pipe form: when piped, the piped value becomes `seed`:
 
@@ -253,7 +253,7 @@ Produces sliding windows of `n` elements. The default `step` equals `n`, giving 
 
 ## start_when
 
-`start_when(list, predicate: closure) -> stream[T]`
+`start_when(list, predicate: fn) -> stream[T]`
 
 Yields elements starting from the first element where `predicate` returns `true`, then passes all remaining elements through regardless of the predicate. The element that triggers the predicate is included. The `list` argument is auto-prepended when piping.
 
@@ -263,7 +263,7 @@ Predicate must return `bool`. Non-callable predicate halts with `#RILL_R040`. No
 
 ## stop_when
 
-`stop_when(list, predicate: closure) -> stream[T]`
+`stop_when(list, predicate: fn) -> stream[T]`
 
 Yields elements up to and including the first element where `predicate` returns `true`, then stops. Inclusive of the matching element. The `list` argument is auto-prepended when piping.
 

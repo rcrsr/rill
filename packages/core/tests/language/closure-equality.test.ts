@@ -15,8 +15,8 @@ describe('Rill Runtime: Closure Equality', () => {
   describe('identical closures', () => {
     it('closures with same body are equal', async () => {
       const code = `
-        ||{ .trim } => $a
-        ||{ .trim } => $b
+        fn { .trim } => $a
+        fn { .trim } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(true);
@@ -26,8 +26,8 @@ describe('Rill Runtime: Closure Equality', () => {
   describe('different closures', () => {
     it('closures with different body are not equal', async () => {
       const code = `
-        ||{ .trim } => $a
-        ||{ .len } => $b
+        fn { .trim } => $a
+        fn { .len } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);
@@ -48,8 +48,8 @@ describe('Rill Runtime: Closure Equality', () => {
     it('closures with different captured values are not equal', async () => {
       // With new block-closure semantics, use explicit default parameter literals
       const code = `
-        |x = "hello"|{ $x } => $a
-        |x = "world"|{ $x } => $b
+        fn(x = "hello") { $x } => $a
+        fn(x = "world") { $x } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);
@@ -81,8 +81,8 @@ describe('Rill Runtime: Closure Equality', () => {
   describe('complex closures', () => {
     it('closures with different conditionals are not equal', async () => {
       const code = `
-        |b: bool| { $b ? "yes" ! "no" } => $a
-        |b: bool| { $b ? "yes" ! "maybe" } => $b
+        fn(b: bool) { $b ? "yes" ! "no" } => $a
+        fn(b: bool) { $b ? "yes" ! "maybe" } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);
@@ -90,8 +90,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('closures with loops are equal', async () => {
       const code = `
-        |x| (while (true) do { $x }) => $a
-        |x| (while (true) do { $x }) => $b
+        fn(x) { while (true) do { $x } } => $a
+        fn(x) { while (true) do { $x } } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(true);
@@ -99,8 +99,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('closures containing nested closures are compared structurally', async () => {
       const code = `
-        ||{ ||{ "inner" } } => $a
-        ||{ ||{ "inner" } } => $b
+        fn() { fn() { "inner" } } => $a
+        fn() { fn() { "inner" } } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(true);
@@ -108,8 +108,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('closures containing different nested closures are not equal', async () => {
       const code = `
-        ||{ ||{ "inner1" } } => $a
-        ||{ ||{ "inner2" } } => $b
+        fn() { fn() { "inner1" } } => $a
+        fn() { fn() { "inner2" } } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);
@@ -120,8 +120,8 @@ describe('Rill Runtime: Closure Equality', () => {
       // `.trim()` (may receive it on an eligible dict member), so the two
       // are structurally different bodies even though both call .trim.
       const code = `
-        ||{ .trim } => $a
-        ||{ .trim() } => $b
+        fn { .trim } => $a
+        fn { .trim() } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);
@@ -131,8 +131,8 @@ describe('Rill Runtime: Closure Equality', () => {
   describe('inequality operator', () => {
     it('!= returns true for different closures', async () => {
       const code = `
-        ||{ .trim } => $a
-        ||{ .len } => $b
+        fn { .trim } => $a
+        fn { .len } => $b
         ($a != $b) ? true ! false
       `;
       expect(await run(code)).toBe(true);
@@ -140,8 +140,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('!= returns false for same closures', async () => {
       const code = `
-        ||{ .trim } => $a
-        ||{ .trim } => $b
+        fn { .trim } => $a
+        fn { .trim } => $b
         ($a != $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);
@@ -151,8 +151,8 @@ describe('Rill Runtime: Closure Equality', () => {
   describe('closures in collections', () => {
     it('tuples containing different closures are not equal', async () => {
       const code = `
-        list[||{ .trim }, ||{ .len }] => $a
-        list[||{ .trim }, ||{ .str }] => $b
+        list[fn { .trim }, fn { .len }] => $a
+        list[fn { .trim }, fn { .str }] => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);
@@ -160,8 +160,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('dicts containing different closures are not equal', async () => {
       const code = `
-        dict[f: ||{ .trim }] => $a
-        dict[f: ||{ .len }] => $b
+        dict[f: fn { .trim }] => $a
+        dict[f: fn { .len }] => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);
@@ -189,8 +189,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('closures with pipe variable are equal', async () => {
       const code = `
-        ||{ $ } => $a
-        ||{ $ } => $b
+        fn { $ } => $a
+        fn { $ } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(true);
@@ -198,7 +198,7 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('same closure reference equals itself', async () => {
       const code = `
-        ||{ .trim } => $a
+        fn { .trim } => $a
         ($a == $a) ? true ! false
       `;
       expect(await run(code)).toBe(true);
@@ -226,7 +226,7 @@ describe('Rill Runtime: Closure Equality', () => {
   describe('nested type-argument defaults', () => {
     it('atom default closure is equal to itself', async () => {
       const code = `
-        ||{ |p: dict(s: atom = #TIMEOUT)| { $p } } => $a
+        fn() { fn(p: dict(s: atom = #TIMEOUT)) { $p } } => $a
         ($a == $a) ? true ! false
       `;
       expect(await run(code)).toBe(true);
@@ -234,8 +234,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('identical atom defaults are equal', async () => {
       const code = `
-        ||{ |p: dict(s: atom = #TIMEOUT)| { $p } } => $a
-        ||{ |p: dict(s: atom = #TIMEOUT)| { $p } } => $b
+        fn() { fn(p: dict(s: atom = #TIMEOUT)) { $p } } => $a
+        fn() { fn(p: dict(s: atom = #TIMEOUT)) { $p } } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(true);
@@ -243,8 +243,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('identical tuple defaults are equal', async () => {
       const code = `
-        ||{ |p: dict(s: tuple = tuple[1, "a"])| { $p } } => $a
-        ||{ |p: dict(s: tuple = tuple[1, "a"])| { $p } } => $b
+        fn() { fn(p: dict(s: tuple = tuple[1, "a"])) { $p } } => $a
+        fn() { fn(p: dict(s: tuple = tuple[1, "a"])) { $p } } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(true);
@@ -252,8 +252,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('identical dict defaults are equal', async () => {
       const code = `
-        ||{ |p: dict(s: dict = dict[a: 1])| { $p } } => $a
-        ||{ |p: dict(s: dict = dict[a: 1])| { $p } } => $b
+        fn() { fn(p: dict(s: dict = dict[a: 1])) { $p } } => $a
+        fn() { fn(p: dict(s: dict = dict[a: 1])) { $p } } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(true);
@@ -261,8 +261,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('identical ordered defaults are equal', async () => {
       const code = `
-        ||{ |p: dict(s: ordered = ordered[x: 1])| { $p } } => $a
-        ||{ |p: dict(s: ordered = ordered[x: 1])| { $p } } => $b
+        fn() { fn(p: dict(s: ordered = ordered[x: 1])) { $p } } => $a
+        fn() { fn(p: dict(s: ordered = ordered[x: 1])) { $p } } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(true);
@@ -270,8 +270,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('identical list defaults are equal', async () => {
       const code = `
-        ||{ |p: dict(s: list = list[1])| { $p } } => $a
-        ||{ |p: dict(s: list = list[1])| { $p } } => $b
+        fn() { fn(p: dict(s: list = list[1])) { $p } } => $a
+        fn() { fn(p: dict(s: list = list[1])) { $p } } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(true);
@@ -279,8 +279,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('different atom defaults are not equal', async () => {
       const code = `
-        ||{ |p: dict(s: atom = #TIMEOUT)| { $p } } => $a
-        ||{ |p: dict(s: atom = #INVALID_INPUT)| { $p } } => $b
+        fn() { fn(p: dict(s: atom = #TIMEOUT)) { $p } } => $a
+        fn() { fn(p: dict(s: atom = #INVALID_INPUT)) { $p } } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);
@@ -288,8 +288,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('different tuple defaults are not equal', async () => {
       const code = `
-        ||{ |p: dict(s: tuple = tuple[1, "a"])| { $p } } => $a
-        ||{ |p: dict(s: tuple = tuple[1, "b"])| { $p } } => $b
+        fn() { fn(p: dict(s: tuple = tuple[1, "a"])) { $p } } => $a
+        fn() { fn(p: dict(s: tuple = tuple[1, "b"])) { $p } } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);
@@ -297,8 +297,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('different dict defaults are not equal', async () => {
       const code = `
-        ||{ |p: dict(s: dict = dict[a: 1])| { $p } } => $a
-        ||{ |p: dict(s: dict = dict[a: 2])| { $p } } => $b
+        fn() { fn(p: dict(s: dict = dict[a: 1])) { $p } } => $a
+        fn() { fn(p: dict(s: dict = dict[a: 2])) { $p } } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);
@@ -307,8 +307,8 @@ describe('Rill Runtime: Closure Equality', () => {
     it('identical interpolated string defaults are equal', async () => {
       const code = `
         "x" => $v
-        ||{ |p: dict(s: string = "a{$v}b")| { $p } } => $a
-        ||{ |p: dict(s: string = "a{$v}b")| { $p } } => $b
+        fn() { fn(p: dict(s: string = "a{$v}b")) { $p } } => $a
+        fn() { fn(p: dict(s: string = "a{$v}b")) { $p } } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(true);
@@ -318,8 +318,8 @@ describe('Rill Runtime: Closure Equality', () => {
       const code = `
         "x" => $v
         "y" => $w
-        ||{ |p: dict(s: string = "a{$v}b")| { $p } } => $a
-        ||{ |p: dict(s: string = "a{$w}b")| { $p } } => $b
+        fn() { fn(p: dict(s: string = "a{$v}b")) { $p } } => $a
+        fn() { fn(p: dict(s: string = "a{$w}b")) { $p } } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);

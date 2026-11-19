@@ -3,7 +3,7 @@ id: iteration
 title: Iteration
 status: normative
 since: 0.24.0
-issues: [624]
+issues: []
 grammar: []
 errors: [RILL-R002, RILL-R010, TYPE_MISMATCH]
 depends: [scope, pipe, break]
@@ -110,7 +110,7 @@ dict[b: 1, a: 2] -> seq({ "{$.key}={$.value}" })
 # Result: list["a=2", "b=1"]
 ```
 
-```rill pending=624
+```rill
 seq(list[1, 2], fn(x: number) { $x * 10 })
 # Result: list[10, 20]
 ```

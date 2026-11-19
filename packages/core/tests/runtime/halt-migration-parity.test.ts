@@ -708,7 +708,9 @@ describe('halt migration parity', () => {
 
     it('omits source id and source text for the same site with no module in play', async () => {
       const entry = BOUNDARIES.find((e) => e.path === 'script-callable-source');
-      const result = await captureScript('|x| ($x -> .head) => $f\n5 -> $f');
+      const result = await captureScript(
+        'fn(x) { $x -> .head } => $f\n5 -> $f'
+      );
       expect(result.threw).toBe(true);
       if (!result.threw) return;
       const err = result.error as RuntimeError;

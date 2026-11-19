@@ -6,6 +6,9 @@ import {
   BUILTIN_FUNCTIONS,
   BUILTIN_METHODS,
   introspectHandlerFromAST,
+  isAtom,
+  formatRillLiteral,
+  formatTypeRef,
   KEYWORDS,
 } from '@rcrsr/rill';
 import type {
@@ -17,7 +20,6 @@ import type {
 import { spanToRange } from '../span-to-range.js';
 import { locateTarget } from './locate-target.js';
 import { findVisibleBinding } from './resolve-scope.js';
-import { typeRefToString } from '../type-rendering.js';
 import type { HoverInfo } from './types.js';
 
 /**
@@ -106,7 +108,7 @@ function hoverForVariable(
   const { declaredType } = binding;
   const type =
     declaredType !== null && declaredType !== undefined
-      ? typeRefToString(declaredType)
+      ? formatTypeRef(declaredType)
       : undefined;
 
   return {
@@ -131,13 +133,33 @@ function hoverForClosureCall(
   };
 }
 
+/**
+ * Prints the complete fn form: an unnamed param (bound to `$` or `$@`) as its
+ * type, a named param as `name: type`, and an omitted outer type as `any`.
+ */
 function formatClosureSignature(signature: HandlerMetadataStatic): string {
   const paramList = signature.params
-    .map((param) => `${param.name}: ${param.type}`)
+    .map((param) => {
+      const unnamed = param.name === '$' || param.name === '@';
+      const base = unnamed ? param.type : `${param.name}: ${param.type}`;
+      const literal = formatDefault(param.defaultValue);
+      return literal === undefined ? base : `${base} = ${literal}`;
+    })
     .join(', ');
-  const returnSuffix =
-    signature.returnType !== undefined ? `: ${signature.returnType}` : '';
-  return `|${paramList}|${returnSuffix}`;
+  return `fn(${paramList}):${signature.returnType ?? 'any'}`;
+}
+
+/** Source form of a scalar or atom default, or undefined when there is none. */
+function formatDefault(value: unknown): string | undefined {
+  if (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    isAtom(value)
+  ) {
+    return formatRillLiteral(value);
+  }
+  return undefined;
 }
 
 function hoverForHostCall(name: string, span: SourceSpan): HoverInfo | null {

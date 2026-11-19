@@ -356,7 +356,7 @@ describe('Parser Spans', () => {
     });
 
     it('ClosureParam span ends at the default value, not trailing content', () => {
-      const source = '|x: number = 1, y| { $x }';
+      const source = 'fn(x: number = 1, y) { $x }';
       const ast = parse(source);
 
       const closureParam = findFirstOfType(ast, 'ClosureParam');
@@ -409,14 +409,11 @@ describe('Parser Spans', () => {
       ).toBe('use<ext:foo>');
     });
 
-    it('Closure span with a return type target retains the documented current()-lookahead exception', () => {
-      // parseClosureReturnTypeTarget leaves the parser positioned after the
-      // return type, and the Closure span end intentionally reads current()
-      // there rather than previous() (see parser-literals.ts). This is a
-      // deliberate, commented exception rather than the last-consumed-token
-      // bug the sibling tests above guard against, so the span includes the
-      // trailing newline up to (but not including) the next statement.
-      const source = '|| { 1 }:number\n"x"';
+    it('Closure span with a return type target ends at the closing brace', () => {
+      // The return type precedes the block, so the span ends at the last
+      // consumed token like every sibling case: the closing brace, without
+      // the trailing newline before the next statement.
+      const source = 'fn():number { 1 }\n"x"';
       const ast = parse(source);
 
       const closure = findFirstOfType(ast, 'Closure');
@@ -430,7 +427,7 @@ describe('Parser Spans', () => {
         ).span
       );
       expect(closureSlice).not.toContain('"x"');
-      expect(closureSlice).toBe('|| { 1 }:number\n');
+      expect(closureSlice).toBe('fn():number { 1 }');
     });
   });
 
@@ -580,7 +577,7 @@ describe('Parser Spans', () => {
 
   describe('Closure spans', () => {
     it('does not include capture operator after closure', () => {
-      const source = '|x| { $x + 1 } => $fn';
+      const source = 'fn(x) { $x + 1 } => $fn';
       const ast = parse(source);
 
       function findClosure(node: unknown): unknown | null {
@@ -613,12 +610,12 @@ describe('Parser Spans', () => {
         span.end.offset
       );
 
-      // Closure should be exactly "|x| { $x + 1 }", not including " => $fn"
-      expect(closureContent).toBe('|x| { $x + 1 }');
+      // Closure should be exactly "fn(x) { $x + 1 }", not including " => $fn"
+      expect(closureContent).toBe('fn(x) { $x + 1 }');
     });
 
     it('closure body span ends at closing brace', () => {
-      const source = '|x| { $x } => $fn';
+      const source = 'fn(x) { $x } => $fn';
       const ast = parse(source);
 
       function findClosure(node: unknown): unknown | null {
@@ -654,8 +651,8 @@ describe('Parser Spans', () => {
       expect(bodyContent).toBe('{ $x }');
     });
 
-    it('||{ } closure spans correctly', () => {
-      const source = '||{ 42 } => $fn';
+    it('fn() { } closure spans correctly', () => {
+      const source = 'fn() { 42 } => $fn';
       const ast = parse(source);
 
       function findClosure(node: unknown): unknown | null {
@@ -688,7 +685,7 @@ describe('Parser Spans', () => {
         span.end.offset
       );
 
-      expect(closureContent).toBe('||{ 42 }');
+      expect(closureContent).toBe('fn() { 42 }');
     });
   });
 

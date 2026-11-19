@@ -49,7 +49,7 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
       let snapshot: CallFrame[] = [];
 
       // Three nested closures plus the probe call make four live frames.
-      await run('||{ ||{ ||{ probe() }() }() }()', {
+      await run('fn() { fn() { fn() { probe() }() }() }()', {
         maxCallStackDepth: 3,
         functions: {
           probe: {
@@ -74,7 +74,7 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
       let snapshot: CallFrame[] = [];
 
       // Four nested closures plus the probe call make exactly five frames.
-      await run('||{ ||{ ||{ ||{ probe() }() }() }() }()', {
+      await run('fn() { fn() { fn() { fn() { probe() }() }() }() }()', {
         maxCallStackDepth: 5,
         functions: {
           probe: {

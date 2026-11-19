@@ -86,12 +86,12 @@ Define a stream closure that emits chunks from a script:
 
 ```text
 # Stream closure: emit processed lines, resolve with line count
-|input: string| {
+fn(input: string):stream(string):number {
   $input -> .split("\n") -> seq({
     $ -> .trim -> .empty -> !$ ? { $ -> yield }
   })
   return $input -> .split("\n") -> .len
-}:stream(string):number => $line_stream
+} => $line_stream
 
 $line_stream("line one\nline two\nline three") => $s
 $s -> seq({ $ -> log })

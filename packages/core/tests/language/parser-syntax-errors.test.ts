@@ -174,7 +174,7 @@ describe('Parser Syntax Errors', () => {
     it('rejects invalid token at key position (EC-1)', () => {
       // EC-1: After a valid dict entry, subsequent entries must also be valid keys
       // Using a closure as a key should fail
-      const source = 'dict[a: 1, ||($): "val"]';
+      const source = 'dict[a: 1, fn() { 1 }: "val"]';
 
       try {
         parse(source);
@@ -183,9 +183,7 @@ describe('Parser Syntax Errors', () => {
         expect(err).toBeInstanceOf(ParseError);
         const parseErr = err as ParseError;
 
-        expect(parseErr.message).toContain(
-          'Dict key must be identifier, string, number, boolean, variable, or expression'
-        );
+        expect(parseErr.errorId).toBe('RILL-P001');
       }
     });
 

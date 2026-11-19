@@ -14,8 +14,8 @@ import { RuntimeError } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: assert with unbound $', () => {
-  it('bare assert inside a parameterless closure halts with RILL-R005', async () => {
-    const err = await run('|| { assert true } => $f\n$f()').catch(
+  it('bare assert inside a parameterless fn halts with RILL-R005', async () => {
+    const err = await run('fn() { assert true } => $f\n$f()').catch(
       (e: unknown) => e
     );
     expect(err).toBeInstanceOf(RuntimeError);

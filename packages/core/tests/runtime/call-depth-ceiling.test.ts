@@ -42,7 +42,7 @@ vi.hoisted(() => {
 describe('Rill Runtime: Call-Depth Ceiling', () => {
   it('direct self-recursion halts with RILL-R010, not a host RangeError', async () => {
     const script = `
-      || { $f() } => $f
+      fn() { $f() } => $f
       $f()
     `;
     await expectHalt(() => run(script, { maxCallDepth: 50 }), {
@@ -53,7 +53,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
 
   it('dict-bound self-referential recursion halts with RILL-R010, not a host RangeError', async () => {
     const script = `
-      dict[a: || { $.a }] => $o
+      dict[a: fn() { $o.a }] => $o
       $o.a
     `;
     await expectHalt(() => run(script, { maxCallDepth: 50 }), {
@@ -69,7 +69,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
     // a raw RangeError well before a ceiling in the thousands. The yield
     // in invokeCallable makes the ceiling the only bound that applies.
     const script = `
-      dict[a: || { $.a }] => $o
+      dict[a: fn() { $o.a }] => $o
       $o.a
     `;
     await expectHalt(() => run(script, { maxCallDepth: 5000 }), {
@@ -83,7 +83,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
     // dispatch-selected zero-param closure reference, which routes through
     // invokeCallable's no-location dispatch branch exclusively.
     const script = `
-      || { "a" -> dict[a: $f] } => $f
+      fn() { "a" -> dict[a: $f] } => $f
       "a" -> dict[a: $f]
     `;
     await expectHalt(() => run(script, { maxCallDepth: 50 }), {
@@ -97,7 +97,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
     // exercises that dispatch branch directly to prove the depth check runs
     // before all three branches, not just the call-location-present one.
     const ast = parse(`
-      || { $f() } => $f
+      fn() { $f() } => $f
     `);
     const ctx = createRuntimeContext({ maxCallDepth: 50 });
     await execute(ast, ctx);
@@ -122,7 +122,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
 
   it('allows legitimately deep but finite recursion below the ceiling', async () => {
     const script = `
-      |n| { ($n < 1) ? 0 ! (1 + $count($n - 1)) } => $count
+      fn(n) { ($n < 1) ? 0 ! (1 + $count($n - 1)) } => $count
       $count(400)
     `;
     const result = await run(script, { maxCallDepth: 500 });
@@ -133,7 +133,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
     const ctx: RuntimeContext = createRuntimeContext({ maxCallDepth: 50 });
 
     const recursiveAst = parse(`
-      || { $f() } => $f
+      fn() { $f() } => $f
       $f()
     `);
     await expectHalt(() => execute(recursiveAst, ctx), {
@@ -145,7 +145,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
     // increment would falsely trip the ceiling on this unrelated, shallow
     // follow-up call sharing the same context.
     const shallowAst = parse(`
-      |n| { $n + 1 } => $inc
+      fn(n) { $n + 1 } => $inc
       $inc(41)
     `);
     const result = await execute(shallowAst, ctx);
@@ -201,7 +201,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
 
     it('still halts on recursion through a fan body', async () => {
       const script = `
-        || { list[1] -> fan({ $f() }) } => $f
+        fn() { list[1] -> fan({ $f() }) } => $f
         $f()
       `;
       await expectHaltMessage(() => run(script, { maxCallDepth: 50 }), CEILING);
@@ -209,7 +209,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
 
     it('still halts on recursion through a filter body', async () => {
       const script = `
-        || { list[1] -> filter({ $f() }) } => $f
+        fn() { list[1] -> filter({ $f() }) } => $f
         $f()
       `;
       await expectHaltMessage(() => run(script, { maxCallDepth: 50 }), CEILING);
@@ -217,7 +217,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
 
     it('still halts on recursion through a sort key function', async () => {
       const script = `
-        || { list[1] -> sort({ $f() }) } => $f
+        fn() { list[1] -> sort({ $f() }) } => $f
         $f()
       `;
       await expectHaltMessage(() => run(script, { maxCallDepth: 50 }), CEILING);
@@ -225,7 +225,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
 
     it('measures depth inside a fan branch the same as inside a seq body', async () => {
       const recurse = (op: 'seq' | 'fan', k: number): string => `
-        |n| { ($n < 1) ? 0 ! (list[1] -> ${op}({ $count($n - 1) }) -> .len) } => $count
+        fn(n) { ($n < 1) ? 0 ! (list[1] -> ${op}({ $count($n - 1) }) -> .len) } => $count
         $count(${k})
       `;
       const options = { maxCallDepth: 50 };
@@ -251,7 +251,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
       expect(fanResult.result).toBe(2000);
 
       const shallowAst = parse(`
-        |n| { $n + 1 } => $inc
+        fn(n) { $n + 1 } => $inc
         $inc(41)
       `);
       const result = await execute(shallowAst, ctx);
@@ -263,7 +263,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
     const IN_FLIGHT_50 = /Calls in flight exceeded 10050/;
 
     const branching = (body: string): string => `
-      || { ${body} } => $f
+      fn() { ${body} } => $f
       $f()
     `;
 
@@ -371,9 +371,9 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
       );
     });
 
-    it('halts a default-settings fan of closure calls and completes it when batched', async () => {
+    it('halts a default-settings fan of fn calls and completes it when batched', async () => {
       const script = (opts: string): string => `
-        |x| { $x } => $id
+        fn(x) { $x } => $id
         range(0, 10000) -> fan({ $ -> $id }${opts}) -> .len
       `;
       await expectHaltMessage(
@@ -397,7 +397,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
       expect(ctx.callsInFlight.tripped).toBe(false);
 
       const result = await execute(
-        parse('|n| { $n + 1 } => $inc\n$inc(41)'),
+        parse('fn(n) { $n + 1 } => $inc\n$inc(41)'),
         ctx
       );
       expect(result.result).toBe(42);

@@ -3,7 +3,7 @@ id: assertion
 title: Type assertions and checks
 status: normative
 since: 0.24.0
-issues: [623]
+issues: []
 grammar: [postfix-type-op, type-assertion, type-check, type-target]
 errors: [INVALID_INPUT, TYPE_MISMATCH]
 depends: [type-value, type-form, structural-typing, any]
@@ -74,7 +74,7 @@ carries a type MUST leave it unchanged.
 r[assertion.bare-kind] A bare kind annotation labels the kind
 `:list` and `:dict` MUST set the bare kind as the asserted type.
 
-r[assertion.bare-fn] The bare fn annotation labels the kind {pending #623}
+r[assertion.bare-fn] The bare fn annotation labels the kind
 `:fn` MUST set the bare kind `fn`, as `:list` sets `list`.
 
 ## Interactions
@@ -127,7 +127,7 @@ dict[a: 1] -> :dict(a: number, b: number = 0)
 
 How the asserted type travels is stated by `carried-type`.
 
-The annotation `:closure` labels the bare kind `closure` today; 0.24.0 replaces the kind name with `fn`.
+The annotation `:closure` is removed and raises RILL-P012 naming `fn`; write `:fn`.
 
 A `|` between types after the colon is removed in 0.24.0 and raises RILL-P011; write
 `:union(...)`.

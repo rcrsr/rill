@@ -76,21 +76,21 @@ list[1, 2] -> seq({ $x + $ })
 
 ```rill
 1 => $y
-|| { $y } => $f
+fn() { $y } => $f
 2 => $y
 $f()
 # Result: 2
 ```
 
 ```rill
-|n| { ($n < 1) ? 0 ! ($n + $sum($n - 1)) } => $sum
+fn(n) { ($n < 1) ? 0 ! ($n + $sum($n - 1)) } => $sum
 $sum(3)
 # Result: 6
 ```
 
 ```rill
 1 => $x
-|x| { $x } => $f
+fn(x) { $x } => $f
 $f(2)
 # Result: 2
 ```

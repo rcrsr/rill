@@ -121,12 +121,12 @@ See [Collection Slicing](topic-collection-slicing.md) for detailed documentation
 | Datetime | `datetime(...)` or `now()` | `datetime("2024-01-15T10:30:00Z")`, `now()` | Datetime value |
 | Duration | `duration(...)` | `duration(...dict[days: 1, hours: 2])` | Duration value |
 | Vector | host-provided | `$app.embed("text")` (after `use<ext:app> => $app`) | Vector value |
-| Closure | `\|\|{ }` | `\|x\|($x * 2)` | `ScriptCallable` |
+| Function | `fn() { }` | `fn(x) { $x * 2 }` | `ScriptCallable` |
 | Stream | `:stream(T):R` | host-provided | Stream value |
 | Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |
 | Atom | `#NAME` | `#TIMEOUT`, `#wired` | `:atom` value |
 
-**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `iterator`, `datetime`, `duration`, `stream`, `atom`, `error_code`, `any`, `type`
+**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `fn`, `list`, `dict`, `ordered`, `tuple`, `vector`, `iterator`, `datetime`, `duration`, `stream`, `atom`, `error_code`, `any`, `type`
 
 `union` is also a type name, valid only as `union(T, ...)`; see [Type System](topic-type-system.md).
 
@@ -167,11 +167,11 @@ Atom literals use `#NAME` syntax. They produce a `:atom` value identifying a nam
 
 | Syntax | Description |
 |--------|-------------|
-| `\|p: type\|{ } => $fn` | Define and capture function; type can be parameterized (e.g., `\|x: list(string)\|`) |
-| `\|p: type\| { }:rtype` | Define closure with enforced return type; rtype can be parameterized (e.g., `:list(string)`) |
-| `\|p = default\|{ }` | Parameter with default |
-| `\|^(min: 0) p\|{ }` | Parameter with annotation |
-| `\|type\|{ } => $fn` | Anonymous typed closure; `$` holds piped value of declared type |
+| `fn(p: type) { } => $fn` | Define and capture function; type can be parameterized (e.g., `fn(x: list(string))`) |
+| `fn(p: type):rtype { }` | Define function with enforced return type; rtype can be parameterized (e.g., `:list(string)`) |
+| `fn(p = default) { }` | Parameter with default; the parameter type is any, since a default does not infer a type |
+| `fn(^(min: 0) p) { }` | Parameter with annotation |
+| `fn { $ } => $fn` | Unnamed-parameter function; `fn { }` takes the parameters its body reads: none gives `fn():any`, `$` gives one, `$@` gives two |
 | `$fn(arg)` | Call function directly |
 | `arg -> $fn()` | Call with pipe value as single arg |
 | `arg -> $fn(...)` | Spread pipe value into call arguments |
@@ -204,10 +204,9 @@ See [Variables](topic-variables.md) for detailed documentation.
 | Do-while `do { } while (cond)` | Accumulated value |
 | Conditional `cond ? a ! b` | Pipe value entering the conditional, in either branch (block or bare) |
 | Piped conditional `-> ? { }` | Piped value |
-| Stored closure `\|x\|{ }` | N/A: use params |
-| Dict closure `\|\|{ $.x }` | Dict self |
-| Anonymous typed closure `\|type\|{ }` | Piped value (typed) |
-| No-args closure `\|\|{ }` outside dict | Not bound; `$` access raises RILL-R005 |
+| Named-parameter fn `fn(x) { }` | N/A: use params |
+| Unnamed-parameter fn `fn { }` | First argument (when the body reads `$`) |
+| `fn() { }` | Not bound; a body that reads `$` or `$@` raises RILL-P029 |
 
 ### Property Access
 
@@ -314,11 +313,11 @@ Type constructors are primary expressions that produce structural type values. T
 | Dict field with annotation | `dict(^(...) k: T, ...)` | `dict(^("label") name: string)` |
 | Ordered field with annotation | `ordered(^(...) k: T, ...)` | `ordered(^("x") x: number, ^("y") y: number)` |
 | Tuple field with annotation | `tuple(^(...) T, ...)` | `tuple(^("x") number, ^("y") number)` |
-| Closure sig | `\|p: T\| :R` | `\|x: number\| :string` |
-| Closure sig with param default | `\|p: T = literal\| :R` | `\|x: string = "gpt-4"\| :string` |
-| Closure sig, zero params | `\|\|:R` | `\|\|:string` |
-| Closure sig with annotated param | `\|^(...) p: T\|:R` | `\|^("label") x: string\|:int` |
-| Annotation default | `\|p: dict(k: T = literal)\|` | `\|a: dict(b: number = 5)\|` |
+| Function type | `fn(p: T):R` | `fn(x: number):string` |
+| Function type with param default | `fn(p: T = literal):R` | `fn(x: string = "gpt-4"):string` |
+| Function type, zero params | `fn():R` | `fn():string` |
+| Function type with annotated param | `fn(^(...) p: T):R` | `fn(^("label") x: string):int` |
+| Annotation default | `fn(p: dict(k: T = literal))` | `fn(a: dict(b: number = 5))` |
 
 When using `-> type` to convert a value, the runtime applies two default behaviors for collection-typed fields:
 
@@ -360,7 +359,7 @@ $list.^type.name
 Type constructors are also valid in annotation positions:
 
 ```rill
-|x: list(number)| { $x -> seq({ $ * 2 }) } => $fn
+fn(x: list(number)) { $x -> seq({ $ * 2 }) } => $fn
 $fn(list[1, 2, 3])
 # Result: list[2, 4, 6]
 ```
@@ -373,7 +372,7 @@ list[1, 2, 3] -> :list(number)
 Type constructor defaults work in annotation position. The runtime fills missing fields from the annotation defaults when a value is passed:
 
 ```rill
-|a: dict(b: number = 5)| { $a.b } => $fn
+fn(a: dict(b: number = 5)) { $a.b } => $fn
 $fn(dict[])
 # Result: 5
 ```
@@ -491,7 +490,7 @@ The index must be an integer; a non-integer number halts with `#INVALID_INPUT` a
 | `.keys` | Dict | List | All keys |
 | `.values` | Dict | List | All values |
 | `.entries` | Dict | List | `tuple(string, V)` pairs |
-| `.params` | Closure | Dict | Parameter metadata (type, __annotations) |
+| `.params` | Function | Dict | Parameter metadata (type, __annotations) |
 
 `.keys`, `.values`, and `.entries` halt `RILL-R003` on a non-dict receiver (tuple, stream, string, number, and so on); `??` and `guard` do not recover the halt, so check the receiver first. `ordered` values are accepted.
 
@@ -616,7 +615,7 @@ Access annotation values using `.^key` syntax. Annotations attach to callables (
 | Anything else | any key | Runtime error: `RILL-R003` |
 
 ```rill
-^(min: 0, max: 100) |x|($x) => $fn
+^(min: 0, max: 100) fn(x) { $x } => $fn
 
 $fn.^min     # 0
 $fn.^max     # 100
@@ -660,19 +659,19 @@ The `name` key is not reserved on closures. On type values, `.name` is a dot-not
 The function halts are catchable: `$f.^input ?? "none"` gives `"none"`. The stream halts are not: `$s.^chunk ?? "x"` still halts RILL-R003 with the replacement hint.
 
 ```rill
-|x|($x) => $f
+fn(x) { $x } => $f
 $f.^input ?? "none"
 # Result: "none"
 ```
 
 ```rill
-^(input: "csv") |x|($x) => $f
+^(input: "csv") fn(x) { $x } => $f
 $f.^input
 # Result: "csv"
 ```
 
 ```rill
-|x|($x) => $f
+fn(x) { $x } => $f
 $f.^input
 # Error: Annotation 'input' not found
 ```
@@ -704,12 +703,12 @@ See [Closure Annotations](topic-closure-annotations.md) for parameter annotation
 
 ## Return Type Assertions
 
-The `:type-target` postfix after the closing `}` declares and enforces the closure's return type. The runtime validates the return value on every call; a mismatch halts with `RILL-R004`.
+The `:type-target` postfix after the closing `}` declares and enforces the function's return type. The runtime validates the return value on every call; a mismatch halts with `RILL-R004`.
 
-**Syntax:** `|params| { body }:returnType`
+**Syntax:** `fn(params):returnType { body }`
 
 ```rill
-|x: number| { "{$x}" }:string => $fn
+fn(x: number):string { "{$x}" } => $fn
 $fn(42)    # "42"
 ```
 
@@ -735,14 +734,14 @@ Declared return type is accessible via `$fn.^type.outer`. See [Closure Annotatio
 `ordered[...]` produces a named container that preserves insertion order. Use it for named argument unpacking:
 
 ```rill
-|a, b, c|"{$a}-{$b}-{$c}" => $fmt
+fn(a, b, c) { "{$a}-{$b}-{$c}" } => $fmt
 dict[c: 3, a: 1, b: 2] -> $fmt(...)    # "1-2-3" (named args by key, key order irrelevant)
 ```
 
 Tuples are positional containers. Use `tuple[...]` with explicit spread `...` for positional argument unpacking:
 
 ```rill
-|a, b, c|"{$a}-{$b}-{$c}" => $fmt
+fn(a, b, c) { "{$a}-{$b}-{$c}" } => $fmt
 tuple[1, 2, 3] -> $fmt(...)    # "1-2-3" (positional args, explicit spread)
 ```
 
@@ -810,9 +809,9 @@ import { createRuntimeContext, toCallable } from '@rcrsr/rill';
 
 const ctx = createRuntimeContext({
   variables: {
-    prompt: toCallable({ signature: '|text: string|:string', fn: async (args) => await callLLM(args.text) }),
+    prompt: toCallable({ signature: 'fn(text: string):string', fn: async (args) => await callLLM(args.text) }),
     io: {
-      read: toCallable({ signature: '|path: string|:string', fn: async (args) => fs.readFile(String(args.path), 'utf-8') }),
+      read: toCallable({ signature: 'fn(path: string):string', fn: async (args) => fs.readFile(String(args.path), 'utf-8') }),
     },
     config: { apiUrl: 'https://api.example.com' },
   },
@@ -904,7 +903,7 @@ A newline after any of these continues the current statement:
 | Type annotation | `:` |
 | Spread | `...` |
 | Annotation | `^` |
-| Open delimiters | unclosed `[` `(` `{` `\|` `\|\|` |
+| Open delimiters | unclosed `[` `(` `{` |
 
 A subset of continuation tokens also work as **line-start continuations**: placing them at the beginning of the next line continues the previous statement. This applies to `->`, `=>`, `?`, `!`, `.`, and `.?`:
 
@@ -937,7 +936,7 @@ These always begin a new statement:
 |-------|--------|
 | `$` | Variable reference or closure call |
 | identifier | Host function call or loop keyword (`while`, `do`) |
-| `\|` `\|\|` | Closure definition |
+| `fn` | Function definition |
 | literals | String, number, bool, `[...]`, `[...]`, `tuple[...]`, `ordered[...]` |
 
 ### Disjoint sets

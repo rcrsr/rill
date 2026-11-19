@@ -1,135 +1,33 @@
 /**
- * Parser Extension: Closure Parsing
- * Closures, closure bodies and parameters, stream type constructors,
- * and yield validation
+ * Parser Extension: Function Literal Parsing
+ * The fn literal and fn type value, closure bodies, and yield validation
  */
 
 import { Parser } from './parser.js';
 import type {
-  AnnotationArg,
+  BlockNode,
   ClosureNode,
   ClosureParamNode,
-  FieldArg,
-  LiteralNode,
-  BodyNode,
-  TypeConstructorNode,
+  FnTypeNode,
+  SourceLocation,
   TypeRef,
 } from '../types.js';
-import { ParseError, TOKEN_TYPES, isRillTypeName } from '../types.js';
-import {
-  check,
-  advance,
-  expect,
-  current,
-  peek,
-  previous,
-  skipNewlines,
-  skipNewlinesIfFollowedBy,
-  makeSpan,
-} from './state.js';
-import { expectVariableName } from './helpers.js';
-import {
-  parseOuterType,
-  parseFieldArgList,
-  parseScriptTypeRef,
-} from './parser-types.js';
+import { ParseError, TOKEN_TYPES, unnamedParamsRead } from '../types.js';
+import { check, current, makeSpan, peek, previous } from './state.js';
+import { isLiteralStart } from './helpers.js';
+import { parseFnSignature, scriptTypeOpts } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
   interface Parser {
-    parseClosure(): ClosureNode;
-    parseBody(allowEmptyBlock?: boolean): BodyNode;
-    parseClosureParam(): ClosureParamNode;
+    parseFnForm(): ClosureNode | FnTypeNode;
   }
 }
 
 // ============================================================
-// CLOSURE PARSING
+// FN LITERAL PARSING
 // ============================================================
-
-/**
- * Parse a stream type constructor: stream(T):R
- *
- * Grammar: "stream" "(" [type-ref] ")" [":" type-ref]
- *
- * Chunk type goes in args[0], resolution type in args[1].
- * stream() → 0 args, stream(T) → 1 arg, stream(T):R → 2 args.
- *
- * @internal
- */
-function parseStreamTypeConstructor(parser: Parser): TypeConstructorNode {
-  const start = current(parser.state).span.start;
-  advance(parser.state); // consume 'stream'
-
-  const outerOpts = {
-    parseLiteral: () => parser.parseLiteral(),
-    parseAnnotations: () => parser.parseAnnotationArgs(),
-  };
-
-  // A bare stream with an outer: stream:R is stream(any):R.
-  const bareArgs: FieldArg[] = [];
-  if (parseOuterType(parser.state, 'stream', bareArgs, outerOpts)) {
-    return {
-      type: 'TypeConstructor',
-      constructorName: 'stream',
-      args: bareArgs,
-      span: makeSpan(start, previous(parser.state).span.end),
-    };
-  }
-
-  if (!check(parser.state, TOKEN_TYPES.LPAREN)) {
-    throw new ParseError(
-      ERROR_IDS.RILL_P006,
-      'Expected type name in stream constructor',
-      current(parser.state).span.start
-    );
-  }
-
-  advance(parser.state); // consume '('
-
-  const args = parseFieldArgList(parser.state, {
-    parseLiteral: () => parser.parseLiteral(),
-  });
-
-  const rparen = expect(
-    parser.state,
-    TOKEN_TYPES.RPAREN,
-    'Expected )',
-    ERROR_IDS.RILL_P005
-  );
-
-  // Check for resolution type: stream(T):R
-  if (check(parser.state, TOKEN_TYPES.COLON)) {
-    // Guard: resolution type must start with a valid type name
-    if (peek(parser.state, 1).type !== TOKEN_TYPES.IDENTIFIER) {
-      throw new ParseError(
-        ERROR_IDS.RILL_P006,
-        "Expected type name after ':' in stream type",
-        peek(parser.state, 1).span.start
-      );
-    }
-
-    if (!parseOuterType(parser.state, 'stream', args, outerOpts)) {
-      advance(parser.state); // consume ':'
-      parseScriptTypeRef(parser); // raises for a non-type name
-    }
-
-    return {
-      type: 'TypeConstructor',
-      constructorName: 'stream',
-      args,
-      span: makeSpan(start, previous(parser.state).span.end),
-    };
-  }
-
-  return {
-    type: 'TypeConstructor',
-    constructorName: 'stream',
-    args,
-    span: makeSpan(start, rparen.span.end),
-  };
-}
 
 /**
  * Check whether a closure body contains any yield terminators at the
@@ -137,20 +35,13 @@ function parseStreamTypeConstructor(parser: Parser): TypeConstructorNode {
  * least one yield is found.
  * @internal
  */
-function bodyContainsYield(body: BodyNode): boolean {
-  if (body.type === 'PipeChain') {
-    if (body.terminator?.type === 'Yield') return true;
-    return false;
-  }
-  if (body.type === 'Block') {
-    for (const stmt of body.statements) {
-      const expr =
-        stmt.type === 'AnnotatedStatement'
-          ? stmt.statement.expression
-          : stmt.expression;
-      if (expr.terminator?.type === 'Yield') return true;
-    }
-    return false;
+function bodyContainsYield(body: BlockNode): boolean {
+  for (const stmt of body.statements) {
+    const expr =
+      stmt.type === 'AnnotatedStatement'
+        ? stmt.statement.expression
+        : stmt.expression;
+    if (expr.terminator?.type === 'Yield') return true;
   }
   return false;
 }
@@ -158,21 +49,19 @@ function bodyContainsYield(body: BodyNode): boolean {
 /**
  * Validate that yield nodes in a closure body are only present when
  * the closure has a stream return type. Throws RILL-P006 if yield
- * appears without :stream(T):R annotation.
+ * appears without a `:stream(T):R` result type.
  * @internal
  */
 function validateYieldInClosure(
-  body: BodyNode,
-  returnTypeTarget: TypeRef | TypeConstructorNode | undefined,
-  closureStart: { line: number; column: number; offset: number }
+  body: BlockNode,
+  returnTypeTarget: TypeRef | undefined,
+  closureStart: SourceLocation
 ): void {
   if (!bodyContainsYield(body)) return;
 
   const isStream =
-    returnTypeTarget !== undefined &&
-    'type' in returnTypeTarget &&
-    returnTypeTarget.type === 'TypeConstructor' &&
-    returnTypeTarget.constructorName === 'stream';
+    returnTypeTarget?.kind === 'static' &&
+    returnTypeTarget.typeName === 'stream';
 
   if (!isStream) {
     throw new ParseError(
@@ -184,39 +73,8 @@ function validateYieldInClosure(
 }
 
 /**
- * Parse the optional postfix `:type-target` after a closure body.
- *
- * Grammar: [ ":" , type-target ]
- * type-target = "stream" "(" [type-ref] ")" [":" type-ref] | type-ref
- *
- * Returns the parsed TypeRef, TypeConstructorNode, or undefined if absent.
- * Follows the same disambiguation logic as parsePostfixTypeOperation.
- * Extended for stream(T):R return type pattern.
- */
-function parseClosureReturnTypeTarget(
-  parser: Parser
-): TypeRef | TypeConstructorNode | undefined {
-  if (!skipNewlinesIfFollowedBy(parser.state, TOKEN_TYPES.COLON)) {
-    return undefined;
-  }
-  advance(parser.state); // consume ':'
-  skipNewlines(parser.state);
-
-  // Stream type constructor: stream(T):R
-  if (
-    check(parser.state, TOKEN_TYPES.IDENTIFIER) &&
-    current(parser.state).value === 'stream'
-  ) {
-    return parseStreamTypeConstructor(parser);
-  }
-
-  // Default: plain type name or dynamic type reference
-  return parseScriptTypeRef(parser);
-}
-
-/**
  * Increment closureDepth, call fn(), decrement in finally.
- * Guards against depth counter leaks when parseBody throws.
+ * Guards against depth counter leaks when the body parse throws.
  */
 function withClosureDepth<T>(parser: Parser, fn: () => T): T {
   parser.closureDepth++;
@@ -227,297 +85,116 @@ function withClosureDepth<T>(parser: Parser, fn: () => T): T {
   }
 }
 
-Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
-  const start = current(this.state).span.start;
+/**
+ * True when the cursor, on the same line as the fn signature, starts an
+ * expression: the removed bare-body form `fn(x) $x * 2`.
+ */
+function startsBodyExpression(parser: Parser): boolean {
+  return (
+    isLiteralStart(parser.state) ||
+    check(
+      parser.state,
+      TOKEN_TYPES.DOLLAR,
+      TOKEN_TYPES.PIPE_VAR,
+      TOKEN_TYPES.IDENTIFIER,
+      TOKEN_TYPES.ATOM,
+      TOKEN_TYPES.MINUS
+    )
+  );
+}
 
-  if (check(this.state, TOKEN_TYPES.OR)) {
-    advance(this.state);
-    skipNewlines(this.state);
-    const body = withClosureDepth(this, () => this.parseBody(true));
-    const returnTypeTarget = parseClosureReturnTypeTarget(this);
-    validateYieldInClosure(body, returnTypeTarget, start);
-    return {
-      type: 'Closure',
-      params: [],
-      body,
-      returnTypeTarget,
-      // current() is intentional lookahead here, not the last-consumed-token
-      // idiom: it reads the token position parseClosureReturnTypeTarget left
-      // the cursor at after consuming the return type target.
-      span: makeSpan(
-        start,
-        returnTypeTarget ? current(this.state).span.end : body.span.end
-      ),
-    };
-  }
+/**
+ * The params of a bare `fn { body }`: one for each of `$` and `$@` the body
+ * reads, in that order.
+ */
+function inferUnnamedParams(
+  body: BlockNode,
+  fnSpan: ClosureParamNode['span']
+): ClosureParamNode[] {
+  const count = unnamedParamsRead(body);
+  const names = ['$', '@'].slice(0, count);
+  return names.map((name) => ({
+    type: 'ClosureParam',
+    name,
+    typeRef: null,
+    defaultValue: null,
+    span: fnSpan,
+  }));
+}
 
-  expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |');
-  skipNewlines(this.state);
+/**
+ * Parse an fn form: the fn literal `fn(params):outer { body }` or, with no
+ * body on the signature's line, the fn type value.
+ *
+ * Grammar: `fn-signature ( block | )`. The body `{` must sit on the same line
+ * as the signature. A bare `fn { body }` or `fn:T { body }` takes the unnamed
+ * params its body reads. The removed paren and bare-expression bodies raise
+ * RILL-P012; an `fn()` body reading `$` or `$@` raises RILL-P029.
+ */
+Parser.prototype.parseFnForm = function (
+  this: Parser
+): ClosureNode | FnTypeNode {
+  const fnToken = current(this.state);
+  const start = fnToken.span.start;
+  const typeRef = parseFnSignature(this.state, scriptTypeOpts(this), true);
 
-  // Anonymous typed closure detection: |type| body, |$typeVar| body, or |type, type| body
-  // Static: current is IDENTIFIER in VALID_TYPE_NAMES, next non-newline is PIPE_BAR or COMMA+type+PIPE_BAR
-  // Dynamic: current is DOLLAR ($typeVar form), same terminal rules
-  const isAnonymousTyped = (() => {
-    // Helper: check whether the token at `offset` starts a valid type reference
-    // (static type name or dynamic $typeVar). Parameterized types (LPAREN after
-    // the name) are accepted — detection only needs the start token.
-    const isTypeStart = (offset: number): boolean => {
-      const tok = peek(this.state, offset);
-      if (tok.type === TOKEN_TYPES.DOLLAR) return true;
-      if (tok.type === TOKEN_TYPES.IDENTIFIER && isRillTypeName(tok.value)) {
-        return true;
-      }
-      return false;
-    };
-
-    // Helper: given the lookahead position of a COMMA following the first
-    // type, check whether a second type start leads to a PIPE_BAR (with
-    // optional newlines and an optional parameterized-type LPAREN escape).
-    const checkSecondTypeThenPipe = (lookahead: number): boolean => {
-      lookahead++;
-      while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
-        lookahead++;
-      }
-      if (!isTypeStart(lookahead)) return false;
-      // Advance past the second type token (DOLLAR = 2 tokens, IDENTIFIER = 1 token)
-      lookahead +=
-        peek(this.state, lookahead).type === TOKEN_TYPES.DOLLAR ? 2 : 1;
-      // Parameterized second type: list(string), dict(name: type), etc.
-      // LPAREN after the name means it is a parameterized type; accept and let parseTypeRef handle args.
-      if (peek(this.state, lookahead).type === TOKEN_TYPES.LPAREN) return true;
-      while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
-        lookahead++;
-      }
-      return peek(this.state, lookahead).type === TOKEN_TYPES.PIPE_BAR;
-    };
-
-    if (check(this.state, TOKEN_TYPES.DOLLAR)) {
-      // Dynamic type ref: $identifier — offset 0=$, offset 1=name, offset 2+ skip newlines.
-      let lookahead = 2;
-      while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
-        lookahead++;
-      }
-      const afterFirst = peek(this.state, lookahead).type;
-      if (afterFirst === TOKEN_TYPES.PIPE_BAR) return true;
-      // Two-type: COMMA, optional newlines, second type start, optional newlines, PIPE_BAR
-      if (afterFirst === TOKEN_TYPES.COMMA) {
-        return checkSecondTypeThenPipe(lookahead);
-      }
-      return false;
-    }
-    if (
-      check(this.state, TOKEN_TYPES.IDENTIFIER) &&
-      isRillTypeName(current(this.state).value)
-    ) {
-      // Parameterized type name: list(string), dict(name: type), etc.
-      // Next token is LPAREN — this is an anonymous typed closure with type args.
-      if (peek(this.state, 1).type === TOKEN_TYPES.LPAREN) {
-        return true;
-      }
-      // Static type name: peek past any newlines to find PIPE_BAR or COMMA+type+PIPE_BAR
-      let lookahead = 1;
-      while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
-        lookahead++;
-      }
-      const afterFirst = peek(this.state, lookahead).type;
-      if (afterFirst === TOKEN_TYPES.PIPE_BAR) return true;
-      // Two-type: COMMA, optional newlines, second type start, optional newlines, PIPE_BAR
-      if (afterFirst === TOKEN_TYPES.COMMA) {
-        return checkSecondTypeThenPipe(lookahead);
-      }
-      return false;
-    }
-    return false;
-  })();
-
-  if (isAnonymousTyped) {
-    const paramStart = current(this.state).span.start;
-    const firstTypeRef = parseScriptTypeRef(this, {
-      allowTrailingPipe: true,
-    });
-
-    // Two-type anonymous closure: |type, type|{ body }
-    // Synthesizes params named '$' and '@' with their respective declared types.
-    if (check(this.state, TOKEN_TYPES.COMMA)) {
-      advance(this.state);
-      skipNewlines(this.state);
-      const secondParamStart = current(this.state).span.start;
-      const secondTypeRef = parseScriptTypeRef(this, {
-        allowTrailingPipe: true,
-      });
-      expect(
-        this.state,
-        TOKEN_TYPES.PIPE_BAR,
-        'Expected |',
-        ERROR_IDS.RILL_P005
-      );
-      skipNewlines(this.state);
-      const body = withClosureDepth(this, () => this.parseBody(true));
-      const returnTypeTarget = parseClosureReturnTypeTarget(this);
-      validateYieldInClosure(body, returnTypeTarget, start);
-      const firstParam: ClosureParamNode = {
-        type: 'ClosureParam',
-        name: '$',
-        typeRef: firstTypeRef,
-        defaultValue: null,
-        span: makeSpan(paramStart, secondParamStart),
-      };
-      const secondParam: ClosureParamNode = {
-        type: 'ClosureParam',
-        name: '@',
-        typeRef: secondTypeRef,
-        defaultValue: null,
-        span: makeSpan(secondParamStart, current(this.state).span.start),
-      };
-      return {
-        type: 'Closure',
-        params: [firstParam, secondParam],
-        body,
-        returnTypeTarget,
-        // current() is intentional lookahead here, not the last-consumed-token
-        // idiom: it reads the token position parseClosureReturnTypeTarget left
-        // the cursor at after consuming the return type target.
-        span: makeSpan(
-          start,
-          returnTypeTarget ? current(this.state).span.end : body.span.end
-        ),
-      };
-    }
-
-    // Single-type anonymous closure: |type|{ body }
-    // Synthesizes one param named '$' with the declared type.
-    expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', ERROR_IDS.RILL_P005);
-    skipNewlines(this.state);
-    const body = withClosureDepth(this, () => this.parseBody(true));
-    const returnTypeTarget = parseClosureReturnTypeTarget(this);
-    validateYieldInClosure(body, returnTypeTarget, start);
-    const param: ClosureParamNode = {
-      type: 'ClosureParam',
-      name: '$',
-      typeRef: firstTypeRef,
-      defaultValue: null,
-      span: makeSpan(paramStart, current(this.state).span.start),
-    };
-    return {
-      type: 'Closure',
-      params: [param],
-      body,
-      returnTypeTarget,
-      // current() is intentional lookahead here, not the last-consumed-token
-      // idiom: it reads the token position parseClosureReturnTypeTarget left
-      // the cursor at after consuming the return type target.
-      span: makeSpan(
-        start,
-        returnTypeTarget ? current(this.state).span.end : body.span.end
-      ),
-    };
-  }
-
-  const params: ClosureParamNode[] = [];
-  if (!check(this.state, TOKEN_TYPES.PIPE_BAR)) {
-    params.push(this.parseClosureParam());
-    while (check(this.state, TOKEN_TYPES.COMMA)) {
-      advance(this.state);
-      skipNewlines(this.state);
-      params.push(this.parseClosureParam());
-    }
-  }
-
-  expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', ERROR_IDS.RILL_P005);
-  skipNewlines(this.state);
-
-  const body = withClosureDepth(this, () => this.parseBody(true));
-  const returnTypeTarget = parseClosureReturnTypeTarget(this);
-  validateYieldInClosure(body, returnTypeTarget, start);
-
-  return {
-    type: 'Closure',
-    params,
-    body,
-    returnTypeTarget,
-    // current() is intentional lookahead here, not the last-consumed-token
-    // idiom: it reads the token position parseClosureReturnTypeTarget left
-    // the cursor at after consuming the return type target.
-    span: makeSpan(
-      start,
-      returnTypeTarget ? current(this.state).span.end : body.span.end
-    ),
-  };
-};
-
-Parser.prototype.parseBody = function (
-  this: Parser,
-  allowEmptyBlock?: boolean
-): BodyNode {
   if (check(this.state, TOKEN_TYPES.LBRACE)) {
-    return this.parseBlock(allowEmptyBlock);
+    const body = withClosureDepth(this, () => this.parseBlock(true));
+    validateYieldInClosure(body, typeRef.outer, start);
+    let params: ClosureParamNode[];
+    if (typeRef.params === undefined) {
+      params = inferUnnamedParams(body, fnToken.span);
+    } else {
+      params = typeRef.params;
+      if (params.length === 0 && unnamedParamsRead(body) > 0) {
+        throw new ParseError(
+          ERROR_IDS.RILL_P029,
+          "fn() declares no params, so its body cannot read '$' or '$@'",
+          start
+        );
+      }
+    }
+    return {
+      type: 'Closure',
+      params,
+      body,
+      returnTypeTarget: typeRef.outer,
+      span: makeSpan(start, body.span.end),
+    };
   }
 
-  if (check(this.state, TOKEN_TYPES.LPAREN)) {
-    return this.parseGrouped();
-  }
-
+  const nameToken = current(this.state);
   if (
-    check(this.state, TOKEN_TYPES.BREAK) ||
-    check(this.state, TOKEN_TYPES.RETURN) ||
-    check(this.state, TOKEN_TYPES.YIELD)
+    typeRef.params === undefined &&
+    typeRef.outer === undefined &&
+    nameToken.type === TOKEN_TYPES.IDENTIFIER &&
+    peek(this.state, 1).type === TOKEN_TYPES.LPAREN
   ) {
-    return this.parsePipeChain();
-  }
-
-  return this.parsePostfixExpr();
-};
-
-Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
-  const start = current(this.state).span.start;
-
-  let annotations: AnnotationArg[] | undefined = undefined;
-
-  // Parse parameter annotations before the name: ^(annots) name : type = default
-  // Multiple blocks merge in order.
-  while (check(this.state, TOKEN_TYPES.CARET)) {
-    advance(this.state); // consume ^
-    expect(this.state, TOKEN_TYPES.LPAREN, 'Expected ( after ^');
-    const block = this.parseAnnotationArgs();
-    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
-    annotations = annotations ? annotations.concat(block) : block;
-  }
-
-  const nameToken = expectVariableName(this.state, 'Expected parameter name');
-
-  if (isRillTypeName(nameToken.value)) {
     throw new ParseError(
-      ERROR_IDS.RILL_P003,
-      `Reserved type keyword cannot be used as parameter name: ${nameToken.value}`,
+      ERROR_IDS.RILL_P001,
+      `fn takes no name; write fn(...) { ... } => $${nameToken.value} to name a function`,
       nameToken.span.start
     );
   }
 
-  let typeRef: TypeRef | null = null;
-  let defaultValue: LiteralNode | null = null;
-
-  skipNewlines(this.state);
-  if (check(this.state, TOKEN_TYPES.COLON)) {
-    advance(this.state);
-    skipNewlines(this.state);
-    typeRef = parseScriptTypeRef(this, {
-      allowTrailingPipe: true,
-    });
+  if (check(this.state, TOKEN_TYPES.LPAREN)) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P012,
+      'Syntax removed: a parenthesized fn body was removed; write the body in braces, as in fn(x) { $x * 2 }',
+      current(this.state).span.start
+    );
   }
-
-  skipNewlines(this.state);
-  if (check(this.state, TOKEN_TYPES.ASSIGN)) {
-    advance(this.state);
-    skipNewlines(this.state);
-    defaultValue = this.parseLiteral();
+  if (startsBodyExpression(this)) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P012,
+      'Syntax removed: a bare fn body was removed; write the body in braces, as in fn(x) { $x }',
+      current(this.state).span.start
+    );
   }
 
   return {
-    type: 'ClosureParam',
-    name: nameToken.value,
+    type: 'FnType',
     typeRef,
-    defaultValue,
-    annotations,
     span: makeSpan(start, previous(this.state).span.end),
   };
 };

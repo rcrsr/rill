@@ -213,7 +213,7 @@ describe('Streams: Success Cases', () => {
     it('.^type.inner returns chunk type', async () => {
       const result = await run(
         `
-          || ("hello" -> yield) :stream(string) => $gen
+          fn():stream(string) { "hello" -> yield } => $gen
           $gen() => $s
           $s.^type.inner
         `
@@ -225,10 +225,10 @@ describe('Streams: Success Cases', () => {
     it('.^type.outer returns resolution type', async () => {
       const result = await run(
         `
-          || {
+          fn():stream(string):number {
             "hello" -> yield
             42
-          } :stream(string):number => $gen
+          } => $gen
           $gen() => $s
           $s.^type.outer
         `
@@ -240,7 +240,7 @@ describe('Streams: Success Cases', () => {
     it('.^type.inner returns any when unconstrained', async () => {
       const result = await run(
         `
-          || ("hello" -> yield) :stream() => $gen
+          fn():stream() { "hello" -> yield } => $gen
           $gen() => $s
           $s.^type.inner
         `
@@ -252,7 +252,7 @@ describe('Streams: Success Cases', () => {
     it('.^type.outer returns any when unconstrained', async () => {
       const result = await run(
         `
-          || ("hello" -> yield) :stream() => $gen
+          fn():stream() { "hello" -> yield } => $gen
           $gen() => $s
           $s.^type.outer
         `
@@ -289,10 +289,10 @@ describe('Streams: Success Cases', () => {
     it('emits typed chunks via yield', async () => {
       const result = await run(
         `
-          || {
+          fn():stream(string) {
             "hello" -> yield
             "world" -> yield
-          } :stream(string) => $gen
+          } => $gen
           $gen() => $s
           $s -> seq({ $ })
         `
@@ -303,11 +303,11 @@ describe('Streams: Success Cases', () => {
     it('emits number chunks via yield', async () => {
       const result = await run(
         `
-          || {
+          fn():stream(number) {
             1 -> yield
             2 -> yield
             3 -> yield
-          } :stream(number) => $gen
+          } => $gen
           $gen() -> seq({ $ * 10 })
         `
       );
@@ -381,9 +381,9 @@ describe('Streams: Success Cases', () => {
     it('stream closure assigned to variable and invoked produces consumable stream', async () => {
       const result = await run(
         `
-          |items: list| {
+          fn(items: list):stream(number) {
             $items -> seq({ $ -> yield })
-          } :stream(number) => $producer
+          } => $producer
           $producer(list[10, 20, 30]) -> seq({ $ })
         `
       );
@@ -393,10 +393,10 @@ describe('Streams: Success Cases', () => {
     it('stream closure passed through variable remains functional', async () => {
       const result = await run(
         `
-          || {
+          fn():stream(string) {
             "a" -> yield
             "b" -> yield
-          } :stream(string) => $gen
+          } => $gen
           $gen => $alias
           $alias() -> fan({ $ })
         `
@@ -410,7 +410,7 @@ describe('Streams: Success Cases', () => {
     it('stream passed to closure is consumable', async () => {
       const result = await run(
         `
-          |s| ($s -> seq({ $ * 2 })) => $consume
+          fn(s) { $s -> seq({ $ * 2 }) } => $consume
           make_stream() -> $consume
         `,
         { functions: { make_stream: makeStreamFn([1, 2, 3]) } }
@@ -493,18 +493,18 @@ describe('Streams: Error Cases', () => {
   // AC-E3: yield without :stream(T):R annotation halts at parse time
   describe('AC-E3: yield without stream annotation', () => {
     it('halts at parse time with error', () => {
-      expect(() => parse('|x| yield')).toThrow('yield');
+      expect(() => parse('fn(x) { yield }')).toThrow('yield');
     });
 
     it('halts when closure has non-stream return type', () => {
-      expect(() => parse('|x| yield :string')).toThrow('yield');
+      expect(() => parse('fn(x):string { yield }')).toThrow('yield');
     });
   });
 
   // AC-E4: yield used as identifier halts at parse time
   describe('AC-E4: yield as identifier', () => {
     it('halts when yield used in expression position', () => {
-      expect(() => parse('|| (1 + yield) :stream()')).toThrow();
+      expect(() => parse('fn():stream() { 1 + yield }')).toThrow();
     });
   });
 
@@ -515,9 +515,9 @@ describe('Streams: Error Cases', () => {
         () =>
           run(
             `
-            || {
+            fn():stream(string) {
               42 -> yield
-            } :stream(string) => $gen
+            } => $gen
             $gen() -> seq({ $ })
           `
           ),
@@ -542,10 +542,10 @@ describe('Streams: Error Cases', () => {
         () =>
           run(
             `
-            || {
+            fn():stream():number {
               1 -> yield
               "not-a-number"
-            } :stream():number => $gen
+            } => $gen
             $gen() -> seq({ $ })
           `
           ),
@@ -781,9 +781,9 @@ describe('Streams: Boundary Conditions', () => {
     it('forwards chunks in order via each { yield }', async () => {
       const result = await run(
         `
-          || {
+          fn():stream() {
             list[10, 20, 30] -> seq({ $ -> yield })
-          } :stream() => $gen
+          } => $gen
           $gen() -> seq({ $ })
         `
       );
@@ -793,9 +793,9 @@ describe('Streams: Boundary Conditions', () => {
     it('re-yields from range in order', async () => {
       const result = await run(
         `
-          || {
+          fn():stream(number) {
             range(1, 4) -> seq({ $ -> yield })
-          } :stream(number) => $gen
+          } => $gen
           $gen() -> seq({ $ })
         `
       );
@@ -869,18 +869,18 @@ describe('Streams: Error Contracts', () => {
   // EC-8: yield as identifier
   describe('EC-8: yield as identifier', () => {
     it('throws at parse time when yield is used as variable-like token', () => {
-      expect(() => parse('|| (1 + yield) :stream()')).toThrow();
+      expect(() => parse('fn():stream() { 1 + yield }')).toThrow();
     });
   });
 
   // EC-9: yield without :stream(T):R
   describe('EC-9: yield without stream annotation', () => {
     it('throws RILL-P006 at parse time', () => {
-      expect(() => parse('|x| yield')).toThrow('yield');
+      expect(() => parse('fn(x) { yield }')).toThrow('yield');
     });
 
     it('throws RILL-P006 for yield in non-stream closure', () => {
-      expect(() => parse('|x| { yield } :number')).toThrow('yield');
+      expect(() => parse('fn(x):number { yield }')).toThrow('yield');
     });
   });
 
@@ -889,15 +889,15 @@ describe('Streams: Error Contracts', () => {
     it('stream constructor with invalid chunk type fails', () => {
       // Attempting to use a non-type-name in stream() constructor
       // This tests the parser level validation
-      expect(() => parse('|x| yield :stream(123)')).toThrow();
+      expect(() => parse('fn(x):stream(123) { yield }')).toThrow();
     });
   });
 
   // EC-11: Invalid resolution type in stream constructor
   describe('EC-11: invalid resolution type in stream type annotation', () => {
     it('stream constructor with missing resolution type name fails', () => {
-      expect(() => parse('|x| yield :stream():')).toThrow(
-        "Expected type name after ':' in stream type"
+      expect(() => parse('fn(x):stream(): { yield }')).toThrow(
+        'Expected type name'
       );
     });
   });
@@ -947,10 +947,10 @@ describe('Streams: Error Contracts', () => {
         () =>
           run(
             `
-            || {
+            fn():stream():number {
               1 -> yield
               "wrong"
-            } :stream():number => $gen
+            } => $gen
             $gen() -> seq({ $ })
           `
           ),

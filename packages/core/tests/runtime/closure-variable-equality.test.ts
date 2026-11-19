@@ -13,8 +13,8 @@ import { run } from '../helpers/runtime.js';
 describe('Bug #484: closure equality accounts for variable defaults and existence checks', () => {
   it('closures with different defaults on a variable are not equal', async () => {
     const result = await run(`
-      |x|{ $x ?? 1 } => $a
-      |x|{ $x ?? 2 } => $b
+      fn(x) { $x ?? 1 } => $a
+      fn(x) { $x ?? 2 } => $b
       $a == $b
     `);
     expect(result).toBe(false);
@@ -22,8 +22,8 @@ describe('Bug #484: closure equality accounts for variable defaults and existenc
 
   it('closures with different defaults on a field access are not equal', async () => {
     const result = await run(`
-      |x|{ $x.a ?? 1 } => $a
-      |x|{ $x.a ?? 2 } => $b
+      fn(x) { $x.a ?? 1 } => $a
+      fn(x) { $x.a ?? 2 } => $b
       $a == $b
     `);
     expect(result).toBe(false);
@@ -31,8 +31,8 @@ describe('Bug #484: closure equality accounts for variable defaults and existenc
 
   it('closures with different typed existence checks are not equal', async () => {
     const result = await run(`
-      |x|{ $x.?a&string } => $a
-      |x|{ $x.?a&number } => $b
+      fn(x) { $x.?a&string } => $a
+      fn(x) { $x.?a&number } => $b
       $a == $b
     `);
     expect(result).toBe(false);
@@ -40,8 +40,8 @@ describe('Bug #484: closure equality accounts for variable defaults and existenc
 
   it('closures with existence checks on different fields are not equal', async () => {
     const result = await run(`
-      |x|{ $x.?a } => $a
-      |x|{ $x.?b } => $b
+      fn(x) { $x.?a } => $a
+      fn(x) { $x.?b } => $b
       $a == $b
     `);
     expect(result).toBe(false);
@@ -49,8 +49,8 @@ describe('Bug #484: closure equality accounts for variable defaults and existenc
 
   it('a default differs from an absent default', async () => {
     const result = await run(`
-      |x|{ $x ?? 1 } => $a
-      |x|{ $x } => $b
+      fn(x) { $x ?? 1 } => $a
+      fn(x) { $x } => $b
       $a == $b
     `);
     expect(result).toBe(false);
@@ -58,8 +58,8 @@ describe('Bug #484: closure equality accounts for variable defaults and existenc
 
   it('an untyped existence check differs from a typed one', async () => {
     const result = await run(`
-      |x|{ $x.?a } => $a
-      |x|{ $x.?a&string } => $b
+      fn(x) { $x.?a } => $a
+      fn(x) { $x.?a&string } => $b
       $a == $b
     `);
     expect(result).toBe(false);
@@ -67,8 +67,8 @@ describe('Bug #484: closure equality accounts for variable defaults and existenc
 
   it('closures with identical defaults remain equal', async () => {
     const result = await run(`
-      |x|{ $x ?? 1 } => $a
-      |x|{ $x ?? 1 } => $b
+      fn(x) { $x ?? 1 } => $a
+      fn(x) { $x ?? 1 } => $b
       $a == $b
     `);
     expect(result).toBe(true);
@@ -76,8 +76,8 @@ describe('Bug #484: closure equality accounts for variable defaults and existenc
 
   it('closures with identical typed existence checks remain equal', async () => {
     const result = await run(`
-      |x|{ $x.?a&string } => $a
-      |x|{ $x.?a&string } => $b
+      fn(x) { $x.?a&string } => $a
+      fn(x) { $x.?a&string } => $b
       $a == $b
     `);
     expect(result).toBe(true);
@@ -85,8 +85,8 @@ describe('Bug #484: closure equality accounts for variable defaults and existenc
 
   it('closures with identical untyped existence checks remain equal', async () => {
     const result = await run(`
-      |x|{ $x.?a } => $a
-      |x|{ $x.?a } => $b
+      fn(x) { $x.?a } => $a
+      fn(x) { $x.?a } => $b
       $a == $b
     `);
     expect(result).toBe(true);

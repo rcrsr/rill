@@ -17,16 +17,16 @@ import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
 import {
-  expectClosureStructure,
+  expectFnStructure,
   expectTypeValue,
-  isClosureStructure,
+  isFnStructure,
 } from '../helpers/structure.js';
 
 describe('Optional parameter structural types', () => {
   describe('TypeStructure carries default values', () => {
-    it('closure TypeStructure stores default value in params RillFieldDef', () => {
+    it('fn TypeStructure stores default value in params RillFieldDef', () => {
       const type: TypeStructure = {
-        kind: 'closure',
+        kind: 'fn',
         params: [
           { name: 'name', type: { kind: 'string' }, defaultValue: 'World' },
           { name: 'count', type: { kind: 'number' } },
@@ -41,36 +41,36 @@ describe('Optional parameter structural types', () => {
   describe('formatStructure renders default values', () => {
     it('renders string default value', () => {
       const type: TypeStructure = {
-        kind: 'closure',
+        kind: 'fn',
         params: [
           { name: 'name', type: { kind: 'string' }, defaultValue: 'World' },
         ],
         ret: { kind: 'string' },
       };
-      expect(formatStructure(type)).toBe('|name: string = "World"| :string');
+      expect(formatStructure(type)).toBe('fn(name: string = "World"):string');
     });
 
     it('renders number default value', () => {
       const type: TypeStructure = {
-        kind: 'closure',
+        kind: 'fn',
         params: [{ name: 'count', type: { kind: 'number' }, defaultValue: 42 }],
         ret: { kind: 'number' },
       };
-      expect(formatStructure(type)).toBe('|count: number = 42| :number');
+      expect(formatStructure(type)).toBe('fn(count: number = 42):number');
     });
 
     it('renders boolean default value', () => {
       const type: TypeStructure = {
-        kind: 'closure',
+        kind: 'fn',
         params: [{ name: 'flag', type: { kind: 'bool' }, defaultValue: false }],
         ret: { kind: 'bool' },
       };
-      expect(formatStructure(type)).toBe('|flag: bool = false| :bool');
+      expect(formatStructure(type)).toBe('fn(flag: bool = false):bool');
     });
 
     it('renders mixed required and optional params', () => {
       const type: TypeStructure = {
-        kind: 'closure',
+        kind: 'fn',
         params: [
           { name: 'required', type: { kind: 'number' } },
           {
@@ -82,22 +82,22 @@ describe('Optional parameter structural types', () => {
         ret: { kind: 'any' },
       };
       expect(formatStructure(type)).toBe(
-        '|required: number, optional: string = "default"| :any'
+        'fn(required: number, optional: string = "default"):any'
       );
     });
 
-    it('renders closure with no defaults unchanged', () => {
+    it('renders fn with no defaults unchanged', () => {
       const type: TypeStructure = {
-        kind: 'closure',
+        kind: 'fn',
         params: [{ name: 'x', type: { kind: 'number' } }],
         ret: { kind: 'number' },
       };
-      expect(formatStructure(type)).toBe('|x: number| :number');
+      expect(formatStructure(type)).toBe('fn(x: number):number');
     });
 
-    it('renders unparameterized closure unchanged', () => {
-      const type: TypeStructure = { kind: 'closure' };
-      expect(formatStructure(type)).toBe('closure');
+    it('renders unparameterized fn unchanged', () => {
+      const type: TypeStructure = { kind: 'fn' };
+      expect(formatStructure(type)).toBe('fn');
     });
   });
 
@@ -127,8 +127,8 @@ describe('Optional parameter structural types', () => {
       };
 
       const result = inferStructure(fn);
-      expect(result.kind).toBe('closure');
-      if (isClosureStructure(result)) {
+      expect(result.kind).toBe('fn');
+      if (isFnStructure(result)) {
         expect(result.params).toEqual([
           { name: 'greeting', type: { kind: 'string' }, defaultValue: 'Hello' },
           { name: 'count', type: { kind: 'number' } },
@@ -155,8 +155,8 @@ describe('Optional parameter structural types', () => {
       };
 
       const result = inferStructure(fn);
-      expect(result.kind).toBe('closure');
-      if (isClosureStructure(result)) {
+      expect(result.kind).toBe('fn');
+      if (isFnStructure(result)) {
         expect(result.params![0]).toEqual({
           name: 'x',
           type: { kind: 'number' },
@@ -187,10 +187,10 @@ describe('Optional parameter structural types', () => {
 
       const result = await run('$fn.^type', { variables: { fn } });
       const shape = expectTypeValue(result);
-      const fields = expectClosureStructure(result).params ?? [];
+      const fields = expectFnStructure(result).params ?? [];
 
       expect(shape.__rill_type).toBe(true);
-      expect(shape.typeName).toBe('closure');
+      expect(shape.typeName).toBe('fn');
       expect(fields[0]).toEqual({
         name: 'name',
         type: { kind: 'string' },
@@ -218,10 +218,10 @@ describe('Optional parameter structural types', () => {
 
       const result = await run('$fn.^type', { variables: { fn } });
       const shape = expectTypeValue(result);
-      const fields = expectClosureStructure(result).params ?? [];
+      const fields = expectFnStructure(result).params ?? [];
 
       expect(shape.__rill_type).toBe(true);
-      expect(shape.typeName).toBe('closure');
+      expect(shape.typeName).toBe('fn');
       expect(fields[0]).toEqual({
         name: 'x',
         type: { kind: 'number' },
@@ -356,16 +356,16 @@ describe('Optional parameter structural types', () => {
   });
 
   describe('script closures with default params', () => {
-    it('script closure with string default shows default in .^type params', async () => {
+    it('script fn with string default shows default in .^type params', async () => {
       const result = await run(`
-        |name: string = "World"| { $name } => $greet
+        fn(name: string = "World") { $name } => $greet
         $greet.^type
       `);
       const shape = expectTypeValue(result);
-      const fields = expectClosureStructure(result).params ?? [];
+      const fields = expectFnStructure(result).params ?? [];
 
       expect(shape.__rill_type).toBe(true);
-      expect(shape.typeName).toBe('closure');
+      expect(shape.typeName).toBe('fn');
       expect(fields[0]).toEqual({
         name: 'name',
         type: { kind: 'string' },
@@ -373,16 +373,16 @@ describe('Optional parameter structural types', () => {
       });
     });
 
-    it('script closure with number default shows default in .^type params', async () => {
+    it('script fn with number default shows default in .^type params', async () => {
       const result = await run(`
-        |count: number = 10| { $count } => $fn
+        fn(count: number = 10) { $count } => $fn
         $fn.^type
       `);
       const shape = expectTypeValue(result);
-      const fields = expectClosureStructure(result).params ?? [];
+      const fields = expectFnStructure(result).params ?? [];
 
       expect(shape.__rill_type).toBe(true);
-      expect(shape.typeName).toBe('closure');
+      expect(shape.typeName).toBe('fn');
       expect(fields[0]).toEqual({
         name: 'count',
         type: { kind: 'number' },
@@ -390,16 +390,16 @@ describe('Optional parameter structural types', () => {
       });
     });
 
-    it('mixed required and optional params in script closure', async () => {
+    it('mixed required and optional params in script fn', async () => {
       const result = await run(`
-        |x: number, y: number = 0| { $x + $y } => $add
+        fn(x: number, y: number = 0) { $x + $y } => $add
         $add.^type
       `);
       const shape = expectTypeValue(result);
-      const fields = expectClosureStructure(result).params ?? [];
+      const fields = expectFnStructure(result).params ?? [];
 
       expect(shape.__rill_type).toBe(true);
-      expect(shape.typeName).toBe('closure');
+      expect(shape.typeName).toBe('fn');
       expect(fields[0]).toEqual({
         name: 'x',
         type: { kind: 'number' },
@@ -418,9 +418,9 @@ describe('Optional parameter structural types', () => {
   // ============================================================
 
   describe('structural types with annotated fields', () => {
-    it('TypeStructure carries annotations in closure params RillFieldDef', () => {
+    it('TypeStructure carries annotations in fn params RillFieldDef', () => {
       const type: TypeStructure = {
-        kind: 'closure',
+        kind: 'fn',
         params: [
           {
             name: 'name',
@@ -456,8 +456,8 @@ describe('Optional parameter structural types', () => {
       };
 
       const result = inferStructure(fn);
-      expect(result.kind).toBe('closure');
-      if (isClosureStructure(result)) {
+      expect(result.kind).toBe('fn');
+      if (isFnStructure(result)) {
         expect(result.params![0]!.annotations).toEqual({
           description: 'test param',
         });
@@ -483,8 +483,8 @@ describe('Optional parameter structural types', () => {
       };
 
       const result = inferStructure(fn);
-      expect(result.kind).toBe('closure');
-      if (isClosureStructure(result)) {
+      expect(result.kind).toBe('fn');
+      if (isFnStructure(result)) {
         expect(result.params![0]!.annotations).toBeUndefined();
       }
     });

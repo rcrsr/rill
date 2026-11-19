@@ -46,6 +46,7 @@ import {
 } from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
+import { parseSignatureRegistration } from '../../src/signature-parser.js';
 
 describe('Rill Runtime: Manifest Generation', () => {
   describe('AC-32: generateManifest returns a string', () => {
@@ -206,7 +207,7 @@ describe('Rill Runtime: Manifest Generation', () => {
   });
 
   describe('AC-29: Structured RillFunction serializes params, return type, defaults, annotations', () => {
-    it('serializes param name and type in closure signature format', () => {
+    it('serializes param name and type in fn signature format', () => {
       const ctx = createRuntimeContext({
         functions: {
           greet: {
@@ -225,7 +226,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       });
       const manifest = generateManifest(ctx);
       expect(manifest).toContain('name: string');
-      expect(manifest).toContain('|:string');
+      expect(manifest).toContain('fn(name: string):string');
       expect(() => parse(manifest)).not.toThrow();
     });
 
@@ -416,8 +417,8 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      // Closure signature format: |params|
-      expect(manifest).toMatch(/\|.*\|/);
+      // fn type format: fn(params)
+      expect(manifest).toMatch(/fn\(.*\)/);
       expect(() => parse(manifest)).not.toThrow();
     });
   });
@@ -434,7 +435,7 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      expect(manifest).toContain('||');
+      expect(manifest).toContain('fn()');
       expect(() => parse(manifest)).not.toThrow();
     });
 
@@ -479,7 +480,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       const manifest = generateManifest(ctx);
 
       expect(manifest).not.toContain('{pass}');
-      expect(manifest).toContain('||:');
+      expect(manifest).toContain('fn():');
       expect(manifest).toContain('^(description: "d")');
       expect(() => parse(manifest)).not.toThrow();
 
@@ -642,7 +643,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       expect(() => parse(manifest)).not.toThrow();
     });
 
-    it('escapes double quotes in parameter and closure descriptions', () => {
+    it('escapes double quotes in parameter and fn descriptions', () => {
       const ctx = createRuntimeContext({
         functions: {
           fn: {
@@ -670,9 +671,9 @@ describe('Rill Runtime: Manifest Generation', () => {
       expect(() => parse(manifest)).not.toThrow();
     });
 
-    it('re-parses a typed manifest whose closure description contains escaped quotes', () => {
+    it('re-parses a typed manifest whose fn description contains escaped quotes', () => {
       // A typed function with an explicit return type serializes to the
-      // parseable closure-type form `^(description: "...") |name: type|:ret`.
+      // parseable fn-type form `^(description: "...") fn(name: type):ret`.
       // The escaped quotes in the description keep the annotation string from
       // terminating early, so the whole manifest is a valid rill file.
       const ctx = createRuntimeContext({
@@ -832,7 +833,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       expect(() => parse(manifest)).not.toThrow();
     });
 
-    it('a nested closure-typed param collapses to closure and still parses', () => {
+    it('a fn-typed param keeps its signature and still parses', () => {
       const ctx = createRuntimeContext({
         functions: {
           fn: {
@@ -840,7 +841,7 @@ describe('Rill Runtime: Manifest Generation', () => {
               {
                 name: 'q',
                 type: {
-                  kind: 'closure',
+                  kind: 'fn',
                   params: [{ name: 'n', type: { kind: 'number' } }],
                   ret: { kind: 'string' },
                 } as never,
@@ -854,11 +855,11 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      expect(manifest).toContain('q: closure');
+      expect(manifest).toContain('q: fn(n: number):string');
       expect(() => parse(manifest)).not.toThrow();
     });
 
-    it('a closure nested inside a list element type collapses to closure and still parses', () => {
+    it('a fn nested inside a list element type keeps its signature and still parses', () => {
       const ctx = createRuntimeContext({
         functions: {
           fn: {
@@ -868,7 +869,7 @@ describe('Rill Runtime: Manifest Generation', () => {
                 type: {
                   kind: 'list',
                   element: {
-                    kind: 'closure',
+                    kind: 'fn',
                     params: [{ name: 'n', type: { kind: 'number' } }],
                     ret: { kind: 'string' },
                   },
@@ -883,11 +884,11 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      expect(manifest).toContain('cbs: list(closure)');
+      expect(manifest).toContain('cbs: list(fn(n: number):string)');
       expect(() => parse(manifest)).not.toThrow();
     });
 
-    it('a closure nested inside a dict field type collapses to closure and still parses', () => {
+    it('a fn nested inside a dict field type keeps its signature and still parses', () => {
       const ctx = createRuntimeContext({
         functions: {
           fn: {
@@ -900,7 +901,7 @@ describe('Rill Runtime: Manifest Generation', () => {
                     onDone: {
                       name: 'onDone',
                       type: {
-                        kind: 'closure',
+                        kind: 'fn',
                         params: [{ name: 'n', type: { kind: 'number' } }],
                         ret: { kind: 'string' },
                       },
@@ -917,11 +918,13 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      expect(manifest).toContain('handlers: dict(onDone: closure)');
+      expect(manifest).toContain(
+        'handlers: dict(onDone: fn(n: number):string)'
+      );
       expect(() => parse(manifest)).not.toThrow();
     });
 
-    it('a dict field default value is omitted and does not break parsing', () => {
+    it('a dict field default value is printed and does not break parsing', () => {
       const ctx = createRuntimeContext({
         functions: {
           fn: {
@@ -933,7 +936,7 @@ describe('Rill Runtime: Manifest Generation', () => {
                   fields: {
                     cb: {
                       name: 'cb',
-                      type: { kind: 'closure' },
+                      type: { kind: 'fn' },
                       defaultValue: {
                         __rill_closure: true,
                       } as unknown as RillValue,
@@ -950,12 +953,11 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      expect(manifest).toContain('opts: dict(cb: closure)');
-      expect(manifest).not.toContain('=');
+      expect(manifest).toContain('opts: dict(cb: fn = ');
       expect(() => parse(manifest)).not.toThrow();
     });
 
-    it('a tuple element default value is omitted and does not break parsing', () => {
+    it('a tuple element default value is printed and does not break parsing', () => {
       const atomDefault: RillAtomValue = {
         __rill_atom: true,
         atom: resolveAtom('TIMEOUT'),
@@ -985,12 +987,11 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      expect(manifest).toContain('pair: tuple(atom)');
-      expect(manifest).not.toContain('=');
+      expect(manifest).toContain('pair: tuple(atom = #TIMEOUT)');
       expect(() => parse(manifest)).not.toThrow();
     });
 
-    it('an ordered field default value is omitted and does not break parsing', () => {
+    it('an ordered field default value is printed and does not break parsing', () => {
       const atomDefault: RillAtomValue = {
         __rill_atom: true,
         atom: resolveAtom('TIMEOUT'),
@@ -1021,12 +1022,11 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      expect(manifest).toContain('rec: ordered(code: atom)');
-      expect(manifest).not.toContain('=');
+      expect(manifest).toContain('rec: ordered(code: atom = #TIMEOUT)');
       expect(() => parse(manifest)).not.toThrow();
     });
 
-    it('a closure nested inside a stream ret type collapses to closure and keeps the outer', () => {
+    it('a fn nested inside a stream ret type keeps its signature and the outer', () => {
       const ctx = createRuntimeContext({
         functions: {
           fn: {
@@ -1037,7 +1037,7 @@ describe('Rill Runtime: Manifest Generation', () => {
                   kind: 'stream',
                   chunk: { kind: 'number' },
                   ret: {
-                    kind: 'closure',
+                    kind: 'fn',
                     params: [{ name: 'n', type: { kind: 'number' } }],
                     ret: { kind: 'string' },
                   },
@@ -1052,7 +1052,7 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      expect(manifest).toContain('s: stream(number):closure');
+      expect(manifest).toContain('s: stream(number):fn(n: number):string');
       expect(() => parse(manifest)).not.toThrow();
     });
 
@@ -1085,8 +1085,8 @@ describe('Rill Runtime: Manifest Generation', () => {
       // The type checker uses structural type equality — annotations are NOT part of the type.
       // Use .^type to get the structural type of each closure and compare.
       const result = await run(`
-        |x: string| { $x } => $a
-        |x: string| { $x } => $b
+        fn(x: string) { $x } => $a
+        fn(x: string) { $x } => $b
         $a.^type == $b.^type
       `);
       expect(result).toBe(true);
@@ -1096,8 +1096,8 @@ describe('Rill Runtime: Manifest Generation', () => {
       // Annotations are metadata, not part of the structural type for type-checking.
       // Use .^type to compare structural types — annotations do not affect structural equality.
       const result = await run(`
-        ^(role: "primary") |x: string| { $x } => $a
-        ^(role: "secondary") |x: string| { $x } => $b
+        ^(role: "primary") fn(x: string) { $x } => $a
+        ^(role: "secondary") fn(x: string) { $x } => $b
         $a.^type == $b.^type
       `);
       expect(result).toBe(true);
@@ -1107,8 +1107,8 @@ describe('Rill Runtime: Manifest Generation', () => {
       // Runtime identity (callableEquals) includes annotations.
       // Two closures with different annotations compared with == should be non-equal at value level.
       const result = await run(`
-        ^(role: "primary") |x: string| { $x } => $a
-        ^(role: "secondary") |x: string| { $x } => $b
+        ^(role: "primary") fn(x: string) { $x } => $a
+        ^(role: "secondary") fn(x: string) { $x } => $b
         $a == $b
       `);
       // Different annotations → not value-equal
@@ -1162,5 +1162,33 @@ describe('Rill Runtime: Manifest field keys', () => {
     const result = await execute(parse(manifest), ctx);
     const dict = result.result as Record<string, RillValue>;
     expect(Object.hasOwn(dict, 'say"hi{x}')).toBe(true);
+  });
+
+  it('round-trips every manifest entry through parseSignatureRegistration', () => {
+    const noop = (): RillValue => 1;
+    const ctx = createRuntimeContext({
+      functions: {
+        plain: { signature: 'fn()', fn: noop },
+        typed: {
+          signature:
+            'fn(^(description: "pd") x: union(string, number), cb: fn(string):bool):list',
+          description: 'does "it"',
+          fn: noop,
+        },
+        shaped: {
+          signature: 'fn(d: dict(k: string = "a"), t: tuple(number, string))',
+          fn: noop,
+        },
+      },
+    });
+    const entries = generateManifest(ctx)
+      .split('\n')
+      .map((line) => /^\s*"([^"]+)": (.*?),?$/.exec(line))
+      .filter((m): m is RegExpExecArray => m !== null);
+
+    expect(entries.map((m) => m[1])).toEqual(['plain', 'typed', 'shaped']);
+    for (const [, name, signature] of entries) {
+      expect(() => parseSignatureRegistration(signature!, name!)).not.toThrow();
+    }
   });
 });

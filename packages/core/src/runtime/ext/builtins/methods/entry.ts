@@ -72,12 +72,12 @@ export function buildMethodEntry(
 }
 
 // Shared signatures for cross-type methods
-export const SIG_LEN = '||:number';
-export const SIG_EMPTY = '||:bool';
-export const SIG_HEAD = '||:any';
-export const SIG_TAIL = '||:any';
-export const SIG_FIRST = '||:iterator';
-export const SIG_AT = '|index: number|:any';
-export const SIG_EQ = '|other: any|:bool';
-export const SIG_NE = '|other: any|:bool';
-export const SIG_CMP = '|other: any|:bool';
+export const SIG_LEN = 'fn():number';
+export const SIG_EMPTY = 'fn():bool';
+export const SIG_HEAD = 'fn():any';
+export const SIG_TAIL = 'fn():any';
+export const SIG_FIRST = 'fn():iterator';
+export const SIG_AT = 'fn(index: number):any';
+export const SIG_EQ = 'fn(other: any):bool';
+export const SIG_NE = 'fn(other: any):bool';
+export const SIG_CMP = 'fn(other: any):bool';

@@ -315,9 +315,9 @@ describe('Rill Runtime: Host Type Validation', () => {
 
   describe('Excess arguments raises RuntimeError with expected vs actual count', () => {
     it('registry message template renders the thrown message from its context', async () => {
-      const err = await run('fn(1, 2, 3)', {
+      const err = await run('act(1, 2, 3)', {
         functions: {
-          fn: {
+          act: {
             returnType: anyTypeValue,
             params: [
               {
@@ -343,8 +343,8 @@ describe('Rill Runtime: Host Type Validation', () => {
     });
   });
 
-  describe('Script closure uses same validation logic as host function', () => {
-    it('calling an unbound closure variable halts RILL-R005', async () => {
+  describe('Script fn uses same validation logic as host function', () => {
+    it('calling an unbound fn variable halts RILL-R005', async () => {
       await expectHalt(
         () =>
           run('$fn(42)', {
@@ -359,21 +359,21 @@ describe('Rill Runtime: Host Type Validation', () => {
       );
     });
 
-    it('script closure type-checks same as host function for string param', async () => {
+    it('script fn type-checks same as host function for string param', async () => {
       // A script closure with |name: string| rejects non-string
       await expectRuntimeError(
         () =>
           run(`
-          |name: string| { $name } => $greet
+          fn(name: string) { $name } => $greet
           $greet(42)
         `),
         { code: 'RILL-R001' }
       );
     });
 
-    it('script closure with string param accepts string argument like host function', async () => {
+    it('script fn with string param accepts string argument like host function', async () => {
       const result = await run(`
-        |name: string| { $name } => $greet
+        fn(name: string) { $name } => $greet
         "alice" -> $greet
       `);
       expect(result).toBe('alice');
@@ -393,9 +393,9 @@ describe('Rill Runtime: Host Type Validation', () => {
 
   describe('Boundary: type: { type: "any" } and type: undefined both accept any value', () => {
     it('type: { type: "any" } accepts string', async () => {
-      const result = await run('fn("hello")', {
+      const result = await run('act("hello")', {
         functions: {
-          fn: {
+          act: {
             returnType: anyTypeValue,
             params: [
               {
@@ -413,9 +413,9 @@ describe('Rill Runtime: Host Type Validation', () => {
     });
 
     it('type: { type: "any" } accepts number', async () => {
-      const result = await run('fn(42)', {
+      const result = await run('act(42)', {
         functions: {
-          fn: {
+          act: {
             returnType: anyTypeValue,
             params: [
               {
@@ -433,9 +433,9 @@ describe('Rill Runtime: Host Type Validation', () => {
     });
 
     it('type: { type: "any" } accepts list', async () => {
-      const result = await run('fn([1, 2])', {
+      const result = await run('act([1, 2])', {
         functions: {
-          fn: {
+          act: {
             returnType: anyTypeValue,
             params: [
               {

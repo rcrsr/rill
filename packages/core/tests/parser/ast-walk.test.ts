@@ -13,6 +13,7 @@ import type {
   UnaryExprNode,
 } from '@rcrsr/rill';
 import { nodeAtPosition, parse, parseWithRecovery, walkAst } from '@rcrsr/rill';
+import { unnamedParamsRead } from '../../src/ast-walk.js';
 
 /**
  * Full set of NodeType string literals, used as the membership oracle for
@@ -78,7 +79,7 @@ const KNOWN_NODE_TYPES_RECORD = {
   Error: true,
   TypeNameExpr: true,
   TypeConstructor: true,
-  ClosureSigLiteral: true,
+  FnType: true,
   ListLiteral: true,
   DictLiteral: true,
   TupleLiteral: true,
@@ -133,7 +134,7 @@ function collectNodesReflectively(root: unknown): Set<unknown> {
  * (parameterized-type field defaults and annotations).
  *
  * The `$typed` closure param, the `$tc` type-constructor pipe target, and
- * the `$use_typed` use-expression closure annotation each carry a
+ * the `$use_typed` use-expression type each carry a
  * parameterized type (`dict(...)`) whose `FieldArg` nests ASTNode children
  * (a `LiteralNode` default, a `NamedArgNode` annotation) inside a `TypeRef`.
  * Regression coverage: prior to the `typeRefChildren`/`fieldArgsChildren`
@@ -157,15 +158,15 @@ $x -> .eq("start") ? "yes" ! "no" => $cond
 
 0 -> while ($ < 3) do { $ + 1 } => $loopresult
 
-|n| ($n * 2) => $double
+fn(n) { $n * 2 } => $double
 
 $double(5) => $result
 
-|n: dict(label: string = "d")| ($n) => $typed
+fn(n: dict(label: string = "d")) { $n } => $typed
 
 "start" -> dict(^(anno: 1) field: dict(sub: string = "x")) => $tc
 
-use<host:fn>:|param: dict(name: string = "d")| => $use_typed
+use<host:fn>:fn(param: dict(name: string = "d")) => $use_typed
 `;
 
 /**
@@ -193,7 +194,7 @@ $l[0] => $first
 "s {$first}" => $str
 -$first => $neg
 ($first + 1) => $g
-|n: number|:number { $n } => $f
+fn(n: number):number { $n } => $f
 $f(1)
 1 -> $f()
 1 -> $f
@@ -223,15 +224,15 @@ list[...$l, 1]
 ^(k: 1) 5
 $f(^(k: 1) 5)
 use<host:fn> => $u
-use<host:fn>:|p: number| => $u2
+use<host:fn>:fn(p: number) => $u2
 number(1)
-|p = dict[a: 1]| ($p) => $dd
-|x: closure|{ $x } => $z
-|^("lbl") x: string|:number => $sig
+fn(p = dict[a: 1]) { $p } => $dd
+fn(x: fn) { $x } => $z
+fn(^("lbl") x: string):number => $sig
 list(number) => $lt
-|x| ($x -> yield) :stream() => $y
+fn(x):stream() { $x -> yield } => $y
 list[1, 2] -> seq({ $ -> break })
-|q|{ $q -> return } => $rr
+fn(q) { $q -> return } => $rr
 error "boom"
 timeout<total: duration("500ms")> { 1 }
 $f(...$d)
@@ -252,11 +253,11 @@ describe('walkAst', () => {
     expect(visited).toEqual(oracle);
   });
 
-  it('visits the LiteralNode default nested inside a typed closure param parameterized type', () => {
+  it('visits the LiteralNode default nested inside a typed fn param parameterized type', () => {
     // Regression: astChildren() previously never descended into
     // ClosureParamNode.typeRef, so a field default nested inside a
     // parameterized type (`dict(label: string = "d")`) was unreachable.
-    const source = `|n: dict(label: string = "d")| ($n) => $typed`;
+    const source = `fn(n: dict(label: string = "d")) { $n } => $typed`;
     const ast = parse(source);
 
     const oracle = [...collectNodesReflectively(ast)] as ASTNode[];
@@ -270,12 +271,10 @@ describe('walkAst', () => {
 
     expect(visited.has(nestedDefault!)).toBe(true);
   });
-
-  it('visits the annotation nested inside a closure-signature literal parameter', () => {
-    // Regression: astChildren() previously yielded only each param's typeExpr
-    // for ClosureSigLiteral, so a per-param `^(...)` annotation was
-    // unreachable by walkAst.
-    const source = `|^("label") x: string|:number => $sig`;
+  it('visits the annotation nested inside an fn type parameter', () => {
+    // Regression: typeRefChildren() must yield the params of an fn type so a
+    // per-param `^(...)` annotation is reachable by walkAst.
+    const source = `fn(^("label") x: string):number => $sig`;
     const ast = parse(source);
 
     const oracle = [...collectNodesReflectively(ast)] as ASTNode[];
@@ -570,5 +569,28 @@ describe('nodeAtPosition', () => {
     const found = nodeAtPosition(ast, nameOffset);
     expect(found).not.toBeNull();
     expect(['DictEntry', 'Dict']).toContain(found!.type);
+  });
+});
+
+describe('unnamedParamsRead', () => {
+  function bodyOf(source: string): ASTNode {
+    let found: ASTNode | undefined;
+    walkAst(parse(source), (node) => {
+      if (found === undefined && node.type === 'Block') found = node;
+    });
+    if (found === undefined) throw new Error('no block in fixture');
+    return found;
+  }
+
+  it.each([
+    ['{ 5 }', 0],
+    ['{ $ }', 1],
+    ['{ .len }', 1],
+    ['{ pass }', 1],
+    ['{ $@ + $ }', 2],
+    ['{ $@ }', 2],
+    ['{ 5 -> fn(x) { $ } }', 0],
+  ] as const)('counts unnamed params read by %s as %i', (source, expected) => {
+    expect(unnamedParamsRead(bodyOf(source))).toBe(expected);
   });
 });

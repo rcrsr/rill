@@ -297,7 +297,7 @@ describe('Rill Runtime: Variables', () => {
     it.each(keywordNames)(
       'allows %s as a closure parameter name',
       async (kw) => {
-        expect(await run(`|${kw}| ($${kw} * 2) => $f\n5 -> $f()`)).toBe(10);
+        expect(await run(`fn(${kw}) { $${kw} * 2 } => $f\n5 -> $f()`)).toBe(10);
       }
     );
   });
@@ -308,7 +308,7 @@ describe('Rill Runtime: Variables', () => {
     });
 
     it('allows a closure call through a keyword-named variable', async () => {
-      expect(await run('|x| ($x) => $do\n$do("y")')).toBe('y');
+      expect(await run('fn(x) { $x } => $do\n$do("y")')).toBe('y');
     });
 
     it('allows keyword names as destruct targets', async () => {

@@ -22,7 +22,7 @@ async function expectEqual(source: string, expected: string): Promise<void> {
 }
 
 const STREAM_TYPE =
-  '|v: number| { $v }:stream(number):string => $f\n$f.^type.outer';
+  'fn(v: number):stream(number):string { $v } => $f\n$f.^type.outer';
 
 describe('type value inner', () => {
   describe('through a variable', () => {
@@ -151,32 +151,32 @@ describe('type value inner', () => {
   describe('on a closure type', () => {
     it('returns an ordered of parameter types', async () => {
       await expectEqual(
-        '|a: string, b: number| { $a } => $f\n$f.^type.inner',
+        'fn(a: string, b: number) { $a } => $f\n$f.^type.inner',
         'ordered[a: string, b: number]'
       );
     });
 
     it('returns an empty ordered for a zero-parameter closure', async () => {
-      await expectEqual('|| { 1 } => $f\n$f.^type.inner', 'ordered[]');
+      await expectEqual('fn() { 1 } => $f\n$f.^type.inner', 'ordered[]');
     });
 
     it('returns the declared result as outer', async () => {
       await expectEqual(
-        '|x: number| { "a" }:string => $f\n$f.^type.outer',
+        'fn(x: number):string { "a" } => $f\n$f.^type.outer',
         'string'
       );
     });
 
     it('returns any as outer when no result is declared', async () => {
-      await expectEqual('|x: number| { $x } => $f\n$f.^type.outer', 'any');
+      await expectEqual('fn(x: number) { $x } => $f\n$f.^type.outer', 'any');
     });
   });
 
-  describe('on a bare closure type', () => {
+  describe('on a bare fn type', () => {
     it('returns any for inner and outer and probes inner', async () => {
-      await expectEqual('closure.inner', 'any');
-      await expectEqual('closure.outer', 'any');
-      expect(await run('closure.?inner')).toBe(true);
+      await expectEqual('fn.inner', 'any');
+      await expectEqual('fn.outer', 'any');
+      expect(await run('fn.?inner')).toBe(true);
     });
   });
 
@@ -311,7 +311,7 @@ describe('type value inner', () => {
 
     it('lists closure parameter defaults', async () => {
       await expectEqual(
-        '|a: string = "x", b: number| { $a } => $f\n$f.^type.defaults',
+        'fn(a: string = "x", b: number) { $a } => $f\n$f.^type.defaults',
         'dict[a: "x"]'
       );
     });
@@ -456,11 +456,11 @@ describe('type value inner', () => {
     it('probes a closure type the same way', async () => {
       for (const p of ['inner', 'outer', 'defaults', 'missing']) {
         const present = await run(
-          `|x: number| { $x } => $f\n$f.^type => $t\n$t.?${p}`
+          `fn(x: number) { $x } => $f\n$f.^type => $t\n$t.?${p}`
         );
         let reads = true;
         try {
-          await run(`|x: number| { $x } => $f\n$f.^type => $t\n$t.${p}`);
+          await run(`fn(x: number) { $x } => $f\n$f.^type => $t\n$t.${p}`);
         } catch {
           reads = false;
         }
@@ -472,25 +472,25 @@ describe('type value inner', () => {
 
 describe('type value properties read directly on an expression', () => {
   it('reads inner, outer, and defaults of a closure without a variable', async () => {
-    await expectEqual('(|x: number| { "a" }:string).^type.outer', 'string');
+    await expectEqual('(fn(x: number):string { "a" }).^type.outer', 'string');
     await expectEqual(
-      '(|a: string, b: number| { $a }).^type.inner',
+      '(fn(a: string, b: number) { $a }).^type.inner',
       'ordered[a: string, b: number]'
     );
-    await expectEqual('(|x: number| { $x }).^type.outer', 'any');
+    await expectEqual('(fn(x: number) { $x }).^type.outer', 'any');
     await expectEqual(
-      '(|a: string = "x", b: number| { $a }).^type.defaults',
+      '(fn(a: string = "x", b: number) { $a }).^type.defaults',
       'dict[a: "x"]'
     );
   });
 
   it('reads the chunk and resolution types of a stream type without a variable', async () => {
     await expectEqual(
-      '(|v: number| { $v }:stream(number):string).^type.outer.inner',
+      '(fn(v: number):stream(number):string { $v }).^type.outer.inner',
       'number'
     );
     await expectEqual(
-      '(|v: number| { $v }:stream(number):string).^type.outer.outer',
+      '(fn(v: number):stream(number):string { $v }).^type.outer.outer',
       'string'
     );
   });
@@ -507,21 +507,21 @@ describe('type value properties read directly on an expression', () => {
 
   describe('retired reflection probes', () => {
     it('halts RILL-R008 for input on a callable and names the replacement', async () => {
-      await expectHalt(() => run('|a| { $a } => $f\n$f.^input'), {
+      await expectHalt(() => run('fn(a) { $a } => $f\n$f.^input'), {
         code: 'RILL_R008',
         messagePattern: '$f.^type.inner',
       });
     });
 
     it('halts RILL-R008 for output on a callable and names the replacement', async () => {
-      await expectHalt(() => run('|a| { $a } => $f\n$f.^output'), {
+      await expectHalt(() => run('fn(a) { $a } => $f\n$f.^output'), {
         code: 'RILL_R008',
         messagePattern: '$f.^type.outer',
       });
     });
 
     it('halts RILL-R003 for chunk and output on a stream and names the replacement', async () => {
-      const stream = '|v: number| { $v }:stream(number):string => $f\n';
+      const stream = 'fn(v: number):stream(number):string { $v } => $f\n';
       await expectHalt(() => run(`${stream}$f(1) => $s\n$s.^chunk`), {
         code: 'RILL_R003',
         messagePattern: '$s.^type.inner',
@@ -533,7 +533,9 @@ describe('type value properties read directly on an expression', () => {
     });
 
     it('reads input as an ordinary annotation key', async () => {
-      expect(await run('^(input: "x") |a| { $a } => $f\n$f.^input')).toBe('x');
+      expect(await run('^(input: "x") fn(a) { $a } => $f\n$f.^input')).toBe(
+        'x'
+      );
     });
   });
 });
@@ -570,7 +572,7 @@ describe('stream type written as an expression', () => {
 describe('stream type acceptance', () => {
   const { it: ruleIt } = rule('stream.accepts');
 
-  const GEN = '|| { 1 -> yield\n "done" }:stream(number):string => $gen';
+  const GEN = 'fn():stream(number):string { 1 -> yield\n "done" } => $gen';
 
   async function accepts(typeName: string): Promise<unknown> {
     return run(`${GEN}\n$gen() => $s\n$s :?${typeName}`);
@@ -596,7 +598,7 @@ describe('stream type acceptance', () => {
 
   ruleIt('accepts a stream of strings as stream(any)', async () => {
     const script =
-      '|| { "a" -> yield\n "done" }:stream(string):string => $gen\n$gen() => $s\n$s :?stream(any)';
+      'fn():stream(string):string { "a" -> yield\n "done" } => $gen\n$gen() => $s\n$s :?stream(any)';
     expect(await run(script)).toBe(true);
   });
 });

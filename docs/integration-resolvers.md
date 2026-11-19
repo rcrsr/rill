@@ -223,7 +223,7 @@ type TypeStructure =
   | { kind: 'any' }
   | { kind: 'dict';    fields?: Record<string, TypeStructure> }
   | { kind: 'list';    element?: TypeStructure }
-  | { kind: 'closure'; params?: [string, TypeStructure][]; ret?: TypeStructure }
+  | { kind: 'fn';      params?: [string, TypeStructure][]; ret?: TypeStructure }
   | { kind: 'tuple';   elements?: TypeStructure[] }
   | { kind: 'ordered'; fields?: [string, TypeStructure][] }
 ```
@@ -245,13 +245,13 @@ Dict fields are sorted alphabetically in the formatted output.
 
 All callable kinds expose their parameter and return type shapes through `.^type`. `$fn.^type.inner` reads the parameters and `$fn.^type.outer` reads the declared return type. Both work on script closures and application callables.
 
-**`.^type.inner`** returns a `RillOrdered` value directly. Each entry is a `[paramName, RillTypeValue]` pair, preserving parameter declaration order. A callable with no parameters returns an empty ordered dict.
+**`.^type.inner`** returns a `RillOrdered` value directly. Each entry is a `[paramName, RillTypeValue]` pair, preserving parameter declaration order. A callable with no parameters returns an empty ordered dict. A function with unnamed parameters (`fn { $ + 1 }`) returns a tuple of their types instead of an ordered value.
 
 ```typescript
-// Script closure returned from execute():
-// |x: number, y: string| x -> string
+// Script fn returned from execute():
+// fn(x: number, y: string) { "{$x}{$y}" }
 
-const closure = result.result; // RillCallable (ScriptCallable)
+const fnValue = result.result; // RillCallable (ScriptCallable)
 // $fn.^type.inner -> ordered[x: number, y: string]
 // Host side: RillOrdered with entries [["x", RillTypeValue], ["y", RillTypeValue]]
 // entries[0][1].structure -> { kind: 'number' }
@@ -259,7 +259,7 @@ const closure = result.result; // RillCallable (ScriptCallable)
 ```
 
 ```typescript
-// Parameterized closure: |x: list(string), y: number| { $x }
+// Parameterized fn: fn(x: list(string), y: number) { $x }
 // entries[0][1].structure -> { kind: 'list', element: { kind: 'string' } }
 // entries[1][1].structure -> { kind: 'number' }
 //
@@ -269,14 +269,14 @@ const closure = result.result; // RillCallable (ScriptCallable)
 // }
 ```
 
-**`.^type.outer`** returns a `RillTypeValue` with the closure's declared return type. When no return type is declared, the fallback structure is `{ kind: 'any' }`:
+**`.^type.outer`** returns a `RillTypeValue` with the function's declared return type. When no return type is declared, the fallback structure is `{ kind: 'any' }`:
 
 ```typescript
-// Closure with declared return: |x: number|{ "{$x}" }:string
+// fn with declared return: fn(x: number):string { "{$x}" }
 // $fn.^type.outer -> string
 // Host side: RillTypeValue with structure { kind: 'string' }
 
-// Closure with no declared return type:
+// fn with no declared return type:
 // $fn.^type.outer -> any
 // Host side: RillTypeValue with structure { kind: 'any' }
 ```
@@ -303,10 +303,10 @@ console.log(nativeResult.value);             // JS-native value, always populate
 ```typescript
 interface NativeResult {
   /** Base rill type name — "string", "number", "bool", "list", "dict",
-   *  "tuple", "ordered", "closure", "vector", "type", or "iterator" */
+   *  "tuple", "ordered", "fn", "vector", "type", or "iterator" */
   rillTypeName: string;
   /** Full structural type signature from formatStructure,
-   *  e.g. "list(number)", "dict(a: number, b: string)", "|x: number| :string" */
+   *  e.g. "list(number)", "dict(a: number, b: string)", "fn(x: number):string" */
   rillTypeSignature: string;
   /** JS-native representation. Always populated — never undefined.
    *  Non-native types produce descriptor objects (see Descriptor shapes below). */
@@ -328,7 +328,7 @@ type NativeValue = string | number | boolean | null | NativeValue[] | { [key: st
 | dict | `"dict"` | plain object (see note below) |
 | tuple | `"tuple"` | array of entry values |
 | ordered | `"ordered"` | plain object with insertion-order keys |
-| closure | `"closure"` | descriptor: `{ signature: string }` |
+| fn | `"fn"` | descriptor: `{ signature: string }` |
 | vector | `"vector"` | descriptor: `{ model: string, dimensions: number }` |
 | type value | `"type"` | descriptor: `{ name: string, signature: string }` |
 | iterator | `"iterator"` | descriptor: `{ done: boolean }` |
@@ -341,13 +341,13 @@ A dict converts to a plain object. Every dict key is a string, so each entry bec
 
 Non-native rill types produce descriptor objects in `value` instead of primitive values:
 
-**closure** — `value` is `{ signature: string }`:
+**fn** — `value` is `{ signature: string }`:
 
 ```typescript
-const result = toNative(closureValue);
-// result.rillTypeName      -> "closure"
-// result.rillTypeSignature -> "|x: number| :string"
-// result.value             -> { signature: "|x: number| :string" }
+const result = toNative(fnValue);
+// result.rillTypeName      -> "fn"
+// result.rillTypeSignature -> "fn(x: number):string"
+// result.value             -> { signature: "fn(x: number):string" }
 ```
 
 `signature` is identical to `rillTypeSignature` — both come from `formatStructure`.
@@ -395,7 +395,7 @@ The `NativeResult` interface was redesigned. Hosts consuming `toNative()` must u
 
 ### serializeValue
 
-The built-in `json` function (used inside scripts as `value -> json`) throws `RILL-R004` for non-serializable types (closure, iterator, vector, type value, tuple, ordered). Use `toNative()` at the host boundary for safe, non-throwing conversion with type metadata.
+The built-in `json` function (used inside scripts as `value -> json`) throws `RILL-R004` for non-serializable types (fn, iterator, vector, type value, tuple, ordered). Use `toNative()` at the host boundary for safe, non-throwing conversion with type metadata.
 
 ---
 
@@ -413,7 +413,7 @@ import { createRuntimeContext, getFunctions } from '@rcrsr/rill';
 const ctx = createRuntimeContext({
   functions: {
     greet: {
-      signature: '|^(description: "Person to greet") name: string|:any',
+      signature: 'fn(^(description: "Person to greet") name: string):any',
       description: 'Generate a greeting message',
       fn: (args) => `Hello, ${args.name}!`,
     },
@@ -518,12 +518,12 @@ import { createRuntimeContext, getDocumentationCoverage } from '@rcrsr/rill';
 const ctx = createRuntimeContext({
   functions: {
     documented: {
-      signature: '|^(description: "Input value") x: string|:any',
+      signature: 'fn(^(description: "Input value") x: string):any',
       description: 'A documented function',
       fn: (args) => args.x,
     },
     undocumented: {
-      signature: '|x: string|:any',
+      signature: 'fn(x: string):any',
       fn: (args) => args.x,
     },
   },

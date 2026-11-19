@@ -13,7 +13,7 @@
  * AC-5: formatValue on list [1,2,3] → "list(1, 2, 3)"
  * AC-6: formatValue on dict {a:1} → "dict(a: 1)"
  * AC-7: formatValue on shape → "shape(name: string, age?: number)"
- * AC-8: formatValue on closure → "type(closure)"
+ * AC-8: formatValue on fn → "type(fn)"
  * AC-9: Script returns closure → returns as RillValue
  * AC-10: json(closure) throws RuntimeError RILL-R004
  * AC-11: json([1, closure, 3]) throws RuntimeError
@@ -128,8 +128,8 @@ describe('formatValue', () => {
     });
 
     it('formats a list holding a callable', async () => {
-      const closure = await run('||(1)');
-      expect(formatValue([closure])).toBe('list[type(closure)]');
+      const closure = await run('fn() { 1 }');
+      expect(formatValue([closure])).toBe('list[type(fn)]');
     });
 
     it('formats a dict holding an iterator', async () => {
@@ -164,10 +164,10 @@ describe('formatValue', () => {
     });
   });
 
-  describe('AC-8: closure', () => {
-    it('formats callable as "type(closure)"', () => {
+  describe('AC-8: fn', () => {
+    it('formats callable as "type(fn)"', () => {
       const fn = callable(() => null);
-      expect(formatValue(fn)).toBe('type(closure)');
+      expect(formatValue(fn)).toBe('type(fn)');
     });
   });
 
@@ -234,7 +234,7 @@ describe('formatValue', () => {
     it('callable is formatted before dict (callable has __type, not treated as plain dict)', () => {
       const fn = callable(() => null);
       const result = formatValue(fn);
-      expect(result).toBe('type(closure)');
+      expect(result).toBe('type(fn)');
       expect(result).not.toMatch(/^dict/);
     });
 
@@ -393,7 +393,7 @@ describe('serializeValue', () => {
     });
   });
 
-  describe('EC-8: closure throws RuntimeError (RILL-R067)', () => {
+  describe('EC-8: fn throws RuntimeError (RILL-R067)', () => {
     it('throws RuntimeError for callable', () => {
       const fn = callable(() => null);
       expect(() => serializeValue(fn)).toThrow(
@@ -594,21 +594,26 @@ describe('toNative', () => {
     });
   });
 
-  describe('AC-8: closure produces descriptor object', () => {
-    it('returns rillTypeName "closure"', () => {
+  describe('AC-8: fn produces descriptor object', () => {
+    it('returns rillTypeName "fn"', () => {
       const fn = callable(() => null);
-      expect(toNative(fn).rillTypeName).toBe('closure');
+      expect(toNative(fn).rillTypeName).toBe('fn');
     });
 
     it('returns rillTypeSignature for callable', () => {
       const fn = callable(() => null);
-      expect(toNative(fn).rillTypeSignature).toBe('|| :any');
+      expect(toNative(fn).rillTypeSignature).toBe('fn():any');
+    });
+
+    it('returns the fn signature of a script fn with named params', async () => {
+      const value = await run('fn(x: number):string { "{$x}" }');
+      expect(toNative(value).rillTypeSignature).toBe('fn(x: number):string');
     });
 
     it('returns value with signature descriptor', () => {
       const fn = callable(() => null);
       const r = toNative(fn);
-      expect(r.value).toEqual({ signature: '|| :any' });
+      expect(r.value).toEqual({ signature: 'fn():any' });
     });
   });
 
@@ -729,7 +734,7 @@ describe('toNative', () => {
       const r = toNative([fn]);
       expect(Array.isArray(r.value)).toBe(true);
       const entries = r.value as unknown[];
-      expect(entries[0]).toEqual({ signature: '|| :any' });
+      expect(entries[0]).toEqual({ signature: 'fn():any' });
     });
   });
 
@@ -784,27 +789,30 @@ describe('Script-level integration', () => {
 
   describe('AC-9: Script returning closure returns as RillValue', () => {
     it('closure is returned without error', async () => {
-      const result = await run('|| { "fn" }');
+      const result = await run('fn() { "fn" }');
       expect(result).not.toBeNull();
       expect(typeof result).toBe('object');
     });
   });
 
-  describe('AC-10: json(closure) halts typed-atom', () => {
-    it('json on a closure rejects with RuntimeHaltSignal', async () => {
-      await expect(run('|x| { $x * 2 } -> json')).rejects.toBeInstanceOf(
+  describe('AC-10: json(fn) halts typed-atom', () => {
+    it('json on a fn rejects with RuntimeHaltSignal', async () => {
+      await expect(run('fn(x) { $x * 2 } -> json')).rejects.toBeInstanceOf(
         RuntimeHaltSignal
       );
     });
 
     it('error message mentions closures', async () => {
-      await expectHaltMessage(() => run('|x| { $x * 2 } -> json'), 'closures');
+      await expectHaltMessage(
+        () => run('fn(x) { $x * 2 } -> json'),
+        'closures'
+      );
     });
   });
 
-  describe('AC-11: json([1, closure, 3]) throws RuntimeError', () => {
-    it('json on list containing closure rejects', async () => {
-      await expectHalt(() => run('list[1, ||{ "fn" }, 3] -> json'), {
+  describe('AC-11: json([1, fn, 3]) throws RuntimeError', () => {
+    it('json on list containing fn rejects', async () => {
+      await expectHalt(() => run('list[1, fn() { "fn" }, 3] -> json'), {
         code: 'INVALID_INPUT',
       });
     });

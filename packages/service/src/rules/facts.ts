@@ -47,10 +47,8 @@ import type {
   BracketAccess,
   CaptureNode,
   ClosureCallNode,
-  ClosureNode,
   DestructNode,
   DestructureNode,
-  DictEntryNode,
   DictLiteralNode,
   DictNode,
   OrderedLiteralNode,
@@ -164,15 +162,6 @@ export interface ScriptFacts {
   /** Every literal (`.field`) field name accessed via a Variable's access chain, script-wide. */
   readonly literalFieldAccessNames: ReadonlySet<string>;
   /**
-   * Closure literals that are the direct value of a `DictEntry` - the
-   * documented dict-bound closure idiom (`dict[k: { $... }]`), where a bare
-   * `$` inside the closure body binds late to whatever the entry is invoked
-   * with, not to a definition-time value. Populated when a `DictEntry`'s
-   * value unwraps (through a pipe-less `PipeChain` and a method-less
-   * `PostfixExpr`) to a `Closure` primary.
-   */
-  readonly dictBoundClosures: ReadonlySet<ASTNode>;
-  /**
    * Names bound exactly once script-wide (counting captures, destructure
    * targets, and closure params), where that one binding is a typed capture
    * or typed closure param with a non-dynamic type.
@@ -215,15 +204,7 @@ function isStreamClosure(chain: PipeChainNode): boolean {
   const returnType = closure.returnTypeTarget;
   if (!returnType) return false;
 
-  if ('type' in returnType && returnType.type === 'TypeConstructor') {
-    return returnType.constructorName === 'stream';
-  }
-
-  if ('kind' in returnType && returnType.kind === 'static') {
-    return returnType.typeName === 'stream';
-  }
-
-  return false;
+  return returnType.kind === 'static' && returnType.typeName === 'stream';
 }
 
 /**
@@ -242,24 +223,6 @@ function getPipeHeadVariableName(chain: PipeChainNode): string | null {
   if (variable.accessChain.length > 0) return null;
 
   return variable.name;
-}
-
-/**
- * Unwrap a `DictEntry`'s value to the `Closure` node it holds, when the
- * value is nothing but that closure - a pipe-less `PipeChain` whose head is
- * a method-less `PostfixExpr` wrapping a `Closure` primary. Returns null for
- * any other shape (a piped expression, a closure with trailing methods,
- * etc.), which is not the dict-bound closure idiom.
- */
-function dictBoundClosureFromEntry(entry: DictEntryNode): ClosureNode | null {
-  const value = entry.value;
-  if (value.type !== 'PipeChain') return null;
-  if (value.pipes.length > 0) return null;
-  const head = value.head;
-  if (head.type !== 'PostfixExpr') return null;
-  if (head.methods.length > 0) return null;
-  if (head.primary.type !== 'Closure') return null;
-  return head.primary;
 }
 
 // ============================================================
@@ -417,7 +380,9 @@ export function collectFacts(root: ASTNode): AstFacts {
   const paramNames = new Set<string>();
   const destructureCounts = new Map<string, number>();
   const literalFieldAccessNames = new Set<string>();
-  const dictBoundClosures = new Set<ASTNode>();
+  // Params of a Closure literal bind a name; params inside an FnType are
+  // signature slots and bind nothing.
+  const boundParams = new Set<ASTNode>();
   const paramCounts = new Map<string, number>();
   const paramTypes = new Map<string, TypeRef>();
   const entriesCandidates = new Set<string>();
@@ -430,7 +395,7 @@ export function collectFacts(root: ASTNode): AstFacts {
   let currentBindingScopeDepth = 0;
 
   // Collection-op body nodes that are a bare `{...}` Block (not an explicit
-  // `|x|(...)` Closure). Populated when the enclosing HostCall is entered,
+  // `fn(x) { ... }` Closure). Populated when the enclosing HostCall is entered,
   // consulted when that specific Block node is entered/exited below, so the
   // extra closureOrOpDepth bump scopes only the resolved body subtree - not
   // the call's other arguments (e.g. `fold`/`acc`'s seed value).
@@ -462,6 +427,7 @@ export function collectFacts(root: ASTNode): AstFacts {
       }
 
       if (node.type === 'Closure') {
+        for (const param of node.params) boundParams.add(param);
         currentClosureDepth++;
         currentClosureOrOpDepth++;
         currentBindingScopeDepth++;
@@ -589,7 +555,7 @@ export function collectFacts(root: ASTNode): AstFacts {
         hasDynamicFieldAccess = true;
       }
 
-      if (node.type === 'ClosureParam') {
+      if (node.type === 'ClosureParam' && boundParams.has(node)) {
         paramNames.add(node.name);
         paramCounts.set(node.name, (paramCounts.get(node.name) ?? 0) + 1);
         if (node.typeRef !== null && node.typeRef.kind !== 'dynamic') {
@@ -599,13 +565,6 @@ export function collectFacts(root: ASTNode): AstFacts {
 
       if (node.type === 'Destructure' || node.type === 'Destruct') {
         countDestructureTargets(node, destructureCounts);
-      }
-
-      if (node.type === 'DictEntry') {
-        const closure = dictBoundClosureFromEntry(node);
-        if (closure) {
-          dictBoundClosures.add(closure);
-        }
       }
 
       for (const field of literalFieldAccessNamesSelf(node)) {
@@ -731,7 +690,6 @@ export function collectFacts(root: ASTNode): AstFacts {
       hasDynamicFieldAccess,
       paramNames,
       literalFieldAccessNames,
-      dictBoundClosures,
       declaredTypes,
       entriesVars,
       entriesBodies,

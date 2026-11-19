@@ -1,7 +1,7 @@
 /**
  * Closure Protocol Module
  *
- * TypeDefinition for the 'closure' built-in type.
+ * TypeDefinition for the 'fn' built-in type.
  * Allowed imports: ../structures.js, ../guards.js, ./shared.js,
  * ../operations.js, ../callable.js, ../halt.js, ../../../types.js
  *
@@ -25,7 +25,7 @@ import { throwNotSerializable, resolvedDeepEquals } from './shared.js';
 // ============================================================
 
 function formatClosure(_v: RillValue): string {
-  return 'type(closure)';
+  return 'type(fn)';
 }
 
 // ============================================================
@@ -47,7 +47,7 @@ function eqClosure(a: RillValue, b: RillValue): boolean {
 // ============================================================
 
 export const closureType: TypeDefinition = {
-  name: 'closure',
+  name: 'fn',
   identity: (v: RillValue): boolean => isCallable(v),
   isLeaf: true,
   immutable: true,

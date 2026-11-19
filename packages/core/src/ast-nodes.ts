@@ -30,32 +30,30 @@ export interface FrontmatterNode extends BaseNode {
 }
 
 /**
- * Closure: |params| body
- * First-class closure with optional typed parameters and defaults.
+ * Closure: fn(params):outer { body }
+ * First-class function literal with optional typed parameters and defaults.
  * Scope rules: captures outer (read-only), local mutable.
  *
- * Body can be:
- * - Simple: |x| $x (postfix-expr)
- * - Grouped: |x| ($x * 2) (compound expression)
- * - Block: |x| { $a ↵ $b } (multiple statements)
+ * The body is always a block. Unnamed params bind `$` and `$@` and carry the
+ * names '$' and '@'.
  *
- * Optional postfix return type target: |params| body :type-target
- * Asserts the closure return value against the type target at invocation time.
- * `:any` is valid and equivalent to omission.
+ * Optional return type target asserts the result against the type at
+ * invocation time. `:any` is valid and equivalent to omission.
  */
 export interface ClosureNode extends BaseNode {
   readonly type: 'Closure';
   readonly params: ClosureParamNode[];
-  readonly body: BodyNode;
-  readonly returnTypeTarget?: TypeRef | TypeConstructorNode | undefined;
+  readonly body: BlockNode;
+  readonly returnTypeTarget?: TypeRef | undefined;
 }
 
 /**
  * Function parameter with optional type and default value.
- * - (x) { }           -- untyped
- * - (x: string) { }   -- typed
- * - (x: string = "hi") { }  -- typed with default
- * - ^(key: value) (x) { }  -- with parameter annotations
+ * - fn(x) { }                 -- untyped
+ * - fn(x: string) { }         -- typed
+ * - fn(x: string = "hi") { }  -- typed with default
+ * - fn(^(key: value) x) { }   -- with parameter annotations
+ * Serves both the fn literal and the fn type.
  */
 export interface ClosureParamNode extends BaseNode {
   readonly type: 'ClosureParam';
@@ -339,7 +337,7 @@ export type PrimaryNode =
   | TypeCheckNode
   | TypeNameExprNode
   | TypeConstructorNode
-  | ClosureSigLiteralNode
+  | FnTypeNode
   | UseExprNode
   | AtomLiteralNode
   | StatusProbeNode
@@ -373,6 +371,7 @@ export type PipeTargetNode =
   | ListLiteralNode
   | TypeNameExprNode
   | TypeConstructorNode
+  | FnTypeNode
   | UseExprNode
   | PassBlockNode
   | TimeoutBlockNode;
@@ -488,22 +487,12 @@ export interface TypeConstructorNode extends BaseNode {
 }
 
 /**
- * Closure signature literal: |param: type, ...| :returnType
- * Represents a closure type signature as a first-class value.
- * Distinguished from a closure literal by absence of a `{` body block.
- *
- * Examples:
- *   |x: string| :number
- *   |a: string, b: number| :boolean
+ * Function type expression: fn, fn(), fn(x: number):string, fn:string
+ * A first-class type value naming a function shape.
  */
-export interface ClosureSigLiteralNode extends BaseNode {
-  readonly type: 'ClosureSigLiteral';
-  readonly params: {
-    name: string;
-    typeExpr: ExpressionNode;
-    annotations?: AnnotationArg[];
-  }[];
-  readonly returnType: PostfixExprNode;
+export interface FnTypeNode extends BaseNode {
+  readonly type: 'FnType';
+  readonly typeRef: TypeRef;
 }
 
 // ============================================================
@@ -591,10 +580,8 @@ export interface GroupedExprNode extends BaseNode {
  * No naked compound expressions — arithmetic/pipes/booleans must be grouped.
  *
  * Valid: block, grouped, or postfix-expr (variable, literal, method, function call)
- * Examples:
- *   |x| $x           — postfix-expr
- *   |x| ($x * 2)     — grouped (compound)
- *   |x| { $a ↵ $b }  — block (multiple statements)
+ * Used by constructs that take a bare body (conditionals, loops). An fn
+ * literal's body is always a block: `ClosureNode.body` is a `BlockNode`.
  */
 export type BodyNode =
   | BlockNode
@@ -708,7 +695,7 @@ export type PropertyAccess = FieldAccess | BracketAccess;
  * When the expression is a non-closure, annotations are ignored at runtime.
  *
  * Examples:
- *   ^("describe it") |x| ($x * 2)    -- closure gets description annotation
+ *   ^("describe it") fn(x) { $x * 2 }    -- closure gets description annotation
  *   ^(label: "add") $ext.add         -- host member gets annotation (runtime: ignored)
  */
 export interface AnnotatedExprNode extends BaseNode {
@@ -1109,17 +1096,12 @@ export type UseIdentifier =
  *   use<scheme:path.to.module>
  *   use<$moduleVar>
  *   use<(computedExpr)>:TypeName
- *   use<scheme:fn>:|param: string|
+ *   use<scheme:fn>:fn(param: string)
  */
 export interface UseExprNode extends BaseNode {
   readonly type: 'UseExpr';
   readonly identifier: UseIdentifier;
   readonly typeRef: TypeRef | null;
-  readonly closureAnnotation: ReadonlyArray<{
-    readonly name: string;
-    readonly typeRef: TypeRef;
-    readonly defaultValue?: LiteralNode;
-  }> | null;
 }
 
 export type SimplePrimaryNode =
@@ -1181,7 +1163,7 @@ export type ASTNode =
   | TypeAssertionNode
   | TypeCheckNode
   | TypeConstructorNode
-  | ClosureSigLiteralNode
+  | FnTypeNode
   | AnnotatedStatementNode
   | AnnotatedExprNode
   | NamedArgNode

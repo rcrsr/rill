@@ -184,9 +184,9 @@ describe('compareStructuredFields', () => {
       expect(result).toBe('fallback');
     });
 
-    it('returns fallback for closure kind', () => {
-      const a: TypeStructure = { kind: 'closure' };
-      const b: TypeStructure = { kind: 'closure' };
+    it('returns fallback for fn kind', () => {
+      const a: TypeStructure = { kind: 'fn' };
+      const b: TypeStructure = { kind: 'fn' };
       const result = compareStructuredFields(a, b, labelCallbacks, 'fallback');
       expect(result).toBe('fallback');
     });

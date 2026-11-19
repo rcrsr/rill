@@ -126,7 +126,7 @@ const FIRES: ReadonlyArray<readonly [string, string, string, string, string]> =
     ],
     [
       'a declared param selector',
-      '|k: number| { $k -> dict["1": 1] } => $f\n$f(1)\n',
+      'fn(k: number) { $k -> dict["1": 1] } => $f\n$f(1)\n',
       'DISPATCH_SELECTOR_NOT_STRING',
       'halts #TYPE_MISMATCH',
       MISMATCH,

@@ -180,7 +180,7 @@ describe('Rill Runtime: Conditionals', () => {
     });
 
     it('rejects empty closure body on invocation (RILL-R043)', async () => {
-      await expect(run('|| { } => $fn\n$fn()')).rejects.toHaveProperty(
+      await expect(run('fn() { } => $fn\n$fn()')).rejects.toHaveProperty(
         'errorId',
         'RILL-R043'
       );
@@ -546,7 +546,7 @@ while ($ < 3)`);
   describe('Return Inside Condition', () => {
     it('return inside an explicit condition exits the enclosing closure', async () => {
       const script = `
-        |x| {
+        fn(x) {
           (($x > 0) ? ("early" -> return) ! false) ? "then" ! "else"
         } => $f
         $f(1)
@@ -556,7 +556,7 @@ while ($ < 3)`);
 
     it('return inside a condition that resolves false still evaluates normally', async () => {
       const script = `
-        |x| {
+        fn(x) {
           (($x > 0) ? ("early" -> return) ! false) ? "then" ! "else"
         } => $f
         $f(-1)

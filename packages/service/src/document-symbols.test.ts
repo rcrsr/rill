@@ -3,7 +3,7 @@ import { parseWithRecovery } from '@rcrsr/rill';
 import { documentSymbols } from './document-symbols.js';
 
 describe('documentSymbols', () => {
-  it('returns one symbol per capture and per closure in a well-formed script', () => {
+  it('returns one symbol per capture and per fn in a well-formed script', () => {
     const source = `
 1 => $a
 2 => $b
@@ -15,11 +15,11 @@ describe('documentSymbols', () => {
 8 => $h
 9 => $i
 10 => $j
-|x| ($x * 2) => $double
-|x| ($x + 1) => $increment
-|x, y| ($x + $y) => $add
-|x| ($x -> .upper) => $shout
-|x| ($x -> .len) => $length
+fn(x) { $x * 2 } => $double
+fn(x) { $x + 1 } => $increment
+fn(x, y) { $x + $y } => $add
+fn(x) { $x -> .upper } => $shout
+fn(x) { $x -> .len } => $length
 `;
 
     const parsed = parseWithRecovery(source);
@@ -119,7 +119,7 @@ describe('documentSymbols', () => {
     expect(fields.map((symbol) => symbol.name)).toEqual(['name', 'age']);
   });
 
-  it('omits an inline-argument closure from the outline', () => {
+  it('omits an inline-argument fn from the outline', () => {
     const parsed = parseWithRecovery(
       'list[1, 2, 3] -> fan({ $ * 2 }) => $doubled'
     );
@@ -131,8 +131,8 @@ describe('documentSymbols', () => {
     expect(symbols.map((symbol) => symbol.name)).toEqual(['doubled']);
   });
 
-  it('emits only the outer symbol for a closure nested inside a captured closure', () => {
-    const source = '|x| ($x -> fan({ $ * 2 })) => $double';
+  it('emits only the outer symbol for a fn nested inside a captured fn', () => {
+    const source = 'fn(x) { $x -> fan({ $ * 2 }) } => $double';
     const parsed = parseWithRecovery(source);
 
     const symbols = documentSymbols(parsed);
@@ -142,8 +142,8 @@ describe('documentSymbols', () => {
     expect(functions[0]?.name).toBe('double');
   });
 
-  it('omits an uncaptured top-level closure literal from the outline', () => {
-    const parsed = parseWithRecovery('|x| ($x * 2)');
+  it('omits an uncaptured top-level fn literal from the outline', () => {
+    const parsed = parseWithRecovery('fn(x) { $x * 2 }');
 
     const symbols = documentSymbols(parsed);
 
@@ -152,8 +152,8 @@ describe('documentSymbols', () => {
     );
   });
 
-  it('still emits one symbol for a directly-captured closure', () => {
-    const parsed = parseWithRecovery('|x| ($x * 2) => $double');
+  it('still emits one symbol for a directly-captured fn', () => {
+    const parsed = parseWithRecovery('fn(x) { $x * 2 } => $double');
 
     const symbols = documentSymbols(parsed);
     const functions = symbols.filter((symbol) => symbol.kind === 'function');
@@ -163,8 +163,8 @@ describe('documentSymbols', () => {
     // selectionRange narrows to the capture's `$double` token, distinct from
     // the full closure literal's range.
     expect(functions[0]?.selectionRange).not.toEqual(functions[0]?.range);
-    expect(functions[0]?.selectionRange.start.character).toBe(16);
-    expect(functions[0]?.selectionRange.end.character).toBe(23);
+    expect(functions[0]?.selectionRange.start.character).toBe(20);
+    expect(functions[0]?.selectionRange.end.character).toBe(27);
   });
 
   it('nests a dict entry inside its enclosing dict entry', () => {
@@ -191,8 +191,8 @@ describe('documentSymbols', () => {
   it('never returns a symbol with an empty or whitespace name', () => {
     const source = `
 list[1, 2, 3] -> fan({ $ * 2 }) => $doubled
-|x| ($x -> fan({ $ * 2 })) => $double
-|x| ($x * 2)
+fn(x) { $x -> fan({ $ * 2 }) } => $double
+fn(x) { $x * 2 }
 dict[name: "Alice"] => $person
 `;
     const parsed = parseWithRecovery(source);

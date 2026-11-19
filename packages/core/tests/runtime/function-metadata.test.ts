@@ -147,7 +147,7 @@ describe('Rill Runtime: Function Metadata', () => {
     });
 
     describe('AC-3: Script closure reports returnType "any"', () => {
-      it('returns "any" for script closure', () => {
+      it('returns "any" for script fn', () => {
         const ctx = createRuntimeContext({
           variables: {
             scriptFn: callableLiteral({

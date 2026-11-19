@@ -367,7 +367,7 @@ describe('filter integration', () => {
     );
 
     const result = await execute(
-      parse('|x| ($x -> .upper) => $shout\n"hi" -> $shout'),
+      parse('fn(x) { $x -> .upper } => $shout\n"hi" -> $shout'),
       ctx
     );
     expect(result.result).toBe('HI');
@@ -429,7 +429,7 @@ describe('filter integration', () => {
  * `{ ... }` was a complete bypass.
  */
 describe('filter integration: calls inside closure bodies', () => {
-  it('denies a denied method called from a closure body', async () => {
+  it('denies a denied method called from a fn body', async () => {
     const ctx = createTestContext(
       { kb: { delete: { access: 'deny' } } },
       { kb: { delete: method('deleted') } }
@@ -438,7 +438,7 @@ describe('filter integration: calls inside closure bodies', () => {
     await expectHalt(
       () =>
         execute(
-          parse('use<ext:kb> => $kb\n|| ($kb.delete()) => $wrap\n$wrap()'),
+          parse('use<ext:kb> => $kb\nfn() { $kb.delete() } => $wrap\n$wrap()'),
           ctx
         ),
       {
@@ -467,7 +467,7 @@ describe('filter integration: calls inside closure bodies', () => {
     );
   });
 
-  it('denies a denied method called from a nested closure body', async () => {
+  it('denies a denied method called from a nested fn body', async () => {
     const ctx = createTestContext(
       { kb: { delete: { access: 'deny' } } },
       { kb: { delete: method('deleted') } }
@@ -477,7 +477,7 @@ describe('filter integration: calls inside closure bodies', () => {
       () =>
         execute(
           parse(
-            'use<ext:kb> => $kb\n|| ($kb.delete()) => $inner\n|| ($inner()) => $outer\n$outer()'
+            'use<ext:kb> => $kb\nfn() { $kb.delete() } => $inner\nfn() { $inner() } => $outer\n$outer()'
           ),
           ctx
         ),
@@ -488,7 +488,7 @@ describe('filter integration: calls inside closure bodies', () => {
     );
   });
 
-  it('denies a denied method called from a stream closure body', async () => {
+  it('denies a denied method called from a stream fn body', async () => {
     // Stream closures build their context through the same helper, via
     // eval/invocation/stream-closures.ts.
     const ctx = createTestContext(
@@ -500,7 +500,7 @@ describe('filter integration: calls inside closure bodies', () => {
       () =>
         execute(
           parse(
-            'use<ext:kb> => $kb\n|| { $kb.delete() -> yield\nreturn 1 }:stream(string):number => $sc\n$sc() => $s\n$s()'
+            'use<ext:kb> => $kb\nfn():stream(string):number { $kb.delete() -> yield\n1 -> return } => $sc\n$sc() => $s\n$s()'
           ),
           ctx
         ),
@@ -511,7 +511,7 @@ describe('filter integration: calls inside closure bodies', () => {
     );
   });
 
-  it('applies transforms to a call made from a closure body', async () => {
+  it('applies transforms to a call made from a fn body', async () => {
     const ctx = createTestContext(
       {
         kb: { search: { access: 'allow', out: ['filter.redact'] } },
@@ -523,7 +523,7 @@ describe('filter integration: calls inside closure bodies', () => {
     );
 
     const result = await execute(
-      parse('use<ext:kb> => $kb\n|| ($kb.search()) => $wrap\n$wrap()'),
+      parse('use<ext:kb> => $kb\nfn() { $kb.search() } => $wrap\n$wrap()'),
       ctx
     );
     expect(result.result).toBe('redacted(raw)');
@@ -1247,7 +1247,7 @@ describe('filter integration: callables returned at call time', () => {
 
     const closure = await execute(
       parse(
-        'use<ext:kb> => $kb\n|| { "closure ok" } => $c\n$kb.echo($c) => $e\n$e()'
+        'use<ext:kb> => $kb\nfn() { "closure ok" } => $c\n$kb.echo($c) => $e\n$e()'
       ),
       ctx
     );

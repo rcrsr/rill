@@ -1,9 +1,10 @@
 /**
- * Rill Parser Tests: typed closure parameter followed by a closure body
+ * Rill Parser Tests: typed fn parameters followed by a fn body
  *
- * The closing `|` of a typed parameter list must not be read as a union
- * separator when the body starts with `$name` or a host call. Unions are
- * written union(...); a `|` after a type raises RILL-P011.
+ * A typed parameter list closes with `)` and the body is a brace block, so a
+ * body that starts with `$name` or a host call is never read as part of a
+ * parameter type. Unions are written union(...); a `|` after a type raises
+ * RILL-P011.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -31,7 +32,7 @@ function findClosure(node: unknown): ClosureShape {
     }
   };
   visit(node);
-  if (found === undefined) throw new Error('no closure found');
+  if (found === undefined) throw new Error('no fn found');
   return found;
 }
 
@@ -42,61 +43,74 @@ function bodyType(c: ClosureShape): unknown {
   return body['type'];
 }
 
-describe('typed closure parameter followed by a body', () => {
+interface PrimaryShape {
+  type: string;
+  name: string;
+}
+
+/** The primary of the first statement of the fn body block. */
+function bodyPrimary(c: ClosureShape): PrimaryShape {
+  const block = c.body as {
+    statements: Array<{
+      expression: { head: { primary: PrimaryShape } };
+    }>;
+  };
+  const first = block.statements[0];
+  if (first === undefined) throw new Error('fn body is empty');
+  return first.expression.head.primary;
+}
+
+describe('typed fn parameter followed by a body', () => {
   it.each([
-    ['|x: number| $x', 'number'],
-    ['|x: number|$x', 'number'],
-    ['|x: dict| $x.name', 'dict'],
+    ['fn(x: number) { $x }', 'number'],
+    ['fn(x: dict) { $x.name }', 'dict'],
   ])('parses %s with a static param type and a variable body', (src, t) => {
     const c = closureOf(src);
     expect(c.params).toHaveLength(1);
     expect(c.params[0]?.typeRef).toEqual({ kind: 'static', typeName: t });
-    const primary = (c.body as { primary: { type: string; name: string } })
-      .primary;
+    const primary = bodyPrimary(c);
     expect(primary.type).toBe('Variable');
     expect(primary.name).toBe('x');
   });
 
   it('parses a host call body after a typed parameter', () => {
-    const c = closureOf('|x: number| log($x)');
+    const c = closureOf('fn(x: number) { log($x) }');
     expect(c.params[0]?.typeRef).toEqual({
       kind: 'static',
       typeName: 'number',
     });
-    const primary = (c.body as { primary: { type: string; name: string } })
-      .primary;
+    const primary = bodyPrimary(c);
     expect(primary.type).toBe('HostCall');
     expect(primary.name).toBe('log');
   });
 
-  it('parses an anonymous typed closure with a variable body', () => {
-    const c = closureOf('|number| $x');
+  it('parses an anonymous typed fn with a variable body', () => {
+    const c = closureOf('fn(number) { $x }');
     expect(c.params[0]?.typeRef).toEqual({
       kind: 'static',
       typeName: 'number',
     });
-    expect(bodyType(c)).toBe('PostfixExpr');
-    const primary = (c.body as { primary: { type: string; name: string } })
-      .primary;
+    expect(bodyType(c)).toBe('Block');
+    const primary = bodyPrimary(c);
     expect(primary.type).toBe('Variable');
     expect(primary.name).toBe('x');
   });
 
-  it('returns the argument from a typed closure at runtime', async () => {
-    const result = await run('5 -> |x: number| $x');
+  it('returns the argument from a typed fn at runtime', async () => {
+    const result = await run('5 -> fn(x: number) { $x }');
     expect(result).toBe(5);
   });
 
   it('raises RILL-R001 for a wrong-typed argument', async () => {
-    await expectRuntimeError(() => run('"a" -> |x: number| $x'), {
+    await expectRuntimeError(() => run('"a" -> fn(x: number) { $x }'), {
       code: 'RILL-R001',
     });
   });
 });
 
-describe('union(...) in closure parameters', () => {
+describe('union(...) in fn parameters', () => {
   it('parses a static union', () => {
-    const c = closureOf('|a: union(number, string)| $a');
+    const c = closureOf('fn(a: union(number, string)) { $a }');
     expect(c.params[0]?.typeRef).toEqual({
       kind: 'union',
       members: [
@@ -107,7 +121,7 @@ describe('union(...) in closure parameters', () => {
   });
 
   it('parses a union with a dynamic member', () => {
-    const c = closureOf('|a: union(number, $T)| $a');
+    const c = closureOf('fn(a: union(number, $T)) { $a }');
     expect(c.params[0]?.typeRef).toEqual({
       kind: 'union',
       members: [
@@ -118,7 +132,7 @@ describe('union(...) in closure parameters', () => {
   });
 
   it('parses a union followed by a second parameter', () => {
-    const c = closureOf('|a: union(number, $T), b: string| $a');
+    const c = closureOf('fn(a: union(number, $T), b: string) { $a }');
     expect(c.params).toHaveLength(2);
     expect(c.params[0]?.typeRef).toMatchObject({ kind: 'union' });
     expect(c.params[1]?.typeRef).toEqual({
@@ -128,13 +142,13 @@ describe('union(...) in closure parameters', () => {
   });
 
   it('parses a union followed by a default value', () => {
-    const c = closureOf('|a: union(number, $T) = 1| $a');
+    const c = closureOf('fn(a: union(number, $T) = 1) { $a }');
     expect(c.params[0]?.typeRef).toMatchObject({ kind: 'union' });
     expect(c.params[0]?.defaultValue).toBeDefined();
   });
 
-  it('parses a two-type anonymous closure with a union first type', () => {
-    const c = closureOf('|union(number, $T), string| $');
+  it('parses a two-type anonymous fn with a union first type', () => {
+    const c = closureOf('fn(union(number, $T), string) { $ }');
     expect(c.params).toHaveLength(2);
     expect(c.params[0]?.typeRef).toMatchObject({ kind: 'union' });
     expect(c.params[1]?.typeRef).toEqual({
@@ -157,9 +171,9 @@ describe('the removed | separator', () => {
 
   it.each([
     ['"x" => $v:string|number', 'union(string, number)'],
-    ['|a: number|string| $a', 'union(number, string)'],
-    ['|a: number|$T| $a', 'union(number, $T)'],
-    ['|a: number|$T = 1| $a', 'union(number, $T)'],
+    ['fn(a: number|string) { $a }', 'union(number, string)'],
+    ['fn(a: number|$T) { $a }', 'union(number, $T)'],
+    ['fn(a: number|$T = 1) { $a }', 'union(number, $T)'],
   ])('raises RILL-P011 for %j naming the rewrite', (src, rewrite) => {
     const err = errorOf(src);
     expect(err.errorId).toBe('RILL-P011');
@@ -172,22 +186,24 @@ describe('the removed | separator', () => {
     expect(err.message).toContain('write unions as union(...)');
   });
 
-  it('raises a ParseError for a misspelled member after a closing pipe', () => {
-    expect(() => parse('|x: number|strng| $x')).toThrow(ParseError);
+  it('raises a ParseError for a misspelled member after a pipe', () => {
+    expect(() => parse('fn(x: number|strng) { $x }')).toThrow(ParseError);
   });
 
   it('raises a ParseError for an anonymous dynamic union followed by a comma', () => {
-    expect(() => parse('|number|$T, string| $')).toThrow(ParseError);
+    expect(() => parse('fn(number|$T, string) { $ }')).toThrow(ParseError);
   });
 
   it('raises a ParseError for a dynamic-union parameter followed by a comma', () => {
-    expect(() => parse('|a: number|$T, b: string| $a')).toThrow(ParseError);
+    expect(() => parse('fn(a: number|$T, b: string) { $a }')).toThrow(
+      ParseError
+    );
   });
 });
 
-describe('consecutive closure statements on separate lines', () => {
-  it('does not merge a variable body with the next line closure into a union', () => {
-    const ast = parse('|x: number|\n$x\n|y: number| $y');
+describe('consecutive fn statements on separate lines', () => {
+  it('keeps two fn literals on separate lines as separate closures', () => {
+    const ast = parse('fn(x: number) { $x }\nfn(y: number) { $y }');
     const closures: ClosureShape[] = [];
     const visit = (n: unknown): void => {
       if (n === null || typeof n !== 'object') return;
@@ -210,17 +226,17 @@ describe('consecutive closure statements on separate lines', () => {
   });
 });
 
-describe('typed closure with a variable body inside a comma-separated context', () => {
+describe('typed fn with a variable body inside a comma-separated context', () => {
   it.each([
-    ['fan(|x: number| $x, 2)'],
-    ['list[|x: number| $x, 2]'],
-    ['list[|x: number| $x, $y]'],
-    ['list[|x: number| $x, |y: number| $y]'],
-    ['list[\n|x: number| $x,\n2\n]'],
-    ['dict[f: |x: number| $x, g: 2]'],
-    ['dict[f: |x: number| $x, g: || { 1 }]'],
-    ['list[|x: number| $x, true, false]'],
-    ['list[|x: number| $x, ^("d") |y| $y]'],
+    ['fan(fn(x: number) { $x }, 2)'],
+    ['list[fn(x: number) { $x }, 2]'],
+    ['list[fn(x: number) { $x }, $y]'],
+    ['list[fn(x: number) { $x }, fn(y: number) { $y }]'],
+    ['list[\nfn(x: number) { $x },\n2\n]'],
+    ['dict[f: fn(x: number) { $x }, g: 2]'],
+    ['dict[f: fn(x: number) { $x }, g: fn() { 1 }]'],
+    ['list[fn(x: number) { $x }, true, false]'],
+    ['list[fn(x: number) { $x }, ^("d") fn(y) { $y }]'],
   ])('parses %j with a variable body named x', (src) => {
     const c = closureOf(src);
     expect(c.params).toHaveLength(1);
@@ -228,46 +244,46 @@ describe('typed closure with a variable body inside a comma-separated context', 
       kind: 'static',
       typeName: 'number',
     });
-    const primary = (c.body as { primary: { type: string; name: string } })
-      .primary;
+    const primary = bodyPrimary(c);
     expect(primary.type).toBe('Variable');
     expect(primary.name).toBe('x');
   });
 
-  it('parses an anonymous typed closure followed by a list entry', () => {
-    const c = closureOf('list[|number| $x, 2]');
+  it('parses an anonymous typed fn followed by a list entry', () => {
+    const c = closureOf('list[fn(number) { $x }, 2]');
     expect(c.params).toHaveLength(1);
     expect(c.params[0]?.typeRef).toEqual({
       kind: 'static',
       typeName: 'number',
     });
-    const primary = (c.body as { primary: { type: string; name: string } })
-      .primary;
+    const primary = bodyPrimary(c);
     expect(primary.type).toBe('Variable');
     expect(primary.name).toBe('x');
   });
 
-  it('runs a typed closure passed to fan with an options dict', async () => {
+  it('runs a typed fn passed to fan with an options dict', async () => {
     const result = await run(
-      'list[1, 2, 3] -> fan(|x: number| $x, dict[concurrency: 2])'
+      'list[1, 2, 3] -> fan(fn(x: number) { $x }, dict[concurrency: 2])'
     );
     expect(result).toEqual([1, 2, 3]);
   });
 
-  it('calls a typed closure stored in a dict', async () => {
-    const result = await run('dict[f: |x: number| $x, g: 2] => $d\n$d.f(5)');
+  it('calls a typed fn stored in a dict', async () => {
+    const result = await run(
+      'dict[f: fn(x: number) { $x }, g: 2] => $d\n$d.f(5)'
+    );
     expect(result).toBe(5);
   });
 });
 
 describe('formerly ambiguous dict entries', () => {
-  it('parses a dict entry with a variable value after a typed closure', () => {
-    expect(() => parse('dict[f: |x: number| $x, g: $y]')).not.toThrow();
+  it('parses a dict entry with a variable value after a typed fn', () => {
+    expect(() => parse('dict[f: fn(x: number) { $x }, g: $y]')).not.toThrow();
   });
 
-  it('parses a dict entry with a call value after a typed closure', () => {
+  it('parses a dict entry with a call value after a typed fn', () => {
     expect(() =>
-      parse('dict[f: |x: number| $x, name: upper("a")]')
+      parse('dict[f: fn(x: number) { $x }, name: upper("a")]')
     ).not.toThrow();
   });
 });

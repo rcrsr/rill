@@ -55,7 +55,7 @@ const CASES: ReadonlyArray<readonly [string, string, string]> = [
   ['list assert', 'list(number)', 'list["a"]'],
   ['bare kind', 'list', 'list[1, 2]'],
   ['bare conversion', 'string', '5'],
-  ['closure', 'closure', '|x| ($x)'],
+  ['fn', 'fn', 'fn(x) { $x }'],
 ];
 
 describe('type target agreement', () => {

@@ -10,8 +10,8 @@ function check(source: string) {
 }
 
 describe('PIPE_ZERO_PARAM_TARGET', () => {
-  it('fires on a zero-parameter closure pipe target', () => {
-    const result = check('5 -> || { 1 }\n');
+  it('fires on a zero-parameter fn pipe target', () => {
+    const result = check('5 -> fn() { 1 }\n');
 
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
@@ -23,15 +23,15 @@ describe('PIPE_ZERO_PARAM_TARGET', () => {
   });
 
   it('fires on the parenthesized body form', () => {
-    expect(check('5 -> ||(1)\n')).toHaveLength(1);
+    expect(check('5 -> fn() { 1 }\n')).toHaveLength(1);
   });
 
-  it('stays silent on a closure with a parameter', () => {
-    expect(check('5 -> |x|($x)\n')).toEqual([]);
+  it('stays silent on a fn with a parameter', () => {
+    expect(check('5 -> fn(x) { $x }\n')).toEqual([]);
   });
 
-  it('stays silent on a zero-parameter closure that is not a pipe target', () => {
-    expect(check('|| { 1 } => $f\n')).toEqual([]);
+  it('stays silent on a zero-parameter fn that is not a pipe target', () => {
+    expect(check('fn() { 1 } => $f\n')).toEqual([]);
   });
 
   it('stays silent on a block pipe target', () => {

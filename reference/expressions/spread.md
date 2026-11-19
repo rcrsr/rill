@@ -113,13 +113,13 @@ dict[...$d, b: 9]
 ```
 
 ```rill
-|a, b| ($a - $b) => $sub
+fn(a, b) { $a - $b } => $sub
 $sub(...dict[b: 1, a: 5])
 # Result: 4
 ```
 
 ```rill
-|a, b| ($a - $b) => $sub
+fn(a, b) { $a - $b } => $sub
 tuple[5, 1] -> $sub(...)
 # Result: 4
 ```

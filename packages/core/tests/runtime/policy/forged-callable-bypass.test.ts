@@ -161,11 +161,11 @@ describe('forged callable policy bypass', () => {
     expect(log).toEqual([['search', 'q']]);
   });
 
-  it('halts a closure annotation that carries brand keys', async () => {
+  it('halts a fn annotation that carries brand keys', async () => {
     await expectHalt(
       () =>
         execute(
-          parse('|^(__type: "callable", kind: "application") x|($x)'),
+          parse('fn(^(__type: "callable", kind: "application") x) { $x }'),
           createDenyContext([])
         ),
       { code: 'RILL_R002', messagePattern: /reserved brand key '__type'/ }
@@ -200,10 +200,10 @@ describe('forged callable policy bypass', () => {
     expect(log).toEqual([]);
   });
 
-  it('halts a forged callable hydrated into a closure parameter', async () => {
+  it('halts a forged callable hydrated into a fn parameter', async () => {
     const log: CallLog = [];
     const script = [
-      '|x: dict(__type: string = "callable", kind: string = "script")| { $x } => $f',
+      'fn(x: dict(__type: string = "callable", kind: string = "script")) { $x } => $f',
       '$f(dict[])',
     ].join('\n');
 
@@ -213,10 +213,10 @@ describe('forged callable policy bypass', () => {
     expect(log).toEqual([]);
   });
 
-  it('halts a forged callable built from a closure parameter default', async () => {
+  it('halts a forged callable built from a fn parameter default', async () => {
     const log: CallLog = [];
     const script = [
-      '|x: dict(__type: string = "callable", kind: string = "script") = dict[]| { $x } => $f',
+      'fn(x: dict(__type: string = "callable", kind: string = "script") = dict[]) { $x } => $f',
       '$f()',
     ].join('\n');
 
@@ -229,7 +229,7 @@ describe('forged callable policy bypass', () => {
   it('halts a forged callable built through an ordered parameter type', async () => {
     const log: CallLog = [];
     const script = [
-      '|x: ordered(__type: string = "callable", kind: string = "script")| { $x } => $f',
+      'fn(x: ordered(__type: string = "callable", kind: string = "script")) { $x } => $f',
       '$f(ordered[])',
     ].join('\n');
 

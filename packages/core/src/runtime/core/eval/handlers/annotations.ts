@@ -102,7 +102,7 @@ async function executeAnnotatedStatement(
  * Halt when an annotation key is a reserved brand key, so annotations
  * cannot masquerade as a branded runtime value.
  */
-export function assertUsableAnnotationKey(
+function assertUsableAnnotationKey(
   key: string,
   location: SourceLocation,
   sourceId?: string

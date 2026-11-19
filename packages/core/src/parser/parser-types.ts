@@ -6,6 +6,7 @@
  */
 
 import {
+  type ClosureParamNode,
   type TypeRef,
   type FieldArg,
   type LiteralNode,
@@ -14,6 +15,7 @@ import {
   TOKEN_TYPES,
   ParseError,
   isRillTypeName,
+  isUnnamedParam,
 } from '../types.js';
 import {
   type ParserState,
@@ -24,12 +26,14 @@ import {
   previous,
   peek,
   skipNewlines,
+  makeSpan,
   withRecursionDepth,
 } from './state.js';
 import {
   VALID_TYPE_NAMES,
   isLiteralStart,
   isNegativeNumber,
+  isVariableNameToken,
   parseTypeName,
   readStaticKey,
   rejectRepeatedKey,
@@ -40,12 +44,24 @@ import { ERROR_IDS } from '../error-registry.js';
 import type { Parser } from './parser.js';
 
 /**
+ * Callbacks a type parse may need from the Parser. Annotations on a field
+ * (`parseAnnotations`) and on an fn parameter (`parseFnAnnotations`) are kept
+ * apart so supplying one never widens what the other accepts.
+ */
+interface TypeRefOpts {
+  parseLiteral?: () => LiteralNode;
+  parseAnnotations?: () => AnnotationArg[];
+  parseFnAnnotations?: () => AnnotationArg[];
+}
+
+/**
  * Parse a type reference from the current position in the token stream.
  *
  * Grammar:
  * ```
  * type-ref          = single-type
- * single-type       = "$" identifier | type-name [ "(" type-ref-arg-list ")" ]
+ * single-type       = "$" identifier | fn-signature
+ *                    | type-name [ "(" type-ref-arg-list ")" ]
  * type-ref-arg-list = type-ref-arg { "," type-ref-arg } [ "," ]
  * type-ref-arg      = identifier ":" type-ref | type-ref
  * ```
@@ -60,19 +76,11 @@ import type { Parser } from './parser.js';
  * Throws ParseError if neither a `$identifier` nor a valid type name
  * is found. Throws ParseError if the arg list is malformed.
  * Throws ParseError (RILL-P011) if a removed `|` union separator follows a
- * type. With `allowTrailingPipe`, a `|` that closes a parameter list is left
- * for the caller.
+ * type.
  *
  * @internal
  */
-export function parseTypeRef(
-  state: ParserState,
-  opts?: {
-    allowTrailingPipe?: boolean;
-    parseLiteral?: () => LiteralNode;
-    parseAnnotations?: () => AnnotationArg[];
-  }
-): TypeRef {
+export function parseTypeRef(state: ParserState, opts?: TypeRefOpts): TypeRef {
   return withRecursionDepth(
     state,
     () => current(state).span.start,
@@ -89,14 +97,21 @@ export function parseTypeRef(
  *
  * @internal
  */
-export function parseScriptTypeRef(
-  parser: Parser,
-  opts?: { allowTrailingPipe?: boolean }
-): TypeRef {
-  return parseTypeRef(parser.state, {
-    ...opts,
+export function parseScriptTypeRef(parser: Parser): TypeRef {
+  return parseTypeRef(parser.state, scriptTypeOpts(parser));
+}
+
+/**
+ * The callbacks every script type position hands to the type parser: literals
+ * for field defaults, and annotations for fn parameters only.
+ *
+ * @internal
+ */
+export function scriptTypeOpts(parser: Parser): TypeRefOpts {
+  return {
     parseLiteral: () => parser.parseLiteral(),
-  });
+    parseFnAnnotations: () => parser.parseAnnotationArgs(),
+  };
 }
 
 /**
@@ -112,29 +127,6 @@ function startsTypeMember(state: ParserState, offset: number): boolean {
   );
 }
 
-/**
- * Decide whether the `|` at the current position is the removed union
- * separator. Outside a closure parameter list every `|` after a type is one.
- * Inside a `|`-delimited list the `|` is a separator only when a type name
- * follows, or `$name` followed by another `|` on the same line or by `=`;
- * otherwise it closes the list.
- */
-function pipeIsRemovedSeparator(
-  state: ParserState,
-  inParamList: boolean
-): boolean {
-  if (!inParamList) return true;
-  const after = peek(state, 1);
-  if (after.type === TOKEN_TYPES.IDENTIFIER) return startsTypeMember(state, 1);
-  if (after.type !== TOKEN_TYPES.DOLLAR) return false;
-  if (!/^[A-Za-z_]/.test(peek(state, 2).value)) return false;
-  const next = peek(state, 3).type;
-  if (next === TOKEN_TYPES.PIPE_BAR) return true;
-  let i = 3;
-  while (peek(state, i).type === TOKEN_TYPES.NEWLINE) i++;
-  return peek(state, i).type === TOKEN_TYPES.ASSIGN;
-}
-
 const REMOVED_SEPARATOR_PREFIX = "The '|' type separator was removed; write ";
 
 /**
@@ -144,17 +136,12 @@ const REMOVED_SEPARATOR_PREFIX = "The '|' type separator was removed; write ";
 function throwRemovedSeparator(
   state: ParserState,
   firstText: string,
-  inParamList: boolean,
-  opts: Parameters<typeof parseSingleType>[1],
+  opts: TypeRefOpts | undefined,
   asOuter = false
 ): never {
   const location = current(state).span.start;
   const texts = [firstText];
-  while (
-    check(state, TOKEN_TYPES.PIPE_BAR) &&
-    startsTypeMember(state, 1) &&
-    pipeIsRemovedSeparator(state, inParamList)
-  ) {
+  while (check(state, TOKEN_TYPES.PIPE_BAR) && startsTypeMember(state, 1)) {
     advance(state); // consume "|"
     const start = current(state).span.start.offset;
     parseSingleType(state, opts);
@@ -172,27 +159,17 @@ function throwRemovedSeparator(
   );
 }
 
-function parseTypeRefImpl(
-  state: ParserState,
-  opts?: {
-    allowTrailingPipe?: boolean;
-    parseLiteral?: () => LiteralNode;
-    parseAnnotations?: () => AnnotationArg[];
-  }
-): TypeRef {
+function parseTypeRefImpl(state: ParserState, opts?: TypeRefOpts): TypeRef {
   const startOffset = current(state).span.start.offset;
   const first = parseSingleType(state, opts);
 
   if (!check(state, TOKEN_TYPES.PIPE_BAR)) return first;
 
-  const inParamList = opts?.allowTrailingPipe === true;
-  if (!pipeIsRemovedSeparator(state, inParamList)) return first;
-
   const firstText =
     state.source === ''
       ? ''
       : state.source.slice(startOffset, previous(state).span.end.offset);
-  return throwRemovedSeparator(state, firstText, inParamList, opts);
+  return throwRemovedSeparator(state, firstText, opts);
 }
 
 /**
@@ -200,25 +177,14 @@ function parseTypeRefImpl(
  * Grammar: `single-type = "$" identifier | type-name [ "(" type-ref-arg-list ")" ]`
  * @internal
  */
-function parseSingleType(
-  state: ParserState,
-  opts?: {
-    allowTrailingPipe?: boolean;
-    parseLiteral?: () => LiteralNode;
-    parseAnnotations?: () => AnnotationArg[];
-  }
-): TypeRef {
-  // Zero-param closure type: || :returnType or bare ||
-  if (check(state, TOKEN_TYPES.OR)) {
-    advance(state); // consume || (OR token)
-    // Check for :returnType
-    if (check(state, TOKEN_TYPES.COLON)) {
-      advance(state); // consume :
-      const ret = parseSingleType(state, opts);
-      return { kind: 'static', typeName: 'closure', args: [{ value: ret }] };
-    }
-    // Bare || without :returnType — equivalent to 'closure'
-    return { kind: 'static', typeName: 'closure' };
+function parseSingleType(state: ParserState, opts?: TypeRefOpts): TypeRef {
+  // Removed closure type literals: |x: T|:R and ||:R
+  if (check(state, TOKEN_TYPES.OR, TOKEN_TYPES.PIPE_BAR)) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P012,
+      "Syntax removed: the '|params|' closure type literal was removed; write fn(params):result",
+      current(state).span.start
+    );
   }
 
   if (check(state, TOKEN_TYPES.DOLLAR)) {
@@ -231,6 +197,11 @@ function parseSingleType(
   }
 
   const nameToken = current(state);
+  if (nameToken.type === TOKEN_TYPES.IDENTIFIER) {
+    if (nameToken.value === 'fn') return parseFnSignature(state, opts);
+    if (nameToken.value === 'closure')
+      throwRemovedClosureType(nameToken.span.start);
+  }
   const typeName = parseTypeName(state, VALID_TYPE_NAMES);
 
   // Check for parameterized form: type-name "(" type-ref-arg-list ")"
@@ -305,10 +276,7 @@ function startsLiteral(state: ParserState): boolean {
  */
 export function parseUnionMembers(
   state: ParserState,
-  opts?: {
-    parseLiteral?: () => LiteralNode;
-    parseAnnotations?: () => AnnotationArg[];
-  }
+  opts?: TypeRefOpts
 ): TypeRef[] {
   const members: TypeRef[] = [];
   skipNewlines(state);
@@ -364,23 +332,19 @@ export function parseUnionMembers(
  * @internal
  */
 
-/** Forward parseLiteral and parseAnnotations from field-arg opts to parseTypeRef opts. */
-function buildTypeRefOpts(opts?: {
-  parseLiteral?: () => LiteralNode;
-  parseAnnotations?: () => AnnotationArg[];
-}):
-  | {
-      parseLiteral?: () => LiteralNode;
-      parseAnnotations?: () => AnnotationArg[];
-    }
-  | undefined {
-  if (!opts?.parseLiteral && !opts?.parseAnnotations) return undefined;
-  const result: {
-    parseLiteral?: () => LiteralNode;
-    parseAnnotations?: () => AnnotationArg[];
-  } = {};
+/** Forward the type-parse callbacks from field-arg opts to parseTypeRef opts. */
+function buildTypeRefOpts(opts?: TypeRefOpts): TypeRefOpts | undefined {
+  if (
+    !opts?.parseLiteral &&
+    !opts?.parseAnnotations &&
+    !opts?.parseFnAnnotations
+  )
+    return undefined;
+  const result: TypeRefOpts = {};
   if (opts.parseLiteral) result.parseLiteral = opts.parseLiteral;
   if (opts.parseAnnotations) result.parseAnnotations = opts.parseAnnotations;
+  if (opts.parseFnAnnotations)
+    result.parseFnAnnotations = opts.parseFnAnnotations;
   return result;
 }
 
@@ -399,9 +363,7 @@ function readKeyAtCursor(state: ParserState): string {
 
 export function parseFieldArgList(
   state: ParserState,
-  opts?: {
-    parseLiteral?: () => LiteralNode;
-    parseAnnotations?: () => AnnotationArg[];
+  opts?: TypeRefOpts & {
     /** Set for dict and ordered types: named fields take any static key spelling. */
     keyedCollection?: 'dict type' | 'ordered type';
   }
@@ -523,11 +485,7 @@ export function parseOuterType(
   state: ParserState,
   typeName: string,
   args: FieldArg[],
-  opts?: {
-    allowTrailingPipe?: boolean;
-    parseLiteral?: () => LiteralNode;
-    parseAnnotations?: () => AnnotationArg[];
-  }
+  opts?: TypeRefOpts
 ): boolean {
   if (!atOuterType(state)) return false;
   if (typeName !== 'stream') {
@@ -545,32 +503,39 @@ export function parseOuterType(
       current(state).span.start
     );
   }
-  advance(state); // consume ':'
-  const outerStart = current(state).span.start.offset;
-  const outer = parseSingleType(state, buildTypeRefOpts(opts));
-  const inParamList = opts?.allowTrailingPipe === true;
-  if (
-    check(state, TOKEN_TYPES.PIPE_BAR) &&
-    startsTypeMember(state, 1) &&
-    pipeIsRemovedSeparator(state, inParamList)
-  ) {
-    const outerText = state.source.slice(
-      outerStart,
-      previous(state).span.end.offset
-    );
-    throwRemovedSeparator(
-      state,
-      outerText,
-      inParamList,
-      buildTypeRefOpts(opts),
-      true
-    );
-  }
+  const outer = parseOuterAfterColon(state, opts);
   if (args.length === 0) {
     args.push({ value: { kind: 'static', typeName: 'any' } });
   }
   args.push({ value: outer });
   return true;
+}
+
+/**
+ * Consume `:` and the outer type after it. A removed `|` separator after the
+ * outer raises RILL-P011 naming the `union(...)` rewrite of the outer.
+ */
+function parseOuterAfterColon(
+  state: ParserState,
+  opts: TypeRefOpts | undefined
+): TypeRef {
+  advance(state); // consume ':'
+  const outerStart = current(state).span.start.offset;
+  // A chained outer (`fn:fn:...`, `stream:stream:...`) recurses here, so it
+  // counts toward the nesting cap like every other type position.
+  const outer = withRecursionDepth(
+    state,
+    () => current(state).span.start,
+    () => parseSingleType(state, buildTypeRefOpts(opts))
+  );
+  if (check(state, TOKEN_TYPES.PIPE_BAR) && startsTypeMember(state, 1)) {
+    const outerText = state.source.slice(
+      outerStart,
+      previous(state).span.end.offset
+    );
+    throwRemovedSeparator(state, outerText, buildTypeRefOpts(opts), true);
+  }
+  return outer;
 }
 
 /**
@@ -594,3 +559,223 @@ const NO_OUTER_TYPES: readonly string[] = [
   'ordered',
   'union',
 ];
+
+// ============================================================
+// FN SIGNATURE PARSING
+// ============================================================
+
+/**
+ * Raise RILL-P012 for the removed `closure` type name.
+ * @internal
+ */
+export function throwRemovedClosureType(at: SourceLocation): never {
+  throw new ParseError(
+    ERROR_IDS.RILL_P012,
+    "Syntax removed: the 'closure' type was removed; write fn",
+    at
+  );
+}
+
+/** Build an RILL-P028 error for an invalid unnamed-parameter list. */
+function unnamedParamError(details: string, at: SourceLocation): ParseError {
+  return new ParseError(ERROR_IDS.RILL_P028, details, at);
+}
+
+/**
+ * Parse one fn parameter, named or unnamed.
+ *
+ * Grammar: `[^(annots)] name [":" type] ["=" literal]` (named) or
+ * `[^(annots)] type` (unnamed). A bare name that is not a type name is a
+ * named param; a type name or `$var` starts an unnamed param. A type name
+ * followed by `:` and no outer type is a reserved-keyword param name.
+ */
+function parseFnParam(
+  state: ParserState,
+  opts: TypeRefOpts | undefined,
+  unnamedSoFar: number
+): ClosureParamNode {
+  const start = current(state).span.start;
+  let annotations: AnnotationArg[] | undefined;
+  while (check(state, TOKEN_TYPES.CARET)) {
+    if (opts?.parseFnAnnotations === undefined) {
+      throw new ParseError(
+        ERROR_IDS.RILL_P001,
+        'Parameter annotations are not allowed here',
+        current(state).span.start
+      );
+    }
+    advance(state); // consume ^
+    expect(state, TOKEN_TYPES.LPAREN, 'Expected ( after ^');
+    const block = opts.parseFnAnnotations();
+    expect(state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
+    skipNewlines(state);
+    annotations = annotations ? annotations.concat(block) : block;
+  }
+
+  const first = current(state);
+  if (first.type === TOKEN_TYPES.IDENTIFIER && first.value === 'closure') {
+    throwRemovedClosureType(first.span.start);
+  }
+  const startsType =
+    first.type === TOKEN_TYPES.DOLLAR ||
+    (first.type === TOKEN_TYPES.IDENTIFIER && isRillTypeName(first.value));
+
+  if (startsType) {
+    // `<typename>:` names the param after a type unless the type takes an outer.
+    const takesOuter = first.value === 'stream' || first.value === 'fn';
+    if (
+      first.type === TOKEN_TYPES.IDENTIFIER &&
+      peek(state, 1).type === TOKEN_TYPES.COLON &&
+      !(takesOuter && atOuterType(state, 1))
+    ) {
+      throw new ParseError(
+        ERROR_IDS.RILL_P003,
+        `Reserved type keyword cannot be used as parameter name: ${first.value}`,
+        first.span.start
+      );
+    }
+    if (unnamedSoFar >= 2) {
+      throw unnamedParamError(
+        "fn takes at most two unnamed params, bound to '$' and '$@'",
+        first.span.start
+      );
+    }
+    const typeRef = parseTypeRef(state, opts);
+    if (check(state, TOKEN_TYPES.ASSIGN)) {
+      throw unnamedParamError(
+        'An unnamed fn param takes no default; name the param to give it one',
+        current(state).span.start
+      );
+    }
+    return {
+      type: 'ClosureParam',
+      name: unnamedSoFar === 0 ? '$' : '@',
+      typeRef,
+      defaultValue: null,
+      annotations,
+      span: makeSpan(start, previous(state).span.end),
+    };
+  }
+
+  if (!isVariableNameToken(first)) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P001,
+      'Expected parameter name or type',
+      first.span.start
+    );
+  }
+  advance(state);
+
+  let typeRef: TypeRef | null = null;
+  let defaultValue: LiteralNode | null = null;
+  skipNewlines(state);
+  if (check(state, TOKEN_TYPES.COLON)) {
+    advance(state);
+    skipNewlines(state);
+    typeRef = parseTypeRef(state, opts);
+  }
+  skipNewlines(state);
+  if (check(state, TOKEN_TYPES.ASSIGN)) {
+    if (opts?.parseLiteral === undefined) {
+      throw new ParseError(
+        ERROR_IDS.RILL_P001,
+        'Parameter defaults are not allowed here',
+        current(state).span.start
+      );
+    }
+    advance(state);
+    skipNewlines(state);
+    defaultValue = opts.parseLiteral();
+  }
+  return {
+    type: 'ClosureParam',
+    name: first.value,
+    typeRef,
+    defaultValue,
+    annotations,
+    span: makeSpan(start, previous(state).span.end),
+  };
+}
+
+/**
+ * Parse an fn parameter list; the cursor is past `(`, and `)` is left
+ * unconsumed. At most two unnamed params, never mixed with named ones.
+ */
+function parseFnParams(
+  state: ParserState,
+  opts: TypeRefOpts | undefined
+): ClosureParamNode[] {
+  const params: ClosureParamNode[] = [];
+  const seenNames = new Set<string>();
+  let unnamed = 0;
+  skipNewlines(state);
+  while (!check(state, TOKEN_TYPES.RPAREN)) {
+    const at = current(state).span.start;
+    const param = parseFnParam(state, opts, unnamed);
+    const isUnnamed = isUnnamedParam(param);
+    if (params.length > 0 && isUnnamed !== unnamed > 0) {
+      throw unnamedParamError(
+        'An fn parameter list is all named or all unnamed, not a mix',
+        at
+      );
+    }
+    if (isUnnamed) {
+      unnamed++;
+    } else {
+      // Named params form an ordered, so a repeat halts as in ordered(...).
+      rejectRepeatedKey(seenNames, param.name, at, 'fn parameter list');
+    }
+    params.push(param);
+    skipNewlines(state);
+    if (check(state, TOKEN_TYPES.COMMA)) {
+      advance(state);
+      skipNewlines(state);
+    } else if (!check(state, TOKEN_TYPES.RPAREN)) {
+      throw new ParseError(
+        ERROR_IDS.RILL_P014,
+        "Expected ',' or ')' in fn parameter list",
+        current(state).span.start
+      );
+    }
+  }
+  return params;
+}
+
+/** The `fn` member of TypeRef. */
+export type FnTypeRef = Extract<TypeRef, { kind: 'fn' }>;
+
+/**
+ * Parse an fn signature: `fn [ "(" params ")" ] [ ":" outer ]`.
+ *
+ * The cursor sits on the `fn` token. A bare `fn` yields `params` undefined and
+ * `fn()` an empty array. In a type position the outer is taken only when `:`
+ * is followed by a type name or a `$var` type. With
+ * `literalForm` the signature heads an fn literal or fn type value, so any
+ * `:` after it starts the outer, which may be a `$var` type.
+ *
+ * @throws ParseError RILL-P028 for a third unnamed param, a mix of named and
+ *   unnamed params, or a default on an unnamed param
+ * @internal
+ */
+export function parseFnSignature(
+  state: ParserState,
+  opts?: TypeRefOpts,
+  literalForm = false
+): FnTypeRef {
+  advance(state); // consume 'fn'
+  const ref: FnTypeRef = { kind: 'fn' };
+  if (check(state, TOKEN_TYPES.LPAREN)) {
+    advance(state); // consume "("
+    ref.params = parseFnParams(state, opts);
+    expect(state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
+  }
+  const takesOuter = literalForm
+    ? check(state, TOKEN_TYPES.COLON)
+    : atOuterType(state) ||
+      (check(state, TOKEN_TYPES.COLON) &&
+        peek(state, 1).type === TOKEN_TYPES.DOLLAR);
+  if (takesOuter) {
+    ref.outer = parseOuterAfterColon(state, opts);
+  }
+  return ref;
+}

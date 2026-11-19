@@ -27,8 +27,7 @@ import type {
   TypeRef,
 } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
-import { formatFieldKey } from '@rcrsr/rill';
-import { typeRefToString } from '../type-rendering.js';
+import { formatFieldKey, formatTypeRef } from '@rcrsr/rill';
 import {
   chainlessVariableName,
   extractContextLine,
@@ -121,7 +120,7 @@ function messageFor(
   type: TypeRef,
   site: Site
 ): string {
-  const typeText = typeRefToString(type);
+  const typeText = formatTypeRef(type);
   const keyList = keys.join(', ');
   const subject = `This ${kind} has key ${keyList} that ${typeText} does not name`;
   if (site === 'probe') return `${subject}, so :?${typeText} is false.`;

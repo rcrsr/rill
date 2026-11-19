@@ -84,7 +84,7 @@ function resolveSourceSnippet(
  * Render a source line with line number gutter and caret indicator.
  *
  * Example output:
- *   5 | |path| { $read("data", $path) } => $moar_reader
+ *   5 | fn(path) { $read("data", $path) } => $moar_reader
  *     |          ^
  */
 function renderSnippet(
@@ -118,7 +118,7 @@ function renderSnippet(
  * error[RILL-R001]: file not found: test.txta
  *   at script.rill:5:10
  *
- *    5 | |path| { $read("data", $path) } => $moar_reader
+ *    5 | fn(path) { $read("data", $path) } => $moar_reader
  *      |          ^
  *
  *   called from:

@@ -18,8 +18,6 @@ const GUARDED_CODES = [
   'AVOID_REASSIGNMENT',
   'CAPTURE_BEFORE_BRANCH',
   'CAPTURE_INLINE_CHAIN',
-  'CLOSURE_BARE_DOLLAR',
-  'CLOSURE_BRACES',
   'COMPLEX_CONDITION',
   'CONDITION_TYPE',
   'DICT_KEY_SPELLING',
@@ -59,7 +57,7 @@ const GUARDED_CODES = [
 const SOURCE = `
 use<ext:app> => $app
 "a" => $name
-|x| ($x + 1) => $inc
+fn(x) { $x + 1 } => $inc
 $inc(1) => $r
 $name -> .upper => $up
 $app.fetch("u") -> .empty ? "e" ! "f"

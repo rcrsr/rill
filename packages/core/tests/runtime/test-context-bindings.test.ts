@@ -32,13 +32,13 @@ function typedCallable(def: RillFunction): RillValue {
 }
 
 describe('createTestContext: eager-parse safety net', () => {
-  it('throws ExtensionBindingError synchronously for a param typed as a closure signature', () => {
+  it('accepts a param typed as a fn signature because it round-trips through the parser', () => {
     const higherOrderFn = typedCallable({
       params: [
         {
           name: 'cb',
           type: {
-            kind: 'closure',
+            kind: 'fn',
             params: [{ name: 'x', type: { kind: 'number' } }],
             ret: { kind: 'number' },
           },
@@ -56,14 +56,14 @@ describe('createTestContext: eager-parse safety net', () => {
           value: { runWith: higherOrderFn },
         },
       })
-    ).toThrow(ExtensionBindingError);
+    ).not.toThrow();
   });
 
-  it('throws ExtensionBindingError synchronously for a param named after a reserved keyword', () => {
+  it('throws ExtensionBindingError synchronously for a param named after a reserved type keyword', () => {
     const keywordParamFn = typedCallable({
       params: [
         {
-          name: 'while',
+          name: 'number',
           type: { kind: 'number' },
           defaultValue: undefined,
           annotations: {},
@@ -86,7 +86,7 @@ describe('createTestContext: eager-parse safety net', () => {
     const keywordParamFn = typedCallable({
       params: [
         {
-          name: 'while',
+          name: 'number',
           type: { kind: 'number' },
           defaultValue: undefined,
           annotations: {},

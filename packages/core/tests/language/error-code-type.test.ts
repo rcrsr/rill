@@ -69,7 +69,7 @@ describe('Rill Language: error_code type', () => {
     });
 
     it('rejects error_code as a parameter name', () => {
-      expect(() => parse('|error_code: string| {}')).toThrow(
+      expect(() => parse('fn(error_code: string) {}')).toThrow(
         expect.objectContaining({ errorId: 'RILL-P003' })
       );
     });
@@ -135,13 +135,13 @@ describe('Rill Language: error_code type', () => {
   describe('closure parameter', () => {
     it('accepts an error code', async () => {
       expect(
-        await run('|c: error_code| { $c -> string } => $f\n$f(#TIMEOUT)')
+        await run('fn(c: error_code) { $c -> string } => $f\n$f(#TIMEOUT)')
       ).toBe('TIMEOUT');
     });
 
     it('halts for #ok', async () => {
       await expect(
-        run('|c: error_code| { $c -> string } => $f\n$f(#ok)')
+        run('fn(c: error_code) { $c -> string } => $f\n$f(#ok)')
       ).rejects.toHaveProperty('errorId', 'RILL-R001');
     });
   });

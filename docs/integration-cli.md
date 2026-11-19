@@ -71,7 +71,7 @@ rill-eval '"hello".len'
 rill-eval '5 + 3'
 # 8
 
-rill-eval '[1, 2, 3] -> fan(|x|($x * 2))'
+rill-eval '[1, 2, 3] -> fan(fn(x) { $x * 2 })'
 # [2, 4, 6]
 ```
 
@@ -196,8 +196,6 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `USE_DEFAULT_OPERATOR` | conditionals | info | Use `??` instead of conditional |
 | `CONDITION_TYPE` | conditionals | warning | Condition is a non-boolean literal |
 | `DISPATCH_MISSING_MEMBER` | conditionals | warning | Dispatch table with no default piped a union of string literals, where a member has no key, so that member halts `RILL-R009` |
-| `CLOSURE_BARE_DOLLAR` | closures | warning | Stored closure uses bare `$` |
-| `CLOSURE_BRACES` | closures | info | Multi-statement closure needs braces |
 | `CLOSURE_LATE_BINDING` | closures | warning | Closure captures late-bound variable |
 | `SPACING_OPERATOR` | formatting | info | Operators need surrounding spaces |
 | `SPACING_BRACES` | formatting | info | Braces need inner spacing |

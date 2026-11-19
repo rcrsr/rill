@@ -53,7 +53,7 @@ describe('dict receiver guard', () => {
       await expectHalt(
         () =>
           run(
-            `|| ("a" -> yield) :stream(string) => $gen\n$gen() => $s\n$s -> .${name}`
+            `fn():stream(string) { "a" -> yield } => $gen\n$gen() => $s\n$s -> .${name}`
           ),
         { code: 'RILL_R003', messagePattern: /requires dict receiver/ }
       );

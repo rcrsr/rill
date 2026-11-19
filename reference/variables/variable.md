@@ -77,7 +77,7 @@ $total + 1
 ```
 
 ```rill
-|x| { $x * 2 } => $double
+fn(x) { $x * 2 } => $double
 3 -> $double
 # Result: 6
 ```

@@ -5,8 +5,8 @@
  * Covers AC-1 through AC-39 from the structural-type-identity spec.
  *
  * Key syntax facts (verified from source):
- * - Closure sig literal: `|x: type| :returnType` (: after closing |)
- * - Closure return type annotation: `|x| { body }:type` (: after body)
+ * - Fn type literal: `fn(x: type):returnType` (: after closing paren)
+ * - Fn return type annotation: `fn(x):type { body }` (: before the block)
  * - Type constructor: list(number), dict(a: number), tuple(...), ordered(...)
  * - Structural :? check requires variable: store type in $t, use -> :?$t
  *
@@ -158,8 +158,8 @@ describe('Rill Language: Structural Type Identity', () => {
     it('AC-18: same-signature closures produce equal ^type', async () => {
       // Both closures have param x: number — their ^type structures match
       const result = await run(`
-        |x: number| { $x * 2 } => $fn1
-        |x: number| { $x * 3 } => $fn2
+        fn(x: number) { $x * 2 } => $fn1
+        fn(x: number) { $x * 3 } => $fn2
         $fn1.^type == $fn2.^type
       `);
       expect(result).toBe(true);
@@ -168,8 +168,8 @@ describe('Rill Language: Structural Type Identity', () => {
     it('AC-19: different-param-name closures produce unequal ^type', async () => {
       // Param name 'x' vs 'y' — structural type includes param name
       const result = await run(`
-        |x: number| { $x } => $fn1
-        |y: number| { $y } => $fn2
+        fn(x: number) { $x } => $fn1
+        fn(y: number) { $y } => $fn2
         $fn1.^type == $fn2.^type
       `);
       expect(result).toBe(false);
@@ -177,9 +177,9 @@ describe('Rill Language: Structural Type Identity', () => {
 
     it('AC-20: different-return-type closures produce unequal ^type', async () => {
       // Use closure sig literals which encode return type structurally:
-      // |x: number| :number vs |x: number| :string
+      // fn(x: number):number vs fn(x: number):string
       const result = await run(
-        '(|x: number| :number) == (|x: number| :string)'
+        '(fn(x: number):number) == (fn(x: number):string)'
       );
       expect(result).toBe(false);
     });
@@ -194,22 +194,22 @@ describe('Rill Language: Structural Type Identity', () => {
     // Parsing correctness (enabled by parsePostfixExpr fix)
     // ----------------------------------------------------------
 
-    it('bare syntax pipes correctly: |x: string| :string -> log logs the sig value', async () => {
+    it('bare syntax pipes correctly: fn(x: string):string -> log logs the sig value', async () => {
       const { logs, callbacks } = createLogCollector();
-      await run('|x: string| :string -> log', { callbacks });
+      await run('fn(x: string):string -> log', { callbacks });
       expect(logs).toHaveLength(1);
       expect(logs[0]).toContain('x');
       expect(logs[0]).toContain('string');
     });
 
     it('bare syntax with assignment: $t.signature equals the sig literal representation', async () => {
-      const result = await run('|x: string| :string => $t\n$t.signature');
+      const result = await run('fn(x: string):string => $t\n$t.signature');
       expect(result).toContain('x');
       expect(result).toContain('string');
     });
 
-    it('multi-pipe after bare sig: |x: string| :string -> string -> .len returns string length', async () => {
-      const result = await run('|x: string| :string -> string -> .len');
+    it('multi-pipe after bare sig: fn(x: string):string -> string -> .len returns string length', async () => {
+      const result = await run('fn(x: string):string -> string -> .len');
       expect(typeof result).toBe('number');
       expect(result as number).toBeGreaterThan(0);
     });
@@ -220,8 +220,8 @@ describe('Rill Language: Structural Type Identity', () => {
 
     it('same params + same return type → true', async () => {
       const result = await run(`
-        |x: string| :string => $a
-        |x: string| :string => $b
+        fn(x: string):string => $a
+        fn(x: string):string => $b
         $a == $b
       `);
       expect(result).toBe(true);
@@ -229,8 +229,8 @@ describe('Rill Language: Structural Type Identity', () => {
 
     it('same params + different return type → false', async () => {
       const result = await run(`
-        |x: string| :string => $a
-        |x: string| :number => $b
+        fn(x: string):string => $a
+        fn(x: string):number => $b
         $a == $b
       `);
       expect(result).toBe(false);
@@ -238,8 +238,8 @@ describe('Rill Language: Structural Type Identity', () => {
 
     it('different param types + same return type → false', async () => {
       const result = await run(`
-        |x: string| :string => $a
-        |x: number| :string => $b
+        fn(x: string):string => $a
+        fn(x: number):string => $b
         $a == $b
       `);
       expect(result).toBe(false);
@@ -247,8 +247,8 @@ describe('Rill Language: Structural Type Identity', () => {
 
     it('different param names + same types → false', async () => {
       const result = await run(`
-        |x: string| :string => $a
-        |y: string| :string => $b
+        fn(x: string):string => $a
+        fn(y: string):string => $b
         $a == $b
       `);
       expect(result).toBe(false);
@@ -256,8 +256,8 @@ describe('Rill Language: Structural Type Identity', () => {
 
     it('different param count + same return type → false', async () => {
       const result = await run(`
-        |x: string| :string => $a
-        |x: string, y: number| :string => $b
+        fn(x: string):string => $a
+        fn(x: string, y: number):string => $b
         $a == $b
       `);
       expect(result).toBe(false);
@@ -269,8 +269,8 @@ describe('Rill Language: Structural Type Identity', () => {
 
     it('multi-param: same params same return → true', async () => {
       const result = await run(`
-        |x: string, y: number| :bool => $a
-        |x: string, y: number| :bool => $b
+        fn(x: string, y: number):bool => $a
+        fn(x: string, y: number):bool => $b
         $a == $b
       `);
       expect(result).toBe(true);
@@ -278,8 +278,8 @@ describe('Rill Language: Structural Type Identity', () => {
 
     it('multi-param: one param type differs → false', async () => {
       const result = await run(`
-        |x: string, y: number| :bool => $a
-        |x: string, y: string| :bool => $b
+        fn(x: string, y: number):bool => $a
+        fn(x: string, y: string):bool => $b
         $a == $b
       `);
       expect(result).toBe(false);
@@ -291,8 +291,8 @@ describe('Rill Language: Structural Type Identity', () => {
 
     it('nested list type params: list(string) vs list(number) param → false', async () => {
       const result = await run(`
-        |x: list(string)| :number => $a
-        |x: list(number)| :number => $b
+        fn(x: list(string)):number => $a
+        fn(x: list(number)):number => $b
         $a == $b
       `);
       expect(result).toBe(false);
@@ -300,8 +300,8 @@ describe('Rill Language: Structural Type Identity', () => {
 
     it('nested dict type params: dict(a: string) vs dict(b: string) param → false', async () => {
       const result = await run(`
-        |x: dict(a: string)| :number => $a
-        |x: dict(b: string)| :number => $b
+        fn(x: dict(a: string)):number => $a
+        fn(x: dict(b: string)):number => $b
         $a == $b
       `);
       expect(result).toBe(false);
@@ -311,18 +311,18 @@ describe('Rill Language: Structural Type Identity', () => {
     // Display format
     // ----------------------------------------------------------
 
-    it('display format: .signature of |x: string| :number contains x, string, and number', async () => {
-      const result = await run('|x: string| :number => $t\n$t.signature');
+    it('display format: .signature of fn(x: string):number contains x, string, and number', async () => {
+      const result = await run('fn(x: string):number => $t\n$t.signature');
       expect(result).toContain('x');
       expect(result).toContain('string');
       expect(result).toContain('number');
     });
 
-    it('display format: .signature of |x: string, y: number| :bool is exactly the sig', async () => {
+    it('display format: .signature of fn(x: string, y: number):bool is exactly the sig', async () => {
       const result = await run(
-        '|x: string, y: number| :bool => $t\n$t.signature'
+        'fn(x: string, y: number):bool => $t\n$t.signature'
       );
-      expect(result).toBe('|x: string, y: number| :bool');
+      expect(result).toBe('fn(x: string, y: number):bool');
     });
 
     // ----------------------------------------------------------
@@ -331,14 +331,14 @@ describe('Rill Language: Structural Type Identity', () => {
 
     it('parenthesized form equals bare form', async () => {
       const result = await run(
-        '|x: string| :string => $a\n(|x: string| :string) => $b\n$a == $b'
+        'fn(x: string):string => $a\n(fn(x: string):string) => $b\n$a == $b'
       );
       expect(result).toBe(true);
     });
 
     it('parenthesized inline equality matches bare variable equality', async () => {
       const result = await run(
-        '(|x: number| :string) == (|x: number| :string)'
+        '(fn(x: number):string) == (fn(x: number):string)'
       );
       expect(result).toBe(true);
     });
@@ -369,14 +369,14 @@ describe('Rill Language: Structural Type Identity', () => {
       expect(result).toBe(true);
     });
 
-    it('AC-23: closure sig literal |x: string| :string stores as a type value equal only to the same signature', async () => {
-      // Closure sig literal syntax: |params| :returnType
+    it('AC-23: closure sig literal fn(x: string):string stores as a type value equal only to the same signature', async () => {
+      // Closure sig literal syntax: fn(params):returnType
       const result = await run(`
-        (|x: string| :string) => $t
+        (fn(x: string):string) => $t
         list[
-          $t == (|x: string| :string),
-          $t == (|x: string| :number),
-          $t == (|y: string| :string)
+          $t == (fn(x: string):string),
+          $t == (fn(x: string):number),
+          $t == (fn(y: string):string)
         ]
       `);
       expect(result).toEqual([true, false, false]);
@@ -403,8 +403,8 @@ describe('Rill Language: Structural Type Identity', () => {
     it('AC-27: runtime closure ^type != closure sig literal type (return type encoding differs)', async () => {
       // Store closure sig as type, compare against closure ^type
       const result = await run(`
-        |x: number, y: number| { $x + $y } => $fn
-        (|x: number, y: number| :number) => $sigType
+        fn(x: number, y: number) { $x + $y } => $fn
+        (fn(x: number, y: number):number) => $sigType
         $fn.^type == $sigType
       `);
       // No return type annotation on the closure → ret = {type:'any'}.
@@ -416,8 +416,8 @@ describe('Rill Language: Structural Type Identity', () => {
       // Return type annotation `:number` after `}` should encode as
       // primitive(number) in ^type.structure.ret, matching a sig literal.
       const result = await run(`
-        |x: number| { $x }:number => $fn
-        (|x: number| :number) => $sigType
+        fn(x: number):number { $x } => $fn
+        (fn(x: number):number) => $sigType
         $fn.^type == $sigType
       `);
       expect(result).toBe(true);
@@ -425,8 +425,8 @@ describe('Rill Language: Structural Type Identity', () => {
 
     it('AC-28: $fn :? closure is true for any closure', async () => {
       const result = await run(`
-        |x: number| { $x } => $fn
-        $fn -> :?closure
+        fn(x: number) { $x } => $fn
+        $fn -> :?fn
       `);
       expect(result).toBe(true);
     });
@@ -540,9 +540,9 @@ describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
 
   describe('Reflection: .^type reflects parameterized param type (AC-11)', () => {
-    it('AC-11: |x: list(string)| closure .^type has x typed list(string)', async () => {
+    it('AC-11: fn(x: list(string)) closure .^type has x typed list(string)', async () => {
       const script = `
-        |x: list(string)| { $x } => $fn
+        fn(x: list(string)) { $x } => $fn
         $fn.^type
       `;
       const result = (await run(script)) as {
@@ -551,7 +551,7 @@ describe('Rill Language: Structural Type Identity', () => {
         structure: { type: string; params: { name: string; type: unknown }[] };
       };
       expect(result.__rill_type).toBe(true);
-      expect(result.typeName).toBe('closure');
+      expect(result.typeName).toBe('fn');
       expect(result.structure.params).toHaveLength(1);
       expect(result.structure.params[0]!.name).toBe('x');
       expect(result.structure.params[0]!.type).toEqual({
@@ -560,9 +560,9 @@ describe('Rill Language: Structural Type Identity', () => {
       });
     });
 
-    it('AC-11: |x: dict(name: string)| closure .^type reflects dict structure', async () => {
+    it('AC-11: fn(x: dict(name: string)) closure .^type reflects dict structure', async () => {
       const script = `
-        |x: dict(name: string)| { $x } => $fn
+        fn(x: dict(name: string)) { $x } => $fn
         $fn.^type
       `;
       const result = (await run(script)) as {

@@ -215,7 +215,7 @@ describe('UNNECESSARY_ASSERTION', () => {
 
 describe('STREAM_PRE_ITERATION', () => {
   it('fires when a stream is invoked before it is iterated', () => {
-    const source = '|| yield :stream() => $s\n$s()\n$s -> seq({ log($) })\n';
+    const source = 'fn:stream() { yield } => $s\n$s()\n$s -> seq({ log($) })\n';
     const parsed = toParseResult(source);
 
     const result = runRules(parsed, source, makeConfig(), [streamPreIteration]);
@@ -232,7 +232,7 @@ describe('STREAM_PRE_ITERATION', () => {
   });
 
   it('does not fire when the stream is iterated before it is invoked', () => {
-    const source = '|| yield :stream() => $s\n$s -> seq({ log($) })\n';
+    const source = 'fn:stream() { yield } => $s\n$s -> seq({ log($) })\n';
     const parsed = toParseResult(source);
 
     expect(

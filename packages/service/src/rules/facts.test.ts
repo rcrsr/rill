@@ -85,7 +85,7 @@ describe('SubtreeFacts.hasBreak', () => {
 
 describe('SubtreeFacts.hasSideEffect', () => {
   it('is false for a host call nested inside a closure literal, masked by the closure boundary', () => {
-    const source = 'list[1, 2] -> fan({ |x|(log($x)) => $f })\n';
+    const source = 'list[1, 2] -> fan({ fn(x) { log($x) } => $f })\n';
     const root = parse(source);
     const facts = collectFacts(root);
 
@@ -117,8 +117,8 @@ describe('SubtreeFacts.hasBareDollar', () => {
     expect(facts.bySubtree.get(fanBody)?.hasBareDollar).toBe(false);
   });
 
-  it('is true for a bare $ directly in a zero-param closure body', () => {
-    const source = '(|| { $ }) => $g\n';
+  it('is true for a bare $ directly in a zero-param fn body', () => {
+    const source = '(fn { $ }) => $g\n';
     const root = parse(source);
     const facts = collectFacts(root);
 
@@ -134,7 +134,7 @@ describe('SubtreeFacts.hasBareDollar', () => {
 describe('SubtreeFacts.hasExplicitCapture', () => {
   it('is true for a top-level $ => $item capture in a seq body', () => {
     const source =
-      'list[1, 2] -> seq({ $ => $item\n (|| { $item }) => $g\n $g() })\n';
+      'list[1, 2] -> seq({ $ => $item\n (fn() { $item }) => $g\n $g() })\n';
     const root = parse(source);
     const facts = collectFacts(root);
 
@@ -151,8 +151,8 @@ describe('SubtreeFacts.hasExplicitCapture', () => {
     expect(facts.bySubtree.get(outerSeqBody)?.hasExplicitCapture).toBe(true);
   });
 
-  it('is false when the capture sits inside a |x|(...) closure, masked by the closure boundary', () => {
-    const source = 'list[1, 2] -> seq({ (|x| { $ => $item }) => $f })\n';
+  it('is false when the capture sits inside an fn(x) { ... } closure, masked by the closure boundary', () => {
+    const source = 'list[1, 2] -> seq({ (fn(x) { $ => $item }) => $f })\n';
     const root = parse(source);
     const facts = collectFacts(root);
 
@@ -166,9 +166,9 @@ describe('SubtreeFacts.hasExplicitCapture', () => {
 // ============================================================
 
 describe('SubtreeFacts.hasClosure and hasStatusProbe', () => {
-  it('hasClosure propagates through nested collection-op and closure boundaries', () => {
+  it('hasClosure propagates through nested collection-op and fn boundaries', () => {
     const source =
-      'list[1, 2] -> fan({ list[3, 4] -> seq({ (|x| { $x }) => $f }) })\n';
+      'list[1, 2] -> fan({ list[3, 4] -> seq({ (fn(x) { $x }) => $f }) })\n';
     const root = parse(source);
     const facts = collectFacts(root);
 
@@ -176,8 +176,8 @@ describe('SubtreeFacts.hasClosure and hasStatusProbe', () => {
     expect(facts.bySubtree.get(fanBody)?.hasClosure).toBe(true);
   });
 
-  it('hasStatusProbe propagates through the closure boundary', () => {
-    const source = 'list[1, 2] -> seq({ (|x| { $x.! }) => $f })\n';
+  it('hasStatusProbe propagates through the fn boundary', () => {
+    const source = 'list[1, 2] -> seq({ (fn(x) { $x.! }) => $f })\n';
     const root = parse(source);
     const facts = collectFacts(root);
 
@@ -191,9 +191,9 @@ describe('SubtreeFacts.hasClosure and hasStatusProbe', () => {
 // ============================================================
 
 describe('capturesInSubtree', () => {
-  it('excludes captures nested inside a closure in the body and returns the rest in source order', () => {
+  it('excludes captures nested inside a fn in the body and returns the rest in source order', () => {
     const source =
-      'list[1, 2] -> seq({ $ => $a\n (|x| { $x => $b })\n $ => $c })\n';
+      'list[1, 2] -> seq({ $ => $a\n (fn(x) { $x => $b })\n $ => $c })\n';
     const root = parse(source);
     const facts = collectFacts(root);
 
@@ -210,7 +210,7 @@ describe('capturesInSubtree', () => {
 
 describe('ScriptFacts.referenceLog', () => {
   it('logs a ClosureCall as a reference to its callee name ($double(5))', () => {
-    const source = '|x|($x * 2) => $double\n$double(5)\n';
+    const source = 'fn(x) { $x * 2 } => $double\n$double(5)\n';
     const root = parse(source);
     const facts = collectFacts(root);
 
@@ -254,8 +254,8 @@ describe('ScriptFacts.referenceLog', () => {
     expect(names).toContain('x');
   });
 
-  it('logs a reference for a Variable nested inside a Closure body (|p|($x))', () => {
-    const source = '1 => $x\n(|p|($x)) => $f\n';
+  it('logs a reference for a Variable nested inside a Closure body (fn(p) { $x })', () => {
+    const source = '1 => $x\n(fn(p) { $x }) => $f\n';
     const root = parse(source);
     const facts = collectFacts(root);
 
@@ -269,8 +269,8 @@ describe('ScriptFacts.referenceLog', () => {
 // ============================================================
 
 describe('closureOrOpDepth and bindingScopeDepth', () => {
-  it('sets closureOrOpDepth to 1 for a reference inside a Closure body (|x|($x * 2))', () => {
-    const source = '|x|($x * 2) => $double\n';
+  it('sets closureOrOpDepth to 1 for a reference inside a Closure body (fn(x) { $x * 2 })', () => {
+    const source = 'fn(x) { $x * 2 } => $double\n';
     const root = parse(source);
     const facts = collectFacts(root);
 
@@ -343,8 +343,8 @@ describe('closureOrOpDepth and bindingScopeDepth', () => {
 describe('collectFacts single-visit invariant', () => {
   it('records exactly one bySubtree entry per node visited by an independent traversal', () => {
     const source =
-      'list[1, 2] -> fan({ list[3, 4] -> seq({ $ => $item\n (|x| { $x.! -> break }) => $f\n $ => $c }) })\n' +
-      '|y| ($y * 2) => $double\n' +
+      'list[1, 2] -> fan({ list[3, 4] -> seq({ $ => $item\n (fn(x) { $x.! -> break }) => $f\n $ => $c }) })\n' +
+      'fn(y) { $y * 2 } => $double\n' +
       '$x.!code\n';
     const root = parse(source);
     const facts = collectFacts(root);
@@ -392,8 +392,10 @@ describe('mixedListVars and mixedDictVars', () => {
     expect(script.mixedListVars.size).toBe(0);
   });
 
-  it('skips a name that is also a closure parameter', () => {
-    const script = facts('list[list[1], list["a"]] => $l\n|l| ($l) => $f\n');
+  it('skips a name that is also a fn parameter', () => {
+    const script = facts(
+      'list[list[1], list["a"]] => $l\nfn(l) { $l } => $f\n'
+    );
     expect(script.mixedListVars.size).toBe(0);
   });
 
@@ -428,8 +430,8 @@ describe('dictLiteralVars', () => {
     expect(script.dictLiteralVars.size).toBe(0);
   });
 
-  it('skips a name that is also a closure parameter', () => {
-    const script = facts('dict[a: 1] => $d\n|d| ($d) => $f\n');
+  it('skips a name that is also a fn parameter', () => {
+    const script = facts('dict[a: 1] => $d\nfn(d) { $d } => $f\n');
     expect(script.dictLiteralVars.has('d')).toBe(false);
   });
 
@@ -523,8 +525,16 @@ describe('declaredTypes', () => {
     });
   });
 
-  it('records a typed closure param bound once', () => {
-    expect(script('|x: number| ($x) => $f\n').declaredTypes.get('x')).toEqual({
+  it('does not record the params of an fn type as declared', () => {
+    const facts = script('$g -> :fn(n: number)\n');
+    expect(facts.declaredTypes.has('n')).toBe(false);
+    expect(facts.paramNames.has('n')).toBe(false);
+  });
+
+  it('records a typed fn param bound once', () => {
+    expect(
+      script('fn(x: number) { $x } => $f\n').declaredTypes.get('x')
+    ).toEqual({
       kind: 'static',
       typeName: 'number',
     });
@@ -537,7 +547,7 @@ describe('declaredTypes', () => {
   });
 
   it('omits a typed param used in two closures', () => {
-    const source = '|x: number| ($x) => $f\n|x: number| ($x) => $g\n';
+    const source = 'fn(x: number) { $x } => $f\nfn(x: number) { $x } => $g\n';
     expect(script(source).declaredTypes.has('x')).toBe(false);
   });
 });

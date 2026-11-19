@@ -10,6 +10,7 @@
  */
 import type {
   ASTNode,
+  ClosureParamNode,
   DictEntryNode,
   PropertyAccess,
   VariableNode,
@@ -50,12 +51,7 @@ function astChildren(node: ASTNode): ASTNode[] {
     case 'Closure': {
       const children: ASTNode[] = [...node.params, node.body];
       if (node.returnTypeTarget !== undefined) {
-        const target = node.returnTypeTarget;
-        if ('type' in target && target.type === 'TypeConstructor') {
-          children.push(target);
-        } else if (!('type' in target)) {
-          children.push(...typeRefChildren(target));
-        }
+        children.push(...typeRefChildren(node.returnTypeTarget));
       }
       return children;
     }
@@ -219,14 +215,8 @@ function astChildren(node: ASTNode): ASTNode[] {
     }
     case 'TypeConstructor':
       return fieldArgsChildren(node.args);
-    case 'ClosureSigLiteral':
-      return [
-        ...node.params.flatMap((param) => [
-          ...(param.annotations ?? []),
-          param.typeExpr,
-        ]),
-        node.returnType,
-      ];
+    case 'FnType':
+      return typeRefChildren(node.typeRef);
     case 'AnnotatedStatement':
       return [...node.annotations, node.statement];
     case 'AnnotatedExpr':
@@ -261,13 +251,6 @@ function astChildren(node: ASTNode): ASTNode[] {
       }
       if (node.typeRef !== null)
         children.push(...typeRefChildren(node.typeRef));
-      if (node.closureAnnotation !== null) {
-        for (const param of node.closureAnnotation) {
-          if (param.defaultValue !== undefined)
-            children.push(param.defaultValue);
-          children.push(...typeRefChildren(param.typeRef));
-        }
-      }
       return children;
     }
     case 'GuardBlock': {
@@ -326,6 +309,11 @@ function typeRefChildren(ref: TypeRef): ASTNode[] {
       return ref.members.flatMap((member) => typeRefChildren(member));
     case 'static':
       return ref.args === undefined ? [] : fieldArgsChildren(ref.args);
+    case 'fn':
+      return [
+        ...(ref.params ?? []),
+        ...(ref.outer === undefined ? [] : typeRefChildren(ref.outer)),
+      ];
     default: {
       const exhaustive: never = ref;
       throw new Error(
@@ -423,6 +411,39 @@ export function readsPipeValue(
   root: ASTNode,
   mode: 'written' | 'used'
 ): boolean {
+  return scanPipeReads(root, mode, 'pipe');
+}
+
+/** True for a param bound to `$` or `$@`: an unnamed fn param. */
+export function isUnnamedParam(param: ClosureParamNode): boolean {
+  return param.name === '$' || param.name === '@';
+}
+
+/**
+ * Counts the unnamed params a fn body reads: 0 when it reads neither `$` nor
+ * `$@`, 1 when it reads `$` (or an implicit `$` form such as a leading
+ * `.method` or `pass`), 2 when it reads `$@`. A read inside a nested closure
+ * does not count.
+ */
+export function unnamedParamsRead(body: ASTNode): 0 | 1 | 2 {
+  if (scanPipeReads(body, 'used', 'accumulator')) {
+    return 2;
+  }
+  return scanPipeReads(body, 'used', 'pipe') ? 1 : 0;
+}
+
+/**
+ * Shared walk behind `readsPipeValue` and `unnamedParamsRead`. `target`
+ * selects the variable that counts: `$` ('pipe') or `$@` ('accumulator').
+ * Implicit `$` reads (leading method, loops, pipeless conditionals) count only
+ * for 'pipe'.
+ */
+function scanPipeReads(
+  root: ASTNode,
+  mode: 'written' | 'used',
+  target: 'pipe' | 'accumulator'
+): boolean {
+  const matchesPipeVar = target === 'pipe';
   const inheriting = new Set<ASTNode>([root]);
   const stack: ASTNode[] = [root];
   for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
@@ -435,20 +456,20 @@ export function readsPipeValue(
         children = astChildren(node);
         break;
       case 'Variable':
-        if (node.isPipeVar) return true;
+        if (matchesPipeVar ? node.isPipeVar : node.name === '@') return true;
         children = astChildren(node);
         break;
       case 'PostfixExpr':
         // A leading `.method` has the piped value as its implicit receiver.
-        if (node.primary.type === 'MethodCall') return true;
+        if (matchesPipeVar && node.primary.type === 'MethodCall') return true;
         children = astChildren(node);
         break;
       case 'Pass':
-        if (mode === 'used') return true;
+        if (mode === 'used' && matchesPipeVar) return true;
         children = [];
         break;
       case 'PassBlock':
-        if (mode === 'used') return true;
+        if (mode === 'used' && matchesPipeVar) return true;
         inheriting.add(node.body);
         children = astChildren(node);
         break;
@@ -460,14 +481,17 @@ export function readsPipeValue(
         break;
       case 'WhileLoop':
         // A while loop seeds its accumulator from the piped value.
-        return true;
+        if (matchesPipeVar) return true;
+        children = astChildren(node);
+        break;
       case 'DoWhileLoop':
-        if (node.input === null) return true;
+        if (matchesPipeVar && node.input === null) return true;
         children = astChildren(node);
         break;
       case 'Conditional':
         // The piped form `? a ! b` takes `$` as its condition.
-        if (node.condition === null && node.input === null) return true;
+        if (matchesPipeVar && node.condition === null && node.input === null)
+          return true;
         inheriting.add(node.thenBranch);
         if (node.elseBranch !== null) inheriting.add(node.elseBranch);
         children = astChildren(node);

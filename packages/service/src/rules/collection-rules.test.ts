@@ -43,10 +43,10 @@ describe('BREAK_IN_PARALLEL', () => {
     );
   });
 
-  it('does not fire when break appears inside a closure nested within a fan body', () => {
+  it('does not fire when break appears inside a fn nested within a fan body', () => {
     // A closure body has its own scope; a `break` defined inside one is
     // not a `break` of the enclosing `fan` body.
-    const source = 'list[1, 2] -> fan({ |x|($x -> break) => $f })\n';
+    const source = 'list[1, 2] -> fan({ fn(x) { $x -> break } => $f })\n';
     const parsed = toParseResult(source);
 
     expect(runRules(parsed, source, makeConfig(), [breakInParallel])).toEqual(
@@ -79,11 +79,11 @@ describe('PREFER_MAP', () => {
     expect(runRules(parsed, source, makeConfig(), [preferMap])).toEqual([]);
   });
 
-  it('fires on a seq body whose only host call is inside a nested closure definition', () => {
-    // Defining `|x|(log($x))` as a value has no side effect at the outer
+  it('fires on a seq body whose only host call is inside a nested fn definition', () => {
+    // Defining `fn(x) { log($x) }` as a value has no side effect at the outer
     // seq body's level until the closure is invoked; the host call lives
     // in the closure's own scope, so PREFER_MAP should still fire here.
-    const source = 'list[1, 2] -> seq({ |x|(log($x)) => $f })\n';
+    const source = 'list[1, 2] -> seq({ fn(x) { log($x) } => $f })\n';
     const parsed = toParseResult(source);
 
     const result = runRules(parsed, source, makeConfig(), [preferMap]);
@@ -196,8 +196,8 @@ describe('BARE_CALLABLE_BODY', () => {
     );
   });
 
-  it('does not fire when the body is a closure', () => {
-    const source = 'seq(|x|(log($x)))\n';
+  it('does not fire when the body is a fn', () => {
+    const source = 'seq(fn(x) { log($x) })\n';
     const parsed = toParseResult(source);
 
     expect(runRules(parsed, source, makeConfig(), [bareCallableBody])).toEqual(
@@ -223,7 +223,7 @@ describe('BARE_CALLABLE_BODY', () => {
     );
   });
 
-  it('does not fire on a bare zero-arg call in the init arg of fold when the body is a closure', () => {
+  it('does not fire on a bare zero-arg call in the init arg of fold when the body is a fn', () => {
     const source = 'fold(get_seed, { $@ + $ })\n';
     const parsed = toParseResult(source);
 

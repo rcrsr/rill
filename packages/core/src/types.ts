@@ -12,7 +12,11 @@ export * from './token-types.js';
 export * from './ast-nodes.js';
 export * from './ast-unions.js';
 export * from './error-classes.js';
-export { readsPipeValue } from './ast-walk.js';
+export {
+  isUnnamedParam,
+  readsPipeValue,
+  unnamedParamsRead,
+} from './ast-walk.js';
 
 // Cross-boundary definitions (reference both ast-nodes and error-classes types)
 import type { ScriptNode } from './ast-nodes.js';

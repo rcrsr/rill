@@ -13,7 +13,6 @@ import type {
   SchemeResolver,
   ResolverResult,
 } from '../core/types/runtime.js';
-import type { RillParam } from '../core/callable.js';
 import { declaredParams, isCallable } from '../core/callable.js';
 import { isPlainDict } from '../core/types/guards.js';
 import { RuntimeHaltSignal } from '../core/types/halt.js';
@@ -21,6 +20,7 @@ import { ControlSignal } from '../core/signals.js';
 import type { RillValue } from '../core/types/structures.js';
 import { setDictField } from '../core/types/dict-keys.js';
 import { formatStructure } from '../core/types/operations.js';
+import { paramsToFieldDefs } from '../core/types/fn-params.js';
 import { resolveReturnStructure } from '../core/introspection.js';
 import {
   formatFieldKey,
@@ -52,16 +52,6 @@ export class ExtensionBindingError extends Error {
 // ============================================================
 
 /**
- * Format a RillParam as a rill source parameter declaration.
- * Produces `name: type` syntax matching the parser's closure annotation grammar.
- */
-function formatParam(param: RillParam): string {
-  const typeName =
-    param.type !== undefined ? formatStructure(param.type) : 'any';
-  return `${param.name}: ${typeName}`;
-}
-
-/**
  * Format a `use<ext:path>` reference. The static `scheme:seg1.seg2` form
  * requires every dot-separated segment to be a bare identifier; a path
  * with a non-identifier segment (e.g. `user-id`) instead uses the
@@ -79,7 +69,7 @@ function formatUseRef(path: string): string {
 
 /**
  * Generate rill source for a nested value tree.
- * Callable leaves produce `use<ext:path>:|params| :returnType`.
+ * Callable leaves produce `use<ext:path>:fn(params):returnType`.
  * Dict nodes recurse. All other values produce `use<ext:path>`.
  */
 function buildNestedSource(
@@ -89,9 +79,12 @@ function buildNestedSource(
 ): string {
   if (isCallable(value)) {
     const c = value;
-    const paramStr = declaredParams(c, path).map(formatParam).join(', ');
-    const returnSuffix = ` :${formatStructure(resolveReturnStructure(c))}`;
-    return `${formatUseRef(path)}:|${paramStr}|${returnSuffix}`;
+    const fnType = formatStructure({
+      kind: 'fn',
+      params: paramsToFieldDefs(declaredParams(c, path)),
+      ret: resolveReturnStructure(c),
+    });
+    return `${formatUseRef(path)}:${fnType}`;
   }
 
   if (isPlainDict(value)) {

@@ -17,7 +17,7 @@ interface RillFieldDef {
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `name` | `string` | No | Field name. Present for dict, ordered, and closure params. Absent for positional tuple elements |
+| `name` | `string` | No | Field name. Present for dict, ordered, and fn params. Absent for positional tuple elements |
 | `type` | `TypeStructure` | Yes | Structural type of this field or element |
 | `defaultValue` | `RillValue` | No | Default value when the field is omitted. `undefined` = field is required. Detect presence with `field.defaultValue !== undefined` |
 | `annotations` | `Record<string, RillValue>` | No | Evaluated annotation values keyed by annotation name. Property is absent when no annotations are declared |
@@ -42,7 +42,7 @@ type TypeStructure =
   | { kind: 'tuple'; elements?: RillFieldDef[] }
   | { kind: 'ordered'; fields?: RillFieldDef[] }
   | { kind: 'vector'; dimensions: number }
-  | { kind: 'closure'; params?: RillFieldDef[]; ret?: TypeStructure }
+  | { kind: 'fn'; params?: RillFieldDef[]; ret?: TypeStructure }
   | { kind: 'type'; typeName: string }
   | { kind: 'union'; members: TypeStructure[] }
   | { kind: 'literal'; value: string | number | boolean | RillAtomValue }
@@ -69,8 +69,8 @@ The `kind` field is the discriminator. Leaf variants (`number`, `string`, `bool`
 | `type` | `typeName` | `string` | Name of the registered host type |
 | `union` | `members` | `TypeStructure[]` | Member types in written order, after duplicate and subsumed members are dropped |
 | `literal` | `value` | `string \| number \| boolean \| RillAtomValue` | One scalar value. Appears only inside `union.members`. The `error_code` type is a `union` of one atom literal per name in `ERROR_CODES` |
-| `closure` | `params` | `RillFieldDef[] \| undefined` | Parameter definitions. Absent when closure is untyped |
-| `closure` | `ret` | `TypeStructure \| undefined` | Return type. Absent when return type is unspecified |
+| `fn` | `params` | `RillFieldDef[] \| undefined` | Parameter definitions. Absent for the bare `fn` type |
+| `fn` | `ret` | `TypeStructure \| undefined` | Return type. Absent when return type is unspecified |
 | `stream` | `chunk` | `TypeStructure \| undefined` | Optional structural type of each chunk value |
 | `stream` | `ret` | `TypeStructure \| undefined` | Optional structural type of the resolved return value |
 
@@ -83,7 +83,7 @@ Host applications read field annotations through the `annotations` property on `
 | `dict` (structural) | `type.fields[fieldName].annotations` | `Record<string, RillValue> \| undefined` |
 | `ordered` | `type.fields[index].annotations` | `Record<string, RillValue> \| undefined` |
 | `tuple` | `type.elements[index].annotations` | `Record<string, RillValue> \| undefined` |
-| `closure` | `type.params[index].annotations` | `Record<string, RillValue> \| undefined` |
+| `fn` | `type.params[index].annotations` | `Record<string, RillValue> \| undefined` |
 
 Uniform dicts (`dict(string)`) carry no `fields` record and have no per-field annotations.
 
@@ -147,7 +147,7 @@ export { formatHalt };
 inferStructure(value: RillValue): TypeStructure
 ```
 
-Returns the structural type descriptor for any rill value. Primitive values return leaf variants. Compound values return their respective variants with sub-fields populated from the value's actual structure. Callable values return `{ kind: 'closure' }`.
+Returns the structural type descriptor for any rill value. Primitive values return leaf variants. Compound values return their respective variants with sub-fields populated from the value's actual structure. Callable values return `{ kind: 'fn' }`.
 
 Pure function. Result is a frozen object.
 
@@ -205,11 +205,11 @@ Checks if a value matches a structural type descriptor. Used by the `:?` runtime
 | `{ kind: 'any' }` | Matches all values |
 | Compound variant | Deep structural match against sub-fields |
 
-**Closure parameter default compatibility:**
+**Function parameter default compatibility:**
 
 | Value param `defaultValue` | Type param `defaultValue` | Result |
 |---------------------------|--------------------------|--------|
-| Present | Absent | `true` (superset satisfies) |
+| Present | Absent | `false` (the type omits the default) |
 | Absent | Present | `false` (missing contract) |
 | Present | Present | `true` if values are deeply equal |
 | Absent | Absent | `true` |
@@ -233,7 +233,8 @@ Formats a structural type descriptor as a human-readable string.
 | `{ kind: 'list', element: { kind: 'number' } }` | `"list(number)"` |
 | `{ kind: 'dict', valueType: { kind: 'string' } }` | `"dict(string)"` |
 | `{ kind: 'dict', fields: { 'a b': { type: { kind: 'number' } } } }` | `"dict(\"a b\": number)"` (key not spelled as an identifier or reserved word, and `true`/`false`, quoted) |
-| `{ kind: 'closure', params: [{ name: 'x', type: { kind: 'number' } }] }` | `"closure"` |
+| `{ kind: 'fn', params: [{ name: 'x', type: { kind: 'number' } }] }` | `"fn(x: number):any"` |
+| `{ kind: 'fn' }` | `"fn"` |
 | `{ kind: 'tuple', elements: [{ type: { kind: 'number' } }] }` | `"tuple(number)"` |
 
 ### `formatFieldKey`
@@ -290,7 +291,7 @@ interface RillFieldDescriptor {
 paramsToStructuralType(params: RillParam[]): TypeStructure
 ```
 
-Builds a `TypeStructure` closure variant from a parameter list. Return type is always `{ kind: 'any' }`. Result is a frozen object.
+Builds a `TypeStructure` fn variant from a parameter list. Return type is always `{ kind: 'any' }`. Result is a frozen object.
 
 | Param shape | Maps to |
 |-------------|---------|

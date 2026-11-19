@@ -380,7 +380,7 @@ import { toCallable } from '@rcrsr/rill';
 
 const appValue = {
   greet: toCallable({
-    signature: '|name: string|:string',
+    signature: 'fn(name: string):string',
     fn: async (args) => `Hello, ${args.name}!`,
   }),
 };
@@ -507,16 +507,16 @@ $items -> fan({ "- {$}" }) -> .join("\n")      # markdown bullet list
 
 ```rill
 "prefix" => $pre
-|x| { "{$pre} {$x}" } => $fn
+fn(x) { "{$pre} {$x}" } => $fn
 $fn("test")
 # Result: "prefix test"
 ```
 
-**Dict-bound closures:**
+**Functions stored in a dict** take the dict as an explicit parameter:
 
 ```rill
-[name: "alice", greet: || { "Hello, {$.name}" }] => $obj
-$obj.greet
+[name: "alice", greet: fn(self) { "Hello, {$self.name}" }] => $obj
+$obj.greet($obj)
 # Result: "Hello, alice"
 ```
 

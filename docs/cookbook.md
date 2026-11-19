@@ -39,15 +39,15 @@ Embed closures in the transition table to execute side effects:
 # Order processing state machine
 [
   pending: [
-    pay: [next: "paid", action: ||{ log("Payment received") }],
-    cancel: [next: "cancelled", action: ||{ log("Order cancelled") }]
+    pay: [next: "paid", action: fn() { log("Payment received") }],
+    cancel: [next: "cancelled", action: fn() { log("Order cancelled") }]
   ],
   paid: [
-    ship: [next: "shipped", action: ||{ log("Order shipped") }],
-    refund: [next: "refunded", action: ||{ log("Refund issued") }]
+    ship: [next: "shipped", action: fn() { log("Order shipped") }],
+    refund: [next: "refunded", action: fn() { log("Refund issued") }]
   ],
   shipped: [
-    deliver: [next: "delivered", action: ||{ log("Order delivered") }]
+    deliver: [next: "delivered", action: fn() { log("Order delivered") }]
   ]
 ] => $machine
 
@@ -116,16 +116,16 @@ Use closures as guards to conditionally allow transitions:
 [
   locked: [
     coin: [
-      guard: |ctx|($ctx.coins >= 1),
+      guard: fn(ctx) { $ctx.coins >= 1 },
       next: "unlocked",
-      update: |ctx|([...$ctx, coins: $ctx.coins - 1])
+      update: fn(ctx) { [...$ctx, coins: $ctx.coins - 1] }
     ]
   ],
   unlocked: [
     push: [next: "locked"],
     coin: [
       next: "unlocked",
-      update: |ctx|([...$ctx, coins: $ctx.coins + 1])
+      update: fn(ctx) { [...$ctx, coins: $ctx.coins + 1] }
     ]
   ]
 ] => $machine
@@ -204,15 +204,15 @@ Route values through different processors based on type or content:
 ```text
 # Conceptual - string keys with special chars require dispatch syntax
 [
-  "application/json": |body|{ $body },
-  "text/plain": |body|{ $body -> .trim },
-  "text/csv": |body|{ $body -> .lines -> fan({ .split(",") }) }
+  "application/json": fn(body) { $body },
+  "text/plain": fn(body) { $body -> .trim },
+  "text/csv": fn(body) { $body -> .lines -> fan({ .split(",") }) }
 ] => $parsers
 
 "application/json" => $contentType
 "{\"name\": \"test\"}" => $body
 
-$contentType -> $parsers -> |parser|{ $parser($body) }
+$contentType -> $parsers -> fn(parser) { $parser($body) }
 # Result: dict[name: "test"]
 ```
 
@@ -238,15 +238,15 @@ Combine dispatch with `??` for fallback behavior:
 
 ```rill
 dict[
-  success: |r|{ "Completed: {$r.data}" },
-  failure: |r|{ "Failed: {$r.message}" },
-  pending: |r|{ "Waiting..." }
+  success: fn(r) { "Completed: {$r.data}" },
+  failure: fn(r) { "Failed: {$r.message}" },
+  pending: fn(r) { "Waiting..." }
 ] => $handlers
 
 dict[status: "unknown", data: "test"] => $req
 
-$req.status -> $handlers ?? |r|{ "Unknown status: {$r.status}" }
--> |handler|{ $handler($req) }
+$req.status -> $handlers ?? fn(r) { "Unknown status: {$r.status}" }
+-> fn(handler) { $handler($req) }
 # Result: "Unknown status: unknown"
 ```
 
@@ -336,7 +336,7 @@ Retry an operation with exponential backoff:
 
 ```rill
 # Simulate flaky operation (host would provide real implementation)
-|attempt|{
+fn(attempt) {
   ($attempt < 3) ? [ok: false, err: "Network error"] ! dict[ok: true, data: "Success"]
 } => $operation
 
@@ -357,16 +357,16 @@ $final.?ok ? $final ! [ok: false, err: "Max retries exceeded"]
 Process steps that can fail at any point:
 
 ```rill
-|input|{
+fn(input) {
   [ok: true, value: $input -> .trim]
 } => $step1
 
-|input|{
+fn(input) {
   $input -> .len => $len
   ($len < 3) ? [ok: false, err: "Too short"] ! dict[ok: true, value: $input -> .upper]
 } => $step2
 
-|input|{
+fn(input) {
   $input -> .contains("HELLO") => $hasHello
   $hasHello ? [ok: true, value: $input] ! dict[ok: false, err: "Must contain HELLO"]
 } => $step3
@@ -412,8 +412,8 @@ Convert rows to columns:
   [7, 8, 9]
 ] => $matrix
 
-range(0, $matrix[0] -> .len) -> fan(|col|{
-  $matrix -> fan(|row|{ $row[$col] })
+range(0, $matrix[0] -> .len) -> fan(fn(col) {
+  $matrix -> fan(fn(row) { $row[$col] })
 })
 # Result: list[list[1, 4, 7], list[2, 5, 8], list[3, 6, 9]]
 ```
@@ -426,7 +426,7 @@ Combine parallel lists into dicts:
 ["a", "b", "c"] => $zipKeys
 [1, 2, 3] => $zipValues
 
-range(0, $zipKeys -> .len) -> fan(|i|{
+range(0, $zipKeys -> .len) -> fan(fn(i) {
   [key: $zipKeys[$i], value: $zipValues[$i]]
 })
 # Result: list[dict[key: "a", value: 1], dict[key: "b", value: 2], dict[key: "c", value: 3]]
@@ -436,7 +436,7 @@ Converting to a dict spreads the accumulator with a computed key:
 
 ```text
 # Sketch: not run by the examples harness
-range(0, $zipKeys -> .len) -> fold([:], |i|{
+range(0, $zipKeys -> .len) -> fold([:], fn(i) {
   [...$@, ($zipKeys[$i]): $zipValues[$i]]
 })
 # Result: dict[a: 1, b: 2, c: 3]
@@ -503,13 +503,13 @@ Create specialized functions from general ones:
 
 ```rill
 # General formatter
-|prefix, suffix, value|{
+fn(prefix, suffix, value) {
   "{$prefix}{$value}{$suffix}"
 } => $format
 
-# Partial application via closure
-|value|{ $format("[", "]", $value) } => $bracket
-|value|{ $format("<", ">", $value) } => $angle
+# Partial application via fn
+fn(value) { $format("[", "]", $value) } => $bracket
+fn(value) { $format("<", ">", $value) } => $angle
 
 $bracket("test")  # "[test]"
 $angle("html")    # "<html>"
@@ -521,11 +521,11 @@ Cache expensive computations:
 
 ```text
 # Build cache alongside computation
-|n, cache|{
+fn(n, cache) {
   $cache.?[$n -> string] ? $cache[$n -> string] ! {
     # Compute fibonacci
     ($n <= 1) ? $n ! {
-      $n - 1 -> |prev|{ |prev, cache|{ ... }($prev, $cache) } => $a  # Simplified
+      $n - 1 -> fn(prev) { fn(prev, cache) { ... }($prev, $cache) } => $a  # Simplified
       # Real memoization requires host support for mutable cache
       $a + $n - 2
     }
@@ -540,12 +540,12 @@ Note: True memoization with persistent cache requires host-provided storage sinc
 Combine functions into pipelines:
 
 ```rill
-|f, g|{
-  |x|{ $x -> $f() -> $g() }
+fn(f, g) {
+  fn(x) { $x -> $f() -> $g() }
 } => $compose
 
-|x|{ $x * 2 } => $double
-|x|{ $x + 1 } => $increment
+fn(x) { $x * 2 } => $double
+fn(x) { $x + 1 } => $increment
 
 $compose($double, $increment) => $doubleThenIncrement
 
@@ -926,21 +926,21 @@ Start or stop iteration based on a runtime condition using `start_when` and `sto
 Gate a stream to begin after a threshold:
 
 ```rill
-range(1, 8) -> start_when(|x| ($x > 3))
+range(1, 8) -> start_when(fn(x) { $x > 3 })
 # Result: list[4, 5, 6, 7]
 ```
 
 Gate a stream to stop at a threshold (the matching element is included):
 
 ```rill
-range(1, 8) -> stop_when(|x| ($x > 3))
+range(1, 8) -> stop_when(fn(x) { $x > 3 })
 # Result: list[1, 2, 3, 4]
 ```
 
 Combine both to extract a bounded window from a larger stream:
 
 ```rill
-range(1, 20) -> start_when(|x| ($x >= 5)) -> stop_when(|x| ($x >= 10))
+range(1, 20) -> start_when(fn(x) { $x >= 5 }) -> stop_when(fn(x) { $x >= 10 })
 # Result: list[5, 6, 7, 8, 9, 10]
 ```
 

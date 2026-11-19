@@ -40,9 +40,9 @@ describe('Rill Runtime: Signature Registration', () => {
     it('validates typed param on first call', async () => {
       await expectRuntimeError(
         () =>
-          run('fn(42)', {
+          run('act(42)', {
             functions: {
-              fn: {
+              act: {
                 params: [
                   {
                     name: 'msg',
@@ -62,7 +62,7 @@ describe('Rill Runtime: Signature Registration', () => {
 
     it('validates typed param on repeated calls', async () => {
       const fns: Record<string, RillFunction> = {
-        fn: {
+        act: {
           params: [
             {
               name: 'msg',
@@ -77,11 +77,11 @@ describe('Rill Runtime: Signature Registration', () => {
       };
 
       // First call with valid arg succeeds
-      const r1 = await run('fn("hello")', { functions: fns });
+      const r1 = await run('act("hello")', { functions: fns });
       expect(r1).toBe('hello');
 
       // Second call with invalid arg still throws (validation fires each call)
-      await expectRuntimeError(() => run('fn(99)', { functions: fns }), {
+      await expectRuntimeError(() => run('act(99)', { functions: fns }), {
         code: 'RILL-R001',
       });
     });
@@ -555,28 +555,28 @@ describe('Rill Runtime: Signature Registration', () => {
 
   describe('parseSignatureRegistration: parameter separator validation', () => {
     it('rejects two params with no separator between them', () => {
-      expect(() => parseSignatureRegistration('|a b|', 'fn')).toThrow(
-        /expected ',' or '\|' between parameters/
+      expect(() => parseSignatureRegistration('fn(a b)', 'fn')).toThrow(
+        /Expected ',' or '\)' in fn parameter list/
       );
     });
 
     it('parses comma-separated params', () => {
-      const parsed = parseSignatureRegistration('|a, b|', 'fn');
+      const parsed = parseSignatureRegistration('fn(a, b)', 'fn');
       expect(parsed.params.map((p) => p.name)).toEqual(['a', 'b']);
     });
 
     it('parses a single param', () => {
-      const parsed = parseSignatureRegistration('|a|', 'fn');
+      const parsed = parseSignatureRegistration('fn(a)', 'fn');
       expect(parsed.params.map((p) => p.name)).toEqual(['a']);
     });
 
-    it('parses zero params with ||', () => {
-      const parsed = parseSignatureRegistration('||', 'fn');
+    it('parses zero params with fn()', () => {
+      const parsed = parseSignatureRegistration('fn()', 'fn');
       expect(parsed.params).toEqual([]);
     });
 
     it('parses a trailing comma the same as without one', () => {
-      const parsed = parseSignatureRegistration('|a,|', 'fn');
+      const parsed = parseSignatureRegistration('fn(a,)', 'fn');
       expect(parsed.params.map((p) => p.name)).toEqual(['a']);
     });
   });
@@ -604,39 +604,42 @@ describe('Rill Runtime: Signature Registration', () => {
     });
 
     it('wraps a parse error with its cause', () => {
-      const error = expectInvalid('|a: list(', 'Expected type name');
+      const error = expectInvalid('fn(a: list(', 'Expected type name');
       expect(error.cause).toBeInstanceOf(Error);
     });
 
-    it('rejects a signature that does not start with | or ||', () => {
-      expectInvalid('x', "expected '|' or '||' to start parameter list");
+    it('rejects a signature that is not a fn type', () => {
+      expectInvalid('x', 'must be a fn(...) type');
     });
 
     it('rejects an unclosed parameter list', () => {
-      expectInvalid('|a', "expected ',' or '|' between parameters");
+      expectInvalid('fn(a', "Expected ',' or ')' in fn parameter list");
     });
 
     it('rejects a trailing token after the signature', () => {
-      expectInvalid('|a| extra', "unexpected token 'extra' after signature");
+      expectInvalid('fn(a) { extra }', 'must be a fn(...) type; no body');
     });
 
     it('rejects a dynamic type reference', () => {
       expectInvalid(
-        '|a: $t|',
+        'fn(a: $t)',
         'dynamic type references ($variable) are not allowed'
       );
     });
 
     it('rejects annotation values that are not string literals', () => {
-      expectInvalid('^(x: 1) |a|', 'annotation values must be string literals');
+      expectInvalid(
+        '^(x: 1) fn(a)',
+        'annotation values must be string literals'
+      );
     });
 
     it('rejects an annotation key without a colon', () => {
-      expectInvalid('^(x "y") |a|', "Expected ':' after annotation key");
+      expectInvalid('^(x "y") fn(a)', 'Expected :');
     });
 
     it('rejects a caret without a following parenthesis', () => {
-      expectInvalid('^ x', "Expected '(' after '^'");
+      expectInvalid('^ x', 'Expected (');
     });
   });
 
@@ -645,7 +648,7 @@ describe('Rill Runtime: Signature Registration', () => {
 
     it('parses union members', () => {
       const parsed = parseSignatureRegistration(
-        '|a: union(string, number)|',
+        'fn(a: union(string, number))',
         'fn'
       );
       expect(parsed.params[0]?.type).toEqual({
@@ -656,7 +659,7 @@ describe('Rill Runtime: Signature Registration', () => {
 
     it('parses a union return type', () => {
       const parsed = parseSignatureRegistration(
-        '|a: string| : union(string, number)',
+        'fn(a: string): union(string, number)',
         'fn'
       );
       expect(parsed.returnType).toEqual({
@@ -666,7 +669,7 @@ describe('Rill Runtime: Signature Registration', () => {
     });
 
     it('parses list(T) with an element type', () => {
-      const parsed = parseSignatureRegistration('|a: list(string)|', 'fn');
+      const parsed = parseSignatureRegistration('fn(a: list(string))', 'fn');
       expect(parsed.params[0]?.type).toEqual({
         kind: 'list',
         element: { kind: 'string' },
@@ -675,19 +678,19 @@ describe('Rill Runtime: Signature Registration', () => {
 
     it('rejects a list with a named argument', () => {
       expect(() =>
-        parseSignatureRegistration('|a: list(x: string)|', 'fn')
+        parseSignatureRegistration('fn(a: list(x: string))', 'fn')
       ).toThrow(`${prefix}list requires exactly one positional type argument`);
     });
 
     it('rejects a list with multiple arguments', () => {
       expect(() =>
-        parseSignatureRegistration('|a: list(string, number)|', 'fn')
+        parseSignatureRegistration('fn(a: list(string, number))', 'fn')
       ).toThrow(`${prefix}list requires exactly one positional type argument`);
     });
 
     it('parses a dict with named fields and a list return type', () => {
       const parsed = parseSignatureRegistration(
-        '|a: dict(k: string)| : list(string)',
+        'fn(a: dict(k: string)): list(string)',
         'fn'
       );
       expect(parsed.params[0]?.type).toEqual({
@@ -702,7 +705,7 @@ describe('Rill Runtime: Signature Registration', () => {
 
     it('rejects a dict with a positional argument', () => {
       expect(() =>
-        parseSignatureRegistration('|a: dict(string)|', 'fn')
+        parseSignatureRegistration('fn(a: dict(string))', 'fn')
       ).toThrow(
         `${prefix}dict type arguments must be named (e.g. dict(key: string))`
       );
@@ -710,7 +713,7 @@ describe('Rill Runtime: Signature Registration', () => {
 
     it('parses a tuple mixing named and positional elements', () => {
       const parsed = parseSignatureRegistration(
-        '|a: tuple(a: string, number)|',
+        'fn(a: tuple(a: string, number))',
         'fn'
       );
       expect(parsed.params[0]?.type).toEqual({
@@ -724,7 +727,7 @@ describe('Rill Runtime: Signature Registration', () => {
 
     it('rejects type arguments on a non-parameterizable type', () => {
       expect(() =>
-        parseSignatureRegistration('|a: string(number)|', 'fn')
+        parseSignatureRegistration('fn(a: string(number))', 'fn')
       ).toThrow(`${prefix}type 'string' does not accept type arguments`);
     });
   });
@@ -733,18 +736,18 @@ describe('Rill Runtime: Signature Registration', () => {
     const prefix = "Invalid signature for function 'fn': ";
 
     it('treats a bare string in function annotations as the description', () => {
-      const parsed = parseSignatureRegistration('^("desc") |a|', 'fn');
+      const parsed = parseSignatureRegistration('^("desc") fn(a)', 'fn');
       expect(parsed.description).toBe('desc');
     });
 
     it('treats a bare string in param annotations as the param description', () => {
-      const parsed = parseSignatureRegistration('|^("pd") a|', 'fn');
+      const parsed = parseSignatureRegistration('fn(^("pd") a)', 'fn');
       expect(parsed.params[0]?.annotations).toEqual({ description: 'pd' });
     });
 
     it('parses string, number, true, false, and negative number defaults', () => {
       const parsed = parseSignatureRegistration(
-        '|a = "s", b = 1.5, c = true, d = false, e = -2|',
+        'fn(a = "s", b = 1.5, c = true, d = false, e = -2)',
         'fn'
       );
       expect(parsed.params.map((p) => p.defaultValue)).toEqual([
@@ -757,14 +760,14 @@ describe('Rill Runtime: Signature Registration', () => {
     });
 
     it('rejects a minus followed by a non-number default', () => {
-      expect(() => parseSignatureRegistration('|a = -x|', 'fn')).toThrow(
-        `${prefix}expected number after '-' in default value`
+      expect(() => parseSignatureRegistration('fn(a = -x)', 'fn')).toThrow(
+        `${prefix}Expected literal, got: - at 1:8`
       );
     });
 
     it('rejects an unsupported default value', () => {
-      expect(() => parseSignatureRegistration('|a = list|', 'fn')).toThrow(
-        `${prefix}unsupported default value 'list' (only string, number, bool supported)`
+      expect(() => parseSignatureRegistration('fn(a = list)', 'fn')).toThrow(
+        `${prefix}Expected literal, got: list at 1:8`
       );
     });
   });
@@ -772,7 +775,7 @@ describe('Rill Runtime: Signature Registration', () => {
   describe('annotation keys named __proto__', () => {
     it('stores a param annotation key __proto__ as an own property', () => {
       const parsed = parseSignatureRegistration(
-        '|^(__proto__: "x") a: string|',
+        'fn(^(__proto__: "x") a: string)',
         'fn'
       );
       const annotations = parsed.params[0]?.annotations ?? {};
@@ -782,7 +785,7 @@ describe('Rill Runtime: Signature Registration', () => {
 
     it('accepts a function-level annotation key __proto__ alongside description', () => {
       const parsed = parseSignatureRegistration(
-        '^(__proto__: "x", description: "d") |a: string|',
+        '^(__proto__: "x", description: "d") fn(a: string)',
         'fn'
       );
       expect(parsed.description).toBe('d');
@@ -790,7 +793,7 @@ describe('Rill Runtime: Signature Registration', () => {
 
     it('stores a dict type field named __proto__ as an own property', () => {
       const parsed = parseSignatureRegistration(
-        '|a: dict(__proto__: string)|',
+        'fn(a: dict(__proto__: string))',
         'fn'
       );
       const type = parsed.params[0]?.type as
@@ -802,27 +805,27 @@ describe('Rill Runtime: Signature Registration', () => {
   describe('parseSignatureRegistration: dict type field keys', () => {
     it('registers a dict type field with a quoted key and accepts a matching dict', async () => {
       const parsed = parseSignatureRegistration(
-        '|x: dict("a b": string)|',
+        'fn(x: dict("a b": string))',
         'fn'
       );
       const fns: Record<string, RillFunction> = {
-        fn: {
+        act: {
           params: parsed.params,
           fn: () => 'ok',
           returnType: anyTypeValue,
         },
       };
-      const accepted = await run('fn(dict["a b": "v"])', { functions: fns });
+      const accepted = await run('act(dict["a b": "v"])', { functions: fns });
       expect(accepted).toBe('ok');
       await expectRuntimeError(
-        () => run('fn(dict["a b": 1])', { functions: fns }),
+        () => run('act(dict["a b": 1])', { functions: fns }),
         { code: 'RILL-R001' }
       );
     });
 
     it('fails registration when a dict type repeats a key', () => {
       expect(() =>
-        parseSignatureRegistration('|x: dict(a: string, a: number)|', 'fn')
+        parseSignatureRegistration('fn(x: dict(a: string, a: number))', 'fn')
       ).toThrow(/Duplicate key 'a' in dict type/);
     });
   });

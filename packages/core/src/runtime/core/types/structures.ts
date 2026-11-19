@@ -17,7 +17,7 @@ import type { RillStatus } from './status.js';
 
 /**
  * Field definition - describes a single field in a structural type.
- * Used by dict, tuple, ordered, and closure type descriptors.
+ * Used by dict, tuple, ordered, and fn type descriptors.
  * Default detection: `field.defaultValue !== undefined`.
  *
  * Uses TypeStructure (not RillType) for the field's type descriptor.
@@ -51,7 +51,7 @@ export type TypeStructure =
     }
   | { kind: 'list'; element?: TypeStructure | undefined }
   | {
-      kind: 'closure';
+      kind: 'fn';
       params?: RillFieldDef[] | undefined;
       ret?: TypeStructure | undefined;
     }

@@ -260,7 +260,8 @@ export const namingSnakeCase: Rule = {
         const paramNode = node;
         const name = paramNode.name;
 
-        if (!isSnakeCase(name)) {
+        // `$` and `@` are the legal names of unnamed fn params.
+        if (name !== '$' && name !== '@' && !isSnakeCase(name)) {
           const fix = buildFix(context, 'param', name, paramNode.span);
           return [
             createNamingDiagnostic(
