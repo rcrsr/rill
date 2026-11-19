@@ -99,7 +99,9 @@ function computeScopeState(parsed: ParseResult, offset: number): ScopeState {
         );
         break;
       case 'ClosureParam':
-        if (!boundParams.has(node)) break;
+        // An unnamed param binds the pipe value `$` or `$@`, never a name.
+        if (!boundParams.has(node) || node.name === '$' || node.name === '@')
+          break;
         frame.bindings.push(
           createBinding(
             node.name,

@@ -142,9 +142,9 @@ The `list`, `dict`, `tuple`, and `ordered` types accept type arguments for deep 
 # Error: Parameter type mismatch: $ expects list(number), got list
 ```
 
-### Bare Block Desugaring
+### Bare Blocks as Pipe Targets
 
-A bare block `{ body }` that reads `$` behaves like `fn(any):any { body }`. These two forms are equivalent:
+A bare block `{ body }` as a pipe target is a code block: it runs at once with the pipe value as `$`. It has no parameters and is never a function value. These two pipes yield the same result, but only the second pipes into a function:
 
 ```rill
 5 -> { $ * 2 }

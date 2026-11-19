@@ -64,8 +64,33 @@ declare module './parser.js' {
     parseGuardBlock(): GuardBlockNode | RecoveryErrorNode;
     parseRetryBlock(): RetryBlockNode | RecoveryErrorNode;
     parseTimeoutBlock(): TimeoutBlockNode;
+    parseBody(): BodyNode;
   }
 }
+
+/**
+ * Parse a conditional branch or loop body: a block, a grouped expression, a
+ * break/return/yield chain, or a postfix expression.
+ */
+Parser.prototype.parseBody = function (this: Parser): BodyNode {
+  if (check(this.state, TOKEN_TYPES.LBRACE)) {
+    return this.parseBlock();
+  }
+
+  if (check(this.state, TOKEN_TYPES.LPAREN)) {
+    return this.parseGrouped();
+  }
+
+  if (
+    check(this.state, TOKEN_TYPES.BREAK) ||
+    check(this.state, TOKEN_TYPES.RETURN) ||
+    check(this.state, TOKEN_TYPES.YIELD)
+  ) {
+    return this.parsePipeChain();
+  }
+
+  return this.parsePostfixExpr();
+};
 
 type OnCodeListResult =
   | { kind: 'ok'; codes: AtomLiteralNode[] }

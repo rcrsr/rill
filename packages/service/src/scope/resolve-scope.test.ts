@@ -126,6 +126,20 @@ fn(y: number) { $y } => $f
     expect(bindings.map((binding) => binding.name)).not.toContain('x');
   });
 
+  it.each([
+    ['fn(number) { $ }', '$ }'],
+    ['fn { $ + 1 } => $inc', '$ + 1'],
+    ['fn(number, number) { $@ }', '$@ }'],
+  ])('binds no name for an unnamed fn param (%#: %s)', (source, at) => {
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const bindings = resolveScopeAt(parsed, source.indexOf(at) + 1);
+    const names = bindings.map((binding) => binding.name);
+    expect(names).not.toContain('$');
+    expect(names).not.toContain('@');
+  });
+
   it('excludes the bare pipe value ($) from the binding list', () => {
     const source = `1 => $a
 $a -> { $ * 2 } => $b

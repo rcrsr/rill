@@ -525,6 +525,12 @@ describe('declaredTypes', () => {
     });
   });
 
+  it('does not record the params of an fn type as declared', () => {
+    const facts = script('$g -> :fn(n: number)\n');
+    expect(facts.declaredTypes.has('n')).toBe(false);
+    expect(facts.paramNames.has('n')).toBe(false);
+  });
+
   it('records a typed fn param bound once', () => {
     expect(
       script('fn(x: number) { $x } => $f\n').declaredTypes.get('x')

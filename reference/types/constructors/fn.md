@@ -90,8 +90,9 @@ r[fn.value] A function type in front of a block makes a function
 `fn(x: number):string`. The body MUST be a block.
 
 r[fn.bare-literal] fn in front of a block types it by its reads
-`fn { body }` MUST make a function typed as a block argument is (`fn.block-type`).
-`fn { 5 } => $x` MUST bind a function of type `fn():any`.
+`fn { body }` MUST make a function with one unnamed `any` parameter for each of `$` and `$@`
+its body reads: `fn { 5 }` MUST have `fn():any`, `fn { $ * 2 }` MUST have `fn(any):any`, and a
+body that reads `$@` MUST have `fn(any, any):any`. `fn:T { body }` MUST take its outer from `T`.
 
 r[fn.block-type] A bare block has the unnamed parameters its body reads {pending #626}
 A block passed as a whole argument MUST convert to a function, typed by the unnamed

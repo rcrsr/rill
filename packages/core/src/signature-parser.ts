@@ -275,11 +275,12 @@ function signatureFieldDef(
 type SignatureLiteral = StringLiteralNode | NumberLiteralNode | BoolLiteralNode;
 
 function isSignatureLiteral(node: LiteralNode): node is SignatureLiteral {
-  return (
-    node.type === 'StringLiteral' ||
-    node.type === 'NumberLiteral' ||
-    node.type === 'BoolLiteral'
-  );
+  // An interpolated string has a meaning only at run time, so a signature
+  // rejects it rather than dropping its interpolated parts.
+  if (node.type === 'StringLiteral') {
+    return node.parts.every((part) => typeof part === 'string');
+  }
+  return node.type === 'NumberLiteral' || node.type === 'BoolLiteral';
 }
 
 /**
@@ -412,9 +413,23 @@ function parseSignatureStatement(
   try {
     statements = parse(signature).statements;
   } catch (err) {
+    if (err instanceof ParseError && err.message.includes("'|params|'")) {
+      // The script hint names a body form, which a signature never takes.
+      throw signatureError(
+        functionName,
+        "the '|params|' signature form was removed; write fn(x: string):string",
+        err.location ?? { line: 1, column: 1, offset: 0 }
+      );
+    }
     if (err instanceof ParseError || err instanceof LexerError) {
       throw new Error(
         `Invalid signature for function '${functionName}': ${err.message}`,
+        { cause: err }
+      );
+    }
+    if (err instanceof RangeError) {
+      throw new Error(
+        `Invalid signature for function '${functionName}': nesting is too deep`,
         { cause: err }
       );
     }

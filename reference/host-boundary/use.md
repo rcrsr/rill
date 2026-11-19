@@ -18,7 +18,7 @@ to.
 ## Syntax
 
 ```ebnf
-use-expr      = "use" "<" use-id ">" [ ":" , ( type-ref | use-closure-annotation ) ] ;
+use-expr      = "use" "<" use-id ">" [ ":" , type-ref ] ;
 use-id        = identifier ":" identifier { "." identifier }
               | "$" identifier
               | "(" pipe-chain ")" ;
@@ -120,3 +120,5 @@ $app.search("rill")
 
 On 0.23.0 a non-callable resolved value is returned unchanged, and a callable source-module
 result was called with the piped value.
+
+The `use<id>:|params|` annotation is removed. It raises RILL-P012; write `use<id>:fn(params)`.

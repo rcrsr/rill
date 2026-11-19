@@ -37,12 +37,8 @@ export const spacingBraces: Rule = {
       });
     }
 
-    // Check for closing brace without space before.
-    // For Closure nodes with return type annotations, span.end extends past
-    // } to include the type annotation. Use body.span.end to find the
-    // actual }.
-    // A closure's own span can extend past its body's `}` (a return type
-    // follows the body), so the closing brace is read from the body span.
+    // Check for closing brace without space before. A closure's span starts
+    // at `fn`, so the closing brace is read from the body span.
     const closeSpan = node.type === 'Closure' ? node.body.span : span;
     const closeEnd = closeSpan.end;
     const closeLineActual = lines[closeEnd.line - 1] ?? '';

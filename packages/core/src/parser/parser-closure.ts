@@ -6,7 +6,6 @@
 import { Parser } from './parser.js';
 import type {
   BlockNode,
-  BodyNode,
   ClosureNode,
   ClosureParamNode,
   FnTypeNode,
@@ -14,7 +13,7 @@ import type {
   TypeRef,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES, unnamedParamsRead } from '../types.js';
-import { check, current, makeSpan, previous } from './state.js';
+import { check, current, makeSpan, peek, previous } from './state.js';
 import { isLiteralStart } from './helpers.js';
 import { parseFnSignature, scriptTypeOpts } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
@@ -23,7 +22,6 @@ import { ERROR_IDS } from '../error-registry.js';
 declare module './parser.js' {
   interface Parser {
     parseFnForm(): ClosureNode | FnTypeNode;
-    parseBody(allowEmptyBlock?: boolean): BodyNode;
   }
 }
 
@@ -76,7 +74,7 @@ function validateYieldInClosure(
 
 /**
  * Increment closureDepth, call fn(), decrement in finally.
- * Guards against depth counter leaks when parseBody throws.
+ * Guards against depth counter leaks when the body parse throws.
  */
 function withClosureDepth<T>(parser: Parser, fn: () => T): T {
   parser.closureDepth++;
@@ -165,6 +163,20 @@ Parser.prototype.parseFnForm = function (
     };
   }
 
+  const nameToken = current(this.state);
+  if (
+    typeRef.params === undefined &&
+    typeRef.outer === undefined &&
+    nameToken.type === TOKEN_TYPES.IDENTIFIER &&
+    peek(this.state, 1).type === TOKEN_TYPES.LPAREN
+  ) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P001,
+      `fn takes no name; write fn(...) { ... } => $${nameToken.value} to name a function`,
+      nameToken.span.start
+    );
+  }
+
   if (check(this.state, TOKEN_TYPES.LPAREN)) {
     throw new ParseError(
       ERROR_IDS.RILL_P012,
@@ -185,27 +197,4 @@ Parser.prototype.parseFnForm = function (
     typeRef,
     span: makeSpan(start, previous(this.state).span.end),
   };
-};
-
-Parser.prototype.parseBody = function (
-  this: Parser,
-  allowEmptyBlock?: boolean
-): BodyNode {
-  if (check(this.state, TOKEN_TYPES.LBRACE)) {
-    return this.parseBlock(allowEmptyBlock);
-  }
-
-  if (check(this.state, TOKEN_TYPES.LPAREN)) {
-    return this.parseGrouped();
-  }
-
-  if (
-    check(this.state, TOKEN_TYPES.BREAK) ||
-    check(this.state, TOKEN_TYPES.RETURN) ||
-    check(this.state, TOKEN_TYPES.YIELD)
-  ) {
-    return this.parsePipeChain();
-  }
-
-  return this.parsePostfixExpr();
 };

@@ -1669,7 +1669,7 @@ Trailing continuations (must end the previous line):
 
     +  -  *  /  %  ==  !=  <  >  <=  >=  &&  ||
 
-Open delimiters (`(`, `[`, `{`, `|`, `||`) continue across newlines until closed.
+Open delimiters (`(`, `[`, `{`) continue across newlines until closed.
 
 Valid:
 

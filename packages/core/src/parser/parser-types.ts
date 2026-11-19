@@ -521,7 +521,13 @@ function parseOuterAfterColon(
 ): TypeRef {
   advance(state); // consume ':'
   const outerStart = current(state).span.start.offset;
-  const outer = parseSingleType(state, buildTypeRefOpts(opts));
+  // A chained outer (`fn:fn:...`, `stream:stream:...`) recurses here, so it
+  // counts toward the nesting cap like every other type position.
+  const outer = withRecursionDepth(
+    state,
+    () => current(state).span.start,
+    () => parseSingleType(state, buildTypeRefOpts(opts))
+  );
   if (check(state, TOKEN_TYPES.PIPE_BAR) && startsTypeMember(state, 1)) {
     const outerText = state.source.slice(
       outerStart,
@@ -700,6 +706,7 @@ function parseFnParams(
   opts: TypeRefOpts | undefined
 ): ClosureParamNode[] {
   const params: ClosureParamNode[] = [];
+  const seenNames = new Set<string>();
   let unnamed = 0;
   skipNewlines(state);
   while (!check(state, TOKEN_TYPES.RPAREN)) {
@@ -712,7 +719,12 @@ function parseFnParams(
         at
       );
     }
-    if (isUnnamed) unnamed++;
+    if (isUnnamed) {
+      unnamed++;
+    } else {
+      // Named params form an ordered, so a repeat halts as in ordered(...).
+      rejectRepeatedKey(seenNames, param.name, at, 'fn parameter list');
+    }
     params.push(param);
     skipNewlines(state);
     if (check(state, TOKEN_TYPES.COMMA)) {
@@ -737,7 +749,7 @@ export type FnTypeRef = Extract<TypeRef, { kind: 'fn' }>;
  *
  * The cursor sits on the `fn` token. A bare `fn` yields `params` undefined and
  * `fn()` an empty array. In a type position the outer is taken only when `:`
- * is followed by a type name, so an assertion keeps its meaning. With
+ * is followed by a type name or a `$var` type. With
  * `literalForm` the signature heads an fn literal or fn type value, so any
  * `:` after it starts the outer, which may be a `$var` type.
  *
@@ -757,7 +769,12 @@ export function parseFnSignature(
     ref.params = parseFnParams(state, opts);
     expect(state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
   }
-  if (literalForm ? check(state, TOKEN_TYPES.COLON) : atOuterType(state)) {
+  const takesOuter = literalForm
+    ? check(state, TOKEN_TYPES.COLON)
+    : atOuterType(state) ||
+      (check(state, TOKEN_TYPES.COLON) &&
+        peek(state, 1).type === TOKEN_TYPES.DOLLAR);
+  if (takesOuter) {
     ref.outer = parseOuterAfterColon(state, opts);
   }
   return ref;

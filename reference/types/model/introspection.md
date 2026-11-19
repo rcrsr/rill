@@ -56,6 +56,7 @@ admits:
 | `tuple(A, B, ...)`, or `any` | `tuple[A, B, ...]`, or `any` | `union(tuple, type)` |
 | `dict(a: A, ...)`, or `any` | `dict[a: A, ...]`, or `any` | `union(dict, type)` |
 | `ordered(a: A, ...)`, or `any` | `ordered[a: A, ...]`, or `any` | `union(ordered, type)` |
+| `fn(a: A, ...)`, `fn(A, ...)`, or `any` | `ordered[a: A, ...]`, `tuple[A, ...]`, or `any` | `union(ordered, tuple, type)` (`fn.inner-type`) |
 | `union(m1, m2, ...)` | `list[m1, m2, ...]` | `list(union(type, string, number, bool, atom))` |
 
 A field with a default MUST keep its type in `.inner`, without the default. The members of a

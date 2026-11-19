@@ -353,16 +353,14 @@ annotation-access = "." , "^" , identifier ;
    On a value that is not a function the result is false; it never halts. *)
 annotation-existence = ".?" , "^" , identifier ;
 
-use-expr      = "use" "<" use-id ">" [ ":" , ( type-ref | use-closure-annotation ) ] ;
+use-expr      = "use" "<" use-id ">" [ ":" , type-ref ] ;
               (* Semantic: resolves a module by scheme and path.
                  Static form (identifier ":" identifier { "." identifier }) is checker-resolvable.
                  Variable form ("$" identifier) and computed form ("(" pipe-chain ")") are runtime-only.
                  Strict mode rejects variable and computed forms.
-                 Function annotation form describes the expected callable signature. *)
-
-use-closure-annotation = "|" , param-type-item , { "," , param-type-item } , "|" ;
-              (* Function annotation on use<>: describes parameter types of the resolved callable.
-                 Example: use<ext:tool>:|input: string, count: number| *)
+                 A fn-type annotation describes the expected callable signature:
+                 use<ext:tool>:fn(input: string, count: number).
+                 The removed use<..>:|params| form raises RILL-P012. *)
 
 use-id        = identifier ":" identifier { "." identifier }
               | "$" identifier
@@ -416,7 +414,13 @@ literal       = string | number | bool | list | dict | tuple | ordered | fn-lite
 fn-type    = "fn" , [ "(" , [ fn-param , { "," , fn-param } ] , ")" ] , [ ":" , type-form ] ;
 fn-param   = identifier , [ ":" , type-form ] , [ "=" , literal ] | type-form ;
 fn-literal = fn-type , block ;
-              (* A ^(...) annotation may precede a fn literal and a fn param.
+              (* type-form is the reference spelling of a type (concept type-form);
+                 this file writes it as type-ref.
+                 An fn-param that starts with a type name or "$" is an unnamed
+                 param (the type-ref alternative): fn(number) takes one unnamed
+                 number param. Any other identifier names the param: fn(x) is
+                 fn(x: any).
+                 A ^(...) annotation may precede a fn literal and a fn param.
                  Declared return type (outer) is enforced at runtime (RILL-R004 on mismatch)
                  and readable via $fn.^type.outer; .^type.inner reads the parameters.
                  fn(x = 5) gives x the type any: a default does not infer the type.
@@ -912,13 +916,15 @@ type-name     = "string" | "number" | "bool" | "fn"
      dict(a: number = 5)             -- parameterized with default (annotation context) *)
 type-ref          = type-ref-member ;
 type-ref-member   = "stream" , [ "(" , [ field-arg-list ] , ")" ] , [ ":" , type-ref ]
+                  | fn-type
                   | type-name , [ "(" , [ field-arg-list ] , ")" ]
                   | "$" , identifier
                   | union-type ;
-              (* Only stream takes an outer type, after the parentheses or after
-                 the bare name: stream:number is stream(any):number. An outer
+              (* Only stream and fn take an outer type, after the parentheses or
+                 after the bare name: stream:number is stream(any):number. An outer
                  written after list, dict, tuple, ordered, or union halts with
-                 RILL-P006. A ":" not followed by a type name is not an outer.
+                 RILL-P006. A ":" not followed by a type name is not an outer, except
+                 that fn also takes a "$" type: fn(x):$t.
                  Inside a field-arg-list, "name :" starts a named field, so a
                  bare stream with an outer is written stream():R there. *)
 
@@ -1028,8 +1034,6 @@ type-constructor = ( "list" | "dict" | "tuple" | "ordered" ) , "(" , [ field-arg
                  - stream():number             -- any-chunked stream resolving to number
                  The resolution type is the value produced when the stream completes;
                  chunks are produced by `yield` inside the function body. *)
-
-param-type-item  = [ annotation ] , identifier , ":" , expression , [ "=" , literal ] ;
 
 (* ============================================================ *)
 (* CONTROL FLOW                                                 *)

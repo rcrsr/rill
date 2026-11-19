@@ -11,7 +11,7 @@
  * - evaluateTypeConstructor(node) -> Promise<RillTypeValue>
  * - evaluateFnType(s, node) -> Promise<RillTypeValue>
  * - resolveTypeRef(typeRef, getVariable) -> Promise<RillTypeValue>
- * - buildCollectionType(name, args, resolveArg, evaluateDefault, location?) -> Promise<RillTypeValue>
+ * - buildCollectionType(name, args, resolveArg, evaluateDefault, location?, fnParams?) -> Promise<RillTypeValue>
  *
  * Error Handling:
  * - Type assertion failures halt with #TYPE_MISMATCH
@@ -126,7 +126,8 @@ async function buildCollectionType(
   args: FieldArg[],
   resolveArg: (arg: FieldArg) => Promise<TypeStructure>,
   evaluateDefault: (node: LiteralNode) => Promise<RillValue>,
-  location?: SourceLocation
+  location?: SourceLocation,
+  fnParams = false
 ): Promise<RillTypeValue> {
   if (name === 'list') {
     // list requires exactly 1 positional arg
@@ -163,7 +164,8 @@ async function buildCollectionType(
       }
     }
 
-    for (const { name: argName } of named) {
+    // fn params bind variables, not value keys, so a brand key is harmless.
+    for (const { name: argName } of fnParams ? [] : named) {
       if (isReservedBrandKey(argName)) {
         throwCatchableHostHalt(
           { location, sourceId: s.ctx.sourceId, fn: name },
@@ -282,8 +284,8 @@ async function buildCollectionType(
         const defaultVal = await evaluateDefault(arg.defaultValue);
         requireDefaultMatch(
           s,
-          'ordered',
-          `field '${arg.name}'`,
+          fnParams ? 'fn' : 'ordered',
+          fnParams ? `parameter '${argName}'` : `field '${arg.name}'`,
           defaultVal,
           resolvedType,
           location
@@ -833,7 +835,8 @@ async function buildFnParams(
     args,
     (arg) => resolveRef(arg.value),
     evaluateDefault,
-    location
+    location,
+    true
   );
   const structure = built.structure;
   if (isStructureKind(structure, 'tuple')) return structure.elements ?? [];
