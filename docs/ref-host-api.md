@@ -810,6 +810,7 @@ const greet: RillFunctionShorthand = {
 | Built-in type `error_code` | `list(error_code)` |
 | Named dict type | `dict(k: string)`, `dict("a b": string)` |
 | Tuple type | `tuple(number, string)`; `tuple(number)` is exactly one position |
+| Function type | `cb: fn(string):bool`, `cb: fn(x: number):string`, bare `fn` |
 | Literal defaults | `n: number = -3`, `s: string = "x"`, `b: bool = true` |
 | Field defaults | `d: dict(a: number, b: number = 0)`, `t: tuple(string, number = 0)` |
 | Parameter annotations | `^(description: "text") name: string` |
@@ -825,8 +826,8 @@ Use the explicit form for these declarations:
 
 | Declaration | Reason |
 |-------------|--------|
-| Stream, ordered, and fn types with arguments | Signature type arguments are limited to `list`, `dict`, and `tuple` |
-| Dict, list, or tuple defaults | Parameter and field defaults are limited to string, number, and bool literals |
+| Stream and ordered types with arguments | Not yet accepted in a signature string |
+| Atom, dict, list, tuple, or ordered defaults | Not yet accepted in a signature string; defaults are limited to string, number, and bool literals |
 | `skipReceiverValidation` | The shorthand has no such field |
 
 Registration throws `RuntimeError` with `RILL-R091` in these cases:
