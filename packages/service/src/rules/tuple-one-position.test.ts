@@ -29,8 +29,8 @@ describe('TUPLE_ONE_POSITION', () => {
     ['type assertion', '$x -> :tuple(number)\n'],
     ['optional type assertion', '$x -> :?tuple(number)\n'],
     ['capture annotation', 'tuple[1] => $t:tuple(number)\n'],
-    ['closure parameter', '|t: tuple(number)| { $t }\n'],
-    ['closure return type', '|x| { $x }:tuple(number)\n'],
+    ['fn parameter', 'fn(t: tuple(number)) { $t }\n'],
+    ['fn return type', 'fn(x):tuple(number) { $x }\n'],
     ['type constructor', '$x -> tuple(number)\n'],
     ['destructure pattern', 'tuple[1] -> destruct<$a:tuple(number)>\n'],
     ['existence check', '$d.?field&tuple(number) ? 1 ! 2\n'],
@@ -57,7 +57,7 @@ describe('TUPLE_ONE_POSITION', () => {
 
   it.each([
     ['use type', 'use<ext:app>:tuple(number)\n'],
-    ['use closure annotation', 'use<ext:app>:|a: tuple(number)|\n'],
+    ['use fn annotation', 'use<ext:app>:fn(a: tuple(number))\n'],
   ])('fires on %s', (_name, source) => {
     const result = run(source);
 

@@ -66,6 +66,8 @@ export const ERROR_IDS = {
   RILL_P024: 'RILL-P024',
   RILL_P026: 'RILL-P026',
   RILL_P027: 'RILL-P027',
+  RILL_P028: 'RILL-P028',
+  RILL_P029: 'RILL-P029',
   RILL_P030: 'RILL-P030',
   RILL_P031: 'RILL-P031',
   RILL_R001: 'RILL-R001',
@@ -473,7 +475,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Invalid type annotation',
     messageTemplate: 'Invalid type annotation: {type}',
     cause:
-      'Type name not recognized. Rill supports: string, number, bool, closure, list, dict, tuple.',
+      'Type name not recognized. Rill supports: string, number, bool, fn, list, dict, tuple.',
     resolution:
       'Use valid type name from supported set. Check spelling and casing (types are lowercase).',
     examples: [
@@ -550,7 +552,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       },
       {
         description: 'yield outside stream closure',
-        code: '|x| yield  # yield requires :stream() return type',
+        code: 'fn(x) { yield }  # yield requires :stream() return type',
       },
     ],
   },
@@ -676,6 +678,18 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Computed-selector dot forms removed',
         code: 'dict[a: 1] => $d\n$d.("a")  # Error: use $d["a"], or $d.?["a"] to probe',
+      },
+      {
+        description: '|params| closure literal removed',
+        code: '|x| ($x * 2)  # Error: use fn(x) { $x * 2 }',
+      },
+      {
+        description: '|x: T|:R closure type literal removed',
+        code: '$f -> :|x: number|:string  # Error: use :fn(x: number):string',
+      },
+      {
+        description: 'closure type name removed',
+        code: '$f -> :closure  # Error: use :fn',
       },
     ],
   },
@@ -843,6 +857,51 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
+    errorId: ERROR_IDS.RILL_P028,
+    category: 'parse',
+    description: 'Invalid unnamed fn parameters',
+    messageTemplate: '{details}',
+    cause:
+      "An fn parameter list declares a third unnamed param, mixes named and unnamed params, or gives an unnamed param a default. Unnamed params bind '$' and '$@', so at most two are allowed, and they take no name or default.",
+    resolution:
+      'Declare at most two unnamed params, keep a parameter list all named or all unnamed, and move any default onto a named param.',
+    examples: [
+      {
+        description: 'Three unnamed params',
+        code: 'fn(number, number, number) { $ }',
+      },
+      {
+        description: 'Named and unnamed params mixed',
+        code: 'fn(x: number, string) { $x }',
+      },
+      {
+        description: 'Default on an unnamed param',
+        code: 'fn(number = 1) { $ }',
+      },
+    ],
+  },
+  {
+    errorId: ERROR_IDS.RILL_P029,
+    category: 'parse',
+    description: "fn() body reads '$' or '$@'",
+    messageTemplate:
+      "fn() declares no params, so its body cannot read '$' or '$@'",
+    cause:
+      "A function written fn() declares an empty parameter list, so nothing binds '$' or '$@' in its body.",
+    resolution:
+      "Declare the params the body reads, as in 'fn(number) { $ }', or drop the read.",
+    examples: [
+      {
+        description: "Empty fn() reading '$'",
+        code: 'fn() { $ + 1 }',
+      },
+      {
+        description: "Empty fn() reading '$@'",
+        code: 'fn() { $@ }',
+      },
+    ],
+  },
+  {
     errorId: ERROR_IDS.RILL_P030,
     category: 'parse',
     description: "List or dict literal pipe target reads '$'",
@@ -899,7 +958,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'String passed to number parameter',
-        code: '|x: number| $x * 2\n"5" -> $()',
+        code: 'fn(x: number) { $x * 2 } => $double\n"5" -> $double()',
       },
       {
         description: 'Number assigned to string-locked variable',
@@ -1632,7 +1691,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Empty closure body',
-        code: '|x: number| { }  # No value produced',
+        code: 'fn(x: number) { }  # No value produced',
       },
       {
         description: 'Script with only comments',
@@ -1675,7 +1734,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Too many arguments to a two-param closure',
-        code: '|x: number, y: number| { $x + $y } => $add\n$add(1, 2, 3)  # 3 args, 2 params',
+        code: 'fn(x: number, y: number) { $x + $y } => $add\n$add(1, 2, 3)  # 3 args, 2 params',
       },
     ],
   },
@@ -1978,7 +2037,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Closure in JSON context',
-        code: '|x| $x + 1 -> as(string)  # Error: closures not serializable',
+        code: 'fn(x) { $x + 1 } -> as(string)  # Error: functions not serializable',
       },
     ],
   },
@@ -2421,15 +2480,15 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     cause:
       'A host function definition carries a signature that cannot be registered. The signature string fails to lex, parse, or convert to a type structure; the definition supplies signature together with params or returnType; the signature is not a string; the description is not a string; the annotations field is not an object; or one annotation key is declared by more than one source, such as the signature and the annotations field.',
     resolution:
-      'Fix the signature string so it reads |param: type, ...|: return_type, supply either signature or params and returnType but not both, pass strings for signature and description, pass an object for annotations, and declare each annotation key in one place only.',
+      'Fix the signature string so it reads fn(param: type, ...):return_type with parentheses and named params (an unnamed param is rejected), supply either signature or params and returnType but not both, pass strings for signature and description, pass an object for annotations, and declare each annotation key in one place only.',
     examples: [
       {
         description: 'Signature string with an unclosed parameter list',
-        code: '# Host code: { signature: "|x: string", fn }  # rejected',
+        code: '# Host code: { signature: "fn(x: string", fn }  # rejected',
       },
       {
         description: 'Signature combined with an explicit params list',
-        code: '# Host code: { signature: "|x: string|", params: [], fn }  # rejected',
+        code: '# Host code: { signature: "fn(x: string)", params: [], fn }  # rejected',
       },
     ],
   },

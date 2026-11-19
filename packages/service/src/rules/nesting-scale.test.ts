@@ -25,8 +25,8 @@
  *
  * Every level's body: dispatches `LOOP_OUTER_CAPTURE`, `PREFER_MAP`, and
  * `CLOSURE_LATE_BINDING` (all match on `HostCall`, and this level's own
- * `HostCall` is `seq`), creates a zero-param bare-`$` closure (engaging
- * `CLOSURE_BARE_DOLLAR`, and contributing `hasClosure` for
+ * `HostCall` is `seq`), creates a zero-param bare-`$` closure (contributing
+ * `hasClosure` for
  * `CLOSURE_LATE_BINDING`), runs a `fan({ break })` (engaging
  * `BREAK_IN_PARALLEL`; it also gives this level's body a side effect, so
  * `PREFER_MAP`'s no-side-effect check legitimately evaluates and rejects at
@@ -232,7 +232,7 @@ function methodCallNode(name: string): MethodCallNode {
   };
 }
 
-/** `(|| { $ })` as a bare statement: engages CLOSURE_BARE_DOLLAR/CLOSURE_LATE_BINDING. */
+/** `(fn() { $ })` as a bare statement: engages CLOSURE_LATE_BINDING. */
 function bareDollarClosureStatement(): StatementNode {
   const body = block([
     statementNode(pipeChain(postfix(variableNode(null, true)))),
@@ -401,7 +401,7 @@ const ALL_NODE_TYPES: readonly NodeType[] = [
   'Error',
   'TypeNameExpr',
   'TypeConstructor',
-  'ClosureSigLiteral',
+  'FnType',
   'ListLiteral',
   'DictLiteral',
   'TupleLiteral',

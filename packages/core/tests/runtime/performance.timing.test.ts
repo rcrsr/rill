@@ -23,7 +23,7 @@ describe('Rill Runtime: Performance Regression', () => {
     // Expected result for n: doubled = 2i, incremented = 2i + 1,
     // total = sum(2i + 1) = n * n.
     const scriptFor = (n: number): string => `
-      |x| { $x * 2 } => $double
+      fn(x) { $x * 2 } => $double
 
       range(0, ${n}) -> fan($double) => $doubled
       $doubled -> seq({ $ + 1 }) => $incremented

@@ -77,7 +77,7 @@ $l1 == $l2`;
     });
 
     it('still invokes a callable field with parens', async () => {
-      expect(await run('dict[f: |x|($x)] => $d\n$d.f(2)')).toBe(2);
+      expect(await run('dict[f: fn(x) { $x }] => $d\n$d.f(2)')).toBe(2);
     });
   });
 

@@ -52,7 +52,7 @@ describe('Stream Reflection', () => {
   describe('.^type.inner', () => {
     it('returns chunk TypeStructure as RillTypeValue', async () => {
       const script = `
-        || ("hello" -> yield) :stream(string) => $gen
+        fn():stream(string) { "hello" -> yield } => $gen
         $gen() => $s
         $s.^type.inner
       `;
@@ -63,7 +63,7 @@ describe('Stream Reflection', () => {
 
     it('returns any type when chunk is unconstrained', async () => {
       const script = `
-        || ("hello" -> yield) :stream() => $gen
+        fn():stream() { "hello" -> yield } => $gen
         $gen() => $s
         $s.^type.inner
       `;
@@ -76,10 +76,10 @@ describe('Stream Reflection', () => {
   describe('.^type.outer', () => {
     it('returns resolution TypeStructure as RillTypeValue', async () => {
       const script = `
-        || {
+        fn():stream(string):number {
           "hello" -> yield
           42
-        } :stream(string):number => $gen
+        } => $gen
         $gen() => $s
         $s.^type.outer
       `;
@@ -90,7 +90,7 @@ describe('Stream Reflection', () => {
 
     it('returns any type when ret is unconstrained', async () => {
       const script = `
-        || ("hello" -> yield) :stream(string) => $gen
+        fn():stream(string) { "hello" -> yield } => $gen
         $gen() => $s
         $s.^type.outer
       `;

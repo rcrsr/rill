@@ -302,7 +302,7 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       'halts RILL-R001 when a closure parameter meets an unnamed key',
       async () => {
         await expectRuntimeError(
-          () => run(`|x: dict(a: number)| { $x } => $f\n$f(${wide})`),
+          () => run(`fn(x: dict(a: number)) { $x } => $f\n$f(${wide})`),
           { code: 'RILL-R001' }
         );
       }
@@ -312,7 +312,7 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       'halts when a closure return meets an unnamed key',
       async () => {
         await expectHalt(
-          () => run(`|| { ${wide} }:dict(a: number) => $f\n$f()`),
+          () => run(`fn():dict(a: number) { ${wide} } => $f\n$f()`),
           { code: 'TYPE_MISMATCH' }
         );
       }

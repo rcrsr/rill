@@ -145,6 +145,11 @@ function typeRefChildren(ref: TypeRef): ASTNode[] {
       return ref.members.flatMap((member) => typeRefChildren(member));
     case 'static':
       return ref.args === undefined ? [] : fieldArgsChildren(ref.args);
+    case 'fn':
+      return [
+        ...(ref.params ?? []),
+        ...(ref.outer === undefined ? [] : typeRefChildren(ref.outer)),
+      ];
     default: {
       const exhaustive: never = ref;
       throw new Error(
@@ -265,12 +270,7 @@ function getChildren(node: ASTNode): ASTNode[] {
     case 'Closure': {
       const children: ASTNode[] = [...node.params, node.body];
       if (node.returnTypeTarget !== undefined) {
-        const target = node.returnTypeTarget;
-        if ('type' in target && target.type === 'TypeConstructor') {
-          children.push(target);
-        } else if (!('type' in target)) {
-          children.push(...typeRefChildren(target));
-        }
+        children.push(...typeRefChildren(node.returnTypeTarget));
       }
       return children;
     }
@@ -434,14 +434,8 @@ function getChildren(node: ASTNode): ASTNode[] {
     case 'TypeConstructor':
       return fieldArgsChildren(node.args);
 
-    case 'ClosureSigLiteral':
-      return [
-        ...node.params.flatMap((param) => [
-          ...(param.annotations ?? []),
-          param.typeExpr,
-        ]),
-        node.returnType,
-      ];
+    case 'FnType':
+      return typeRefChildren(node.typeRef);
 
     case 'UseExpr': {
       const children: ASTNode[] = [];
@@ -449,13 +443,6 @@ function getChildren(node: ASTNode): ASTNode[] {
         children.push(node.identifier.expression);
       }
       if (node.typeRef) children.push(...typeRefChildren(node.typeRef));
-      if (node.closureAnnotation) {
-        for (const param of node.closureAnnotation) {
-          if (param.defaultValue !== undefined)
-            children.push(param.defaultValue);
-          children.push(...typeRefChildren(param.typeRef));
-        }
-      }
       return children;
     }
 

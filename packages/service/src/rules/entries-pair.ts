@@ -21,7 +21,7 @@
  * lists that do not come from `.entries`, and host data.
  */
 
-import { BUILTIN_METHODS } from '@rcrsr/rill';
+import { BUILTIN_METHODS, formatTypeRef } from '@rcrsr/rill';
 import type {
   ASTNode,
   PipeChainNode,
@@ -32,7 +32,6 @@ import type {
   VariableNode,
 } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
-import { typeRefToString } from '../type-rendering.js';
 import {
   getCollectionOpBody,
   getMethodName,
@@ -84,7 +83,7 @@ function innerValueType(type: TypeRef): string | null {
   return inner.args?.length === 1 &&
     only !== undefined &&
     only.name === undefined
-    ? typeRefToString(only.value)
+    ? formatTypeRef(only.value)
     : 'any';
 }
 
@@ -93,7 +92,7 @@ function checkMessage(
   valueType: string,
   site: CheckSite
 ): string {
-  const typeText = typeRefToString(type);
+  const typeText = formatTypeRef(type);
   const subject = 'This .entries result is a list of tuples';
   const advice = `check list(tuple(string, ${valueType})) instead`;
   if (site === 'probe') {

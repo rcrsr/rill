@@ -352,7 +352,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     it('evaluates complex pipe chains with multiple operations', async () => {
       const result = await run(`
         list[1, 2, 3, 4, 5]
-        -> fan(|x| { $x * 2 })
+        -> fan(fn(x) { $x * 2 })
         -> filter({ $ > 5 })
         -> fold(0, { $@ + $ })
       `);
@@ -362,7 +362,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     it('handles closures with captured variables', async () => {
       const result = await run(`
         10 => $outer
-        |x| { $x + $outer } => $addTen
+        fn(x) { $x + $outer } => $addTen
         5 -> $addTen()
       `);
       expect(result).toBe(15);
@@ -563,9 +563,9 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       });
 
       it('type assertion failure with closure expected, got string', async () => {
-        await expectHalt(() => run('"not a function" :closure'), {
+        await expectHalt(() => run('"not a function" :fn'), {
           code: 'TYPE_MISMATCH',
-          messagePattern: /expected closure.*got string/,
+          messagePattern: /expected fn.*got string/,
         });
       });
     });

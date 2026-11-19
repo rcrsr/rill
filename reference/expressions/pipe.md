@@ -157,7 +157,7 @@ list[1, 2, 3] -> take(2)
 ```
 
 ```rill
-|| { 1 } => $zero
+fn() { 1 } => $zero
 # Error: RILL-R045 Function expects 0 arguments, got 1
 5 -> $zero
 ```

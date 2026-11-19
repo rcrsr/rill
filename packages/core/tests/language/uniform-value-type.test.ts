@@ -13,7 +13,7 @@
  * Implementation notes:
  * - Spec uses {key: val} pseudocode; rill dict literals use [key: val]
  *   or dict[key: val] syntax.
- * - Zero-param closures in dict values use ||{ body } syntax.
+ * - Zero-param closures in dict values use fn() { body } syntax.
  * - RuntimeError stores error code in errorId, not code.
  */
 
@@ -31,7 +31,7 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
     it('dict(closure) passes when all values are callable [AC-1]', async () => {
       // All values must be closures for dict(closure) to pass
       const result = await run(
-        '[name: ||{ "a" }, run: ||{ 1 }] -> dict(closure)'
+        '[name: fn() { "a" }, run: fn() { 1 }] -> dict(fn)'
       );
       expect(result).toHaveProperty('name');
       expect(result).toHaveProperty('run');
@@ -39,7 +39,7 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
 
     it('ordered(closure) passes when all values are callable [AC-2]', async () => {
       const result = await run(
-        'ordered[name: ||{ "a" }, run: ||{ 1 }] -> ordered(closure)'
+        'ordered[name: fn() { "a" }, run: fn() { 1 }] -> ordered(fn)'
       );
       expect(result).toHaveProperty('entries');
     });
@@ -92,21 +92,21 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
 
   describe('Error cases for uniform assertions', () => {
     it('string value fails dict(closure) [AC-10, EC-3]', async () => {
-      await expectHalt(() => run('[name: "a", run: "b"] -> dict(closure)'), {
+      await expectHalt(() => run('[name: "a", run: "b"] -> dict(fn)'), {
         code: 'RILL_R036',
       });
     });
 
-    it('dict(closure, name: string) halts for mixed args [AC-11, EC-1]', async () => {
+    it('dict(fn, name: string) halts for mixed args [AC-11, EC-1]', async () => {
       await expectHaltMessage(
-        () => run('dict(closure, name: string)'),
+        () => run('dict(fn, name: string)'),
         'dict() cannot mix positional and named arguments'
       );
     });
 
-    it('ordered(closure, name: string) halts for mixed args [AC-12, EC-1]', async () => {
+    it('ordered(fn, name: string) halts for mixed args [AC-12, EC-1]', async () => {
       await expectHaltMessage(
-        () => run('ordered(closure, name: string)'),
+        () => run('ordered(fn, name: string)'),
         'ordered() cannot mix positional and named arguments'
       );
     });
@@ -132,13 +132,13 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
   describe('Error message format', () => {
     it('failed dict(closure) conversion message names the failing field [AC-9, EC-3]', async () => {
       await expectHaltMessage(
-        () => run('[name: "a", run: "b"] -> dict(closure)'),
-        "cannot convert string to closure (field 'name')"
+        () => run('[name: "a", run: "b"] -> dict(fn)'),
+        "cannot convert string to fn (field 'name')"
       );
     });
 
     it('failed dict(closure) conversion uses RILL-R036 [EC-3]', async () => {
-      await expectHalt(() => run('[name: "a", run: "b"] -> dict(closure)'), {
+      await expectHalt(() => run('[name: "a", run: "b"] -> dict(fn)'), {
         code: 'RILL_R036',
       });
     });
@@ -150,7 +150,7 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
 
   describe('Boundary conditions', () => {
     it('empty dict passes dict(closure) [AC-15]', async () => {
-      const result = await run('dict[] -> dict(closure)');
+      const result = await run('dict[] -> dict(fn)');
       expect(result).toEqual({});
     });
 
@@ -174,11 +174,11 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
     });
 
     it('dynamic key extract from dict(closure) carries no uniform type [AC-20]', async () => {
-      // Auto-invoking closures (||{ body }) resolve to their return value
+      // Auto-invoking closures (fn() { body }) resolve to their return value
       // on access. The extracted value is a plain value, not a closure
       // with uniform type metadata.
       const script = `
-        dict[run: ||{ 42 }] -> dict(closure) => $d
+        dict[run: fn() { 42 }] -> dict(fn) => $d
         "run" => $key
         $d.$key
       `;

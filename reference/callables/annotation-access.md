@@ -3,7 +3,7 @@ id: annotation-access
 title: Annotation access
 status: normative
 since: 0.24.0
-issues: [624]
+issues: []
 grammar: [annotation-access, annotation-existence]
 errors: [RILL-R003, RILL-R008]
 depends: [annotation]
@@ -64,19 +64,19 @@ and `.^effective` read a value's type (`introspection.type-probe`, `carried-type
 
 ## Examples
 
-```rill pending=624
+```rill
 ^(min: 0, max: 100) fn(x) { $x } => $f
 tuple[$f.^min, $f.^max]
 # Result: tuple[0, 100]
 ```
 
-```rill pending=624
+```rill
 ^("adds one") fn(x) { $x + 1 } => $f
 $f.^description
 # Result: "adds one"
 ```
 
-```rill pending=624
+```rill
 fn(x) { $x } => $f
 $f.^unit ?? "none"
 # Result: "none"
@@ -95,7 +95,7 @@ $v.?^a
 ```
 
 ```rill
-|x|($x) => $f
+fn(x) { $x } => $f
 $f.?^type
 # Result: false
 ```

@@ -50,10 +50,10 @@ describe('Invalid value in string interpolation', () => {
   });
 
   it('halts RILL-R036 when a closure is interpolated', async () => {
-    await expectHalt(() => runRecovered('|a|($a) => $fn\n"{$fn}"'), {
+    await expectHalt(() => runRecovered('fn(a) { $a } => $fn\n"{$fn}"'), {
       code: 'RILL_R036',
       hostErrorId: 'RILL-R036',
-      messagePattern: /cannot convert closure to string/,
+      messagePattern: /cannot convert fn to string/,
     });
   });
 
@@ -66,12 +66,8 @@ describe('Invalid value in string interpolation', () => {
   });
 
   it.each([
-    ['list', '"{list[$f]}"', /cannot convert list to string: contains closure/],
-    [
-      'dict',
-      '"{dict[a: $f]}"',
-      /cannot convert dict to string: contains closure/,
-    ],
+    ['list', '"{list[$f]}"', /cannot convert list to string: contains fn/],
+    ['dict', '"{dict[a: $f]}"', /cannot convert dict to string: contains fn/],
     [
       'tuple',
       '"{tuple[$it]}"',
@@ -80,13 +76,13 @@ describe('Invalid value in string interpolation', () => {
     [
       'ordered',
       '"{ordered[a: $f]}"',
-      /cannot convert ordered to string: contains closure/,
+      /cannot convert ordered to string: contains fn/,
     ],
   ])(
     'halts RILL-R036 when a %s holding a callable is interpolated',
     async (_name, interp, messagePattern) => {
       await expectHalt(
-        () => runRecovered(`|a|($a) => $f\nrange(0, 3) => $it\n${interp}`),
+        () => runRecovered(`fn(a) { $a } => $f\nrange(0, 3) => $it\n${interp}`),
         { code: 'RILL_R036', hostErrorId: 'RILL-R036', messagePattern }
       );
     }
@@ -94,7 +90,7 @@ describe('Invalid value in string interpolation', () => {
 
   it('guard around a nested interpolation yields the R036 code', async () => {
     const result = await runRecovered(
-      '|a|($a) => $f\nguard { "{list[$f]}" } => $r\n$r.!code == #RILL_R036'
+      'fn(a) { $a } => $f\nguard { "{list[$f]}" } => $r\n$r.!code == #RILL_R036'
     );
     expect(result).toBe(true);
   });

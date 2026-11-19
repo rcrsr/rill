@@ -3,7 +3,7 @@ id: introspection
 title: Type introspection
 status: normative
 since: 0.24.0
-issues: [595, 624, 633]
+issues: [595, 633]
 errors: [RILL-R003]
 depends: [type-value, structural-typing, any, carried-type]
 tests: [type-inner-outer.test.ts, type-values.test.ts, declared-types.test.ts, unspecified-type-args.test.ts]
@@ -142,7 +142,7 @@ union("b", "a").inner
 # Result: list["a", "b"]
 ```
 
-```rill pending=624
+```rill
 fn(a: string, b: number) { $a } => $f
 $f.^type.inner == ordered[a: string, b: number]
 # Result: true

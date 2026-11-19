@@ -112,45 +112,53 @@ const EQUALITY_METHODS = {
 
 export const STRING_METHODS = Object.freeze({
   len: buildMethodEntry('len', SIG_LEN, mLen),
-  trim: buildMethodEntry('trim', '||:string', mTrim),
+  trim: buildMethodEntry('trim', 'fn():string', mTrim),
   head: buildMethodEntry('head', SIG_HEAD, mHead, true),
   tail: buildMethodEntry('tail', SIG_TAIL, mTail, true),
   first: buildMethodEntry('first', SIG_FIRST, mFirst, true),
   at: buildMethodEntry('at', SIG_AT, mAt, true),
-  split: buildMethodEntry('split', '|separator: string = "\\n"|:list', mSplit),
-  lines: buildMethodEntry('lines', '||:list', mLines),
+  split: buildMethodEntry(
+    'split',
+    'fn(separator: string = "\\n"):list',
+    mSplit
+  ),
+  lines: buildMethodEntry('lines', 'fn():list', mLines),
   empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
   starts_with: buildMethodEntry(
     'starts_with',
-    '|prefix: string|:bool',
+    'fn(prefix: string):bool',
     mStartsWith
   ),
-  ends_with: buildMethodEntry('ends_with', '|suffix: string|:bool', mEndsWith),
-  lower: buildMethodEntry('lower', '||:string', mLower),
-  upper: buildMethodEntry('upper', '||:string', mUpper),
+  ends_with: buildMethodEntry(
+    'ends_with',
+    'fn(suffix: string):bool',
+    mEndsWith
+  ),
+  lower: buildMethodEntry('lower', 'fn():string', mLower),
+  upper: buildMethodEntry('upper', 'fn():string', mUpper),
   replace: buildMethodEntry(
     'replace',
-    '|pattern: string, replacement: string|:string',
+    'fn(pattern: string, replacement: string):string',
     mReplace
   ),
   replace_all: buildMethodEntry(
     'replace_all',
-    '|pattern: string, replacement: string|:string',
+    'fn(pattern: string, replacement: string):string',
     mReplaceAll
   ),
-  contains: buildMethodEntry('contains', '|search: string|:bool', mContains),
-  match: buildMethodEntry('match', '|pattern: string|:dict', mMatch),
-  is_match: buildMethodEntry('is_match', '|pattern: string|:bool', mIsMatch),
-  index_of: buildMethodEntry('index_of', '|search: string|:number', mIndexOf),
-  repeat: buildMethodEntry('repeat', '|count: number|:string', mRepeat),
+  contains: buildMethodEntry('contains', 'fn(search: string):bool', mContains),
+  match: buildMethodEntry('match', 'fn(pattern: string):dict', mMatch),
+  is_match: buildMethodEntry('is_match', 'fn(pattern: string):bool', mIsMatch),
+  index_of: buildMethodEntry('index_of', 'fn(search: string):number', mIndexOf),
+  repeat: buildMethodEntry('repeat', 'fn(count: number):string', mRepeat),
   pad_start: buildMethodEntry(
     'pad_start',
-    '|length: number, fill: string = " "|:string',
+    'fn(length: number, fill: string = " "):string',
     mPadStart
   ),
   pad_end: buildMethodEntry(
     'pad_end',
-    '|length: number, fill: string = " "|:string',
+    'fn(length: number, fill: string = " "):string',
     mPadEnd
   ),
   ...EQUALITY_METHODS,
@@ -166,23 +174,23 @@ export const LIST_METHODS = Object.freeze({
   tail: buildMethodEntry('tail', SIG_TAIL, mTail, true),
   first: buildMethodEntry('first', SIG_FIRST, mFirst, true),
   at: buildMethodEntry('at', SIG_AT, mAt, true),
-  join: buildMethodEntry('join', '|separator: string = ","|:string', mJoin),
+  join: buildMethodEntry('join', 'fn(separator: string = ","):string', mJoin),
   empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
   ...EQUALITY_METHODS,
-  has: buildMethodEntry('has', '|value: any|:bool', mHas, true),
+  has: buildMethodEntry('has', 'fn(value: any):bool', mHas, true),
   has_any: buildMethodEntry(
     'has_any',
-    '|candidates: list|:bool',
+    'fn(candidates: list):bool',
     mHasAny,
     true
   ),
   has_all: buildMethodEntry(
     'has_all',
-    '|candidates: list|:bool',
+    'fn(candidates: list):bool',
     mHasAll,
     true
   ),
-  reverse: buildMethodEntry('reverse', '||:list', mReverse),
+  reverse: buildMethodEntry('reverse', 'fn():list', mReverse),
 });
 
 export const DICT_METHODS = Object.freeze({
@@ -190,9 +198,9 @@ export const DICT_METHODS = Object.freeze({
   first: buildMethodEntry('first', SIG_FIRST, mFirst, true),
   empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
   ...EQUALITY_METHODS,
-  keys: buildMethodEntry('keys', '||:list', mKeys, true),
-  values: buildMethodEntry('values', '||:list', mValues, true),
-  entries: buildMethodEntry('entries', '||:list', mEntries, true),
+  keys: buildMethodEntry('keys', 'fn():list', mKeys, true),
+  values: buildMethodEntry('values', 'fn():list', mValues, true),
+  entries: buildMethodEntry('entries', 'fn():list', mEntries, true),
 });
 
 export const NUMBER_METHODS = Object.freeze({
@@ -211,23 +219,23 @@ export const BOOL_METHODS = Object.freeze({
 // The 7 vector methods do not belong to string/list/dict/number/bool.
 // Adding this group ensures all 42 methods are accessible.
 export const VECTOR_METHODS = Object.freeze({
-  dimensions: buildMethodEntry('dimensions', '||:number', mDimensions, true),
-  model: buildMethodEntry('model', '||:string', mModel, true),
+  dimensions: buildMethodEntry('dimensions', 'fn():number', mDimensions, true),
+  model: buildMethodEntry('model', 'fn():string', mModel, true),
   similarity: buildMethodEntry(
     'similarity',
-    '|other: any|:number',
+    'fn(other: any):number',
     mSimilarity,
     true
   ),
-  dot: buildMethodEntry('dot', '|other: any|:number', mDot, true),
+  dot: buildMethodEntry('dot', 'fn(other: any):number', mDot, true),
   distance: buildMethodEntry(
     'distance',
-    '|other: any|:number',
+    'fn(other: any):number',
     mDistance,
     true
   ),
-  norm: buildMethodEntry('norm', '||:number', mNorm, true),
-  normalize: buildMethodEntry('normalize', '||:any', mNormalize, true),
+  norm: buildMethodEntry('norm', 'fn():number', mNorm, true),
+  normalize: buildMethodEntry('normalize', 'fn():any', mNormalize, true),
   ...EQUALITY_METHODS,
 });
 
@@ -236,36 +244,46 @@ export const VECTOR_METHODS = Object.freeze({
 // because the receiver is always a RillDatetime discriminated by __rill_datetime.
 export const DATETIME_METHODS = Object.freeze({
   // Component properties
-  year: buildMethodEntry('year', '||:number', mDtYear, true),
-  month: buildMethodEntry('month', '||:number', mDtMonth, true),
-  day: buildMethodEntry('day', '||:number', mDtDay, true),
-  hour: buildMethodEntry('hour', '||:number', mDtHour, true),
-  minute: buildMethodEntry('minute', '||:number', mDtMinute, true),
-  second: buildMethodEntry('second', '||:number', mDtSecond, true),
-  ms: buildMethodEntry('ms', '||:number', mDtMs, true),
-  unix: buildMethodEntry('unix', '||:number', mDtUnix, true),
-  weekday: buildMethodEntry('weekday', '||:number', mDtWeekday, true),
-  zero: buildMethodEntry('zero', '||:datetime', mDtZero, true),
+  year: buildMethodEntry('year', 'fn():number', mDtYear, true),
+  month: buildMethodEntry('month', 'fn():number', mDtMonth, true),
+  day: buildMethodEntry('day', 'fn():number', mDtDay, true),
+  hour: buildMethodEntry('hour', 'fn():number', mDtHour, true),
+  minute: buildMethodEntry('minute', 'fn():number', mDtMinute, true),
+  second: buildMethodEntry('second', 'fn():number', mDtSecond, true),
+  ms: buildMethodEntry('ms', 'fn():number', mDtMs, true),
+  unix: buildMethodEntry('unix', 'fn():number', mDtUnix, true),
+  weekday: buildMethodEntry('weekday', 'fn():number', mDtWeekday, true),
+  zero: buildMethodEntry('zero', 'fn():datetime', mDtZero, true),
 
   // String formatting methods
-  iso: buildMethodEntry('iso', '|offset: number = 0|:string', mDtIso, true),
-  date: buildMethodEntry('date', '|offset: number = 0|:string', mDtDate, true),
-  time: buildMethodEntry('time', '|offset: number = 0|:string', mDtTime, true),
+  iso: buildMethodEntry('iso', 'fn(offset: number = 0):string', mDtIso, true),
+  date: buildMethodEntry(
+    'date',
+    'fn(offset: number = 0):string',
+    mDtDate,
+    true
+  ),
+  time: buildMethodEntry(
+    'time',
+    'fn(offset: number = 0):string',
+    mDtTime,
+    true
+  ),
 
   // Local properties
-  local_iso: buildMethodEntry('local_iso', '||:string', mDtLocalIso, true),
-  local_date: buildMethodEntry('local_date', '||:string', mDtLocalDate, true),
-  local_time: buildMethodEntry('local_time', '||:string', mDtLocalTime, true),
+  local_iso: buildMethodEntry('local_iso', 'fn():string', mDtLocalIso, true),
+  local_date: buildMethodEntry('local_date', 'fn():string', mDtLocalDate, true),
+  local_time: buildMethodEntry('local_time', 'fn():string', mDtLocalTime, true),
   local_offset: buildMethodEntry(
     'local_offset',
-    '||:number',
+    'fn():number',
     mDtLocalOffset,
     true
   ),
 
   // Arithmetic methods
-  add: buildMethodEntry('add', '|dur: any|:datetime', mDtAdd, true),
-  diff: buildMethodEntry('diff', '|other: any|:duration', mDtDiff, true),
+  add: buildMethodEntry('add', 'fn(dur: any):datetime', mDtAdd, true),
+  diff: buildMethodEntry('diff', 'fn(other: any):duration', mDtDiff, true),
 
   // Comparison methods
   ...EQUALITY_METHODS,
@@ -280,27 +298,27 @@ export const DATETIME_METHODS = Object.freeze({
 // discriminated by __rill_duration.
 export const DURATION_METHODS = Object.freeze({
   // Decomposition properties
-  months: buildMethodEntry('months', '||:number', mDurMonths, true),
-  days: buildMethodEntry('days', '||:number', mDurDays, true),
-  hours: buildMethodEntry('hours', '||:number', mDurHours, true),
-  minutes: buildMethodEntry('minutes', '||:number', mDurMinutes, true),
-  seconds: buildMethodEntry('seconds', '||:number', mDurSeconds, true),
-  ms: buildMethodEntry('ms', '||:number', mDurMs, true),
-  total_ms: buildMethodEntry('total_ms', '||:number', mDurTotalMs, true),
-  display: buildMethodEntry('display', '||:string', mDurDisplay, true),
-  zero: buildMethodEntry('zero', '||:duration', mDurZero, true),
+  months: buildMethodEntry('months', 'fn():number', mDurMonths, true),
+  days: buildMethodEntry('days', 'fn():number', mDurDays, true),
+  hours: buildMethodEntry('hours', 'fn():number', mDurHours, true),
+  minutes: buildMethodEntry('minutes', 'fn():number', mDurMinutes, true),
+  seconds: buildMethodEntry('seconds', 'fn():number', mDurSeconds, true),
+  ms: buildMethodEntry('ms', 'fn():number', mDurMs, true),
+  total_ms: buildMethodEntry('total_ms', 'fn():number', mDurTotalMs, true),
+  display: buildMethodEntry('display', 'fn():string', mDurDisplay, true),
+  zero: buildMethodEntry('zero', 'fn():duration', mDurZero, true),
 
   // Arithmetic methods
-  add: buildMethodEntry('add', '|dur: any|:duration', mDurAdd, true),
+  add: buildMethodEntry('add', 'fn(dur: any):duration', mDurAdd, true),
   subtract: buildMethodEntry(
     'subtract',
-    '|other: any|:duration',
+    'fn(other: any):duration',
     mDurSubtract,
     true
   ),
   multiply: buildMethodEntry(
     'multiply',
-    '|n: any|:duration',
+    'fn(n: any):duration',
     mDurMultiply,
     true
   ),
@@ -318,8 +336,8 @@ export const TUPLE_METHODS = Object.freeze({
 export const ORDERED_METHODS = Object.freeze({
   empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
   len: buildMethodEntry('len', SIG_LEN, mLen),
-  keys: buildMethodEntry('keys', '||:list', mKeys, true),
-  values: buildMethodEntry('values', '||:list', mValues, true),
-  entries: buildMethodEntry('entries', '||:list', mEntries, true),
+  keys: buildMethodEntry('keys', 'fn():list', mKeys, true),
+  values: buildMethodEntry('values', 'fn():list', mValues, true),
+  entries: buildMethodEntry('entries', 'fn():list', mEntries, true),
   ...EQUALITY_METHODS,
 });

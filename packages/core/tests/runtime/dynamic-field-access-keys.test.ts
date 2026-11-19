@@ -166,7 +166,7 @@ describe('Dynamic field access keys', () => {
       ['dict[x: 1]', 'dict'],
       ['list[1]', 'list'],
       ['true', 'bool'],
-      ['|x|($x)', 'closure'],
+      ['fn(x) { $x }', 'fn'],
     ])('rejects a %s key on a plain dict', async (keyExpr, typeName) => {
       await expectHalt(() => run(`dict[a: 1] => $d\n${keyExpr} => $k\n$d.$k`), {
         code: 'TYPE_MISMATCH',
@@ -257,7 +257,7 @@ describe('Dynamic field access keys', () => {
       ['dict[x: 1]', 'dict'],
       ['list[1]', 'list'],
       ['true', 'bool'],
-      ['|x|($x)', 'closure'],
+      ['fn(x) { $x }', 'fn'],
     ])('rejects a %s bracket key on a plain dict', async (expr, typeName) => {
       await expectHalt(() => run(`dict[a: 1] => $d\n$d[${expr}]`), {
         code: 'TYPE_MISMATCH',

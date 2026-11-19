@@ -49,130 +49,102 @@ The last row shows the key difference: `( )` requires `$` to already be defined,
 
 ---
 
-## Closure Syntax
+## Function Syntax
 
 ```text
-# Block-closure (implicit $ parameter, desugars to |any|{ body }:any)
+# Bare block (implicit $ parameter when the body reads $)
 { body }
 
-# Zero-parameter closure (property-style, no parameters)
-|| { body }
-||body           # shorthand for simple expressions
+# Zero-parameter function (no parameters, auto-invokes on dict access)
+fn() { body }
 
-# Anonymous typed closure (type-checks piped input)
-|type| { body }
-|type| { body }:returnType    # with return type annotation
+# Unnamed parameters (bind $ and $@, at most two)
+fn(type) { body }
+fn(type):returnType { body }    # with return type annotation
+fn(type, type) { body }         # second parameter binds $@
 
-# Stream closure (yields chunks, returns resolution value)
-|type| { body }:stream(T):R   # chunk type T, resolution type R
+# Named parameters
+fn(x) { body }
+fn(x, y) { body }                   # multiple parameters
+fn(x: string) { body }              # typed parameter
+fn(x = 10) { body }                 # default value (parameter type is any)
+fn(x: number = 10) { body }         # default with explicit type
+fn(x: list(string)) { body }        # parameterized typed parameter
+fn(x: dict(a: number)) { body }     # dict-typed parameter
 
-# With named parameters
-|x| { body }
-|x|body          # shorthand
-|x, y| { body }  # multiple parameters
-|x: string| { body }           # typed parameter
-|x: number = 10| { body }      # default value (type inferred)
-|x: string = "hi"| { body }    # default with explicit type
-|x: list(string)| { body }     # parameterized typed parameter
-|x: dict(a: number)| { body }  # dict-typed parameter
+# Stream function (yields chunks, returns resolution value)
+fn():stream(T):R { body }           # chunk type T, resolution type R
 ```
 
-### Three-Form Closure Model
+A function literal is `fn`, an optional parameter list, an optional `:outer` type, and a block on the same line. `fn { body }` takes the unnamed parameters the body reads: none for a body that reads neither `$` nor `$@`, one for `$`, two for `$@`.
 
-| Form | Syntax | `$` Behavior | Use Case |
-|------|--------|--------------|----------|
-| Bare block | `{ body }` | Piped input (desugars to `\|any\|`) | Untyped transformations, collection operators |
-| Anonymous typed | `\|type\|{ body }` | Piped input, type-checked | Type-safe pipe stages |
-| Named parameter | `\|x: type\|{ body }` | Hard error (RILL-R005) | Named arguments, multi-param closures |
-
-Zero-parameter closures (`\|\|{ body }`) have no `$` binding. Accessing `$` inside one throws RILL-R005.
+The pipe-delimited function literal and the `closure` type name are rejected with RILL-P012, which names the `fn` form.
 
 ---
 
-## Anonymous Typed Closures
+## Unnamed Parameters
 
-Anonymous typed closures use a reserved type keyword as the sole parameter. The syntax is `|type|{ body }`. The closure type-checks the piped input against the declared type and binds it to `$`.
+An unnamed parameter is a type with no name: `fn(string)`. The function type-checks the piped input against that type and binds it to `$`. A second unnamed parameter binds `$@`. A function takes at most two unnamed parameters, never mixes them with named ones, and never gives one a default. Each violation raises RILL-P028.
 
 ### Basic Syntax
 
 ```rill
-"hello" -> |string|{ $ -> .upper }
+"hello" -> fn(string) { $ -> .upper }
 # Result: "HELLO"
 ```
 
 ```rill
-5 -> |number|{ $ * 2 }
+5 -> fn(number) { $ * 2 }
 # Result: 10
 ```
 
-The type keyword before `{` is the input type, not a parameter name. The runtime rejects values that do not match.
+The type before `{` is the input type, not a parameter name. The runtime rejects values that do not match.
 
 ### Return Type Annotation
 
-Append `:type` after the closing `}` to declare and enforce the return type. A mismatch halts with RILL-R004. See [Error Reference](ref-errors.md) for RILL-R004 details.
+Append `:type` after the parameter list to declare and enforce the return type. A mismatch halts with `#TYPE_MISMATCH`.
 
 ```rill
-|number|{ $ * 2 }:number => $double
+fn(number):number { $ * 2 } => $double
 $double(5)
 # Result: 10
 ```
 
-When the body result does not match the declared return type, execution halts with RILL-R004. Use a `text` fence to illustrate the error case:
+When the body result does not match the declared return type, execution halts with a type assertion error. Use a `text` fence to illustrate the error case:
 
 ```text
-# Return type mismatch halts with RILL-R004
-5 -> |number|{ "hello" }:number
-# Error: RILL-R004: Type assertion failed: expected number, got string
+# Return type mismatch halts
+5 -> fn(number):number { "hello" }
+# Error: #TYPE_MISMATCH: Type assertion failed: expected number, got string
 ```
 
 ### Pipe Chain Example
 
-Anonymous typed closures compose naturally in pipe chains:
+Unnamed-parameter functions compose in pipe chains:
 
 ```rill
-"hello" -> |string|{ $ -> .upper } -> |string|{ $ -> .lower }
+"hello" -> fn(string) { $ -> .upper } -> fn(string) { $ -> .lower }
 # Result: "hello"
 ```
 
-### Reserved Type Keywords
+### Parameterized Types
 
-All 12 reserved type keywords are valid as the anonymous typed closure parameter:
-
-| Keyword | Accepts |
-|---------|---------|
-| `string` | String values |
-| `number` | Numeric values |
-| `bool` | Boolean values |
-| `closure` | Closure values |
-| `list` | List values |
-| `dict` | Dict values |
-| `tuple` | Tuple values |
-| `ordered` | Ordered dict values (internal) |
-| `vector` | Vector values |
-| `any` | All value types |
-| `type` | Type values (e.g., `number`, `string` as values) |
-| `stream` | Stream values (use in return annotation: `:stream(T):R`) |
-
-A non-keyword identifier in the same position (e.g., `|x|{ body }`) parses as a named parameter, not an anonymous typed closure.
-
-### Parameterized Anonymous Typed Closures
-
-The `list`, `dict`, `tuple`, and `ordered` keywords accept type arguments in the anonymous typed position for deep structural validation:
+The `list`, `dict`, `tuple`, and `ordered` types accept type arguments for deep structural validation:
 
 ```rill
-[1, 2, 3] -> |list(number)|{ $ -> seq({ $ * 2 }) }
+[1, 2, 3] -> fn(list(number)) { $ -> seq({ $ * 2 }) }
 # Result: list[2, 4, 6]
 ```
 
 ```text
-# Type mismatch with parameterized anonymous type
-["a", "b"] -> |list(number)|{ $ }
-# Error: RILL-R001: Type mismatch: expected list(number), got list(string)
+# Type mismatch with a parameterized unnamed parameter
+["a", "b"] -> fn(list(number)) { $ }
+# Error: Parameter type mismatch: $ expects list(number), got list
 ```
 
 ### Bare Block Desugaring
 
-A bare block `{ body }` desugars to `|any|{ body }:any` at parse time. The runtime produces an identical `ClosureNode` with a `$` parameter typed `any`. These two forms are equivalent:
+A bare block `{ body }` that reads `$` behaves like `fn(any):any { body }`. These two forms are equivalent:
 
 ```rill
 5 -> { $ * 2 }
@@ -180,7 +152,7 @@ A bare block `{ body }` desugars to `|any|{ body }:any` at parse time. The runti
 ```
 
 ```rill
-5 -> |any|{ $ * 2 }:any
+5 -> fn(any):any { $ * 2 }
 # Result: 10
 ```
 
@@ -188,76 +160,93 @@ A bare block `{ body }` desugars to `|any|{ body }:any` at parse time. The runti
 
 | Form | `$` in body | Behavior on violation |
 |------|-------------|----------------------|
-| `{ body }` (bare block) | Piped input, type `any` | N/A — no type check |
-| `\|type\|{ body }` (anonymous typed) | Piped input, type-checked | RILL-R001 on mismatch |
-| `\|x: type\|{ body }` (named param) | Hard error | RILL-R005 |
-| `\|\|{ body }` (zero-param) | Hard error | RILL-R005 |
+| `{ body }` (bare block) | Piped input, type `any` | N/A: no type check |
+| `fn(type) { body }` (unnamed) | Piped input, type-checked | Type mismatch halt |
+| `fn(x: type) { body }` (named) | Hard error | RILL-R005 |
+| `fn() { body }` (zero-param) | Rejected where written | RILL-P029 |
 
-Accessing `$` inside a named-param or zero-param closure is a hard error (RILL-R005) because those forms define no pipe binding.
+Accessing `$` inside a named-param function is a hard error (RILL-R005) because that form defines no pipe binding.
 
 ### Input Type Mismatch
 
-When the piped value does not match the declared type, execution halts with RILL-R001:
+When the piped value does not match the declared type, execution halts:
 
 ```text
-# Input type mismatch halts with RILL-R001
-"hello" -> |number|{ $ * 2 }
-# Error: RILL-R001: Type mismatch: expected number, got string
+# Input type mismatch halts
+"hello" -> fn(number) { $ * 2 }
+# Error: Parameter type mismatch: $ expects number, got string
 ```
 
 ### Zero-Param `$` Error
 
-Accessing `$` in a zero-parameter closure halts with RILL-R005:
+A `fn()` body that reads `$` or `$@` raises RILL-P029 where the function is written. `fn()` declares no parameters, so the body has nothing to bind. Declare an unnamed parameter, a named parameter, or use `fn { body }`:
 
 ```text
-# $ not defined in zero-param closure
-||{ $ } => $fn
-$fn()
-# Error: RILL-R005: $ is not defined in this closure form
+# fn() declares no params, so its body cannot read '$'
+fn() { $ } => $f
+# Error: RILL-P029: fn() declares no params, so its body cannot read '$' or '$@'
 ```
 
-### Reflecting Parameters and Return Type
+```rill
+fn(any) { $ } => $f
+$f(7)
+# Result: 7
+```
 
-`$fn.^type` returns the closure's type. Its `.inner` holds the parameters as an `ordered` of types, and its `.outer` holds the declared return type. Anonymous params use `"$"` as the key name, quoted because `$` is not an identifier. Named params use their declared name.
+---
+
+## Reflecting Parameters and Return Type
+
+`$fn.^type` returns the function's type, printed in the complete form. Its `.inner` holds the parameters: an `ordered` of types for named parameters, a `tuple` of types for unnamed ones, and `ordered[]` for `fn()`. Its `.outer` holds the declared return type.
 
 | Receiver Kind | `.^type.inner` |
 |---|---|
-| Bare block `{ ... }` | `ordered["$": any]` |
-| Anonymous typed `\|string\| { ... }` | `ordered["$": string]` |
-| Named param `\|x: string\| { ... }` | `ordered[x: string]` |
-| Named with default `\|a: string, b: string = "hi"\| { ... }` | `ordered[a: string, b: string]` |
+| Bare block `{ $ * 2 }` | `tuple[any]` |
+| Unnamed `fn(string) { ... }` | `tuple[string]` |
+| Two unnamed `fn(number, number) { ... }` | `tuple[number, number]` |
+| Named `fn(x: string) { ... }` | `ordered[x: string]` |
+| Named with default `fn(a: string, b: string = "hi") { ... }` | `ordered[a: string, b: string]` |
+| Zero-param `fn() { ... }` | `ordered[]` |
 | Non-callable value, such as `1` | Raises RILL-R003 |
 
 ```rill
-|string|{ $ } => $fn
+fn(string) { $ } => $fn
 $fn.^type.inner
-# Result: ordered["$": string]
+# Result: tuple[string]
 ```
 
 ```rill
-|list(string)|{ $ } => $fn
+fn(list(string)) { $ } => $fn
 $fn.^type.inner
-# Result: ordered["$": list(string)]
+# Result: tuple[list(string)]
 ```
 
 ```rill
 { $ * 2 } => $fn
 $fn.^type.inner
-# Result: ordered["$": any]
+# Result: tuple[any]
+```
+
+```rill
+fn(x: string) { $x } => $fn
+$fn.^type.inner
+# Result: ordered[x: string]
 ```
 
 Defaults sit under `.defaults`, which lists only the parameters that have one:
 
 ```rill
-|a: string, b: string = "hi"|{ $a } => $fn
+fn(a: string, b: string = "hi") { $a } => $fn
 $fn.^type.defaults
 # Result: dict[b: "hi"]
 ```
 
-`.outer` returns the declared return type. Unannotated closures return `any`:
+A default does not infer the parameter type. `fn(x = "d")` gives `x` the type `any`; write `fn(x: string = "d")` to constrain it. A function type equals another only when parameter names, types, defaults, and outer type all match, so a function with an extra defaulted parameter does not match a type that omits it.
+
+`.outer` returns the declared return type. An unannotated function returns `any`:
 
 ```rill
-|number|{ $ * 2 }:number => $fn
+fn(number):number { $ * 2 } => $fn
 $fn.^type.outer == number
 # Result: true
 ```
@@ -291,11 +280,11 @@ The block `{ $ + 1 }` produces a closure. When invoked, `$` is bound to the argu
 | Form | Params | `isProperty` | Behavior |
 |------|--------|-------------|----------|
 | `{ body }` (block-closure) | `[{ name: "$" }]` | `false` | Requires argument |
-| `\|\|{ body }` (zero-param) | `[]` | `true` | Auto-invokes on dict access |
+| `fn() { body }` (zero-param) | `[]` | `true` | Auto-invokes on dict access |
 
 ```rill
 { $ * 2 } => $double
-|| { 42 } => $constant
+fn() { 42 } => $constant
 
 5 -> $double          # 10 (requires argument)
 $constant()           # 42 (no argument needed)
@@ -303,7 +292,7 @@ $constant()           # 42 (no argument needed)
 # In dicts
 [
   double: { $ * 2 },
-  constant: || { 42 }
+  constant: fn() { 42 }
 ] => $obj
 
 $obj.double(5)        # 10 (explicit call required)
@@ -319,9 +308,9 @@ Block-closures check type at runtime:
 ```rill
 { $ + 1 } => $fn
 
-$fn.^type == closure  # true
+$fn.^type.name == "fn"  # true
 $fn(5)                # 6
-$fn("text")           # Error: Cannot add string and number
+$fn("text")           # Error: RILL-R002 Arithmetic requires number, got string
 ```
 
 ### Multi-Statement Block-Closures
@@ -358,7 +347,7 @@ $result                # 6 (number, already computed)
 
 # Deferred: braces create closure
 { $ + 1 } => $addOne
-$addOne.^type == closure  # true
+$addOne.^type.name == "fn"  # true
 
 # Practical difference
 (5 + 1) => $six        # 6 (immediate)
@@ -383,11 +372,11 @@ A stream closure emits a sequence of chunks and then resolves with a final value
 ### Annotation Syntax
 
 ```text
-# Stream closure: emits string chunks, resolves to number
-|string| { body }:stream(string):number
+# Stream function: emits string chunks, resolves to number
+fn(string):stream(string):number { body }
 
 # Unconstrained chunk and resolution types
-{ body }:stream()
+fn():stream() { body }
 ```
 
 The annotation `:stream(T):R` on a closure body changes invocation semantics. Calling the closure returns a stream value, not the body result directly.
@@ -403,12 +392,12 @@ Inside a stream closure body, two keywords control output:
 
 ```text
 # Stream closure emitting three string chunks and resolving with a count
-|| {
+fn():stream(string):number {
   "first" -> yield
   "second" -> yield
   "third" -> yield
   return 3
-}:stream(string):number => $producer
+} => $producer
 
 $producer() => $s       # calling the closure returns a stream
 $s -> seq({ $ })        # ["first", "second", "third"]
@@ -423,16 +412,16 @@ $s()                    # 3 (resolution value)
 
 ```text
 # Valid: yield inside inline collection operator block
-|| {
+fn():stream(number):number {
   [1, 2, 3] -> seq({ $ -> yield })
   return 3
-}:stream(number):number
+}
 
 # Invalid: yield inside a stored closure
-|| {
+fn():stream(number):number {
   { $ -> yield } => $fn   # Error: yield not valid in stored closure
   $fn(1)
-}:stream(number):number
+}
 ```
 
 ### Calling a Stream Closure
@@ -454,12 +443,12 @@ $s()                    # get resolution value after stream closes
 [1, 2, 3] -> fold(0, { $@ + $ })    # 6
 
 # stream closure emits outward with yield
-|| {
+fn():stream(number):number {
   1 -> yield
   2 -> yield
   3 -> yield
   return 0
-}:stream(number):number
+}
 ```
 
 For stream type signatures and chunk semantics, see [Types](topic-types.md). For how collection operators consume streams, see [Collections](topic-collections.md).
@@ -474,7 +463,7 @@ Closures resolve captured variables at **call time**, not definition time. This 
 
 ```rill
 10 => $x
-||($x + 5) => $fn
+fn() { $x + 5 } => $fn
 20 => $x
 $fn()    # 25 (sees current $x=20, not $x=10 at definition)
 ```
@@ -482,7 +471,7 @@ $fn()    # 25 (sees current $x=20, not $x=10 at definition)
 ### Recursive Closures
 
 ```rill
-|n| { ($n < 1) ? 1 ! ($n * $factorial($n - 1)) } => $factorial
+fn(n) { ($n < 1) ? 1 ! ($n * $factorial($n - 1)) } => $factorial
 $factorial(5)    # 120
 ```
 
@@ -493,8 +482,8 @@ Recursion is bounded. A chain of nested closure calls deeper than `maxCallDepth`
 ### Mutual Recursion
 
 ```rill
-|n| { ($n == 0) ? true ! $odd($n - 1) } => $even
-|n| { ($n == 0) ? false ! $even($n - 1) } => $odd
+fn(n) { ($n == 0) ? true ! $odd($n - 1) } => $even
+fn(n) { ($n == 0) ? false ! $even($n - 1) } => $odd
 $even(4)    # true
 ```
 
@@ -502,11 +491,11 @@ $even(4)    # true
 
 ```rill
 [
-  || { $helper(1) },
-  || { $helper(2) }
+  fn() { $helper(1) },
+  fn() { $helper(2) }
 ] => $handlers
 
-|n| { $n * 10 } => $helper    # defined after closures
+fn(n) { $n * 10 } => $helper    # defined after closures
 
 $handlers[0]()    # 10
 $handlers[1]()    # 20
@@ -518,8 +507,8 @@ Closures see the current value of captured variables:
 
 ```rill
 0 => $counter
-|| { $counter } => $get
-|| { $counter + 1 } => $getPlus1
+fn() { $counter } => $get
+fn() { $counter + 1 } => $getPlus1
 
 5 => $counter
 
@@ -528,66 +517,91 @@ Closures see the current value of captured variables:
 
 ---
 
-## Dict-Bound Closures
+## Dict-Stored Functions
 
-Closures stored in dicts have `$` late-bound to the containing dict at invocation (like `this` in other languages).
+A function stored in a dict does not receive the dict automatically. A function that needs its dict declares a parameter for it, and the caller pipes the dict in.
 
-### Zero-Arg Closures Auto-Invoke
+### Zero-Arg Functions Auto-Invoke
+
+A `fn()` stored in a dict runs on field access:
 
 ```rill
 [
   name: "toolkit",
   count: 3,
-  summary: || { "{$.name}: {$.count} items" }
+  label: fn() { "toolkit" }
 ] => $obj
 
-$obj.summary    # "toolkit: 3 items" (auto-invoked on access)
+$obj.label
+# Result: "toolkit"
 ```
 
-### Accessing Sibling Fields
+### Reading Sibling Fields
+
+Declare a parameter for the dict and pipe the dict in:
+
+```rill
+[
+  name: "toolkit",
+  count: 3,
+  summary: fn(d) { "{$d.name}: {$d.count} items" }
+] => $obj
+
+$obj -> $obj.summary
+# Result: "toolkit: 3 items"
+```
 
 ```rill
 [
   width: 10,
   height: 5,
-  area: || { $.width * $.height }
+  area: fn(d) { $d.width * $d.height }
 ] => $rect
 
-$rect.area    # 50
+$rect -> $rect.area
+# Result: 50
 ```
 
-### Parameterized Dict Closures
+### Parameterized Dict Functions
+
+Add further parameters after the dict parameter:
 
 ```rill
 [
   name: "tools",
-  greet: |x| { "{$.name} says: {$x}" }
+  greet: fn(d, x) { "{$d.name} says: {$x}" }
 ] => $obj
 
-$obj.greet("hello")    # "tools says: hello"
+$obj.greet($obj, "hello")
+# Result: "tools says: hello"
 ```
 
-### Reusable Closures Across Dicts
+### Reusable Functions Across Dicts
+
+One function serves every dict that has the fields it reads:
 
 ```rill
-|| { "{$.name}: {$.count} items" } => $describer
+fn(d) { "{$d.name}: {$d.count} items" } => $describer
 
 [name: "tools", count: 3, str: $describer] => $obj1
 [name: "actions", count: 5, str: $describer] => $obj2
 
-$obj1.str    # "tools: 3 items"
-$obj2.str    # "actions: 5 items"
+tuple[$obj1 -> $obj1.str, $obj2 -> $obj2.str]
+# Result: tuple["tools: 3 items", "actions: 5 items"]
 ```
 
-### Calling Sibling Methods
+### Calling Sibling Functions
+
+Pass the dict along to reach sibling functions:
 
 ```rill
 [
-  double: |n| { $n * 2 },
-  quad: |n| { $.double($.double($n)) }
+  double: fn(n) { $n * 2 },
+  quad: fn(d, n) { $d.double($d.double($n)) }
 ] => $math
 
-$math.quad(3)    # 12
+$math.quad($math, 3)
+# Result: 12
 ```
 
 ---
@@ -598,9 +612,9 @@ Closures in lists maintain their defining scope. Invoke via bracket access:
 
 ```rill
 [
-  |x| { $x + 1 },
-  |x| { $x * 2 },
-  |x| { $x * $x }
+  fn(x) { $x + 1 },
+  fn(x) { $x * 2 },
+  fn(x) { $x * $x }
 ] => $transforms
 
 $transforms[0](5)    # 6
@@ -611,8 +625,8 @@ $transforms[2](5)    # 25
 ### Chaining List Closures
 
 ```rill
-|n| { $n + 1 } => $inc
-|n| { $n * 2 } => $double
+fn(n) { $n + 1 } => $inc
+fn(n) { $n * 2 } => $double
 
 5 -> chain([$inc, $double, $inc])    # 13: (5+1)*2+1
 ```
@@ -624,51 +638,21 @@ $transforms[2](5)    # 25
 Closures can appear inline in expressions:
 
 ```rill
-[1, 2, 3] -> fan(|x| { $x * 2 })    # list[2, 4, 6]
+[1, 2, 3] -> fan(fn(x) { $x * 2 })    # list[2, 4, 6]
 
-[1, 2, 3] -> filter(|x| { $x > 1 })    # list[2, 3]
+[1, 2, 3] -> filter(fn(x) { $x > 1 })    # list[2, 3]
 
-[1, 2, 3] -> fold(0, |x|($@ + $x))    # 6
+[1, 2, 3] -> fold(0, fn(x) { $@ + $x })    # 6
 ```
 
 ### Inline with Block Bodies
 
 ```rill
-[1, 2, 3] -> fan(|x| {
+[1, 2, 3] -> fan(fn(x) {
   ($x * 10) => $scaled
   "{$x} -> {$scaled}"
 })
 # ["1 -> 10", "2 -> 20", "3 -> 30"]
-```
-
-### Typed Parameters with a Bare Variable Body
-
-A typed closure may use a body without braces, such as `|x: number| $x` or `|x: number| log($x)`. A body that is only a variable may be followed by a comma, so it works as a non-final argument or list element:
-
-```rill
-[1, 2, 3] -> fan(|x: number| $x, dict[concurrency: 2])
-# Result: list[1, 2, 3]
-```
-
-```rill
-list[|x: number| $x, |x: number| ($x * 2)] => $fns
-$fns[1](5)
-# Result: 10
-```
-
-A lone `$name` body followed by a comma still fails when the next element looks like another parameter: `key: $v`, `key: ident...`, a bare identifier followed by `|` or `=`, or by `,` unless it is `true` or `false`, `typename(...)`, `^(...) name` followed by `:`, `,`, `=` or `|`, or `$name |`. The parser reads it as a typed parameter, which fails to parse in most contexts (`RILL-P005` for `key: $v`):
-
-```rill
-dict[f: |x: number| $x, g: $y]
-# Error: Expected |
-```
-
-Wrap the body in `{ }` or `( )` to avoid the ambiguity:
-
-```rill
-dict[f: |x: number| ($x), g: 2] => $d
-$d.f(5)
-# Result: 5
 ```
 
 ---
@@ -678,15 +662,15 @@ $d.f(5)
 Closures can contain closures. Each captures its defining scope:
 
 ```rill
-|n| { || { $n } } => $makeGetter
+fn(n) { fn() { $n } } => $makeGetter
 $makeGetter(42)()    # 42
 ```
 
 ### Closure Factory Pattern
 
 ```rill
-|multiplier| {
-  |x| { $x * $multiplier }
+fn(multiplier) {
+  fn(x) { $x * $multiplier }
 } => $makeMultiplier
 
 $makeMultiplier(3) => $triple
@@ -700,7 +684,7 @@ $tenX(5)      # 50
 
 ```rill
 1 => $x
-|| { || { $x } } => $outer
+fn() { fn() { $x } } => $outer
 5 => $x
 $outer()()    # 5 (inner closure sees updated $x)
 ```
@@ -713,7 +697,7 @@ Closure parameters shadow captured variables of the same name:
 
 ```rill
 100 => $x
-|x| { $x * 2 } => $double
+fn(x) { $x * 2 } => $double
 $double(5)    # 10 (parameter $x=5 shadows captured $x=100)
 ```
 
@@ -729,7 +713,7 @@ Each loop iteration creates a new child scope. Capture variables explicitly to p
 # Capture $ into named variable for each iteration
 [1, 2, 3] -> seq({
   $ => $item
-  || { $item }
+  fn() { $item }
 }) => $closures
 
 [$closures[0](), $closures[1](), $closures[2]()]    # list[1, 2, 3]
@@ -741,7 +725,7 @@ Each loop iteration creates a new child scope. Capture variables explicitly to p
 
 ```rill
 10 => $x
-true ? { || { $x } } ! { || { 0 } } => $fn
+true ? { fn() { $x } } ! { fn() { 0 } } => $fn
 20 => $x
 $fn()    # 20 (late binding sees updated $x)
 ```
@@ -753,7 +737,7 @@ $fn()    # 20 (late binding sees updated $x)
 ### Direct Call
 
 ```rill
-|x| { $x + 1 } => $inc
+fn(x) { $x + 1 } => $inc
 $inc(5)    # 6
 
 { $ + 1 } => $inc
@@ -763,7 +747,7 @@ $inc(5)    # 6 (block-closure)
 ### Pipe Call
 
 ```rill
-|x| { $x + 1 } => $inc
+fn(x) { $x + 1 } => $inc
 5 -> $inc()    # 6
 
 { $ + 1 } => $inc
@@ -777,13 +761,13 @@ Block-closures work seamlessly with pipe syntax since `$` receives the piped val
 Call closures from bracket access or expressions:
 
 ```rill
-[|x| { $x * 2 }] => $fns
+[fn(x) { $x * 2 }] => $fns
 $fns[0](5)    # 10
 
 [{ $ * 2 }] => $fns
 $fns[0](5)    # 10 (block-closure)
 
-|| { |n| { $n * 2 } } => $factory
+fn() { fn(n) { $n * 2 } } => $factory
 $factory()(5)    # 10 (chained invocation)
 ```
 
@@ -810,7 +794,7 @@ Note: `$[0].upper` parses `.upper` as field access on `$list`, not as a method c
 A closure body must produce a value. Invoking a closure with an empty body (or a body containing only comments) raises RILL-R043 at invocation time:
 
 ```text
-|x: number| { } => $fn
+fn(x: number) { } => $fn
 $fn(5)
 # Error: RILL-R043: Closure body produced no value
 ```
@@ -829,7 +813,7 @@ RILL-R043 replaces the former behavior where an empty script raised RILL-R005 ("
 Undefined variables throw an error at call time (rill has no null):
 
 ```text
-|| { $undefined } => $fn
+fn() { $undefined } => $fn
 $fn()    # Error: Undefined variable: $undefined
 ```
 
@@ -843,7 +827,7 @@ $[0]()    # Error: Cannot invoke non-callable value (got number)
 ### Type Errors
 
 ```rill
-|x: string| { $x } => $fn
+fn(x: string) { $x } => $fn
 $fn(42)    # Error: Parameter type mismatch: x expects string, got number
 ```
 

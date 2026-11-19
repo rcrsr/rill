@@ -29,7 +29,7 @@ import { expectRuntimeError } from '../helpers/halt.js';
 const fn = (): RillValue => 'ok';
 
 const FULL_SIGNATURE =
-  '|^(description: "pd") a: union(string, number), b: dict(k: string), c: list(string), d: number = -3, e: string = "x"|:string';
+  'fn(^(description: "pd") a: union(string, number), b: dict(k: string), c: list(string), d: number = -3, e: string = "x"):string';
 
 const strT: TypeStructure = { kind: 'string' };
 const numT: TypeStructure = { kind: 'number' };
@@ -141,10 +141,10 @@ describe('host function signature shorthand', () => {
     it('parses the documented signatures', () => {
       const ctx = createRuntimeContext({
         functions: {
-          log_it: { signature: '|str: string, count: number = 1|:any', fn },
+          log_it: { signature: 'fn(str: string, count: number = 1):any', fn },
           greet: {
             signature:
-              '|^(description: "Person to greet") name: string|:string',
+              'fn(^(description: "Person to greet") name: string):string',
             fn,
           },
         },
@@ -189,7 +189,7 @@ describe('host function signature shorthand', () => {
       const result = await run('echo("hi")', {
         functions: {
           echo: {
-            signature: '|s: string|:string',
+            signature: 'fn(s: string):string',
             fn: (args) => `got ${String(args['s'])}`,
           },
         },
@@ -201,7 +201,7 @@ describe('host function signature shorthand', () => {
       await expectRuntimeError(
         () =>
           run('echo(5)', {
-            functions: { echo: { signature: '|s: string|:string', fn } },
+            functions: { echo: { signature: 'fn(s: string):string', fn } },
           }),
         { code: 'RILL-R001' }
       );
@@ -211,7 +211,7 @@ describe('host function signature shorthand', () => {
   describe('toCallable wiring', () => {
     it('is callable as a variable dict member and keeps isProperty', async () => {
       const callable = toCallable(
-        { signature: '|n: number|:number', fn: (a) => Number(a['n']) * 2 },
+        { signature: 'fn(n: number):number', fn: (a) => Number(a['n']) * 2 },
         true
       );
       expect(callable.isProperty).toBe(true);
@@ -223,24 +223,24 @@ describe('host function signature shorthand', () => {
     });
 
     it('preserves isProperty false by default', () => {
-      expect(toCallable({ signature: '||', fn }).isProperty).toBe(false);
+      expect(toCallable({ signature: 'fn()', fn }).isProperty).toBe(false);
     });
   });
 
   describe('registration-time failure', () => {
     const invalid = [
-      ['two names without a separator', '|a b|', '1:4'],
-      ['trailing tokens', '|a| extra', '1:5'],
-      ['a variable as a type', '|a: $t|', '1:5'],
-      ['an unterminated string', '|a: string = "oops|', '1:14'],
-      ['an error on the second line', '|\n  a: string,\n  b c\n|', '3:5'],
-      ['dict type arguments without names', '|a: dict(string)|', '1:5'],
-      ['list type with two arguments', '|a: list(string, number)|', '1:5'],
-      ['a variable inside tuple arguments', '|a: tuple(string, $t)|', '1:5'],
-      ['a bad return type', '|a: list(string)|:dict(string)', '1:19'],
-      ['an unsupported default literal', '|a: string = foo|', '1:14'],
-      ['a minus without a number', '|a: number = -x|', '1:15'],
-      ['a non-string annotation value', '|^(k: 5) a: string|', '1:7'],
+      ['two names without a separator', 'fn(a b)', '1:6'],
+      ['a body after the parameters', 'fn(a) { extra }', '1:1'],
+      ['a variable as a type', 'fn(a: $t)', '1:4'],
+      ['an unterminated string', 'fn(a: string = "oops)', '1:16'],
+      ['an error on the second line', 'fn(\n  a: string,\n  b c\n)', '3:5'],
+      ['dict type arguments without names', 'fn(a: dict(string))', '1:4'],
+      ['list type with two arguments', 'fn(a: list(string, number))', '1:4'],
+      ['a variable inside tuple arguments', 'fn(a: tuple(string, $t))', '1:4'],
+      ['a bad return type', 'fn(a: list(string)):dict(string)', '1:1'],
+      ['an unsupported default literal', 'fn(a: string = foo)', '1:16'],
+      ['a minus without a number', 'fn(a: number = -x)', '1:16'],
+      ['a non-string annotation value', 'fn(^(k: 5) a: string)', '1:6'],
     ] as const;
 
     it.each(invalid)(
@@ -267,11 +267,11 @@ describe('host function signature shorthand', () => {
 
     it('keeps the original parser error as cause', () => {
       const err = catchRegistration(() =>
-        toCallable({ signature: '|a b|', fn })
+        toCallable({ signature: 'fn(a b)', fn })
       );
       expect(err.cause).toBeInstanceOf(Error);
       expect((err.cause as Error).message).toContain(
-        "expected ',' or '|' between parameters"
+        "Expected ',' or ')' in fn parameter list"
       );
     });
 
@@ -281,13 +281,13 @@ describe('host function signature shorthand', () => {
         createRuntimeContext({
           functions: {
             first: {
-              signature: '||',
+              signature: 'fn()',
               fn: () => {
                 calls += 1;
                 return 'ok';
               },
             },
-            second: { signature: '|a b|', fn },
+            second: { signature: 'fn(a b)', fn },
           },
         })
       ).toThrow(RuntimeError);
@@ -297,7 +297,7 @@ describe('host function signature shorthand', () => {
     it('reports a signature error before the missing-description check', () => {
       const err = catchRegistration(() =>
         createRuntimeContext({
-          functions: { myFn: { signature: '|a b|', fn } },
+          functions: { myFn: { signature: 'fn(a b)', fn } },
           requireDescriptions: true,
         })
       );
@@ -309,7 +309,7 @@ describe('host function signature shorthand', () => {
     it('rejects a shorthand without a function description with R069', () => {
       const err = catchRegistration(() =>
         createRuntimeContext({
-          functions: { myFn: { signature: '|a: string|', fn } },
+          functions: { myFn: { signature: 'fn(a: string)', fn } },
           requireDescriptions: true,
         })
       );
@@ -320,7 +320,7 @@ describe('host function signature shorthand', () => {
       const err = catchRegistration(() =>
         createRuntimeContext({
           functions: {
-            myFn: { signature: '|a: string|', description: 'does it', fn },
+            myFn: { signature: 'fn(a: string)', description: 'does it', fn },
           },
           requireDescriptions: true,
         })
@@ -332,7 +332,7 @@ describe('host function signature shorthand', () => {
       const ctx = createRuntimeContext({
         functions: {
           myFn: {
-            signature: '|^(description: "the input") a: string|',
+            signature: 'fn(^(description: "the input") a: string)',
             description: 'does it',
             fn,
           },
@@ -344,7 +344,7 @@ describe('host function signature shorthand', () => {
   });
 
   describe('mixing forms', () => {
-    const base = { signature: '|a: string|', fn };
+    const base = { signature: 'fn(a: string)', fn };
     const mixed = [
       ['signature with params', { ...base, params: [] }],
       ['signature with returnType', { ...base, returnType: anyTypeValue }],
@@ -371,7 +371,7 @@ describe('host function signature shorthand', () => {
   describe('annotation sources', () => {
     it('rejects description declared by field and by function annotation', () => {
       const def: RillFunctionDefinition = {
-        signature: '^(description: "d") |a: string|',
+        signature: '^(description: "d") fn(a: string)',
         description: 'other',
         fn,
       };
@@ -385,7 +385,7 @@ describe('host function signature shorthand', () => {
     it('rejects an annotations option colliding with a signature annotation', () => {
       const err = catchRegistration(() =>
         toCallable({
-          signature: '^(category: "io") |a: string|',
+          signature: '^(category: "io") fn(a: string)',
           annotations: { category: 'x' },
           fn,
         })
@@ -397,7 +397,7 @@ describe('host function signature shorthand', () => {
     it('keeps a __proto__ function annotation as an own property', async () => {
       const ctx = createRuntimeContext({
         functions: {
-          f: { signature: '^(__proto__: "p") |a: string|', fn },
+          f: { signature: '^(__proto__: "p") fn(a: string)', fn },
         },
       });
       const annotations = ctx.functions.get('f')?.annotations ?? {};
@@ -407,7 +407,7 @@ describe('host function signature shorthand', () => {
       expect(Object.getPrototypeOf(annotations)).toBe(Object.prototype);
       const viaScript = await run('$f.^__proto__', {
         variables: {
-          f: toCallable({ signature: '^(__proto__: "p") |a: string|', fn }),
+          f: toCallable({ signature: '^(__proto__: "p") fn(a: string)', fn }),
         },
       });
       expect(viaScript).toBe('p');
@@ -417,10 +417,10 @@ describe('host function signature shorthand', () => {
   describe('field type validation', () => {
     it.each([
       ['non-string signature', { signature: 42, fn }],
-      ['non-string description', { signature: '||', description: 7, fn }],
-      ['string annotations', { signature: '||', annotations: 'abc', fn }],
-      ['array annotations', { signature: '||', annotations: ['a'], fn }],
-      ['null annotations', { signature: '||', annotations: null, fn }],
+      ['non-string description', { signature: 'fn()', description: 7, fn }],
+      ['string annotations', { signature: 'fn()', annotations: 'abc', fn }],
+      ['array annotations', { signature: 'fn()', annotations: ['a'], fn }],
+      ['null annotations', { signature: 'fn()', annotations: null, fn }],
     ])('rejects a %s with R091 from both entry points', (_l, def) => {
       const typed = def as unknown as RillFunctionDefinition;
       const viaContext = catchRegistration(() =>
@@ -444,25 +444,26 @@ describe('host function signature shorthand', () => {
   });
 
   describe('defaults and edge forms', () => {
-    it('keeps RILL-R077 for a default that mismatches its type', () => {
+    it('rejects a default that mismatches its type with RILL-R091', () => {
       const err = catchRegistration(() =>
         createRuntimeContext({
-          functions: { myFn: { signature: '|x: number = "a"|', fn } },
+          functions: { myFn: { signature: 'fn(x: number = "a")', fn } },
         })
       );
-      expect(err.errorId).toBe('RILL-R077');
+      expect(err.errorId).toBe('RILL-R091');
+      expect(err.message).toMatch(/must be number, got string/);
     });
 
-    it('treats || as empty params', () => {
+    it('treats fn() as empty params', () => {
       const ctx = createRuntimeContext({
-        functions: { f: { signature: '||', fn } },
+        functions: { f: { signature: 'fn()', fn } },
       });
       expect(getFunctions(ctx)[0]?.params).toEqual([]);
     });
 
     it('defaults an omitted return type to any', async () => {
       const out = await reflect(
-        { signature: '|a: string|', fn },
+        { signature: 'fn(a: string)', fn },
         '^type.outer'
       );
       const explicit = await reflect(
@@ -487,7 +488,7 @@ describe('host function signature shorthand', () => {
     it('carries dict field defaults of each literal kind', () => {
       expect(
         firstParamType(
-          '|d: dict(a: number, s: string = "x", t: bool = true, n: number = -2)|'
+          'fn(d: dict(a: number, s: string = "x", t: bool = true, n: number = -2))'
         )
       ).toEqual({
         kind: 'dict',
@@ -501,12 +502,12 @@ describe('host function signature shorthand', () => {
     });
 
     it('carries trailing tuple defaults and nested dict defaults', () => {
-      expect(firstParamType('|d: tuple(string, number = 0)|')).toEqual({
+      expect(firstParamType('fn(d: tuple(string, number = 0))')).toEqual({
         kind: 'tuple',
         elements: [{ type: strT }, { type: numT, defaultValue: 0 }],
       });
       expect(
-        firstParamType('|d: dict(o: dict(x: number, y: number = 1))|')
+        firstParamType('fn(d: dict(o: dict(x: number, y: number = 1)))')
       ).toEqual({
         kind: 'dict',
         fields: {
@@ -522,7 +523,7 @@ describe('host function signature shorthand', () => {
 
     it('accepts a field default in the return type', async () => {
       const out = await reflect(
-        { signature: '||:dict(a: number, b: number = 0)', fn },
+        { signature: 'fn():dict(a: number, b: number = 0)', fn },
         '^type.outer'
       );
       const explicit = await reflect(
@@ -543,7 +544,7 @@ describe('host function signature shorthand', () => {
       const result = await run('f(dict[a: 1])', {
         functions: {
           f: {
-            signature: '|d: dict(a: number, b: number = 0)|',
+            signature: 'fn(d: dict(a: number, b: number = 0))',
             fn: (args) => args['d'] ?? '',
           },
         },
@@ -552,7 +553,7 @@ describe('host function signature shorthand', () => {
     });
 
     it('rejects a field default that mismatches its type with RILL-R091', () => {
-      const err = registrationError('|d: dict(a: number, b: number = "x")|');
+      const err = registrationError('fn(d: dict(a: number, b: number = "x"))');
       expect(err.errorId).toBe('RILL-R091');
       expect(err.message).toMatch(
         /Default value for field 'b' must be number, got string/
@@ -560,21 +561,52 @@ describe('host function signature shorthand', () => {
     });
 
     it('rejects a default on the list element type with RILL-R091', () => {
-      const err = registrationError('|d: list(number = 1)|');
+      const err = registrationError('fn(d: list(number = 1))');
       expect(err.errorId).toBe('RILL-R091');
       expect(err.message).toMatch(/list element type cannot carry a default/);
     });
 
     it('rejects a non-trailing tuple default with RILL-R091', () => {
-      const err = registrationError('|d: tuple(number = 1, string)|');
+      const err = registrationError('fn(d: tuple(number = 1, string))');
       expect(err.errorId).toBe('RILL-R091');
       expect(err.message).toMatch(/default values must be trailing/);
     });
 
     it('rejects a non-literal field default with RILL-R091', () => {
-      const err = registrationError('|d: dict(a: number = $x)|');
+      const err = registrationError('fn(d: dict(a: number = $x))');
       expect(err.errorId).toBe('RILL-R091');
-      expect(err.message).toMatch(/unsupported default value/);
+      expect(err.message).toMatch(/Expected literal/);
+    });
+  });
+
+  describe('fn-typed signatures', () => {
+    function registrationError(signature: string): RuntimeError {
+      return catchRegistration(() =>
+        createRuntimeContext({ functions: { f: { signature, fn } } })
+      );
+    }
+
+    it('registers a callback parameter typed as a fn signature', () => {
+      const callable = toCallable({
+        signature: 'fn(cb: fn(string):bool):list',
+        fn,
+      });
+      expect(callable.params.map((p) => p.name)).toEqual(['cb']);
+      expect(callable.params[0]?.type?.kind).toBe('fn');
+    });
+
+    it('rejects an unnamed param default with RILL-R091 carrying the unnamed-param text', () => {
+      const err = registrationError('fn(number = 1)');
+      expect(err.errorId).toBe('RILL-R091');
+      expect(err.message).toMatch(/unnamed fn param takes no default/);
+    });
+
+    it.each([
+      ['unnamed params', 'fn(string)'],
+      ['a bare fn', 'fn'],
+      ['a body', 'fn(a: string) { $a }'],
+    ])('rejects %s with RILL-R091', (_label, signature) => {
+      expect(registrationError(signature).errorId).toBe('RILL-R091');
     });
   });
 

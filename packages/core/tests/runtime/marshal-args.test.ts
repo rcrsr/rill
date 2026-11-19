@@ -633,9 +633,9 @@ describe('marshalArgs', () => {
     });
   });
 
-  describe('IC-3: closure params with defaultValue marshal correctly', () => {
-    it('marshals closure-style params where trailing defaults fill omitted args', () => {
-      // Simulates a closure |x: string, y: number = 5, z: bool = true| { ... }
+  describe('IC-3: fn params with defaultValue marshal correctly', () => {
+    it('marshals fn-style params where trailing defaults fill omitted args', () => {
+      // Simulates a closure fn(x: string, y: number = 5, z: bool = true) { ... }
       // Called with only x supplied; y and z hydrate from defaults
       const params = [
         makeParam('x', { kind: 'string' }),
@@ -1007,7 +1007,7 @@ describe('.^type default preservation', () => {
     it('returns RillFieldDef with defaultValue for param with default', async () => {
       // |y: number = 2| produces a typed param with a default value
       const result = (await run(
-        '|y: number = 2| { $y } => $fn\n$fn.^type'
+        'fn(y: number = 2) { $y } => $fn\n$fn.^type'
       )) as {
         __rill_type: boolean;
         typeName: string;
@@ -1017,7 +1017,7 @@ describe('.^type default preservation', () => {
         };
       };
       expect(result['__rill_type']).toBe(true);
-      expect(result.typeName).toBe('closure');
+      expect(result.typeName).toBe('fn');
       const fields = result.structure.params;
       expect(fields).toHaveLength(1);
       expect(fields[0]!.name).toBe('y');
@@ -1027,7 +1027,7 @@ describe('.^type default preservation', () => {
     it('mixed params: defaulted has defaultValue, required omits it', async () => {
       // |x: string, y: number = 10| — x has no default, y has default
       const result = (await run(
-        '|x: string, y: number = 10| { $x } => $fn\n$fn.^type'
+        'fn(x: string, y: number = 10) { $x } => $fn\n$fn.^type'
       )) as {
         structure: {
           type: string;
@@ -1048,7 +1048,7 @@ describe('.^type default preservation', () => {
   describe('AC-19: closure without defaults → RillFieldDef without defaultValue', () => {
     it('returns RillFieldDef fields without defaultValue for undefaulted params', async () => {
       const result = (await run(
-        '|x: string, y: number| { $x } => $fn\n$fn.^type'
+        'fn(x: string, y: number) { $x } => $fn\n$fn.^type'
       )) as {
         __rill_type: boolean;
         typeName: string;
@@ -1058,7 +1058,7 @@ describe('.^type default preservation', () => {
         };
       };
       expect(result['__rill_type']).toBe(true);
-      expect(result.typeName).toBe('closure');
+      expect(result.typeName).toBe('fn');
       const fields = result.structure.params;
       expect(fields).toHaveLength(2);
       // Both params have no defaults: no defaultValue property
@@ -1083,19 +1083,19 @@ describe('.^type default preservation', () => {
         structure: { type: string; params: unknown[] };
       };
       expect(result['__rill_type']).toBe(true);
-      expect(result.typeName).toBe('closure');
+      expect(result.typeName).toBe('fn');
       expect(result.structure.params).toEqual([]);
     });
 
-    it('explicit zero-param closure (||{}) returns closure type with empty params for .^type', async () => {
-      // ||{ ... } is a closure with an explicit empty param list (params = [])
-      const result = (await run('||{ "result" } => $fn\n$fn.^type')) as {
+    it('explicit zero-param closure (fn() {}) returns fn type with empty params for .^type', async () => {
+      // fn() { ... } is a fn with an explicit empty param list (params = [])
+      const result = (await run('fn() { "result" } => $fn\n$fn.^type')) as {
         __rill_type: boolean;
         typeName: string;
         structure: { type: string; params: unknown[] };
       };
       expect(result['__rill_type']).toBe(true);
-      expect(result.typeName).toBe('closure');
+      expect(result.typeName).toBe('fn');
       expect(result.structure.params).toEqual([]);
     });
   });

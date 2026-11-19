@@ -3,7 +3,7 @@ id: code-block
 title: Code blocks
 status: normative
 since: 0.24.0
-issues: [568, 575, 624]
+issues: [568, 575]
 grammar: [block]
 errors: [RILL-R005, TYPE_MISMATCH]
 depends: [dispatch, selection, fn, assertion]
@@ -154,7 +154,7 @@ $x
 # Result: 8
 ```
 
-```rill pending=624
+```rill
 fn { 5 } => $x
 $x()
 # Result: 5

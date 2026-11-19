@@ -343,7 +343,7 @@ describe('structureEquals', () => {
         { kind: 'dict', fields: { x: { type: { kind: 'number' } } } },
         { kind: 'tuple', elements: [{ type: { kind: 'number' } }] },
         { kind: 'ordered', fields: [{ name: 'x', type: { kind: 'number' } }] },
-        { kind: 'closure', params: [] },
+        { kind: 'fn', params: [] },
         { kind: 'union', members: [{ kind: 'string' }] },
       ];
 
@@ -431,23 +431,23 @@ describe('structureEquals', () => {
   describe('closure branch - structureEquals regression guard', () => {
     it('returns false for closures differing only by defaultValue [AC-10]', () => {
       const a: TypeStructure = {
-        kind: 'closure',
+        kind: 'fn',
         params: [{ name: 'x', type: { kind: 'number' }, defaultValue: 10 }],
       };
       const b: TypeStructure = {
-        kind: 'closure',
+        kind: 'fn',
         params: [{ name: 'x', type: { kind: 'number' }, defaultValue: 99 }],
       };
       expect(structureEquals(a, b)).toBe(false);
     });
 
-    it('returns false when one closure param has default and the other does not [AC-10]', () => {
+    it('returns false when one fn param has default and the other does not [AC-10]', () => {
       const a: TypeStructure = {
-        kind: 'closure',
+        kind: 'fn',
         params: [{ name: 'x', type: { kind: 'number' }, defaultValue: 10 }],
       };
       const b: TypeStructure = {
-        kind: 'closure',
+        kind: 'fn',
         params: [{ name: 'x', type: { kind: 'number' } }],
       };
       expect(structureEquals(a, b)).toBe(false);
@@ -455,19 +455,19 @@ describe('structureEquals', () => {
 
     it('returns true for closures with identical params and defaults', () => {
       const a: TypeStructure = {
-        kind: 'closure',
+        kind: 'fn',
         params: [{ name: 'x', type: { kind: 'number' }, defaultValue: 42 }],
       };
       const b: TypeStructure = {
-        kind: 'closure',
+        kind: 'fn',
         params: [{ name: 'x', type: { kind: 'number' }, defaultValue: 42 }],
       };
       expect(structureEquals(a, b)).toBe(true);
     });
   });
 
-  describe('structureMatches - closure directional defaults', () => {
-    it('closure WITH defaults satisfies annotation WITHOUT defaults [AC-8]', () => {
+  describe('structureMatches - fn exact defaults', () => {
+    it('fn WITH defaults does not satisfy annotation WITHOUT defaults', () => {
       const closureValue = makeCallable([
         {
           name: 'x',
@@ -477,13 +477,13 @@ describe('structureEquals', () => {
         },
       ]);
       const annotation: TypeStructure = {
-        kind: 'closure',
+        kind: 'fn',
         params: [{ name: 'x', type: { kind: 'number' } }],
       };
-      expect(structureMatches(closureValue, annotation)).toBe(true);
+      expect(structureMatches(closureValue, annotation)).toBe(false);
     });
 
-    it('closure WITHOUT defaults fails annotation WITH defaults [AC-9]', () => {
+    it('fn WITHOUT defaults fails annotation WITH defaults [AC-9]', () => {
       const closureValue = makeCallable([
         {
           name: 'x',
@@ -493,13 +493,13 @@ describe('structureEquals', () => {
         },
       ]);
       const annotation: TypeStructure = {
-        kind: 'closure',
+        kind: 'fn',
         params: [{ name: 'x', type: { kind: 'number' }, defaultValue: 10 }],
       };
       expect(structureMatches(closureValue, annotation)).toBe(false);
     });
 
-    it('closure param type differs from annotation type [AC-18]', () => {
+    it('fn param type differs from annotation type [AC-18]', () => {
       const closureValue = makeCallable([
         {
           name: 'x',
@@ -509,13 +509,13 @@ describe('structureEquals', () => {
         },
       ]);
       const annotation: TypeStructure = {
-        kind: 'closure',
+        kind: 'fn',
         params: [{ name: 'x', type: { kind: 'number' } }],
       };
       expect(structureMatches(closureValue, annotation)).toBe(false);
     });
 
-    it('closure missing default where annotation declares one [AC-19 / EC-5]', () => {
+    it('fn missing default where annotation declares one [AC-19 / EC-5]', () => {
       const closureValue = makeCallable([
         {
           name: 'label',
@@ -525,7 +525,7 @@ describe('structureEquals', () => {
         },
       ]);
       const annotation: TypeStructure = {
-        kind: 'closure',
+        kind: 'fn',
         params: [
           { name: 'label', type: { kind: 'string' }, defaultValue: 'default' },
         ],

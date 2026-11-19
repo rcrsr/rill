@@ -86,7 +86,7 @@ describe('union(...) types', () => {
     it('still fills defaults for a union of dict shapes after printing order changes', async () => {
       expect(
         await run(
-          '|v: union(dict(a: string, b: string = "x"), dict(a: string))| { $v.b }\n=> $f\n$f(dict[a: "q"])'
+          'fn(v: union(dict(a: string, b: string = "x"), dict(a: string))) { $v.b }\n=> $f\n$f(dict[a: "q"])'
         )
       ).toBe('x');
     });
@@ -185,7 +185,7 @@ describe('union(...) types', () => {
   describe('closure parameter', () => {
     it('halts R001 for an atom outside the closed set', async () => {
       const script = `
-        |kind: union(#wired, #wireless)| { $kind } => $f
+        fn(kind: union(#wired, #wireless)) { $kind } => $f
         $f(#mesh)
       `;
       await expect(run(script)).rejects.toHaveProperty('errorId', 'RILL-R001');
@@ -193,7 +193,7 @@ describe('union(...) types', () => {
 
     it('accepts an atom inside the closed set', async () => {
       const script = `
-        |kind: union(#wired, #wireless)| { "{$kind -> string}" } => $f
+        fn(kind: union(#wired, #wireless)) { "{$kind -> string}" } => $f
         $f(#wired)
       `;
       expect(await run(script)).toBe('wired');
@@ -201,11 +201,11 @@ describe('union(...) types', () => {
 
     it('keeps a single-literal union as the parameter type', async () => {
       const script = `
-        |x: union("c")| { $x } => $f
+        fn(x: union("c")) { $x } => $f
         $f("x")
       `;
       await expect(run(script)).rejects.toHaveProperty('errorId', 'RILL-R001');
-      expect(await run('|x: union("c")| { $x } => $f\n$f("c")')).toBe('c');
+      expect(await run('fn(x: union("c")) { $x } => $f\n$f("c")')).toBe('c');
     });
   });
 
@@ -376,7 +376,7 @@ describe('union(...) types', () => {
     });
 
     it('raises RILL-P003 for a union parameter type without members', async () => {
-      await expectParseError('|union| $', 'RILL-P003');
+      await expectParseError('fn(union) { $ }', 'RILL-P003');
     });
   });
 
@@ -407,7 +407,7 @@ describe('union(...) types', () => {
 
     it('raises RILL-P011 inside a closure parameter list', async () => {
       await expectParseMessage(
-        '|x: string|number| $x',
+        'fn(x: string|number) { $x }',
         'RILL-P011',
         'union(string, number)'
       );
@@ -415,7 +415,7 @@ describe('union(...) types', () => {
 
     it('raises RILL-P011 for a dynamic member inside a closure parameter list', async () => {
       await expectParseMessage(
-        '|a: number|$T| $a',
+        'fn(a: number|$T) { $a }',
         'RILL-P011',
         'union(number, $T)'
       );
@@ -432,7 +432,7 @@ describe('union(...) types', () => {
     it('raises RILL-P011 naming the rewrite for a host signature', () => {
       expect(() =>
         createRuntimeContext({
-          functions: { f: { signature: '|a: string|number|', fn: () => 1 } },
+          functions: { f: { signature: 'fn(a: string|number)', fn: () => 1 } },
         })
       ).toThrow('union(string, number)');
     });

@@ -85,8 +85,18 @@ interface TypeNameCoverage {
   readonly prefixMaxEnd: readonly number[];
 }
 
+/** Absolute character range of a type-name site. */
+interface OffsetRange {
+  readonly start: number;
+  readonly end: number;
+}
+
+/** The keyword that heads an fn literal and an fn type. */
+const FN_KEYWORD = 'fn';
+
 /**
- * Collects the spans of every `TypeNameExpr`/`TypeConstructor` node reachable
+ * Collects the spans of every `TypeNameExpr`/`TypeConstructor` node, and the
+ * `fn` keyword of every `Closure`/`FnType`, reachable
  * from `root` and arranges them for binary-search coverage queries. An
  * identifier token whose span falls within one of these spans is
  * reclassified from `variableName` to `typeName`. Handles nested/overlapping
@@ -94,20 +104,24 @@ interface TypeNameCoverage {
  * correctly, unlike a naive "nearest preceding start" lookup.
  */
 function buildTypeNameCoverage(root: ASTNode): TypeNameCoverage {
-  const spans: SourceSpan[] = [];
+  const spans: OffsetRange[] = [];
   walkAst(root, (node) => {
     if (node.type === 'TypeNameExpr' || node.type === 'TypeConstructor') {
-      spans.push(node.span);
+      spans.push({ start: node.span.start.offset, end: node.span.end.offset });
+    } else if (node.type === 'Closure' || node.type === 'FnType') {
+      // Only the leading `fn` keyword is a type name; the body is not.
+      const start = node.span.start.offset;
+      spans.push({ start, end: start + FN_KEYWORD.length });
     }
   });
-  spans.sort((a, b) => a.start.offset - b.start.offset);
+  spans.sort((a, b) => a.start - b.start);
 
   const starts: number[] = [];
   const prefixMaxEnd: number[] = [];
   let runningMax = -Infinity;
   for (const span of spans) {
-    runningMax = Math.max(runningMax, span.end.offset);
-    starts.push(span.start.offset);
+    runningMax = Math.max(runningMax, span.end);
+    starts.push(span.start);
     prefixMaxEnd.push(runningMax);
   }
   return { starts, prefixMaxEnd };

@@ -190,7 +190,7 @@ describe('Rill Runtime: Assert Statement', () => {
 
     it('halts at first assertion in closure', async () => {
       const script = `
-        |x| {
+        fn(x) {
           $x -> assert ($ > 0) "Must be positive"
           -> assert ($ < 5) "Must be less than 5"
         } => $validate

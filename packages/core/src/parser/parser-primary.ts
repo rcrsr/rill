@@ -43,11 +43,16 @@ import {
   isMethodCall,
   isNegativeNumber,
   isLiteralStart,
-  isClosureStart,
+  isFnStart,
+  rejectRemovedClosureLiteral,
   parseBareHostCall,
   describeToken,
 } from './helpers.js';
-import { parseScriptTypeRef, throwBareUnion } from './parser-types.js';
+import {
+  parseScriptTypeRef,
+  throwBareUnion,
+  throwRemovedClosureType,
+} from './parser-types.js';
 import { atTypeConstructor } from './parser-shape.js';
 import { parseSpreadOrArg } from './parser-functions.js';
 import { ERROR_IDS } from '../error-registry.js';
@@ -250,10 +255,10 @@ Parser.prototype.parsePostfixExprBase = function (
       (primary.thenBranch?.type === 'PipeChain' &&
         primary.thenBranch.terminator !== null));
 
-  // A closure literal primary never gets the newline-skip below: `|x| { ... }`
+  // A closure literal primary never gets the newline-skip below: `fn(x) { ... }`
   // followed by a newline then `.method` must remain two statements, not a
   // continuation of the closure body into a method chain. Same-line
-  // invocation (`|x| { ... }()`) is unaffected since it never hits a newline.
+  // invocation (`fn(x) { ... }()`) is unaffected since it never hits a newline.
   const isClosurePrimary = primary.type === 'Closure';
 
   // Mutable state object shared with dispatch handlers.
@@ -436,55 +441,6 @@ Parser.prototype.parseInvoke = function (this: Parser): InvokeNode {
 };
 
 // ============================================================
-// CLOSURE SIG LITERAL HELPERS
-// ============================================================
-
-/**
- * Lookahead: PIPE_BAR ... PIPE_BAR COLON → closure sig literal.
- * A closure literal has `| param |` followed by a body (`{` or expression).
- * A closure sig literal has `| name: typeExpr, ... | :returnType`.
- * The distinguishing pattern is PIPE_BAR at pos+0, IDENTIFIER at pos+1, COLON at pos+2,
- * AND the closing PIPE_BAR is followed by COLON (:).
- * This avoids misidentifying typed closures |x: T| { body } as sig literals
- * because those have `{` after the closing `|`, not `:`.
- *
- * This lookahead only decides which parse path to take; it does not
- * guarantee the sig-literal path can fully parse the input.
- */
-function isClosureSigLiteralStart(state: {
-  tokens: { type: string; value: string }[];
-  pos: number;
-}): boolean {
-  const t0 = state.tokens[state.pos];
-  const t1 = state.tokens[state.pos + 1];
-  const t2 = state.tokens[state.pos + 2];
-  if (!t0 || !t1) return false;
-  // `||:ret` — empty param list closure sig literal.
-  if (t0.type === TOKEN_TYPES.OR && t1.type === TOKEN_TYPES.COLON) {
-    return true;
-  }
-  if (!t2) return false;
-  const isAnnotatedFirstParam =
-    t0.type === TOKEN_TYPES.PIPE_BAR && t1.type === TOKEN_TYPES.CARET;
-  if (
-    !isAnnotatedFirstParam &&
-    (t0.type !== TOKEN_TYPES.PIPE_BAR ||
-      t1.type !== TOKEN_TYPES.IDENTIFIER ||
-      t2.type !== TOKEN_TYPES.COLON)
-  ) {
-    return false;
-  }
-  // The first `|` after the opener closes the parameter list; a sig literal
-  // is the one whose closing `|` is followed by `:`.
-  for (let i = state.pos + 1; i < state.tokens.length; i++) {
-    if (state.tokens[i]?.type === TOKEN_TYPES.PIPE_BAR) {
-      return state.tokens[i + 1]?.type === TOKEN_TYPES.COLON;
-    }
-  }
-  return false;
-}
-
-// ============================================================
 // PRIMARY PARSING
 // ============================================================
 
@@ -588,15 +544,12 @@ function parsePrimaryImpl(this: Parser): PrimaryNode {
     };
   }
 
-  // Closure sig literal: |param: T, ...|: R
-  // Lookahead: PIPE_BAR IDENTIFIER COLON -> sig literal (not a closure body)
-  if (isClosureSigLiteralStart(this.state)) {
-    return this.parseClosureSigLiteral();
-  }
+  // Removed closure literals: |params| body, || body, |x: T|:R
+  rejectRemovedClosureLiteral(this.state);
 
-  // Closure: |params| body or || body
-  if (isClosureStart(this.state)) {
-    return this.parseClosure();
+  // fn literal or fn type value: fn(params):outer { body }
+  if (isFnStart(this.state)) {
+    return this.parseFnForm();
   }
 
   // Whitespace adjacency error: collection keyword followed by bracket with whitespace (RILL-P007)
@@ -706,6 +659,15 @@ function parsePrimaryImpl(this: Parser): PrimaryNode {
   if (atTypeConstructor(this.state)) {
     const name = current(this.state).value;
     return this.parseTypeConstructor(name);
+  }
+
+  // The removed `closure` type name in expression position
+  if (
+    check(this.state, TOKEN_TYPES.IDENTIFIER) &&
+    current(this.state).value === 'closure' &&
+    peek(this.state, 1).type !== TOKEN_TYPES.LPAREN
+  ) {
+    throwRemovedClosureType(current(this.state).span.start);
   }
 
   // Type name expression: bare type name in expression position (e.g. `number`, `string`)

@@ -14,13 +14,13 @@ import {
   type TypeStructure,
 } from '@rcrsr/rill';
 
-type ClosureStructure = Extract<TypeStructure, { kind: 'closure' }>;
+type FnStructure = Extract<TypeStructure, { kind: 'fn' }>;
 
-/** Narrow a structure to the closure variant. */
-export function isClosureStructure(
+/** Narrow a structure to the fn variant. */
+export function isFnStructure(
   structure: TypeStructure
-): structure is ClosureStructure {
-  return structure.kind === 'closure';
+): structure is FnStructure {
+  return structure.kind === 'fn';
 }
 
 /** Assert that a value is a type value and return it narrowed. */
@@ -32,10 +32,10 @@ export function expectTypeValue(value: RillValue): RillTypeValue {
 }
 
 /** Assert that a type value holds an ordered structure and return it. */
-export function expectClosureStructure(value: RillValue): ClosureStructure {
+export function expectFnStructure(value: RillValue): FnStructure {
   const structure = expectTypeValue(value).structure;
-  if (!isClosureStructure(structure)) {
-    throw new Error(`expected a closure structure, got ${structure.kind}`);
+  if (!isFnStructure(structure)) {
+    throw new Error(`expected an fn structure, got ${structure.kind}`);
   }
   return structure;
 }

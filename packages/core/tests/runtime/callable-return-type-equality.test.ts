@@ -13,8 +13,8 @@ import { run } from '../helpers/runtime.js';
 describe('Bug #277: closure equality accounts for return type', () => {
   it('closures differing only in return type are not equal', async () => {
     const result = await run(`
-      |x: number| ($x) :number => $a
-      |x: number| ($x) :string => $b
+      fn(x: number):number { $x } => $a
+      fn(x: number):string { $x } => $b
       $a == $b
     `);
     expect(result).toBe(false);
@@ -22,8 +22,8 @@ describe('Bug #277: closure equality accounts for return type', () => {
 
   it('closures with identical return types remain equal', async () => {
     const result = await run(`
-      |x: number| ($x) :number => $a
-      |x: number| ($x) :number => $b
+      fn(x: number):number { $x } => $a
+      fn(x: number):number { $x } => $b
       $a == $b
     `);
     expect(result).toBe(true);
@@ -31,8 +31,8 @@ describe('Bug #277: closure equality accounts for return type', () => {
 
   it('closures with no return-type annotation on both sides remain equal', async () => {
     const result = await run(`
-      |x: number| ($x) => $a
-      |x: number| ($x) => $b
+      fn(x: number) { $x } => $a
+      fn(x: number) { $x } => $b
       $a == $b
     `);
     expect(result).toBe(true);
@@ -40,8 +40,8 @@ describe('Bug #277: closure equality accounts for return type', () => {
 
   it('an annotated return type differs from an absent one', async () => {
     const result = await run(`
-      |x: number| ($x) :number => $a
-      |x: number| ($x) => $b
+      fn(x: number):number { $x } => $a
+      fn(x: number) { $x } => $b
       $a == $b
     `);
     expect(result).toBe(false);

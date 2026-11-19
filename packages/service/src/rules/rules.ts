@@ -15,8 +15,6 @@ import './bare-callable-body.js';
 import './break-in-parallel.js';
 import './capture-before-branch.js';
 import './capture-inline-chain.js';
-import './closure-bare-dollar.js';
-import './closure-braces.js';
 import './closure-late-binding.js';
 import './complex-condition.js';
 import './condition-type.js';

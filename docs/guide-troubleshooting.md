@@ -220,7 +220,7 @@ List spread requires a list or tuple operand. Dict spread requires a dict operan
 Calling a closure with wrong argument count produces an error.
 
 ```text
-|a, b|($a + $b) => $add
+fn(a, b) { $a + $b } => $add
 $add(1)
 # Error: Expected 2 arguments, got 1
 ```
@@ -228,7 +228,7 @@ $add(1)
 **Fix:** Pass the correct number of arguments, or use default parameters.
 
 ```rill
-|a, b = 0|($a + $b) => $add
+fn(a, b = 0) { $a + $b } => $add
 $add(1)
 # Result: 1
 ```
@@ -325,21 +325,21 @@ $full_text -> .len -> log
 `yield` is also invalid inside a stored closure defined within a stream body.
 
 ```text
-|| {
-  { $ -> yield } => $fn
+fn():stream(number):number {
+  fn { $ -> yield } => $fn
   $fn(1)
-}:stream(number):number
+}
 # Error: yield is not valid in stored closure
 ```
 
 **Fix:** Use `yield` only as a terminator in a pipe chain inside the stream closure body directly.
 
 ```text
-|| {
+fn():stream(string):number {
   "first" -> yield
   "second" -> yield
   return 2
-}:stream(string):number => $producer
+} => $producer
 ```
 
 ### Calling `$s()` Before Consuming the Stream

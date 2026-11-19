@@ -284,6 +284,7 @@ async function evaluatePostfixTargetCarried(
     primary.type === 'HostCall' ||
     primary.type === 'TypeConstructor' ||
     primary.type === 'TypeNameExpr' ||
+    primary.type === 'FnType' ||
     primary.type === 'PassBlock' ||
     primary.type === 'TimeoutBlock' ||
     primary.type === 'WhileLoop' ||

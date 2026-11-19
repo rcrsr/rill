@@ -122,7 +122,7 @@ function joinPart(outer: string | undefined, inner: string): string {
 /**
  * Convert one part of a parameterized target (an element, field, value, or
  * position) to its declared structure. Containers recurse; a nested `any`
- * passes unchanged; a nested union, literal, or closure signature is checked
+ * passes unchanged; a nested union, literal, or fn type is checked
  * structurally and a miss halts RILL-R036 naming the part.
  */
 function convertPart(
@@ -192,7 +192,7 @@ function convertPart(
   if (
     structure.kind === 'union' ||
     structure.kind === 'literal' ||
-    (isStructureKind(structure, 'closure') &&
+    (isStructureKind(structure, 'fn') &&
       (structure.params !== undefined || structure.ret !== undefined))
   ) {
     if (!structureMatches(value, structure)) {
@@ -428,7 +428,7 @@ export function describeNoStringForm(
 export type NoStringFormMode = 'convert' | 'print';
 
 const NO_STRING_FORM_ALWAYS: ReadonlySet<string> = new Set([
-  'closure',
+  'fn',
   'iterator',
   'vector',
 ]);

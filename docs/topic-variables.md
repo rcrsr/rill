@@ -66,8 +66,7 @@ Capture at end of expression stores and ends the chain:
 | Do-while `do { } while (cond)` | Accumulated value |
 | Conditional `cond ? a ! b` | Pipe value entering the conditional, in either branch (block or bare) |
 | Piped conditional `-> ? { }` | Piped value (also used as condition) |
-| Stored closure `\|x\|{ }` | N/A — use explicit params |
-| Dict closure `\|\|{ $.x }` | Dict self (`this`) — late-bound |
+| Stored function `fn(x) { }` | N/A — use explicit params |
 
 ### Implied `$`
 
@@ -87,7 +86,7 @@ A call with no arguments receives no implied `$`. Write `$fn($)` to pass it.
 }
 
 # In each loops, $ is the current item
-|x| { $x * 2 } => $double
+fn(x) { $x * 2 } => $double
 [1, 2, 3] -> seq({ $double($) })   # $double receives 1, 2, 3
 ```
 
@@ -95,11 +94,11 @@ A call with no arguments receives no implied `$`. Write `$fn($)` to pass it.
 
 ```rill
 # Explicit args override implied $
-|x| { $x } => $fn
+fn(x) { $x } => $fn
 $fn("explicit")           # uses "explicit", not $
 
 # Params with defaults use the default
-|x: string = "default"| { $x } => $fn2
+fn(x: string = "default") { $x } => $fn2
 $fn2()                    # uses "default", not $
 ```
 
@@ -137,7 +136,7 @@ Declare type explicitly with `:type`:
 42 => $count:number           # declare and lock as number
 ```
 
-**Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`
+**Supported types:** `string`, `number`, `bool`, `fn`, `list`, `dict`, `tuple`
 
 An annotation sets the variable's declared type, which `.^type` reports. See [Declared and Effective Types](topic-type-system.md#declared-and-effective-types).
 
@@ -185,12 +184,12 @@ $r.!code
 Type annotations validate on assignment and prevent accidental type changes:
 
 ```rill
-|x|$x => $fn:closure          # locked as closure
+fn(x) { $x } => $fn:fn          # locked as fn
 $fn(42)
 ```
 
 ```text
-"text" => $fn                 # ERROR: cannot assign string to closure
+"text" => $fn                 # ERROR: cannot assign string to fn
 ```
 
 ---

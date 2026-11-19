@@ -71,8 +71,8 @@ describe('identifiers named after Object.prototype members', () => {
     expect(isInvalid(result as never)).toBe(true);
   });
 
-  it('|constructor| ($constructor) => $f defines a closure usable as $f(3)', async () => {
-    const result = await run('|constructor| ($constructor) => $f\n$f(3)');
+  it('fn(constructor) { $constructor } => $f defines an fn usable as $f(3)', async () => {
+    const result = await run('fn(constructor) { $constructor } => $f\n$f(3)');
     expect(result).toBe(3);
   });
 

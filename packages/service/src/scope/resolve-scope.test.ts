@@ -17,7 +17,7 @@ describe('resolveScopeAt', () => {
   });
 
   it('resolves a name captured after a closure body reads it (late binding, not a definition-time snapshot)', () => {
-    const source = `|x| ($x + $y) => $double
+    const source = `fn(x) { $x + $y } => $double
 5 => $y
 `;
     const parsed = parseWithRecovery(source);
@@ -37,7 +37,7 @@ describe('resolveScopeAt', () => {
   });
 
   it('resolves a previously-defined closure binding at a later capture (late binding)', () => {
-    const source = `|x| ($x * 2) => $double
+    const source = `fn(x) { $x * 2 } => $double
 $double(5) => $result
 `;
     const parsed = parseWithRecovery(source);
@@ -55,7 +55,7 @@ $double(5) => $result
 
   it('surfaces bindings from all four binding constructs inside a PassBlock body', () => {
     const source = `1 => $outer
-|x: number| ($x * 2) => $double
+fn(x: number) { $x * 2 } => $double
 [1, 2, 3] -> destruct<$a, $b, $c>
 dict[name: "Alice"] => $person
 pass<on_error: #IGNORE> {
@@ -98,9 +98,9 @@ pass<on_error: #IGNORE> {
     }
   );
 
-  it('surfaces a closureParam binding within the closure body scope', () => {
+  it('surfaces a closureParam binding within the fn body scope', () => {
     const source = `1 => $outer
-|x: number| ($x + $outer) => $double
+fn(x: number) { $x + $outer } => $double
 `;
     const parsed = parseWithRecovery(source);
     expect(parsed.success).toBe(true);
@@ -111,6 +111,19 @@ pass<on_error: #IGNORE> {
 
     expect(byName.get('x')?.kind).toBe('closureParam');
     expect(byName.get('outer')?.kind).toBe('capture');
+  });
+
+  it('does not bind the params of an fn type', () => {
+    const source = `1 => $outer
+$outer -> :fn(x: number):number
+fn(y: number) { $y } => $f
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const bindings = resolveScopeAt(parsed, source.length - 1);
+
+    expect(bindings.map((binding) => binding.name)).not.toContain('x');
   });
 
   it('excludes the bare pipe value ($) from the binding list', () => {
@@ -210,7 +223,7 @@ $f
 
   it('resolves a read inside a closure body to the LAST same-named binding (late binding)', () => {
     const source = `1 => $y
-|x| ($x + $y) => $double
+fn(x) { $x + $y } => $double
 2 => $y
 `;
     const parsed = parseWithRecovery(source);

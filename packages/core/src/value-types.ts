@@ -1,4 +1,8 @@
-import type { AnnotationArg, LiteralNode } from './ast-nodes.js';
+import type {
+  AnnotationArg,
+  ClosureParamNode,
+  LiteralNode,
+} from './ast-nodes.js';
 import { VALID_TYPE_NAMES } from './constants.js';
 
 /** Rill type names for type annotations */
@@ -35,9 +39,12 @@ export interface FieldArg {
  * - `union`: the members of a `union(...)` constructor, in written order.
  *   Members may be empty or nested; the runtime merges and reduces them.
  * - `literal`: a scalar literal; valid only as a member of a `union`.
+ * - `fn`: a function type. `params` undefined is the bare `fn`, an empty array
+ *   is `fn()`. `outer` undefined means the result type was omitted.
  */
 export type TypeRef =
   | { kind: 'static'; typeName: RillTypeName; args?: FieldArg[] }
   | { kind: 'dynamic'; varName: string }
   | { kind: 'union'; members: TypeRef[] }
-  | { kind: 'literal'; value: LiteralNode };
+  | { kind: 'literal'; value: LiteralNode }
+  | { kind: 'fn'; params?: ClosureParamNode[]; outer?: TypeRef };

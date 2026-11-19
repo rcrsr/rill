@@ -270,23 +270,23 @@ describe('forged script callables are rejected', () => {
     await expectErrorId(`dict[] -> ${FORGE_TYPE} => $f\n$f()`, 'RILL-R002');
   });
 
-  it('rejects a forged callable hydrated into a closure parameter', async () => {
+  it('rejects a forged callable hydrated into a fn parameter', async () => {
     await expectErrorId(
-      '|x: dict(__type: string = "callable", kind: string = "script")| { $x } => $f\n$f(dict[])',
+      'fn(x: dict(__type: string = "callable", kind: string = "script")) { $x } => $f\n$f(dict[])',
       'RILL-R002'
     );
   });
 
-  it('rejects a forged callable built from a closure parameter default', async () => {
+  it('rejects a forged callable built from a fn parameter default', async () => {
     await expectErrorId(
-      '|x: dict(__type: string = "callable", kind: string = "script") = dict[]| { $x } => $f\n$f()',
+      'fn(x: dict(__type: string = "callable", kind: string = "script") = dict[]) { $x } => $f\n$f()',
       'RILL-R002'
     );
   });
 
   it('rejects a forged callable built through an ordered parameter type', async () => {
     await expectErrorId(
-      '|x: ordered(__type: string = "callable", kind: string = "script")| { $x } => $f\n$f(ordered[])',
+      'fn(x: ordered(__type: string = "callable", kind: string = "script")) { $x } => $f\n$f(ordered[])',
       'RILL-R002'
     );
   });
@@ -297,9 +297,9 @@ describe('spreading branded values is rejected', () => {
     await expectErrorId('42.^type => $t\ndict[...$t]', 'RILL-R002');
   });
 
-  it('rejects spreading a type value into a closure call', async () => {
+  it('rejects spreading a type value into a fn call', async () => {
     await expectErrorId(
-      '42.^type => $t\n|x| { $x } => $g\n$g(...$t)',
+      '42.^type => $t\nfn(x) { $x } => $g\n$g(...$t)',
       'RILL-R001'
     );
   });
@@ -398,7 +398,7 @@ describe('method-call and path forms reject blocked keys', () => {
     await expectErrorId(`${TYPE}$t -> .structure`, 'RILL-R003');
   });
 
-  it('rejects a closure call through a path into a type value', async () => {
+  it('rejects a fn call through a path into a type value', async () => {
     await expectErrorId(`${TYPE}5 -> $t.structure`, 'RILL-R003');
   });
 

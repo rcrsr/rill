@@ -86,36 +86,36 @@ describe('Rill Language: use<> Expressions', () => {
     });
 
     describe('Static form — closure type annotation', () => {
-      it('AC-1: use<host:fn>:|x: string| parses without error', async () => {
+      it('AC-1: use<host:fn>:fn(x: string) parses without error', async () => {
         // The annotation has no runtime effect — just verify parse succeeds
-        const result = await run('use<host:fn>:|x: string|', {
+        const result = await run('use<host:fn>:fn(x: string)', {
           resolvers: { host: valueResolver('hello') },
         });
         expect(result).toBe('hello');
       });
 
-      it('AC-1: use<host:fn>:|x: string| parse-only succeeds via parse()', () => {
+      it('AC-1: use<host:fn>:fn(x: string) parse-only succeeds via parse()', () => {
         // parse() throws ParseError on failure — verify no RILL-P001
-        expect(() => parse('use<host:fn>:|x: string|')).not.toThrow();
+        expect(() => parse('use<host:fn>:fn(x: string)')).not.toThrow();
       });
 
-      it('AC-1: multi-param annotation use<ext:llm.openai.message>:|text: string, options: dict| parses', () => {
+      it('AC-1: multi-param annotation use<ext:llm.openai.message>:fn(text: string, options: dict) parses', () => {
         // Reproduces the user-reported failing case
         expect(() =>
-          parse('use<ext:llm.openai.message>:|text: string, options: dict|')
+          parse('use<ext:llm.openai.message>:fn(text: string, options: dict)')
         ).not.toThrow();
       });
 
       it('AC-1: annotation does not affect resolved value', async () => {
-        const result = await run('use<host:fn>:|x: string, y: number|', {
+        const result = await run('use<host:fn>:fn(x: string, y: number)', {
           resolvers: { host: valueResolver(42) },
         });
         expect(result).toBe(42);
       });
 
       it('AC-1: missing comma between closure annotation params throws ParseError', () => {
-        expect(() => parse('use<host:fn>:|x: string y: number|')).toThrow(
-          'Expected , or | after parameter type in closure annotation'
+        expect(() => parse('use<host:fn>:fn(x: string y: number)')).toThrow(
+          "Expected ',' or ')' in fn parameter list"
         );
       });
 
@@ -125,14 +125,14 @@ describe('Rill Language: use<> Expressions', () => {
       });
 
       it('AC-1: use<host:fn>:|| :string parses return type without runtime effect', async () => {
-        const result = await run('use<host:fn>:|| :string', {
+        const result = await run('use<host:fn>:fn():string', {
           resolvers: { host: valueResolver('hello') },
         });
         expect(result).toBe('hello');
       });
 
-      it('AC-1: use<host:fn>:|params| :returnType parses return type without runtime effect', async () => {
-        const result = await run('use<host:fn>:|x: string| :number', {
+      it('AC-1: use<host:fn>:fn(params):returnType parses return type without runtime effect', async () => {
+        const result = await run('use<host:fn>:fn(x: string):number', {
           resolvers: { host: valueResolver(42) },
         });
         expect(result).toBe(42);
@@ -141,16 +141,16 @@ describe('Rill Language: use<> Expressions', () => {
       it('AC-1: closure annotation with dict field defaults and return type parses correctly', () => {
         expect(() =>
           parse(
-            'use<ext:fn>:|text: string, options: dict(max_tokens: number = 0, system: string = "")| :dict(content: string)'
+            'use<ext:fn>:fn(text: string, options: dict(max_tokens: number = 0, system: string = "")):dict(content: string)'
           )
         ).not.toThrow();
       });
 
-      it('AC-1: :returnType after :|params| is not applied as type assertion on closure value', async () => {
+      it('AC-1: :returnType after :fn(params) is not applied as type assertion on closure value', async () => {
         // The resolved value is a dict; the closure annotation return type must not
         // incorrectly assert the closure-as-value against dict(...).
         const result = await run(
-          'use<host:fn>:|text: string| :dict(content: string)',
+          'use<host:fn>:fn(text: string):dict(content: string)',
           { resolvers: { host: valueResolver({ content: 'hello' }) } }
         );
         expect(result).toEqual({ content: 'hello' });
@@ -283,7 +283,7 @@ describe('Rill Language: use<> Expressions', () => {
       it('returns a source module closure uninvoked when it is a pipe target', async () => {
         const result = await run('"hello" -> use<module:greeter>', {
           resolvers: {
-            module: sourceResolver('|| { "got:{$}" }'),
+            module: sourceResolver('fn { "got:{$}" }'),
           },
           parseSource,
         });
@@ -353,7 +353,7 @@ describe('Rill Language: use<> Expressions', () => {
       it('returns the callable uninvoked when use<> is not a pipe target', async () => {
         const result = await run('use<module:greeter>', {
           resolvers: {
-            module: sourceResolver('|| { "got:{$}" }'),
+            module: sourceResolver('fn { "got:{$}" }'),
           },
           parseSource,
         });
@@ -711,7 +711,7 @@ describe('Rill Language: use<> Expressions', () => {
         ['bare namespaced name', 'greet::user'],
         ['namespaced call as pipe target', '"hello" -> str::pad(10, "-")'],
         ['bare namespaced pipe target', '"hello" -> str::upper'],
-        ['call inside a closure body', '|x| { ns::f($x) }'],
+        ['call inside a closure body', 'fn(x) { ns::f($x) }'],
       ])('throws RILL-P012 for %s', (_label, source) => {
         const err = parseError(source);
         expect(err).toBeInstanceOf(ParseError);
@@ -842,7 +842,7 @@ describe('Rill Language: use<> Expressions', () => {
         };
 
         // Define a closure that contains use<host:fn> — no invocation yet
-        const result = await run('|| { use<host:fn> } => $fn\n$fn()', {
+        const result = await run('fn() { use<host:fn> } => $fn\n$fn()', {
           resolvers: { host: resolver },
         });
 

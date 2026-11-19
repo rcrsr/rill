@@ -88,7 +88,7 @@ All copies are deep. All comparisons are by value. No object identity.
                   dict[("{$a}{$b}"): value]  # computed key (dict/ordered: must eval to string)
     Tuples:       tuple[1, 2, 3]
     Ordered:      ordered[a: 1, b: 2]   # named-arg unpacking
-    Closures:     |x| ($x + 1)          # explicit
+    Functions:    fn(x) { $x + 1 }      # explicit
                   { $ + 1 }             # block, implicit $
     Type annot:   "hi" => $x:string
     Modules:      use<module:greet> => $g
@@ -111,7 +111,6 @@ Atoms are identified and compared by name: #FOO == #BAR is false, and any well-f
 | `-> fold(i, { })` / `acc(i, { })` | current item (`$@` = accumulator) |
 | `while (cond) do { }` | accumulated value |
 | `cond ? a ! b` | pipe value entering the conditional (either branch) |
-| `\|\|{ $.field }` in dict | the containing dict |
 
 Implied `$`: bare `.method` means `$ -> .method`. `"hello" -> .upper` is `"hello" -> $.upper`.
 
@@ -133,7 +132,7 @@ Don't capture just to continue a chain. Use line continuation. Capture only when
 
 | Type | Source | Examples |
 |---|---|---|
-| Closure | Script-defined | `\|x\| { $x * 2 }`, `{ $ + 1 }` |
+| Function | Script-defined | `fn(x) { $x * 2 }`, `{ $ + 1 }` |
 | Built-in | Shipped with runtime | `log`, `json`, `range`, `repeat`, `chain` |
 | Host | Registered by host | `$app.fetch()` (hoisted via `use<ext:app> => $app`) |
 
@@ -164,19 +163,19 @@ Use parentheses to override.
 
 | Operator | Signature | Semantics |
 |---|---|---|
-| `seq` | `seq(list, closure)` | Transform each item sequentially; returns all body results |
-| `fan` | `fan(list, closure)` | Transform each item in parallel; returns all body results |
-| `filter` | `filter(list, closure)` | Keep items where body returns `true` |
-| `fold` | `fold(list, init, closure)` | Reduce to single value; `$@` = accumulator |
-| `acc` | `acc(list, init, closure)` | Like `fold` but emits accumulator at each step |
+| `seq` | `seq(list, fn)` | Transform each item sequentially; returns all body results |
+| `fan` | `fan(list, fn)` | Transform each item in parallel; returns all body results |
+| `filter` | `filter(list, fn)` | Keep items where body returns `true` |
+| `fold` | `fold(list, init, fn)` | Reduce to single value; `$@` = accumulator |
+| `acc` | `acc(list, init, fn)` | Like `fold` but emits accumulator at each step |
 | `sort` | `sort(list, key_fn?)` | Stable ascending sort; dict and ordered input return `ordered`, tuple input returns `list`; iterators are materialized; over 10,000 elements halts `RILL-R010` (fatal) |
 | `take` | `take(list, n: int) -> list[T]` | First n elements; `n < 0` halts `#INVALID_INPUT`; a result over 10,000 halts `RILL_R010` (catchable) |
 | `skip` | `skip(list, n: int) -> list[T]` | Drop first n elements; `n < 0` halts `#INVALID_INPUT`; n past length → empty |
 | `cycle` | `cycle(list) -> iterator[T]` | Repeat input indefinitely as iterator; empty input → empty; bound at consumer |
 | `batch` | `batch(list, n: int, options?) -> stream[list[T]]` | Chunks of n; `drop_partial: true` discards trailing short chunk |
 | `window` | `window(list, n: int, step: int = n) -> stream[list[T]]` | Sliding windows of n; default step=n (non-overlapping); `step > n` makes gaps |
-| `start_when` | `start_when(list, predicate: closure) -> stream[T]` | Yield from first match onward; predicate must return `bool` |
-| `stop_when` | `stop_when(list, predicate: closure) -> stream[T]` | Yield through first match (inclusive); predicate must return `bool` |
+| `start_when` | `start_when(list, predicate: fn) -> stream[T]` | Yield from first match onward; predicate must return `bool` |
+| `stop_when` | `stop_when(list, predicate: fn) -> stream[T]` | Yield through first match (inclusive); predicate must return `bool` |
 | `pass { body }` | `pass { body }` | Side-effect block; pipe value flows through unchanged; halts in body propagate |
 | `pass<on_error: #IGNORE>` | `pass<on_error: #IGNORE> { body }` | Side-effect block; suppresses catchable halts in body; `on_error: #IGNORE` is the only valid option (else RILL-P004) |
 
@@ -216,7 +215,7 @@ Wrong/Right pairs aimed at TypeScript and Python reflexes. Load when generating 
 
 ## Curly braces (dict literals)
 
-In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict literal. Dicts use `dict[...]`.
+In rill, `{ ... }` is a block (function body, loop body, etc.), not a dict literal. Dicts use `dict[...]`.
 
     Wrong: {name: "alice"}
     Right: dict[name: "alice"]
@@ -276,7 +275,7 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
     Wrong: $x -> "label"                   # RILL-P031: string target ignores the value
     Right: $x -> "label {$}"
 
-    Wrong: 42 -> $zero                     # RILL-R045: zero-parameter closure gets an argument
+    Wrong: 42 -> $zero                     # RILL-R045: zero-parameter function gets an argument
     Right: $zero()
 
 ## Conversion versus assertion
@@ -377,6 +376,50 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
     Wrong: obj["computed-" + key]
     Right: $obj["{$prefix}-{$key}"]        # computed key
 
+## Function literals
+
+The `|params| body` literal is removed (RILL-P012 names the fn form). The body of `fn` is always a block on the same line.
+
+    Wrong: |x| ($x * 2) => $double         # RILL-P012
+    Right: fn(x) { $x * 2 } => $double
+
+    Wrong: || { "hi" } => $hi              # RILL-P012
+    Right: fn() { "hi" } => $hi
+
+    Wrong: fn(x) ($x * 2) => $double       # paren or bare body; the body must be a block
+    Right: fn(x) { $x * 2 } => $double
+
+    Wrong: fn double(x) { $x * 2 }         # no named declaration form
+    Right: fn(x) { $x * 2 } => $double
+
+    Wrong: fn() { $ + 1 } => $inc          # RILL-P029: fn() takes no params, so it cannot read $
+    Right: fn { $ + 1 } => $inc
+
+    Wrong: fn(number = 1) { $ } => $f      # RILL-P028: an unnamed param carries no default
+    Right: fn(n: number = 1) { $n } => $f
+
+    Wrong: fn(x: number, string) { $x } => $f   # RILL-P028: named and unnamed params do not mix
+    Right: fn(x: number, y: string) { $x } => $f
+
+    Wrong: fn(x = "d") { $x } => $f        # a default does not infer the type; x is any
+    Right: fn(x: string = "d") { $x } => $f
+
+## Function types
+
+`fn` is the type of every function. `closure` in a type position is removed (RILL-P012 names fn).
+
+    Wrong: $f -> :closure                  # RILL-P012
+    Right: $f -> :fn
+
+    Wrong: $f -> :|x: string|:string       # RILL-P012
+    Right: $f -> :fn(x: string):string
+
+    Wrong: $fns -> :list(closure)          # RILL-P012
+    Right: $fns -> :list(fn(x: string):bool)
+
+    Wrong: $f -> :fn(x: number)            # exact: a function with a default or a different outer does not match
+    Right: $f -> :fn(x: number = 0):any
+
 ## Function calls vs closures
 
     Wrong: $double(5)                      # if $double is a built-in or host fn
@@ -385,8 +428,8 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
     Wrong: log($x)                         # if log was assigned to $log
     Right: $log($x)                        # script closures need $
 
-    Wrong: |x| ($x * 2) => double          # capture name needs $
-    Right: |x| ($x * 2) => $double
+    Wrong: fn(x) { $x * 2 } => double      # capture name needs $
+    Right: fn(x) { $x * 2 } => $double
 
     Wrong: app::fetch($url)                # removed namespaced call (RILL-P012)
     Right: use<ext:app> => $app
@@ -528,7 +571,7 @@ Sources: list, tuple, string, dict, ordered, iterator, stream. Any other value h
 All operators accept any callable as the body argument:
 
     -> seq({ $ * 2 })           # block, $ is current element
-    -> seq(|x| ($x * 2))        # inline closure
+    -> seq(fn(x) { $x * 2 })    # inline function
     -> seq($double)             # variable closure
     -> seq({ log($) })          # built-in wrapped in a closure
 
@@ -862,7 +905,7 @@ Type names, assertions, conversion, parameterized types, dict shapes, type inspe
 ## Type names
 
     string   number   bool     list     dict     ordered
-    tuple    closure  vector   iterator any      type
+    tuple    fn       vector   iterator any      type
     atom     datetime duration    error_code
 
 ## Type assertion `:type`
@@ -927,9 +970,9 @@ An outer type (`:string` after the parentheses or a bare name) attaches only to 
 
 Assertion is exact: an extra key halts #TYPE_MISMATCH (`:?` gives false). Bare `dict` and `dict()` accept any keys.
 
-In closure params (validates input structure):
+In fn params (validates input structure):
 
-    |d: dict(name: string, age: number)| {
+    fn(d: dict(name: string, age: number)) {
       "{$d.name} is {$d.age}"
     } => $format_person
 
@@ -1011,7 +1054,7 @@ To validate a shape write `-> :dict(a: string)`, never `-> dict(a: string)`. To 
     ⁴ true → 1, false → 0
     ⁵ 0 → false, 1 → true; all other values halt with RILL-R036
 
-    closure, iterator, and vector have no -> string, nor does a list, dict, tuple, or ordered holding one at any depth; converting, interpolating, or .join-ing one halts RILL-R036
+    fn, iterator, and vector have no -> string, nor does a list, dict, tuple, or ordered holding one at any depth; converting, interpolating, or .join-ing one halts RILL-R036
     datetime and duration interpolate as their printed form, and duration -> string yields it; -> string on a datetime, or on a collection holding a datetime or duration, halts RILL-R036
 
 ## Default values in type constructors
@@ -1061,7 +1104,7 @@ Read what a type holds with `.inner` and what a function or stream yields with `
     $u.^type.signature              # "list(union(number, string))"
     string.inner ?? any             # any; leaf types halt RILL-R003 without ??
     string.?inner                   # false
-    |x: number|{ $x }:string => $f
+    fn(x: number):string { $x } => $f
     $f.^type.outer                  # string
     dict(a: string = "x").defaults  # dict[a: "x"]
 
@@ -1074,7 +1117,7 @@ Under a declared union, `.^type` reports the declaration and `.^effective` the o
 Dispatch on `.^effective.name`, not `.^type.name`. `any` declares nothing:
 `1 => $x:any` locks as number.
 
-A declaration carries through `$`, plain and inline captures, grouped `( )`, `pass`, destructure, closure params, iteration over a declared `list(E)`, and every element or field read on a declared collection: `[i]`, `.name`, `.$k`, and pipe selection `"a" -> $d`. A capture locks to the carried declaration.
+A declaration carries through `$`, plain and inline captures, grouped `( )`, `pass`, destructure, function params, iteration over a declared `list(E)`, and every element or field read on a declared collection: `[i]`, `.name`, `.$k`, and pipe selection `"a" -> $d`. A capture locks to the carried declaration.
 Computed results (operators, methods like `.head`, calls) take their own type.
 A bare `list`, `list(any)`, or `union(list(number), string)` projects no element type. A bare kind such as `:list` makes `.^type` report `list` and `.^effective` report `list(number)`.
 Host boundary: `toNative` reports the own type.
@@ -1089,7 +1132,7 @@ Equality:
 
 # rill callables
 
-Closures, late binding, typed closures, reflection, dispatch operators, extraction, spread, modules.
+Closures, fn literals, late binding, typed functions, reflection, dispatch operators, extraction, spread, modules.
 
 ## Pipe binding rules
 
@@ -1126,14 +1169,18 @@ Block-closures (`{ body }`, implicit `$` parameter):
     5 -> $inc                          # 6 (pipe invocation)
     dict[x: { $ * 2 }]                 # dict value is a closure
 
-Explicit closures (`|params| body`):
+Function literals (`fn(params):outer { body }`, the body is a block on the same line):
 
-    |x| ($x + 1) => $inc               # named parameter
-    |a, b| ($a + $b) => $add           # multiple params
-    |x = 0| ($x + 1) => $inc_or_one    # default value
-    |x: number| ($x + 1) => $typed     # type annotation
+    fn(x) { $x + 1 } => $inc                 # named parameter
+    fn(a, b) { $a + $b } => $add             # multiple params
+    fn(x = 0) { $x + 1 } => $inc_or_one      # default value; the param type is any
+    fn(x: number) { $x + 1 } => $typed       # type annotation
+    fn(x: number):number { $x + 1 } => $out  # return type assertion
+    fn { $ + 1 } => $by_reads                # typed by the unnamed params the body reads
 
-`{ body }` is deferred (closure). `( expr )` is eager.
+A default does not infer the parameter type: `fn(x = "d")` gives `x` the type `any`. Write `fn(x: string = "d")` to constrain it. Unnamed params bind `$` and `$@` (at most two), never mix with named params, and carry no default (RILL-P028). `fn()` takes no params, so a body that reads `$` or `$@` halts RILL-P029; use `fn { ... }` instead. The old pipe-delimited function literal and pipe-delimited type literal halt RILL-P012 naming the fn form.
+
+`{ body }` is deferred (function). `( expr )` is eager.
 
     { $ + 1 } => $fn                   # closure stored
     ( 5 + 1 ) => $x                    # 6 stored
@@ -1144,58 +1191,56 @@ Closures capture scope, not values. Variables resolve at call time.
 
 `$` vs named params:
 - Use `$` in inline pipes and loops: `"hello" -> { .upper }`
-- Use named params in stored closures: `|x| ($x * 2) => $double`
+- Use named params in stored functions: `fn(x) { $x * 2 } => $double`
 - `$` is undefined when a stored closure is called later. Always use named params for reusable closures.
 
-## Zero-param dict closures (methods)
+## Typed functions
 
-`$` binds to the containing dict.
+Unnamed typed params (`fn(type) { body }`, `$` is the type-checked input):
 
-    dict[count: 3, double: ||{ $.count * 2 }] => $obj
-    $obj.double                        # 6
-
-## Typed closures
-
-Anonymous typed closure (`|type|{ body }`, type keyword as param, `$` is type-checked input):
-
-    "hello" -> |string|{ $ -> .upper }      # $ is string, checked at call
-    5 -> |number|{ $ * 2 }                  # 10
-    |number|{ $ * 2 }:number => $double     # stored with return type
-    5 -> $double                             # 10
-    "hi" -> $double                          # RILL-R001: parameter type mismatch
+    "hello" -> fn(string) { $ -> .upper }       # $ is string, checked at call
+    5 -> fn(number) { $ * 2 }                   # 10
+    fn(number):number { $ * 2 } => $double      # stored with return type
+    5 -> $double                                # 10
+    "hi" -> $double                             # RILL-R001: parameter type mismatch
 
 Any type from `types` works. Parameterized:
 
-    |list(number)|{ $ -> seq({ $ * 2 }) }
+    fn(list(number)) { $ -> seq({ $ * 2 }) }
+
+`fn` is the type of every function, and `closure` in a type position halts RILL-P012 naming fn. A function type is exact: names, types, defaults, and outer type must all match. A function with an extra defaulted param, or a default the type omits, does not match.
+
+    5 -> :fn                               # halts: not a function
+    $double -> :fn(number):number          # passes
 
 Return type assertion (halts with `#TYPE_MISMATCH` on mismatch):
 
-    |x: number| { "{$x}" }:string => $fn   # asserts string return
-    $fn(42)                                # "42" (passes)
+    fn(x: number):string { "{$x}" } => $fn   # asserts string return
+    $fn(42)                                  # "42" (passes)
 
-    |x: number| { $x * 2 }:string => $fn   # mismatch halts at call
-    $fn(5)                                 # halts: return type mismatch
+    fn(x: number):string { $x * 2 } => $fn   # mismatch halts at call
+    $fn(5)                                   # halts: return type mismatch
 
 ## Callable reflection
 
 `.^type.inner` and `.^type.outer` work on every callable type.
 
-    |x: number, y: string| ($x) => $fn
+    fn(x: number, y: string) { $x } => $fn
     $fn.^type.inner                        # ordered[x: number, y: string]
     $fn.^type.outer                        # any (no return type declared)
 
-    |x: number|{ $x * 2 }:number => $fn2
+    fn(x: number):number { $x * 2 } => $fn2
     $fn2.^type.outer                       # number
 
-`.^type.inner` returns an ordered of param names to types. `.^type.outer` returns the declared return type (`any` if undeclared). `.^type.defaults` lists only the params that have a default. Works on script closures, built-ins, host functions.
+`.^type.inner` returns an ordered of param names to types for named params, a tuple of types for unnamed params, and `ordered[]` for `fn()`. `.^type.outer` returns the declared return type (`any` if undeclared). `.^type.defaults` lists only the params that have a default. Works on script closures, built-ins, host functions.
 
 Description shorthand (bare string in `^(...)` expands to `description: <string>`):
 
-    ^("Get weather for city") |city: string| ($city) => $weather
+    ^("Get weather for city") fn(city: string) { $city } => $weather
     $weather.^description                  # "Get weather for city"
     $weather.?^description                 # true
 
-    ^("Fetch profile", cache: true) |id| ($id) => $get_user
+    ^("Fetch profile", cache: true) fn(id) { $id } => $get_user
     $get_user.^description                 # "Fetch profile"
     $get_user.^cache                       # true
 
@@ -1290,7 +1335,7 @@ Slice (`slice<start:stop:step>`):
     $g.hello("World")                  # call module member
     use<ext:qdrant.search>             # load extension member
 
-`use<>` returns the resolved value (dict, closure, or any rill type). Hosts register resolvers; scripts cannot. A `guard` around `use<>` catches resolution failures only; halts inside the module propagate.
+`use<>` returns the resolved value (dict, function, or any rill type). Hosts register resolvers; scripts cannot. A `guard` around `use<>` catches resolution failures only; halts inside the module propagate.
 
 `v -> use<...>` on a host-resolved value calls a callable, selects from a dict or list, or converts through a type; any other value halts `RILL-R002`. A source module's result, even a function, is returned as-is.
 
@@ -1444,9 +1489,9 @@ Errors:
 
 ## iterate
 
-`iterate(seed, closure): stream of T`
+`iterate(seed, fn): stream of T`
 
-Produces an infinite source stream. Emits `seed` first, then calls `closure` with the current value in `$` to produce the next value. The stream never terminates on its own; bound it externally with `take(n)`, or the iteration ceiling (`RILL_R010`) will halt execution.
+Produces an infinite source stream. Emits `seed` first, then calls `fn` with the current value in `$` to produce the next value. The stream never terminates on its own; bound it externally with `take(n)`, or the iteration ceiling (`RILL_R010`) will halt execution.
 
 Pipe form: when piped, the piped value becomes `seed`:
 
@@ -1553,7 +1598,7 @@ Produces sliding windows of `n` elements. The default `step` equals `n`, giving 
 
 ## start_when
 
-`start_when(list, predicate: closure) -> stream[T]`
+`start_when(list, predicate: fn) -> stream[T]`
 
 Yields elements starting from the first element where `predicate` returns `true`, then passes all remaining elements through regardless of the predicate. The element that triggers the predicate is included. The `list` argument is auto-prepended when piping.
 
@@ -1563,7 +1608,7 @@ Predicate must return `bool`. Non-callable predicate halts with `#RILL_R040`. No
 
 ## stop_when
 
-`stop_when(list, predicate: closure) -> stream[T]`
+`stop_when(list, predicate: fn) -> stream[T]`
 
 Yields elements up to and including the first element where `predicate` returns `true`, then stops. Inclusive of the matching element. The `list` argument is auto-prepended when piping.
 
@@ -1609,7 +1654,7 @@ Naming, spacing, line continuations, and idiomatic patterns.
 | Brackets | no inner space | `$list[0]`, `$dict.items[1]` |
 | Literals | space after `,` and `:` | `list[1, 2, 3]`, `dict[name: "x", age: 30]` |
 | Keyword + `[` | NO space between | `list[1, 2]` (not `list [1, 2]` — RILL-P007) |
-| Closures | space after params | `\|x\| ($x * 2)`, `\|a, b\| { $a + $b }` |
+| Function literals | space after params | `fn(x) { $x * 2 }`, `fn(a, b) { $a + $b }` |
 | Methods | no space before `.` or `(` | `$str.upper()`, `$list.join(", ")` |
 | Pipes | space both sides | `"x" -> .upper -> .len` |
 | Continuations | indent 2 spaces | see below |

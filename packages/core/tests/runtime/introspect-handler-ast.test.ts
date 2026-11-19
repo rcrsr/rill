@@ -16,7 +16,7 @@ describe('introspectHandlerFromAST', () => {
     });
 
     it('finds handler by capture name', () => {
-      const ast = parse('|name: string| { "hi" } => $run');
+      const ast = parse('fn(name: string) { "hi" } => $run');
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
     });
@@ -30,7 +30,7 @@ describe('introspectHandlerFromAST', () => {
     it('finds handler among multiple statements', () => {
       const source = `
         "setup" => $init
-        |name: string| { "hi" } => $run
+        fn(name: string) { "hi" } => $run
       `;
       const ast = parse(source);
       const result = introspectHandlerFromAST(ast, 'run');
@@ -42,7 +42,7 @@ describe('introspectHandlerFromAST', () => {
 
   describe('parameter extraction', () => {
     it('extracts parameter name and type', () => {
-      const ast = parse('|greeting: string, count: number| { "hi" } => $run');
+      const ast = parse('fn(greeting: string, count: number) { "hi" } => $run');
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
       expect(result!.params).toHaveLength(2);
@@ -60,7 +60,7 @@ describe('introspectHandlerFromAST', () => {
 
     it('prints unspecified container parameter types as bare names', () => {
       const ast = parse(
-        '|a: list(any), b: stream(any):any, c: stream(number):any, d: dict(), e: tuple(any)| { $a } => $run'
+        'fn(a: list(any), b: stream(any):any, c: stream(number):any, d: dict(), e: tuple(any)) { $a } => $run'
       );
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
@@ -74,7 +74,7 @@ describe('introspectHandlerFromAST', () => {
     });
 
     it('uses any for untyped parameters', () => {
-      const ast = parse('|x| { $x } => $run');
+      const ast = parse('fn(x) { $x } => $run');
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
       expect(result!.params[0]).toMatchObject({
@@ -85,7 +85,7 @@ describe('introspectHandlerFromAST', () => {
     });
 
     it('marks parameters with defaults as not required', () => {
-      const ast = parse('|name: string = "world"| { $name } => $run');
+      const ast = parse('fn(name: string = "world") { $name } => $run');
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
       expect(result!.params[0]).toMatchObject({
@@ -97,21 +97,21 @@ describe('introspectHandlerFromAST', () => {
     });
 
     it('extracts number default values', () => {
-      const ast = parse('|count: number = 42| { $count } => $run');
+      const ast = parse('fn(count: number = 42) { $count } => $run');
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
       expect(result!.params[0]!.defaultValue).toBe(42);
     });
 
     it('extracts boolean default values', () => {
-      const ast = parse('|flag: bool = true| { $flag } => $run');
+      const ast = parse('fn(flag: bool = true) { $flag } => $run');
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
       expect(result!.params[0]!.defaultValue).toBe(true);
     });
 
     it('handles union types', () => {
-      const ast = parse('|value: union(string, number)| { $value } => $run');
+      const ast = parse('fn(value: union(string, number)) { $value } => $run');
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
       expect(result!.params[0]!.type).toBe('union(string, number)');
@@ -121,7 +121,7 @@ describe('introspectHandlerFromAST', () => {
   describe('parameter descriptions', () => {
     it('extracts parameter description from annotation', () => {
       const source =
-        '|^(description: "The user name") name: string| { $name } => $run';
+        'fn(^(description: "The user name") name: string) { $name } => $run';
       const ast = parse(source);
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
@@ -129,17 +129,17 @@ describe('introspectHandlerFromAST', () => {
     });
 
     it('omits description when no annotation present', () => {
-      const ast = parse('|name: string| { $name } => $run');
+      const ast = parse('fn(name: string) { $name } => $run');
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
       expect(result!.params[0]!.description).toBeUndefined();
     });
   });
 
-  describe('closure-level description', () => {
+  describe('fn-level description', () => {
     it('extracts description from annotated statement', () => {
       const source =
-        '^(description: "Greets the user") |name: string| { $name } => $run';
+        '^(description: "Greets the user") fn(name: string) { $name } => $run';
       const ast = parse(source);
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
@@ -147,16 +147,16 @@ describe('introspectHandlerFromAST', () => {
     });
 
     it('omits description when statement has no annotation', () => {
-      const ast = parse('|name: string| { $name } => $run');
+      const ast = parse('fn(name: string) { $name } => $run');
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
       expect(result!.description).toBeUndefined();
     });
   });
 
-  describe('closure in pipes', () => {
-    it('finds closure piped into a capture', () => {
-      const source = '|name: string| { $name } => $run';
+  describe('fn in pipes', () => {
+    it('finds fn piped into a capture', () => {
+      const source = 'fn(name: string) { $name } => $run';
       const ast = parse(source);
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
@@ -165,8 +165,8 @@ describe('introspectHandlerFromAST', () => {
   });
 
   describe('zero-parameter closures', () => {
-    it('handles closure with no parameters', () => {
-      const ast = parse('|| { "hello" } => $run');
+    it('handles fn with no parameters', () => {
+      const ast = parse('fn() { "hello" } => $run');
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
       expect(result!.params).toHaveLength(0);
@@ -175,21 +175,21 @@ describe('introspectHandlerFromAST', () => {
 
   describe('returnType field', () => {
     it('emits returnType for a scalar TypeRef annotation', () => {
-      const ast = parse('|name: string| { $name } :string => $run');
+      const ast = parse('fn(name: string):string { $name } => $run');
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
       expect(result!.returnType).toBe('string');
     });
 
     it('emits returnType for a parameterized TypeRef annotation', () => {
-      const ast = parse('|items: list| { $items } :list(string) => $run');
+      const ast = parse('fn(items: list):list(string) { $items } => $run');
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
       expect(result!.returnType).toBe('list(string)');
     });
 
     it('emits returnType for a stream annotation with chunk type only', () => {
-      const ast = parse('|| { "hello" -> yield } :stream(string) => $run');
+      const ast = parse('fn():stream(string) { "hello" -> yield } => $run');
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
       expect(result!.returnType).toBe('stream(string)');
@@ -197,7 +197,7 @@ describe('introspectHandlerFromAST', () => {
 
     it('emits returnType for a stream annotation with chunk and resolution types', () => {
       const ast = parse(
-        '|| { "hello" -> yield\n42 } :stream(string):number => $run'
+        'fn():stream(string):number { "hello" -> yield\n42 } => $run'
       );
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
@@ -205,7 +205,7 @@ describe('introspectHandlerFromAST', () => {
     });
 
     it('omits returnType when no return type annotation is present', () => {
-      const ast = parse('|name: string| { $name } => $run');
+      const ast = parse('fn(name: string) { $name } => $run');
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
       expect(result!.returnType).toBeUndefined();

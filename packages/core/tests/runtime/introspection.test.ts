@@ -497,7 +497,7 @@ describe('Rill Runtime: Introspection API', () => {
     describe('Script closures: returnType and description', () => {
       it('reports the declared return type instead of hardcoding any', async () => {
         const { context } = await runWithContext(
-          '|x: number|{ $x * 2 }:number => $double'
+          'fn(x: number):number { $x * 2 } => $double'
         );
 
         const functions = getFunctions(context);
@@ -508,7 +508,7 @@ describe('Rill Runtime: Introspection API', () => {
 
       it('falls back to any when no return type is declared', async () => {
         const { context } = await runWithContext(
-          '|x: number| ($x * 2) => $untyped'
+          'fn(x: number) { $x * 2 } => $untyped'
         );
 
         const functions = getFunctions(context);
@@ -519,7 +519,7 @@ describe('Rill Runtime: Introspection API', () => {
 
       it('reads description from the ^("...") shorthand annotation', async () => {
         const { context } = await runWithContext(
-          '^("Doubles a number") |x: number|{ $x * 2 }:number => $double'
+          '^("Doubles a number") fn(x: number):number { $x * 2 } => $double'
         );
 
         const functions = getFunctions(context);
@@ -530,7 +530,7 @@ describe('Rill Runtime: Introspection API', () => {
 
       it('reads description from the explicit description: annotation', async () => {
         const { context } = await runWithContext(
-          '^(description: "Doubles a number") |x: number|{ $x * 2 }:number => $double'
+          '^(description: "Doubles a number") fn(x: number):number { $x * 2 } => $double'
         );
 
         const functions = getFunctions(context);

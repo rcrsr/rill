@@ -43,8 +43,8 @@ function createCounter(): Counter {
 }
 
 /** Preamble binding `$f` and `$d` to callables that route into `tick`. */
-const PREAMBLE = `|x| { tick($x) } => $f
-dict[m: |x| { tick($x) }] => $d
+const PREAMBLE = `fn(x) { tick($x) } => $f
+dict[m: fn(x) { tick($x) }] => $d
 `;
 
 const CALL_FORMS: ReadonlyArray<readonly [string, string]> = [
@@ -97,7 +97,7 @@ describe('Rill Language: no implied $ for a call with no arguments', () => {
     'uses the declared default when a call with no arguments runs while $ is bound',
     async () => {
       const result = await run(
-        `|x: number = 99| { $x } => $f
+        `fn(x: number = 99) { $x } => $f
 5 -> (true) ? $f() ! 0`
       );
       expect(result).toBe(99);

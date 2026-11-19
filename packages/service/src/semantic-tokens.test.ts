@@ -116,6 +116,21 @@ describe('semanticTokens', () => {
     expect(valueUsageToken?.tokenType).toBe('variableName');
   });
 
+  it('classifies the fn keyword of a literal and a type as typeName, not the body', () => {
+    const source = 'fn(x) { $x } => $f\nfn(number):string => $t\n';
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const decoded = decodeAbsolute(
+      semanticTokens(parsed, tokenize(source), source)
+    );
+    const literalFn = decoded.find((t) => t.line === 0 && t.character === 0);
+    const typeFn = decoded.find((t) => t.line === 1 && t.character === 0);
+
+    expect(literalFn?.tokenType).toBe('typeName');
+    expect(typeFn?.tokenType).toBe('typeName');
+  });
+
   it('tolerates a recovery/partial AST without throwing', () => {
     const source = '1 -> $x -> ';
     const parsed = parseWithRecovery(source);

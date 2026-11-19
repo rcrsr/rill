@@ -39,6 +39,7 @@ import type { DefaultMismatch } from './field-defaults.js';
 import { formatFieldKey, quoteRillString } from './format-string.js';
 import { orderedDictEntries, setDictField } from './dict-keys.js';
 import { formatUnion } from './error-code.js';
+import { paramsToFieldDefs } from './fn-params.js';
 // oxlint-disable-next-line import/no-cycle -- unions.ts imports this file; the edge is used only at call time, never at module init
 import { reduceUnionMembers } from './unions.js';
 
@@ -347,30 +348,27 @@ export function structureEquals(a: TypeStructure, b: TypeStructure): boolean {
     );
   }
 
-  if (isStructureKind(a, 'closure') && isStructureKind(b, 'closure')) {
-    const aCls = a;
-    const bCls = b;
-    if (aCls.params === undefined && bCls.params === undefined) {
-      // Both absent: compare ret
-    } else if (aCls.params === undefined || bCls.params === undefined) {
+  if (isStructureKind(a, 'fn') && isStructureKind(b, 'fn')) {
+    // An absent outer is unspecified and equals `any`. Annotations are not
+    // part of the type.
+    if (!structureEquals(a.ret ?? ANY_STRUCTURE, b.ret ?? ANY_STRUCTURE)) {
       return false;
-    } else {
-      if (aCls.params.length !== bCls.params.length) return false;
-      for (const [i, aParam] of aCls.params.entries()) {
-        const bParam = bCls.params[i];
-        if (bParam === undefined) return false;
-        if (aParam.name !== bParam.name) return false;
-        if (!structureEquals(aParam.type, bParam.type)) return false;
-        const aDefault = aParam.defaultValue;
-        const bDefault = bParam.defaultValue;
-        if (aDefault === undefined && bDefault === undefined) continue;
-        if (aDefault === undefined || bDefault === undefined) return false;
-        if (!registryDeepEquals(aDefault, bDefault)) return false;
-      }
     }
-    if (aCls.ret === undefined && bCls.ret === undefined) return true;
-    if (aCls.ret === undefined || bCls.ret === undefined) return false;
-    return structureEquals(aCls.ret, bCls.ret);
+    if (a.params === undefined && b.params === undefined) return true;
+    if (a.params === undefined || b.params === undefined) return false;
+    if (a.params.length !== b.params.length) return false;
+    return a.params.every((aParam, i) => {
+      const bParam = b.params?.[i];
+      if (bParam === undefined) return false;
+      if (aParam.name !== bParam.name) return false;
+      if (!structureEquals(aParam.type, bParam.type)) return false;
+      const aDefault = aParam.defaultValue;
+      const bDefault = bParam.defaultValue;
+      if (aDefault === undefined || bDefault === undefined) {
+        return aDefault === bDefault;
+      }
+      return registryDeepEquals(aDefault, bDefault);
+    });
   }
 
   return false;
@@ -552,30 +550,18 @@ export function structureMatches(
     return true;
   }
 
-  if (isStructureKind(type, 'closure')) {
-    if (!isCallable(value) || value.returnType === undefined) return false;
-    if (type.params === undefined) return true;
-    const valueParams = declaredParams(value);
-    if (valueParams.length !== type.params.length) return false;
-    for (const [i, field] of type.params.entries()) {
-      const param = valueParams[i];
-      if (param === undefined) return false;
-      if (param.name !== field.name) return false;
-      const paramType: TypeStructure = param.type ?? { kind: 'any' };
-      if (!structureEquals(paramType, field.type)) return false;
-      // Directional default rules: value (superset) satisfies type (contract)
-      const valueDefault = param.defaultValue;
-      const typeDefault = field.defaultValue;
-      if (valueDefault === undefined && typeDefault !== undefined) return false;
-      if (valueDefault !== undefined && typeDefault !== undefined) {
-        if (!registryDeepEquals(valueDefault, typeDefault)) return false;
-      }
-      // value has default + type lacks → compatible (superset satisfies)
-      // neither has default → compatible
+  if (isStructureKind(type, 'fn')) {
+    if (!isCallable(value)) return false;
+    // The bare fn accepts every function.
+    if (type.params === undefined && isUnspecified(type.ret)) return true;
+    if (value.returnType === undefined) return false;
+    if (type.params === undefined) {
+      return structureEquals(
+        value.returnType.structure,
+        type.ret ?? ANY_STRUCTURE
+      );
     }
-    const retType: TypeStructure = value.returnType.structure;
-    if (type.ret === undefined) return true;
-    return structureEquals(retType, type.ret);
+    return structureEquals(inferStructure(value), type);
   }
 
   if (isStructureKind(type, 'literal')) {
@@ -703,17 +689,23 @@ export function formatStructure(type: TypeStructure): string {
     return `stream(${chunkStr})${retStr}`;
   }
 
-  if (isStructureKind(type, 'closure')) {
-    if (type.params === undefined) return 'closure';
+  if (isStructureKind(type, 'fn')) {
+    const outer = isUnspecified(type.ret) ? 'any' : formatStructure(type.ret);
+    if (type.params === undefined) {
+      return isUnspecified(type.ret) ? 'fn' : `fn:${outer}`;
+    }
     const params = type.params
       .map((field) => {
-        const base = `${field.name}: ${formatStructure(field.type)}`;
+        const fieldType = formatStructure(field.type);
+        const base =
+          field.name === undefined
+            ? fieldType
+            : `${formatFieldKey(field.name)}: ${fieldType}`;
         if (field.defaultValue === undefined) return base;
         return `${base} = ${formatRillLiteral(field.defaultValue)}`;
       })
       .join(', ');
-    const ret = type.ret !== undefined ? formatStructure(type.ret) : 'any';
-    return `|${params}| :${ret}`;
+    return `fn(${params}):${outer}`;
   }
 
   if (isStructureKind(type, 'union')) {
@@ -730,20 +722,6 @@ export function formatStructure(type: TypeStructure): string {
 // ============================================================
 // INFER STRUCTURE
 // ============================================================
-
-/** Build a closure param field definition from name, type, and optional default. */
-function paramToFieldDef(
-  name: string,
-  type: TypeStructure,
-  defaultValue: RillValue | undefined,
-  annotations?: Record<string, RillValue>
-): RillFieldDef {
-  const field: RillFieldDef = { name, type };
-  if (defaultValue !== undefined) field.defaultValue = defaultValue;
-  if (annotations && Object.keys(annotations).length > 0)
-    field.annotations = annotations;
-  return field;
-}
 
 /** True when a list's element chain ends in an unspecified or `any` element. */
 function endsInAny(ts: TypeStructure): boolean {
@@ -951,19 +929,12 @@ export function inferStructure(value: RillValue): TypeStructure {
     return Object.freeze(result);
   }
   if (isCallable(value) && value.returnType !== undefined) {
-    const params = declaredParams(value).map((p) =>
-      Object.freeze(
-        paramToFieldDef(
-          p.name,
-          p.type ?? { kind: 'any' },
-          p.defaultValue,
-          p.annotations
-        )
-      )
+    const params = paramsToFieldDefs(declaredParams(value)).map((field) =>
+      Object.freeze(field)
     );
     const ret: TypeStructure = value.returnType.structure;
     return Object.freeze({
-      kind: 'closure',
+      kind: 'fn',
       params: Object.freeze(params),
       ret,
     });

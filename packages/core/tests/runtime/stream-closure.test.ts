@@ -48,10 +48,10 @@ async function collectStreamChunks(stream: RillStream): Promise<RillValue[]> {
 // ============================================================
 
 describe('Stream Closure Execution', () => {
-  describe('stream closure returns RillStream', () => {
-    it('returns a RillStream when calling a stream closure', async () => {
+  describe('stream fn returns RillStream', () => {
+    it('returns a RillStream when calling a stream fn', async () => {
       const script = `
-        |x| ($x -> yield) :stream() => $gen
+        fn(x):stream() { $x -> yield } => $gen
         $gen(42)
       `;
       const result = await run(script);
@@ -60,7 +60,7 @@ describe('Stream Closure Execution', () => {
 
     it('returned stream has done false before consumption', async () => {
       const script = `
-        |x| ($x -> yield) :stream() => $gen
+        fn(x):stream() { $x -> yield } => $gen
         $gen(1)
       `;
       const result = (await run(script)) as unknown as RillStream;
@@ -75,7 +75,7 @@ describe('Stream Closure Execution', () => {
   describe('yielded chunks consumable via next', () => {
     it('consumes single yielded chunk via next', async () => {
       const script = `
-        |x| ($x -> yield) :stream() => $gen
+        fn(x):stream() { $x -> yield } => $gen
         $gen(42)
       `;
       const result = (await run(script)) as unknown as RillStream;
@@ -85,11 +85,11 @@ describe('Stream Closure Execution', () => {
 
     it('consumes multiple yielded chunks via next', async () => {
       const script = `
-        || {
+        fn():stream() {
           1 -> yield
           2 -> yield
           3 -> yield
-        } :stream() => $gen
+        } => $gen
         $gen()
       `;
       const result = (await run(script)) as unknown as RillStream;
@@ -99,10 +99,10 @@ describe('Stream Closure Execution', () => {
 
     it('consumes string chunks', async () => {
       const script = `
-        || {
+        fn():stream(string) {
           "hello" -> yield
           "world" -> yield
-        } :stream(string) => $gen
+        } => $gen
         $gen()
       `;
       const result = (await run(script)) as unknown as RillStream;
@@ -118,9 +118,9 @@ describe('Stream Closure Execution', () => {
   describe('chunk type mismatch at yield', () => {
     it('halts when yielded value does not match declared chunk type', async () => {
       const script = `
-        || {
+        fn():stream(string) {
           42 -> yield
-        } :stream(string) => $gen
+        } => $gen
         $gen()
       `;
       // Stream is created lazily; consuming triggers the type check
@@ -133,10 +133,10 @@ describe('Stream Closure Execution', () => {
 
     it('halts on second chunk when type mismatches', async () => {
       const script = `
-        || {
+        fn():stream(string) {
           "valid" -> yield
           123 -> yield
-        } :stream(string) => $gen
+        } => $gen
         $gen()
       `;
       const result = (await run(script)) as unknown as RillStream;
@@ -154,10 +154,10 @@ describe('Stream Closure Execution', () => {
   describe('resolution type mismatch', () => {
     it('halts when body result does not match declared resolution type', async () => {
       const script = `
-        || {
+        fn():stream():number {
           1 -> yield
           "not-a-number"
-        } :stream():number => $gen
+        } => $gen
         $gen()
       `;
       // Resolution type check fires when the body completes after all chunks.
@@ -179,20 +179,20 @@ describe('Stream Closure Execution', () => {
       // Create and consume streams sequentially to avoid concurrent
       // body execution sharing evaluator state.
       const script1 = `
-        || {
+        fn():stream() {
           1 -> yield
           2 -> yield
-        } :stream() => $gen
+        } => $gen
         $gen()
       `;
       const stream1 = (await run(script1)) as unknown as RillStream;
       const chunks1 = await collectStreamChunks(stream1);
 
       const script2 = `
-        || {
+        fn():stream() {
           1 -> yield
           2 -> yield
-        } :stream() => $gen
+        } => $gen
         $gen()
       `;
       const stream2 = (await run(script2)) as unknown as RillStream;
@@ -205,9 +205,9 @@ describe('Stream Closure Execution', () => {
 
     it('each stream is an independent RillStream instance', async () => {
       const script = `
-        || {
+        fn():stream() {
           1 -> yield
-        } :stream() => $gen
+        } => $gen
         $gen()
       `;
       const stream1 = (await run(script)) as unknown as RillStream;
@@ -227,9 +227,9 @@ describe('Stream Closure Execution', () => {
   describe('re-yielding via each { yield }', () => {
     it('emits multiple chunks when re-yielding list elements', async () => {
       const script = `
-        || {
+        fn():stream() {
           list[10, 20, 30] -> seq({ $ -> yield })
-        } :stream() => $gen
+        } => $gen
         $gen()
       `;
       const result = (await run(script)) as unknown as RillStream;
@@ -239,9 +239,9 @@ describe('Stream Closure Execution', () => {
 
     it('emits chunks from range via each { yield }', async () => {
       const script = `
-        || {
+        fn():stream(number) {
           range(1, 4) -> seq({ $ -> yield })
-        } :stream(number) => $gen
+        } => $gen
         $gen()
       `;
       const result = (await run(script)) as unknown as RillStream;
@@ -277,7 +277,7 @@ describe('Stream Closure Execution', () => {
     // all but the last and deadlocked; the FIFO queue must deliver every chunk.
     it('delivers every chunk when fan yields concurrently (no lost chunks, no deadlock)', async () => {
       const script = `
-        || { list[1, 2, 3] -> fan({ $ -> yield }) => $_r\n"ok" } :stream(number):string => $gen
+        fn():stream(number):string { list[1, 2, 3] -> fan({ $ -> yield }) => $_r\n"ok" } => $gen
         $gen() -> seq({ $ })
       `;
       const result = (await withTimeout(
@@ -293,7 +293,7 @@ describe('Stream Closure Execution', () => {
 
     it('delivers every chunk for a larger concurrent fan', async () => {
       const script = `
-        || { list[1, 2, 3, 4, 5] -> fan({ $ -> yield }) => $_r\n"ok" } :stream(number):string => $gen
+        fn():stream(number):string { list[1, 2, 3, 4, 5] -> fan({ $ -> yield }) => $_r\n"ok" } => $gen
         $gen() -> seq({ $ })
       `;
       const result = (await withTimeout(
@@ -311,7 +311,7 @@ describe('Stream Closure Execution', () => {
     // it runs to its resolution.
     it('resolves a partially consumed stream without hanging', async () => {
       const script = `
-        || { range(1, 6) -> seq({ $ -> yield }) => $_r\n"done" } :stream(number):string => $gen
+        fn():stream(number):string { range(1, 6) -> seq({ $ -> yield }) => $_r\n"done" } => $gen
         $gen() => $s
         $s -> take(3) => $c
         $s()

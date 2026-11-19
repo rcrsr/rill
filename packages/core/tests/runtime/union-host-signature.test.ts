@@ -21,7 +21,7 @@ describe('union host signatures', () => {
     const body = vi.fn((): RillValue => 'ok');
     const ctx = createRuntimeContext({
       functions: {
-        convert: { signature: '|u: union("c", "f")|:string', fn: body },
+        convert: { signature: 'fn(u: union("c", "f")):string', fn: body },
       },
     });
 
@@ -36,8 +36,8 @@ describe('union host signatures', () => {
     const body = vi.fn((): RillValue => 'ok');
     const ctx = createRuntimeContext({
       functions: {
-        convert: { signature: '|u: union("c")|:string', fn: body },
-        pick: { signature: '|u: union(#a)|:string', fn: body },
+        convert: { signature: 'fn(u: union("c")):string', fn: body },
+        pick: { signature: 'fn(u: union(#a)):string', fn: body },
       },
     });
 
@@ -56,7 +56,7 @@ describe('union host signatures', () => {
     const body = vi.fn((): RillValue => 'ok');
     const ctx = createRuntimeContext({
       functions: {
-        convert: { signature: '|u: union("c", "f")|:string', fn: body },
+        convert: { signature: 'fn(u: union("c", "f")):string', fn: body },
       },
     });
 
@@ -70,7 +70,7 @@ describe('union host signatures', () => {
       createRuntimeContext({
         functions: {
           fn: {
-            signature: '|u: union(string, string)|',
+            signature: 'fn(u: union(string, string))',
             fn: (): RillValue => 'ok',
           },
         },
@@ -83,12 +83,14 @@ describe('union host signatures', () => {
       createRuntimeContext({
         functions: {
           fn: {
-            signature: '|u: union(list[1])|',
+            signature: 'fn(u: union(list[1]))',
             fn: (): RillValue => 'ok',
           },
         },
       })
-    ).toThrow(/unsupported union member 'list\['/);
+    ).toThrow(
+      /union member must be a type or a string, number, bool, or atom literal/
+    );
   });
 });
 
@@ -97,7 +99,7 @@ describe('union manifest round-trip', () => {
     const ctx = createRuntimeContext({
       functions: {
         convert: {
-          signature: '|u: union("c", "f")|:string',
+          signature: 'fn(u: union("c", "f")):string',
           fn: (): RillValue => 'ok',
         },
       },
@@ -114,7 +116,7 @@ describe('union atom members in host signatures', () => {
     const ctx = createRuntimeContext({
       functions: {
         pick: {
-          signature: '|u: union(#a, #b)|:string',
+          signature: 'fn(u: union(#a, #b)):string',
           fn: (): RillValue => 'ok',
         },
       },
@@ -129,7 +131,7 @@ describe('union atom members in host signatures', () => {
     const ctx = createRuntimeContext({
       functions: {
         pick: {
-          signature: '|u: union(#a, #b)|:string',
+          signature: 'fn(u: union(#a, #b)):string',
           fn: (): RillValue => 'ok',
         },
       },

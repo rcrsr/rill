@@ -56,15 +56,15 @@ describe('Type Variable Positions', () => {
   });
 
   // ============================================================
-  // Closure Param Position (|val: $t|)  [AC-12]
+  // Closure Param Position (fn(val: $t))  [AC-12]
   // ============================================================
 
-  describe('Closure Param Position (|val: $t|)', () => {
+  describe('Closure Param Position (fn(val: $t))', () => {
     // AC-12: $t resolves at closure creation time
     it('AC-12: $t bound to string — closure accepts string argument', async () => {
       const result = await run(`
         string => $t
-        |val: $t| { $val } => $f
+        fn(val: $t) { $val } => $f
         $f("hello")
       `);
       expect(result).toBe('hello');
@@ -74,7 +74,7 @@ describe('Type Variable Positions', () => {
       await expect(
         run(`
           number => $t
-          |val: $t| { $val } => $f
+          fn(val: $t) { $val } => $f
           $f("hello")
         `)
       ).rejects.toThrow('expects number, got string');
@@ -83,7 +83,7 @@ describe('Type Variable Positions', () => {
     it('AC-12: $t bound to number — closure accepts number argument', async () => {
       const result = await run(`
         number => $t
-        |val: $t| { $val * 2 } => $f
+        fn(val: $t) { $val * 2 } => $f
         $f(21)
       `);
       expect(result).toBe(42);
@@ -92,7 +92,7 @@ describe('Type Variable Positions', () => {
     it('AC-12: $t reassigned after closure creation — closure retains creation-time type', async () => {
       const result = await run(`
         string => $t
-        |val: $t| { $val } => $f
+        fn(val: $t) { $val } => $f
         number => $t
         $f("hello")
       `);
@@ -102,7 +102,7 @@ describe('Type Variable Positions', () => {
     it('AC-12: $t bound to list — closure accepts list argument', async () => {
       const result = await run(`
         list => $t
-        |val: $t| { $val } => $f
+        fn(val: $t) { $val } => $f
         $f(list[1, 2, 3])
       `);
       expect(result).toEqual([1, 2, 3]);
@@ -211,7 +211,7 @@ describe('Type Variable Positions', () => {
       await expect(
         run(`
           string => $t
-          |val: $t| { $val } => $f
+          fn(val: $t) { $val } => $f
           $f(42)
         `)
       ).rejects.toThrow('val expects string, got number');

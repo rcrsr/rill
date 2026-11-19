@@ -80,7 +80,7 @@ describe('parseUnary recursion-depth guard', () => {
 describe('parseTypeRef recursion-depth guard', () => {
   it('throws ParseError with id RILL-P015 on deeply nested parameterized types, not RangeError', () => {
     const source =
-      '|x: ' + 'list('.repeat(5000) + 'string' + ')'.repeat(5000) + '|: bool';
+      'fn(x: ' + 'list('.repeat(5000) + 'string' + ')'.repeat(5000) + '):bool';
 
     let caught: unknown;
     try {
@@ -96,7 +96,7 @@ describe('parseTypeRef recursion-depth guard', () => {
 
   it('leaves shallow parameterized-type nesting unaffected', () => {
     const source =
-      '|x: ' + 'list('.repeat(3) + 'string' + ')'.repeat(3) + '|: bool';
+      'fn(x: ' + 'list('.repeat(3) + 'string' + ')'.repeat(3) + '):bool';
 
     expect(() => parse(source)).not.toThrow();
   });

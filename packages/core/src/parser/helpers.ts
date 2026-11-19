@@ -67,7 +67,7 @@ const VALUE_CONTEXT_KEYWORD_TYPES: readonly string[] = [
  * usage.
  * @internal
  */
-function isVariableNameToken(token: { type: string }): boolean {
+export function isVariableNameToken(token: { type: string }): boolean {
   return (
     token.type === TOKEN_TYPES.IDENTIFIER ||
     VALUE_CONTEXT_KEYWORD_TYPES.includes(token.type)
@@ -474,13 +474,34 @@ export function isLiteralStart(state: ParserState): boolean {
 }
 
 /**
- * Check for closure start: | or ||
- * - |params| body
- * - || body (no-param closure)
+ * Raise RILL-P012 when the cursor sits on the removed closure literal opener
+ * `|` or `||`, naming the fn form that replaces it.
  * @internal
  */
-export function isClosureStart(state: ParserState): boolean {
-  return check(state, TOKEN_TYPES.PIPE_BAR, TOKEN_TYPES.OR);
+export function rejectRemovedClosureLiteral(state: ParserState): void {
+  if (check(state, TOKEN_TYPES.OR)) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P012,
+      "Syntax removed: the '||' closure literal was removed; write fn() { ... }",
+      current(state).span.start
+    );
+  }
+  if (check(state, TOKEN_TYPES.PIPE_BAR)) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P012,
+      "Syntax removed: the '|params|' closure literal was removed; write fn(params) { ... }",
+      current(state).span.start
+    );
+  }
+}
+
+/**
+ * Check for the `fn` keyword starting an fn literal or fn type value.
+ * @internal
+ */
+export function isFnStart(state: ParserState): boolean {
+  const tok = current(state);
+  return tok.type === TOKEN_TYPES.IDENTIFIER && tok.value === 'fn';
 }
 
 // ============================================================

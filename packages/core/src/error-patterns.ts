@@ -73,15 +73,15 @@ export const ERROR_HANDLING_PATTERNS: readonly ErrorHandlingPattern[] = [
     examples: [
       {
         description: 'Field with default',
-        code: '[name: "Alice", age: 30] => $user\n$user.email ?? "no-email@example.com"',
+        code: 'dict[name: "Alice", age: 30] => $user\n$user.email ?? "no-email@example.com"',
       },
       {
         description: 'Annotation with default',
-        code: '|x|($x) => $fn\n$fn.^timeout ?? 30',
+        code: 'fn(x) { $x } => $fn\n$fn.^timeout ?? 30',
       },
       {
         description: 'Dict dispatch with default',
-        code: '[a: 1, b: 2, c: 3] => $lookup\n"b" -> $lookup ?? "not found"',
+        code: 'dict[a: 1, b: 2, c: 3] => $lookup\n"b" -> $lookup ?? "not found"',
       },
     ],
   },

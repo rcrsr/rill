@@ -66,7 +66,7 @@ A block or string target must read `$`. A leading method such as `.upper` or `pa
 Piping into a zero-parameter function halts `RILL-R045`, because the piped value is an excess argument.
 
 ```rill
-||("constant") => $zero
+fn() { "constant" } => $zero
 # Error: RILL-R045
 42 -> $zero
 ```
@@ -125,7 +125,7 @@ When `->` targets a callable, the runtime decides how to bind the piped value to
 When a callable is called with no arguments, the piped value is prepended automatically.
 
 ```rill
-|x|($x * 2) => $double
+fn(x) { $x * 2 } => $double
 5 -> $double
 # Result: 10
 ```
@@ -141,7 +141,7 @@ When a function is called with existing args and no top-level `$`, the piped val
 ```
 
 ```rill
-|a, b|($a - $b) => $sub
+fn(a, b) { $a - $b } => $sub
 10 -> $sub(3)
 # Result: 7
 ```
@@ -149,7 +149,7 @@ When a function is called with existing args and no top-level `$`, the piped val
 #### Explicit placement with `$`
 
 ```rill
-|a, b, c|"{$a},{$b},{$c}" => $fmt
+fn(a, b, c) { "{$a},{$b},{$c}" } => $fmt
 10 -> $fmt(1, $, 0)
 # Result: "1,10,0"
 ```
@@ -157,7 +157,7 @@ When a function is called with existing args and no top-level `$`, the piped val
 #### Duplicate `$` — both resolve to piped value
 
 ```rill
-|a, b, c|"{$a},{$b},{$c}" => $fmt
+fn(a, b, c) { "{$a},{$b},{$c}" } => $fmt
 10 -> $fmt(1, $, $)
 # Result: "1,10,10"
 ```
@@ -165,8 +165,8 @@ When a function is called with existing args and no top-level `$`, the piped val
 #### Sub-expression `$` counts as top-level
 
 ```rill
-|x|($x * 2) => $double
-|n|($n + 1) => $inc
+fn(x) { $x * 2 } => $double
+fn(n) { $n + 1 } => $inc
 5 -> $double($inc($))
 # Result: 12
 ```
@@ -397,9 +397,9 @@ No grouping needed; `!.empty` is parsed as a unit before `?` or `=>`.
 Chain a list of closures:
 
 ```rill
-|x|($x + 1) => $inc
-|x|($x * 2) => $double
-|x|($x + 10) => $add10
+fn(x) { $x + 1 } => $inc
+fn(x) { $x * 2 } => $double
+fn(x) { $x + 10 } => $add10
 
 # Chain: (5 + 1) = 6, (6 * 2) = 12, (12 + 10) = 22
 5 -> chain([$inc, $double, $add10])    # 22
@@ -408,7 +408,7 @@ Chain a list of closures:
 Chain a single closure:
 
 ```rill
-|x|($x * 2) => $dbl
+fn(x) { $x * 2 } => $dbl
 5 -> chain($dbl)                           # 10
 ```
 
@@ -417,7 +417,7 @@ Chain a single closure:
 `ordered[...]` produces a named, ordered container. It preserves insertion order and carries named keys. Use it to pass named arguments to closures:
 
 ```rill
-|a, b, c|"{$a}-{$b}-{$c}" => $fmt
+fn(a, b, c) { "{$a}-{$b}-{$c}" } => $fmt
 dict[c: 3, a: 1, b: 2] -> $fmt(...)       # "1-2-3" (names matched, key order irrelevant)
 ```
 
@@ -976,7 +976,7 @@ At most one spread is permitted per call.
 Spread the piped value into a multi-param closure:
 
 ```rill
-|a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
+fn(a, b, c) { "{$a}-{$b}-{$c}" } => $fmt
 tuple[1, 2, 3] -> $fmt(...)
 # Result: "1-2-3"
 ```
@@ -986,7 +986,7 @@ tuple[1, 2, 3] -> $fmt(...)
 Spread a stored value directly:
 
 ```rill
-|a, b| { $a + $b } => $add
+fn(a, b) { $a + $b } => $add
 tuple[3, 4] => $args
 $add(...$args)
 # Result: 7
@@ -997,7 +997,7 @@ $add(...$args)
 Combine fixed arguments with a spread:
 
 ```rill
-|a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
+fn(a, b, c) { "{$a}-{$b}-{$c}" } => $fmt
 tuple[2, 3] => $rest
 $fmt(1, ...$rest)
 # Result: "1-2-3"
@@ -1008,7 +1008,7 @@ $fmt(1, ...$rest)
 Without `...`, a tuple passes as a single argument:
 
 ```rill
-|t| { $t } => $passthrough
+fn(t) { $t } => $passthrough
 tuple[1, 2, 3] -> $passthrough()
 # Result: tuple[1, 2, 3]
 ```
@@ -1063,7 +1063,7 @@ The `^(limit: N)` form is **not part of the current parser surface**. The parser
 
 ```text
 # Error: RILL-R081 — Migration error: use `do<limit: N> { body }` at 1:N
-[1, 2, 3] -> fold(0, ^(limit: 20) |x|($@ + $x))
+[1, 2, 3] -> fold(0, ^(limit: 20) fn(x) { $@ + $x })
 ```
 
 Iteration limits are controlled via the `do<limit: N>` loop construct, not via operator-level annotation. See [Control Flow](topic-control-flow.md) for `do<limit: N>` syntax.

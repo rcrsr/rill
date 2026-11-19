@@ -46,14 +46,14 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
     it('auto-invokes intermediate zero-param closure (AC-4)', async () => {
       // AC-4: Intermediate zero-param closure auto-invokes
       const result = await run(
-        'list["get", "name"] -> dict[get: ||(dict[name: "Alice"])]'
+        'list["get", "name"] -> dict[get: fn() { dict[name: "Alice"] }]'
       );
       expect(result).toBe('Alice');
     });
 
     it('auto-invokes multiple intermediate closures in path', async () => {
       const result = await run(
-        'list["fn1", "fn2", "value"] -> dict[fn1: ||(dict[fn2: ||(dict[value: "result"])])]'
+        'list["fn1", "fn2", "value"] -> dict[fn1: fn() { dict[fn2: fn() { dict[value: "result"] }] }]'
       );
       expect(result).toBe('result');
     });
@@ -186,7 +186,7 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
 
     it('invokes closure at terminal for single-element path (AC-22)', async () => {
       // AC-22: Single-element path with closure
-      const result = await run('list["fn"] -> dict[fn: ||("value")]');
+      const result = await run('list["fn"] -> dict[fn: fn() { "value" }]');
       expect(result).toBe('value');
     });
   });
@@ -226,7 +226,9 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
 
     it('throws RUNTIME_TYPE_ERROR for parameterized terminal closure (AC-12/EC-9)', async () => {
       // AC-12/EC-9: Parameterized closure at terminal position throws
-      await expect(run('list["fn"] -> dict[fn: |x|($x * 2)]')).rejects.toThrow(
+      await expect(
+        run('list["fn"] -> dict[fn: fn(x) { $x * 2 }]')
+      ).rejects.toThrow(
         /Dispatch does not provide arguments for parameterized closure/
       );
     });
@@ -247,11 +249,11 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
 
     it('propagates closure body errors (EC-10)', async () => {
       // EC-10: Closure body error propagates to caller
-      // Note: ||{ error "boom" } is zero-param closure with error in body
-      // ||({ error "boom" }) would return block-closure as value
+      // Note: fn() { error "boom" } is zero-param closure with error in body
+      // fn() ({ error "boom" }) would return the inner block as a value
       await expect(
         run(
-          'list["fn", "nested"] -> dict[fn: dict[nested: ||{ error "boom" }]]'
+          'list["fn", "nested"] -> dict[fn: dict[nested: fn() { error "boom" }]]'
         )
       ).rejects.toThrow(/boom/);
     });

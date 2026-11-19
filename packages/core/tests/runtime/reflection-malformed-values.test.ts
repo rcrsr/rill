@@ -135,7 +135,7 @@ describe('malformed callables halt instead of crashing', () => {
   it('reports no structural match for a callable without a return type', () => {
     expect(
       structureMatches(makeMalformedCallable(), {
-        kind: 'closure',
+        kind: 'fn',
         params: [],
       })
     ).toBe(false);

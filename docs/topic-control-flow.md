@@ -501,7 +501,7 @@ Assert halts when:
 Guard clauses at function start:
 
 ```rill
-|data| {
+fn(data) {
   assert $data:?list "Expected list"
   assert !$data.empty "List cannot be empty"
   $data -> seq({ $ * 2 })
@@ -611,7 +611,7 @@ $data -> .empty ? { error "Data cannot be empty" } ! $data
 Use `error` in blocks for multi-step validation:
 
 ```rill
-|age| {
+fn(age) {
   ($age < 0) ? { error "Age cannot be negative: {$age}" }
   ($age > 150) ? { error "Age out of range: {$age}" }
   "Valid age: {$age}"
@@ -918,7 +918,7 @@ Exit early on invalid conditions (assumes host provides `error()`):
 ```text
 use<ext:app> => $app
 
-|data| {
+fn(data) {
   $data -> .empty ? $app.error("Empty input")
   $data -> :?list ? $ ! $app.error("Expected list")
   $data -> seq({ $ * 2 })

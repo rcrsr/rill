@@ -129,7 +129,7 @@ describe('Rill Language: Error Statement', () => {
 
     it('throws from closure when invoked with condition (AC-BOUND-5)', async () => {
       const script = `
-        |x|{ ($x < 0) ? { error "negative" } ! $x } => $check
+        fn(x) { ($x < 0) ? { error "negative" } ! $x } => $check
         -5 -> $check()
       `;
       await expect(run(script)).rejects.toThrow('negative');
@@ -137,7 +137,7 @@ describe('Rill Language: Error Statement', () => {
 
     it('does not throw from closure when condition false', async () => {
       const script = `
-        |x|{ ($x < 0) ? { error "negative" } ! $x } => $check
+        fn(x) { ($x < 0) ? { error "negative" } ! $x } => $check
         5 -> $check()
       `;
       expect(await run(script)).toBe(5);

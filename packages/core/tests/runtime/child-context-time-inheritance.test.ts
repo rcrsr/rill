@@ -32,7 +32,7 @@ describe('child context time-field inheritance', () => {
     expect(result).toBe(fixedMs);
   });
 
-  it('now() inside a closure body reflects the parent nowMs virtual clock', async () => {
+  it('now() inside a fn body reflects the parent nowMs virtual clock', async () => {
     const fixedMs = 1710316800000;
 
     const result = await run('{ now().unix } => $f\n0 -> $f', {

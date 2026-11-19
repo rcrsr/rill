@@ -26,33 +26,33 @@ import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 
 describe('Rill Language: Type-Ref Arg Unification', () => {
   // ============================================================
-  // AC-1: |a: dict(b: number = 5)| closure, invoke with dict[]
+  // AC-1: fn(a: dict(b: number = 5)) closure, invoke with dict[]
   // ============================================================
 
   describe('AC-1: dict with default field, invoke/convert with empty dict', () => {
     it('closure param annotation hydrates dict default to 5', async () => {
       const result = await run(
-        '|a: dict(b: number = 5)| { $a } => $fn\n$fn(dict[])'
+        'fn(a: dict(b: number = 5)) { $a } => $fn\n$fn(dict[])'
       );
       expect(result).toEqual({ b: 5 });
     });
 
     it('accessing hydrated default field returns 5', async () => {
       const result = await run(
-        '|a: dict(b: number = 5)| { $a.b } => $fn\n$fn(dict[])'
+        'fn(a: dict(b: number = 5)) { $a.b } => $fn\n$fn(dict[])'
       );
       expect(result).toBe(5);
     });
   });
 
   // ============================================================
-  // AC-2: |a: tuple(number = 0, string = "")| invoke with tuple[]
+  // AC-2: fn(a: tuple(number = 0, string = "")) invoke with tuple[]
   // ============================================================
 
   describe('AC-2: tuple with defaults, convert with empty tuple', () => {
     it('closure param annotation hydrates tuple defaults to tuple[0, ""]', async () => {
       const result = await run(
-        '|a: tuple(number = 0, string = "")| { $a } => $fn\n$fn(tuple[])'
+        'fn(a: tuple(number = 0, string = "")) { $a } => $fn\n$fn(tuple[])'
       );
       expect(isTuple(result)).toBe(true);
       const tupleResult = result as { entries: unknown[] };
@@ -79,13 +79,13 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
   });
 
   // ============================================================
-  // AC-4: |a: dict(b: union(string, number) = "x")| invoke with dict[]
+  // AC-4: fn(a: dict(b: union(string, number) = "x")) invoke with dict[]
   // ============================================================
 
   describe('AC-4: dict with union-typed field and default via closure', () => {
     it('closure param annotation hydrates union-typed default "x"', async () => {
       const result = await run(
-        '|a: dict(b: union(string, number) = "x")| { $a.b } => $fn\n$fn(dict[])'
+        'fn(a: dict(b: union(string, number) = "x")) { $a.b } => $fn\n$fn(dict[])'
       );
       expect(result).toBe('x');
     });

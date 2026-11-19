@@ -78,7 +78,7 @@ All copies are deep. All comparisons are by value. No object identity.
                   dict[("{$a}{$b}"): value]  # computed key (dict/ordered: must eval to string)
     Tuples:       tuple[1, 2, 3]
     Ordered:      ordered[a: 1, b: 2]   # named-arg unpacking
-    Closures:     |x| ($x + 1)          # explicit
+    Functions:    fn(x) { $x + 1 }      # explicit
                   { $ + 1 }             # block, implicit $
     Type annot:   "hi" => $x:string
     Modules:      use<module:greet> => $g
@@ -101,7 +101,6 @@ Atoms are identified and compared by name: #FOO == #BAR is false, and any well-f
 | `-> fold(i, { })` / `acc(i, { })` | current item (`$@` = accumulator) |
 | `while (cond) do { }` | accumulated value |
 | `cond ? a ! b` | pipe value entering the conditional (either branch) |
-| `\|\|{ $.field }` in dict | the containing dict |
 
 Implied `$`: bare `.method` means `$ -> .method`. `"hello" -> .upper` is `"hello" -> $.upper`.
 
@@ -123,7 +122,7 @@ Don't capture just to continue a chain. Use line continuation. Capture only when
 
 | Type | Source | Examples |
 |---|---|---|
-| Closure | Script-defined | `\|x\| { $x * 2 }`, `{ $ + 1 }` |
+| Function | Script-defined | `fn(x) { $x * 2 }`, `{ $ + 1 }` |
 | Built-in | Shipped with runtime | `log`, `json`, `range`, `repeat`, `chain` |
 | Host | Registered by host | `$app.fetch()` (hoisted via `use<ext:app> => $app`) |
 
@@ -154,19 +153,19 @@ Use parentheses to override.
 
 | Operator | Signature | Semantics |
 |---|---|---|
-| `seq` | `seq(list, closure)` | Transform each item sequentially; returns all body results |
-| `fan` | `fan(list, closure)` | Transform each item in parallel; returns all body results |
-| `filter` | `filter(list, closure)` | Keep items where body returns `true` |
-| `fold` | `fold(list, init, closure)` | Reduce to single value; `$@` = accumulator |
-| `acc` | `acc(list, init, closure)` | Like `fold` but emits accumulator at each step |
+| `seq` | `seq(list, fn)` | Transform each item sequentially; returns all body results |
+| `fan` | `fan(list, fn)` | Transform each item in parallel; returns all body results |
+| `filter` | `filter(list, fn)` | Keep items where body returns `true` |
+| `fold` | `fold(list, init, fn)` | Reduce to single value; `$@` = accumulator |
+| `acc` | `acc(list, init, fn)` | Like `fold` but emits accumulator at each step |
 | `sort` | `sort(list, key_fn?)` | Stable ascending sort; dict and ordered input return `ordered`, tuple input returns `list`; iterators are materialized; over 10,000 elements halts `RILL-R010` (fatal) |
 | `take` | `take(list, n: int) -> list[T]` | First n elements; `n < 0` halts `#INVALID_INPUT`; a result over 10,000 halts `RILL_R010` (catchable) |
 | `skip` | `skip(list, n: int) -> list[T]` | Drop first n elements; `n < 0` halts `#INVALID_INPUT`; n past length → empty |
 | `cycle` | `cycle(list) -> iterator[T]` | Repeat input indefinitely as iterator; empty input → empty; bound at consumer |
 | `batch` | `batch(list, n: int, options?) -> stream[list[T]]` | Chunks of n; `drop_partial: true` discards trailing short chunk |
 | `window` | `window(list, n: int, step: int = n) -> stream[list[T]]` | Sliding windows of n; default step=n (non-overlapping); `step > n` makes gaps |
-| `start_when` | `start_when(list, predicate: closure) -> stream[T]` | Yield from first match onward; predicate must return `bool` |
-| `stop_when` | `stop_when(list, predicate: closure) -> stream[T]` | Yield through first match (inclusive); predicate must return `bool` |
+| `start_when` | `start_when(list, predicate: fn) -> stream[T]` | Yield from first match onward; predicate must return `bool` |
+| `stop_when` | `stop_when(list, predicate: fn) -> stream[T]` | Yield through first match (inclusive); predicate must return `bool` |
 | `pass { body }` | `pass { body }` | Side-effect block; pipe value flows through unchanged; halts in body propagate |
 | `pass<on_error: #IGNORE>` | `pass<on_error: #IGNORE> { body }` | Side-effect block; suppresses catchable halts in body; `on_error: #IGNORE` is the only valid option (else RILL-P004) |
 

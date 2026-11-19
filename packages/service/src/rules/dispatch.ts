@@ -15,7 +15,7 @@
  *   the table has a default, or when any key is dynamic, spread, or computed.
  */
 
-import { formatFieldKey, structureOverlaps } from '@rcrsr/rill';
+import { formatFieldKey, formatTypeRef, structureOverlaps } from '@rcrsr/rill';
 import type {
   ASTNode,
   DictEntryNode,
@@ -32,7 +32,6 @@ import {
   staticTypeOf,
   typeAfterStep,
 } from './static-type.js';
-import { typeRefToString } from '../type-rendering.js';
 import { registeredRules } from './rules-registry.js';
 
 // ============================================================
@@ -211,7 +210,7 @@ export const dispatchSelectorNotString: Rule = {
       out.push(
         diagnostic(
           'DISPATCH_SELECTOR_NOT_STRING',
-          `A dispatch table takes a string selector, but this value is ${typeRefToString(selector)}; the dispatch halts #TYPE_MISMATCH before any lookup, even with a ?? default. Convert first with -> string.`,
+          `A dispatch table takes a string selector, but this value is ${formatTypeRef(selector)}; the dispatch halts #TYPE_MISMATCH before any lookup, even with a ?? default. Convert first with -> string.`,
           step,
           context
         )

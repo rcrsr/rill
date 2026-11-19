@@ -92,7 +92,7 @@ When iterating over a dict, `$` contains `key` and `value` fields. Iteration vis
 Pass a pre-defined closure by reference.
 
 ```rill
-|x| ($x * 2) => $double
+fn(x) { $x * 2 } => $double
 [1, 2, 3] -> seq($double)
 # Result: list[2, 4, 6]
 ```
@@ -248,7 +248,7 @@ filter([1, 2, 3, 4, 5], { $ > 2 })
 Pass a pre-defined closure by reference.
 
 ```rill
-|x| ($x > 2) => $gtTwo
+fn(x) { $x > 2 } => $gtTwo
 [1, 2, 3, 4, 5] -> filter($gtTwo)
 # Result: list[3, 4, 5]
 ```
@@ -339,7 +339,7 @@ fold([1, 2, 3], 0, { $@ + $ })
 # Result: 6
 
 # Same with inline closure
-[1, 2, 3] -> fold(0, |item|($@ + $item))
+[1, 2, 3] -> fold(0, fn(item) { $@ + $item })
 # Result: 6
 ```
 
@@ -387,7 +387,7 @@ fold([1, 2, 3], 0, { $@ + $ })
 Use a two-type anonymous closure to declare element and accumulator types.
 
 ```rill
-[1, 2, 3] -> fold(0, |number, number|{ $@ + $ })
+[1, 2, 3] -> fold(0, fn(number, number) { $@ + $ })
 # Result: 6
 ```
 
@@ -405,8 +405,8 @@ When folding over a dict, `$` contains `key` and `value` fields.
 Define closures for common reductions.
 
 ```rill
-|x| ($@ + $x) => $summer
-|x| (($x > $@) ? $x ! $@) => $maxer
+fn(x) { $@ + $x } => $summer
+fn(x) { ($x > $@) ? $x ! $@ } => $maxer
 
 [1, 2, 3] -> fold(0, $summer) => $r1
 [3, 7, 2] -> fold(0, $maxer) => $r2
@@ -476,7 +476,7 @@ acc([1, 2, 3], 0, { $@ + $ })
 Use a two-type anonymous closure to declare element and accumulator types.
 
 ```rill
-[1, 2, 3] -> acc(0, |number, number|{ $@ + $ })
+[1, 2, 3] -> acc(0, fn(number, number) { $@ + $ })
 # Result: list[1, 3, 6]
 ```
 
@@ -770,7 +770,7 @@ Combine operators for multi-stage transformations.
 | Concurrency not a number | `[1] -> fan({ $ }, dict[concurrency: "a"])` | `#TYPE_MISMATCH` (catchable) |
 | Concurrency not positive integer | `[1] -> fan({ $ }, dict[concurrency: -1])` | `#INVALID_INPUT` (catchable) |
 | Unknown option key | `[1] -> fan({ $ }, dict[bogus: 1])` | `#INVALID_INPUT` (catchable) |
-| Typed closure type violation | `[1,2,3] -> fold(0, \|string, number\|{ $@ + $ })` | RILL-R001 |
+| Typed closure type violation | `[1,2,3] -> fold(0, fn(string, number) { $@ + $ })` | RILL-R001 |
 
 ---
 

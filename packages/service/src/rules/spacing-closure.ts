@@ -1,14 +1,14 @@
 /**
- * Flags a removable space between an opening bracket and a closure's
- * opening pipe: `seq( |x| ...)` should be `seq(|x| ...)`.
+ * Flags a removable space between an opening bracket and an fn literal:
+ * `seq( fn(x) { ... })` should be `seq(fn(x) { ... })`.
  *
- * A ClosureNode.span begins at its first `|`, so the space cannot be seen
- * in the span text; the rule looks back into the source from the pipe.
- * It fires only when the run of whitespace before the `|` sits directly
+ * A ClosureNode.span begins at its `fn` keyword, so the space cannot be seen
+ * in the span text; the rule looks back into the source from the keyword.
+ * It fires only when the run of whitespace before the `fn` sits directly
  * after an opening bracket (`(` or `[`), where tightening the closure is
  * both idiomatic and safe. Whitespace that another rule requires or that
  * is idiomatic elsewhere is deliberately not flagged: a space after a
- * pipe/capture operator (`-> |x|`, `=> |x|`) is mandated by
+ * pipe/capture operator (`-> fn(x) {}`, `=> fn(x) {}`) is mandated by
  * SPACING_OPERATOR, and a space after an annotation, a comma, or inside a
  * block body carries no removable-space signal. Flagging those would put
  * SPACING_CLOSURE in direct conflict with idiomatic rill.
@@ -30,9 +30,9 @@ export const spacingClosure: Rule = {
     const diagnostics: Diagnostic[] = [];
     const closureNode = node;
     const source = context.source;
-    const pipeOffset = closureNode.span.start.offset;
+    const fnOffset = closureNode.span.start.offset;
 
-    let cursor = pipeOffset - 1;
+    let cursor = fnOffset - 1;
     let sawWhitespace = false;
     while (cursor >= 0 && (source[cursor] === ' ' || source[cursor] === '\t')) {
       sawWhitespace = true;
@@ -46,11 +46,11 @@ export const spacingClosure: Rule = {
     if (sawWhitespace && afterOpenBracket) {
       diagnostics.push({
         code: 'SPACING_CLOSURE',
-        message: 'No space before opening pipe in closure parameters',
+        message: 'No space before closure after an opening bracket',
         severity: 'info',
-        // `location` anchors on the pipe (`pipeOffset`), not the removable
+        // `location` anchors on the `fn` keyword (`fnOffset`), not the removable
         // space. A future autofix must derive the removable range as
-        // `[cursor + 1, pipeOffset)` rather than inferring it from `location`.
+        // `[cursor + 1, fnOffset)` rather than inferring it from `location`.
         location: closureNode.span.start,
         context: extractContextLine(
           closureNode.span.start.line,

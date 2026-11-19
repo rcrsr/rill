@@ -56,6 +56,17 @@ describe('validateConfig', () => {
     );
   });
 
+  it.each(['CLOSURE_BRACES', 'CLOSURE_BARE_DOLLAR'])(
+    'rejects the removed rule code %s',
+    (code) => {
+      const errors = validateConfig({ rules: { [code]: 'on' } });
+
+      expect(errors).toContainEqual(
+        expect.objectContaining({ ruleCode: code })
+      );
+    }
+  );
+
   it('reports a malformed rule state without throwing', () => {
     const config = {
       rules: { NAMING_SNAKE_CASE: 'bogus' },

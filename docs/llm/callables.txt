@@ -1,6 +1,6 @@
 # rill callables
 
-Closures, late binding, typed closures, reflection, dispatch operators, extraction, spread, modules.
+Closures, fn literals, late binding, typed functions, reflection, dispatch operators, extraction, spread, modules.
 
 ## Pipe binding rules
 
@@ -37,14 +37,18 @@ Block-closures (`{ body }`, implicit `$` parameter):
     5 -> $inc                          # 6 (pipe invocation)
     dict[x: { $ * 2 }]                 # dict value is a closure
 
-Explicit closures (`|params| body`):
+Function literals (`fn(params):outer { body }`, the body is a block on the same line):
 
-    |x| ($x + 1) => $inc               # named parameter
-    |a, b| ($a + $b) => $add           # multiple params
-    |x = 0| ($x + 1) => $inc_or_one    # default value
-    |x: number| ($x + 1) => $typed     # type annotation
+    fn(x) { $x + 1 } => $inc                 # named parameter
+    fn(a, b) { $a + $b } => $add             # multiple params
+    fn(x = 0) { $x + 1 } => $inc_or_one      # default value; the param type is any
+    fn(x: number) { $x + 1 } => $typed       # type annotation
+    fn(x: number):number { $x + 1 } => $out  # return type assertion
+    fn { $ + 1 } => $by_reads                # typed by the unnamed params the body reads
 
-`{ body }` is deferred (closure). `( expr )` is eager.
+A default does not infer the parameter type: `fn(x = "d")` gives `x` the type `any`. Write `fn(x: string = "d")` to constrain it. Unnamed params bind `$` and `$@` (at most two), never mix with named params, and carry no default (RILL-P028). `fn()` takes no params, so a body that reads `$` or `$@` halts RILL-P029; use `fn { ... }` instead. The old pipe-delimited function literal and pipe-delimited type literal halt RILL-P012 naming the fn form.
+
+`{ body }` is deferred (function). `( expr )` is eager.
 
     { $ + 1 } => $fn                   # closure stored
     ( 5 + 1 ) => $x                    # 6 stored
@@ -55,58 +59,56 @@ Closures capture scope, not values. Variables resolve at call time.
 
 `$` vs named params:
 - Use `$` in inline pipes and loops: `"hello" -> { .upper }`
-- Use named params in stored closures: `|x| ($x * 2) => $double`
+- Use named params in stored functions: `fn(x) { $x * 2 } => $double`
 - `$` is undefined when a stored closure is called later. Always use named params for reusable closures.
 
-## Zero-param dict closures (methods)
+## Typed functions
 
-`$` binds to the containing dict.
+Unnamed typed params (`fn(type) { body }`, `$` is the type-checked input):
 
-    dict[count: 3, double: ||{ $.count * 2 }] => $obj
-    $obj.double                        # 6
-
-## Typed closures
-
-Anonymous typed closure (`|type|{ body }`, type keyword as param, `$` is type-checked input):
-
-    "hello" -> |string|{ $ -> .upper }      # $ is string, checked at call
-    5 -> |number|{ $ * 2 }                  # 10
-    |number|{ $ * 2 }:number => $double     # stored with return type
-    5 -> $double                             # 10
-    "hi" -> $double                          # RILL-R001: parameter type mismatch
+    "hello" -> fn(string) { $ -> .upper }       # $ is string, checked at call
+    5 -> fn(number) { $ * 2 }                   # 10
+    fn(number):number { $ * 2 } => $double      # stored with return type
+    5 -> $double                                # 10
+    "hi" -> $double                             # RILL-R001: parameter type mismatch
 
 Any type from `types` works. Parameterized:
 
-    |list(number)|{ $ -> seq({ $ * 2 }) }
+    fn(list(number)) { $ -> seq({ $ * 2 }) }
+
+`fn` is the type of every function, and `closure` in a type position halts RILL-P012 naming fn. A function type is exact: names, types, defaults, and outer type must all match. A function with an extra defaulted param, or a default the type omits, does not match.
+
+    5 -> :fn                               # halts: not a function
+    $double -> :fn(number):number          # passes
 
 Return type assertion (halts with `#TYPE_MISMATCH` on mismatch):
 
-    |x: number| { "{$x}" }:string => $fn   # asserts string return
-    $fn(42)                                # "42" (passes)
+    fn(x: number):string { "{$x}" } => $fn   # asserts string return
+    $fn(42)                                  # "42" (passes)
 
-    |x: number| { $x * 2 }:string => $fn   # mismatch halts at call
-    $fn(5)                                 # halts: return type mismatch
+    fn(x: number):string { $x * 2 } => $fn   # mismatch halts at call
+    $fn(5)                                   # halts: return type mismatch
 
 ## Callable reflection
 
 `.^type.inner` and `.^type.outer` work on every callable type.
 
-    |x: number, y: string| ($x) => $fn
+    fn(x: number, y: string) { $x } => $fn
     $fn.^type.inner                        # ordered[x: number, y: string]
     $fn.^type.outer                        # any (no return type declared)
 
-    |x: number|{ $x * 2 }:number => $fn2
+    fn(x: number):number { $x * 2 } => $fn2
     $fn2.^type.outer                       # number
 
-`.^type.inner` returns an ordered of param names to types. `.^type.outer` returns the declared return type (`any` if undeclared). `.^type.defaults` lists only the params that have a default. Works on script closures, built-ins, host functions.
+`.^type.inner` returns an ordered of param names to types for named params, a tuple of types for unnamed params, and `ordered[]` for `fn()`. `.^type.outer` returns the declared return type (`any` if undeclared). `.^type.defaults` lists only the params that have a default. Works on script closures, built-ins, host functions.
 
 Description shorthand (bare string in `^(...)` expands to `description: <string>`):
 
-    ^("Get weather for city") |city: string| ($city) => $weather
+    ^("Get weather for city") fn(city: string) { $city } => $weather
     $weather.^description                  # "Get weather for city"
     $weather.?^description                 # true
 
-    ^("Fetch profile", cache: true) |id| ($id) => $get_user
+    ^("Fetch profile", cache: true) fn(id) { $id } => $get_user
     $get_user.^description                 # "Fetch profile"
     $get_user.^cache                       # true
 
@@ -201,7 +203,7 @@ Slice (`slice<start:stop:step>`):
     $g.hello("World")                  # call module member
     use<ext:qdrant.search>             # load extension member
 
-`use<>` returns the resolved value (dict, closure, or any rill type). Hosts register resolvers; scripts cannot. A `guard` around `use<>` catches resolution failures only; halts inside the module propagate.
+`use<>` returns the resolved value (dict, function, or any rill type). Hosts register resolvers; scripts cannot. A `guard` around `use<>` catches resolution failures only; halts inside the module propagate.
 
 `v -> use<...>` on a host-resolved value calls a callable, selects from a dict or list, or converts through a type; any other value halts `RILL-R002`. A source module's result, even a function, is returned as-is.
 

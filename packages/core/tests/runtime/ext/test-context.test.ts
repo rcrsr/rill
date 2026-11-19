@@ -595,7 +595,7 @@ describe('AC-1: nested dict with closures at all leaves resolves via use<ext:>',
     expect(deleteResult).toBe('deleted');
   });
 
-  it('resolves mixed scalar and closure leaves', async () => {
+  it('resolves mixed scalar and fn leaves', async () => {
     const runFn = typedCallable({
       params: [],
       fn: () => 'executed',

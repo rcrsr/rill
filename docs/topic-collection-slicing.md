@@ -320,7 +320,7 @@ When the remaining elements are fewer than `n`, they form a partial window. Use 
 
 ## start_when
 
-**Signature:** `start_when(predicate: closure): stream of T`
+**Signature:** `start_when(predicate: fn): stream of T`
 
 `start_when` discards elements before the first item where `predicate` returns `true`. Once the predicate matches, that item and all subsequent items pass through unchanged.
 
@@ -337,7 +337,7 @@ range(1, 8) -> start_when({ $ > 4 })
 ### Using a Named Closure
 
 ```rill
-|x| ($x > 3) => $threshold
+fn(x) { $x > 3 } => $threshold
 range(1, 8) -> start_when($threshold)
 # Result: list[4, 5, 6, 7]
 ```
@@ -377,7 +377,7 @@ range(1, 11) -> start_when({ $ >= 3 }) -> stop_when({ $ >= 7 })
 
 ## stop_when
 
-**Signature:** `stop_when(predicate: closure): stream of T`
+**Signature:** `stop_when(predicate: fn): stream of T`
 
 `stop_when` yields elements up to and including the first item where `predicate` returns `true`. After that match, all remaining elements are discarded.
 
@@ -407,7 +407,7 @@ If no element satisfies the predicate, `stop_when` returns all elements.
 ### Using a Named Closure
 
 ```rill
-|x| ($x == 5) => $atFive
+fn(x) { $x == 5 } => $atFive
 range(1, 11) -> stop_when($atFive)
 # Result: list[1, 2, 3, 4, 5]
 ```

@@ -20,7 +20,7 @@ function createMyExtension(config: { model: string }): ExtensionFactoryResult {
   return {
     value: {
       prompt: toCallable({
-        signature: '|text: string|:string',
+        signature: 'fn(text: string):string',
         fn: async (args) => await callLLM(args.text, config.model),
         description: 'Send a prompt to the LLM',
       }),
@@ -81,7 +81,7 @@ const ctx = createRuntimeContext({
       // Property-style callable (computed property)
       timestamp: callable(() => Date.now(), true),
       format: toCallable({
-        signature: '|template: string, value: string|:any',
+        signature: 'fn(template: string, value: string):any',
         fn: (args) =>
           String(args.template).replace(/\{\}/g, () => String(args.value)),
       }),
@@ -90,7 +90,7 @@ const ctx = createRuntimeContext({
 
   functions: {
     prompt: {
-      signature: '|text: string|:string',
+      signature: 'fn(text: string):string',
       fn: async (args, ctx, location) => {
         console.log(`[prompt at line ${location?.line}]`);
         return await callLLM(args.text);
@@ -215,7 +215,7 @@ export { buildFieldDescriptor };
 export type { ConfigFieldDescriptor };
 
 // Introspection
-export { getFunctions, getLanguageReference, getDocumentationCoverage, introspectHandlerFromAST };
+export { formatTypeRef, getFunctions, getLanguageReference, getDocumentationCoverage, introspectHandlerFromAST };
 export type { FunctionMetadata, ParamMetadata, DocumentationCoverageResult, HandlerMetadataStatic, HandlerParamStatic };
 
 // Version information
@@ -289,7 +289,6 @@ export type {
   ClosureCallNode,
   ClosureNode,
   ClosureParamNode,
-  ClosureSigLiteralNode,
   ConditionalNode,
   DestructNode,
   DestructPatternNode,
@@ -306,6 +305,7 @@ export type {
   FieldAccessAnnotation,
   FieldAccessLiteral,
   FieldAccessVariable,
+  FnTypeNode,
   FrontmatterNode,
   GroupedExprNode,
   GuardBlockNode,
@@ -376,7 +376,7 @@ interface NativeResult {
   /** Base rill type name — matches RillTypeName, or "iterator" for lazy sequences */
   rillTypeName: string;
   /** Full structural signature from formatStructure,
-   *  e.g. "list(number)", "dict(a: number, b: string)", "|x: number| :string" */
+   *  e.g. "list(number)", "dict(a: number, b: string)", "fn(x: number):string" */
   rillTypeSignature: string;
   /** JS-native representation. Always populated — never undefined.
    *  Non-native types produce descriptor objects. */
@@ -396,7 +396,7 @@ A dict converts to a plain object with string keys; a single number or boolean k
 
 | Rill type | `value` shape |
 |-----------|---------------|
-| `closure` | `{ signature: string }` |
+| `fn` | `{ signature: string }` |
 | `vector` | `{ model: string, dimensions: number }` |
 | `type` | `{ name: string, signature: string }` |
 | `iterator` | `{ done: boolean }` |
@@ -669,7 +669,7 @@ The language service's `ATOM_NOT_ERROR_CODE` rule reads this list to flag `.!cod
 
 ## RillParam
 
-`RillParam` is the unified parameter descriptor for host functions and script closures.
+`RillParam` is the unified parameter descriptor for host functions and script functions.
 
 ```typescript
 interface RillParam {
@@ -765,7 +765,7 @@ const fn: RillFunction = {
 };
 ```
 
-Hydration applies only to trailing elements. A missing non-trailing element with no default raises `RILL-R009`. Hydration does not apply to list or closure types. Dict and ordered parameters hydrate named fields with `defaultValue`. When a union parameter matches several members, see [Defaults Under a Union](topic-type-system.md#defaults-under-a-union).
+Hydration applies only to trailing elements. A missing non-trailing element with no default raises `RILL-R009`. Hydration does not apply to list or fn types. Dict and ordered parameters hydrate named fields with `defaultValue`. When a union parameter matches several members, see [Defaults Under a Union](topic-type-system.md#defaults-under-a-union).
 
 ### Signature Shorthand
 
@@ -782,7 +782,7 @@ type RillFunctionDefinition = RillFunction | RillFunctionShorthand;
 
 ```typescript
 const greet: RillFunctionShorthand = {
-  signature: '|^(description: "Name to greet") name: string, times: number = 1|:string',
+  signature: 'fn(^(description: "Name to greet") name: string, times: number = 1):string',
   fn: (args) => `hello ${args.name}`,
   description: 'Greet a caller',
 };
@@ -790,7 +790,7 @@ const greet: RillFunctionShorthand = {
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `signature` | `string` | Signature in the form `\|name: type, ...\|:returnType`. Supplies `params` and `returnType`. An omitted return type means `any` |
+| `signature` | `string` | Signature in the form `fn(name: type, ...):returnType`. Parameters are named; unnamed parameters raise `RILL-R091`. Supplies `params` and `returnType`. An omitted return type means `any` |
 | `fn` | `CallableFn` | The function implementation. See [CallableFn](#callablefn) |
 | `annotations` | `Record<string, RillValue> \| undefined` | Function-level metadata. Optional |
 | `description` | `string \| undefined` | Stored as `annotations.description`. Optional |
@@ -813,19 +813,19 @@ const greet: RillFunctionShorthand = {
 | Literal defaults | `n: number = -3`, `s: string = "x"`, `b: bool = true` |
 | Field defaults | `d: dict(a: number, b: number = 0)`, `t: tuple(string, number = 0)` |
 | Parameter annotations | `^(description: "text") name: string` |
-| Function annotations | `^(category: "io") \|a: string\|` before the parameter list |
+| Function annotations | `^(category: "io") fn(a: string)` before the signature |
 
 A parameter typed with a named dict type rejects a dict that has extra fields with `RILL-R001`; see [Extra and Missing Dict Fields](topic-type-system.md#extra-and-missing-dict-fields).
 
 An outer type on `list`, `dict`, or `tuple`, such as `list(number):string`, fails with `RILL-R091` and the message `list takes no outer type`. In script, the same text halts `RILL-P006`.
 
-Annotation values in a signature are string-valued. `||` declares no parameters.
+Annotation values in a signature are string-valued. `fn()` declares no parameters.
 
 Use the explicit form for these declarations:
 
 | Declaration | Reason |
 |-------------|--------|
-| Stream, ordered, and closure types with arguments | Signature type arguments are limited to `list`, `dict`, and `tuple` |
+| Stream, ordered, and fn types with arguments | Signature type arguments are limited to `list`, `dict`, and `tuple` |
 | Dict, list, or tuple defaults | Parameter and field defaults are limited to string, number, and bool literals |
 | `skipReceiverValidation` | The shorthand has no such field |
 
@@ -966,7 +966,7 @@ if (isRillStream(result.result)) {
 
 `generateManifest(ctx: RuntimeContext): string`
 
-Generates a valid rill manifest file listing all registered host functions as closure type signatures.
+Generates a valid rill manifest file listing all registered host functions as fn type signatures.
 
 ```typescript
 import { generateManifest } from '@rcrsr/rill';
@@ -979,15 +979,15 @@ The output format is a rill dict literal. The dict is the last expression and be
 
 ```text
 [
-  "greet": |^("who") name: string|:string,
-  "fetch": |url: string|:dict,
-  "now": ||:number
+  "greet": fn(^("who") name: string):string,
+  "fetch": fn(url: string):dict,
+  "now": fn():number
 ]
 ```
 
 An empty function map returns `[:]`. Functions created via `callable(fn)` appear with an empty parameter list; property-style `callable(fn, true)` appears with a single `self: any` parameter.
 
-Every entry is a closure-signature literal that evaluates to a type value, never a real closure body. This holds for zero-param functions (`"now"`) and functions with annotated params (`"greet"`) alike.
+Every entry is an fn type literal that evaluates to a type value, never a real function body. This holds for zero-param functions (`"now"`) and functions with annotated params (`"greet"`) alike.
 
 Manifest names are quoted and escaped, so a name that is not an identifier still parses. Parameter defaults are never emitted, because not every `RillValue` round-trips through a rill literal; every signature carries an explicit return type (`:any` when unset) so the generated manifest always parses.
 
@@ -1064,7 +1064,7 @@ const valueResult: ResolverResult = {
 // Return source text for rill to parse
 const sourceResult: ResolverResult = {
   kind: 'source',
-  text: `|x: string| { $x -> .upper }`,
+  text: `fn(x: string) { $x -> .upper }`,
 };
 ```
 

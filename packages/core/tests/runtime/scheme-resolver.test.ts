@@ -28,7 +28,7 @@ import { run } from '../helpers/runtime.js';
 // Module whose exported closure calls a module-local closure before hitting
 // the undefined variable, so a call frame is pushed while module code runs.
 const MODULE_WITH_LOCAL_CLOSURE =
-  '|v| { $narme } => $inner\n|name:string| { $inner($name) }';
+  'fn(v) { $narme } => $inner\nfn(name:string) { $inner($name) }';
 
 // ============================================================
 // moduleResolver tests (covers IR-4, EC-1, EC-2, EC-3)

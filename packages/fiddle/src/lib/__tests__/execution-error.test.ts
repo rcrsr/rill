@@ -120,7 +120,7 @@ describe('executeRill', () => {
     });
 
     it('reports an undefined variable inside a called closure', async () => {
-      const result = await executeRill('|| { $undefined } => $bad\n$bad()');
+      const result = await executeRill('fn() { $undefined } => $bad\n$bad()');
 
       expect(result.status).toBe('error');
       expect(result.error?.category).toBe('runtime');

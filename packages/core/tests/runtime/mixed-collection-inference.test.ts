@@ -380,7 +380,7 @@ describe('Mixed-collection inference: memoized per container', () => {
     }
   });
 
-  it('does not freeze a borrowed closure return structure', () => {
+  it('does not freeze a borrowed fn return structure', () => {
     const ret: TypeStructure = { kind: 'number' };
     const typed: RillValue = {
       ...callable(() => 1),

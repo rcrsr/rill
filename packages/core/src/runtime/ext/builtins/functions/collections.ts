@@ -406,7 +406,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
             const closureToInvoke = isScriptCallable(body)
               ? { ...body, definingScope: childCtx }
               : body;
-            // Two-type closures |elem_type, acc_type|{ body } declare '@' as
+            // Two-type closures fn(elem_type, acc_type) { body } declare '@' as
             // second param. Pass accumulator as second arg so marshalArgs
             // can bind and type-check it.
             const isTwoTypeBody =
@@ -441,7 +441,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           const closureToInvoke = isScriptCallable(body)
             ? { ...body, definingScope: childCtx }
             : body;
-          // Two-type closures |elem_type, acc_type|{ body } declare '@' as second param.
+          // Two-type closures fn(elem_type, acc_type) { body } declare '@' as second param.
           // Pass accumulator as second arg so marshalArgs can bind and type-check it.
           const isTwoTypeBody =
             isScriptCallable(body) &&
@@ -526,7 +526,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         const closureToInvoke = isScriptCallable(body)
           ? { ...body, definingScope: childCtx }
           : body;
-        // Two-type closures |elem_type, acc_type|{ body } declare '@' as second param.
+        // Two-type closures fn(elem_type, acc_type) { body } declare '@' as second param.
         // Pass accumulator as second arg so marshalArgs can bind and type-check it.
         const isTwoTypeBody =
           isScriptCallable(body) &&

@@ -18,7 +18,7 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 | Datetime | `datetime(...)` or `now()` | `datetime("2024-01-15T10:30:00Z")` |
 | Duration | `duration(...)` | `duration(...dict[days: 1, hours: 2])` |
 | Vector | host-provided | `vector(voyage-3, 1024d)` |
-| Closure | `\|\|{ }` | `\|x\|($x * 2)` |
+| Function | `fn() { }` | `fn(x) { $x * 2 }` |
 | Type | type name or constructor | `number`, `list(number)`, `dict(a: number)` |
 
 **Key principles:**
@@ -28,7 +28,7 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 - **No null/undefined**: Empty values are valid (`""`, `[]`, `[:]`), but "no value" cannot exist
 - **No truthiness**: Conditions require actual booleans, not "truthy" values
 
-The type keywords (`string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `ordered`, `vector`, `datetime`, `duration`, `any`, `type`) are reserved in the `|...|` closure position for anonymous typed parsing. See [Closures](topic-closures.md) for full documentation of anonymous typed closures.
+`fn` is the type name of every function, in every type position. Writing `closure` in a type position halts `RILL-P012` and names `fn`. See [Closures](topic-closures.md) for function literals and `fn` types.
 
 ## Strings
 
@@ -374,7 +374,7 @@ Every key form selects as `[expr]` does: `.$k`, `.?$k`, and `.?[expr]` halt with
 |----------|-----------|-------|
 | dict, stream | number or bool | `#TYPE_MISMATCH` |
 | list, tuple, ordered | wrong-typed key | `RILL-R002` |
-| string, number, atom, closure, iterator, vector, type value | any key | `RILL-R002`, message `Cannot index <type>` |
+| string, number, atom, fn, iterator, vector, type value | any key | `RILL-R002`, message `Cannot index <type>` |
 
 `??` does not recover these halts, because the selector is wrong rather than absent. Only an absent key or an out-of-range index is a miss.
 
@@ -414,20 +414,6 @@ On a non-dict receiver (tuple, stream, string, number, and so on) they halt `RIL
 
 **Reserved methods** (`keys`, `values`, `entries`) cannot be used as dict keys.
 
-### Dict Closures
-
-Closures in dicts have `$` late-bound to the containing dict. See [Closures](topic-closures.md) for details.
-
-```rill
-[
-  name: "toolkit",
-  count: 3,
-  str: ||"{$.name}: {$.count} items"
-] => $obj
-
-$obj.str    # "toolkit: 3 items" (auto-invoked)
-```
-
 ### Uniform Value Type
 
 `-> dict(T)` converts every value to type T. `:dict(T)` checks every value and returns the dict unchanged. See the [conversion table](topic-type-system.md#extra-and-missing-dict-fields).
@@ -465,7 +451,7 @@ $o.^type.name
 Use `ordered` for named argument unpacking:
 
 ```rill
-|a, b| { "{$a}-{$b}" } => $fmt
+fn(a, b) { "{$a}-{$b}" } => $fmt
 ordered[a: 1, b: "hello"] -> $fmt(...)
 # Result: "1-hello"
 ```
@@ -611,7 +597,7 @@ For multi-key sort using tuple projections, see [Collections](topic-collections.
 For named unpacking, use `ordered[...]`:
 
 ```rill
-|a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
+fn(a, b, c) { "{$a}-{$b}-{$c}" } => $fmt
 dict[c: 3, a: 1, b: 2] -> $fmt(...)   # "1-2-3" (named, via dict; key order irrelevant)
 ```
 
@@ -620,16 +606,18 @@ dict[c: 3, a: 1, b: 2] -> $fmt(...)   # "1-2-3" (named, via dict; key order irre
 When invoking with ordered containers, missing required parameters error, and extra keys error:
 
 ```rill
-|x, y|($x + $y) => $fn
+fn(x, y) { $x + $y } => $fn
 ordered[x: 1, y: 2] -> $fn(...)        # 3
 ```
 
 ### Parameter Defaults with Ordered
 
 ```rill
-|x, y = 10, z = 20|($x + $y + $z) => $fn
+fn(x, y = 10, z = 20) { $x + $y + $z } => $fn
 ordered[x: 5] -> $fn(...)              # 35 (5 + 10 + 20)
 ```
+
+A default does not infer the parameter type: `y = 10` gives `y` the type `any`. Write `y: number = 10` to constrain it.
 
 ### Trailing Defaults with Tuples
 
@@ -675,7 +663,7 @@ If any required child field lacks a default, the conversion raises RILL-R044.
 Use tuples with explicit spread `...` to pass positional args in `fan`:
 
 ```rill
-|x, y|($x * $y) => $mul
+fn(x, y) { $x * $y } => $mul
 [tuple[1, 2], tuple[3, 4]] -> fan({ $mul(...) })    # list[2, 12]
 ```
 
@@ -1173,18 +1161,18 @@ stream()                # unconstrained chunk and resolution types
 
 ### Chunk Type
 
-The chunk type `T` in `stream(T):R` constrains each emitted value. Inside a stream closure, `yield` emits the current pipe value as a chunk.
+The chunk type `T` in `stream(T):R` constrains each emitted value. Inside a stream function, `yield` emits the current pipe value as a chunk.
 
 ```text
-|x| {
+fn(x):stream(string) {
   $x -> .upper -> yield
   $x -> .lower -> yield
-} :stream(string)
+}
 ```
 
 `yield` appears as the terminator in a pipe chain. Use `$x -> yield` to emit a specific value, or bare `yield` to emit the current pipe value (`$`).
 
-The `yield` keyword is only valid inside a closure annotated with `:stream(T):R`. Using `yield` without that annotation is a parse error.
+The `yield` keyword is only valid inside a function annotated with `:stream(T):R`. Using `yield` without that annotation is a parse error.
 
 ### Resolution Type
 
@@ -1195,7 +1183,7 @@ make_stream() => $s
 $s()   # returns the resolution value
 ```
 
-The resolution is produced by the stream's final expression or an explicit `return` statement in the stream closure body. Host-provided streams supply the resolution from the underlying async producer.
+The resolution is produced by the stream's final expression or an explicit `return` statement in the stream function body. Host-provided streams supply the resolution from the underlying async producer.
 
 A zero-chunk stream resolves immediately. Calling `$s()` returns the resolution value without consuming any chunks.
 

@@ -132,7 +132,7 @@ describe('Default Value Operator (??)', () => {
     it('closure can wrap function call with default', async () => {
       const result = await run(
         `
-        |path| {
+        fn(path) {
           get_frontmatter($path) => $fm
           $fm.status ?? ""
         } => $get_status
@@ -162,7 +162,7 @@ describe('Default Value Operator (??)', () => {
     it('closure returns actual value when present', async () => {
       const result = await run(
         `
-        |path| {
+        fn(path) {
           get_frontmatter($path) => $fm
           $fm.status ?? ""
         } => $get_status
@@ -684,7 +684,7 @@ describe('Default Value Operator (??)', () => {
     });
 
     it('halts when an earlier annotation step is missing', async () => {
-      await expectHalt(() => run('|x| ($x) => $f\n$f.^doc.x ?? 0'), {
+      await expectHalt(() => run('fn(x) { $x } => $f\n$f.^doc.x ?? 0'), {
         code: 'RILL_R008',
       });
     });

@@ -65,8 +65,8 @@ Pipeline operators for fan, fold, seq, filter, and aggregate patterns.
 ### fan: Parallel Transform
 
 ```rill
-# Define closure first, then use it
-|x| { $x * 2 } => $double
+# Define fn first, then use it
+fn(x) { $x * 2 } => $double
 [1, 2, 3, 4, 5] -> fan($double)
 # [2, 4, 6, 8, 10]
 ```
@@ -86,8 +86,8 @@ Pipeline operators for fan, fold, seq, filter, and aggregate patterns.
 ```
 
 ```rill
-# Filter with closure predicate
-|x| { $x % 2 == 0 } => $even
+# Filter with fn predicate
+fn(x) { $x % 2 == 0 } => $even
 [1, 2, 3, 4, 5, 6] -> filter($even)
 # [2, 4, 6]
 ```
@@ -100,7 +100,7 @@ Pipeline operators for fan, fold, seq, filter, and aggregate patterns.
 
 ```rill
 # Chain filter and fan
-|x| { $x * 2 } => $dbl
+fn(x) { $x * 2 } => $dbl
 [1, 2, 3, 4, 5] -> filter({ .gt(2) }) -> fan($dbl)
 # [6, 8, 10]
 ```
@@ -119,16 +119,16 @@ Pipeline operators for fan, fold, seq, filter, and aggregate patterns.
 
 ```rill
 # Chain transformations
-|s|"{$s} -> validated" => $validate
-|s|"{$s} -> processed" => $process
-|s|"{$s} -> complete" => $complete
+fn(s) { "{$s} -> validated" } => $validate
+fn(s) { "{$s} -> processed" } => $process
+fn(s) { "{$s} -> complete" } => $complete
 
 "input" -> chain([$validate, $process, $complete])
 # "input -> validated -> processed -> complete"
 
 # Numeric reduction
-|x|($x + 10) => $add10
-|x|($x * 2) => $double
+fn(x) { $x + 10 } => $add10
+fn(x) { $x * 2 } => $double
 
 5 -> chain([$add10, $double, $add10])
 # ((5 + 10) * 2) + 10 = 40
@@ -181,7 +181,7 @@ Explicit argument unpacking with validation.
 
 ```rill
 # Define a function
-|a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
+fn(a, b, c) { "{$a}-{$b}-{$c}" } => $fmt
 
 # Create named args and invoke
 ordered[a: 1, b: 2, c: 3] -> $fmt(...)    # "1-2-3"
@@ -195,7 +195,7 @@ $myArgs -> $fmt(...)       # "1-2-3"
 
 ```rill
 # Named args spread positionally into parameters
-|width, height|($width * $height) => $area
+fn(width, height) { $width * $height } => $area
 
 ordered[width: 10, height: 20] -> $area(...)  # 200
 ```
@@ -204,11 +204,13 @@ ordered[width: 10, height: 20] -> $area(...)  # 200
 
 ```rill
 # Defaults fill missing trailing arguments
-|x, y = 10, z = 20|($x + $y + $z) => $fn
+fn(x, y = 10, z = 20) { $x + $y + $z } => $fn
 
 ordered[x: 5] -> $fn(...)              # 35 (5 + 10 + 20)
 ordered[x: 5, y: 10, z: 30] -> $fn(...)  # 45 (5 + 10 + 30)
 ```
+
+A default does not infer the parameter type. `y` and `z` above have type any; write `y: number = 10` to constrain them.
 
 ### Type Checking with `.^type`
 
@@ -505,18 +507,18 @@ args: file: string
 
 use<ext:app> => $app
 
-# Define a typed helper closure
-|input: string| {
+# Define a typed helper fn
+fn(input: string) {
   $app.prompt("Validate: {$input}") -> ?(.contains("VALID")) { true } ! { false }
-} => $validate:closure
+} => $validate:fn
 
 # Capture with explicit type locks the variable
 "processing" => $status:string
 "checking {$file}" => $status          # OK: same type
 # 42 => $status                        # ERROR: cannot assign number to string
 
-# Closures are type-locked too
-# "oops" => $validate                  # ERROR: cannot assign string to closure
+# Functions are type-locked too
+# "oops" => $validate                  # ERROR: cannot assign string to fn
 
 # Inline type annotation in pipe chain
 $app.prompt("Check {$file}") => $result:string -> log -> ?(.contains("ERROR")) {
@@ -534,10 +536,10 @@ $app.prompt("Analyze {$file}") => $analysis:string
 ```
 
 ```rill
-# Parameterized type annotation on closure parameter
-|items: list(string)| {
+# Parameterized type annotation on fn parameter
+fn(items: list(string)) {
   $items -> seq({ $ -> .upper })
-} => $upper_all:closure
+} => $upper_all:fn
 
 # Runtime validates element types
 $upper_all(list["hello", "world"])
@@ -788,17 +790,17 @@ use<ext:openai> => $openai
 use<ext:qdrant> => $qdrant
 use<ext:anthropic> => $anthropic
 
-# Define search tool with closure annotation
+# Define search tool with fn annotation
 ^("Search the knowledge base for relevant information")
-|^("Search query text") query: string| {
+fn(^("Search query text") query: string) {
   $query -> $openai.embed -> $qdrant.search($, [k: 5]) -> fan({
     "ID: {$.id}\nScore: {$.score}\nContent: {$.metadata.text}"
   }) -> .join("\n\n---\n\n")
 } => $search_knowledge_base
 
-# Define store tool with closure annotation
+# Define store tool with fn annotation
 ^("Store a new document in the knowledge base")
-|^("Document ID") id: string, ^("Document text") text: string, ^("Document title") title: string| {
+fn(^("Document ID") id: string, ^("Document text") text: string, ^("Document title") title: string) {
   [
     id: $id,
     vector: $text -> $openai.embed,

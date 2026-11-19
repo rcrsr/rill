@@ -1682,35 +1682,35 @@ export const HALT_MIGRATION_BASELINE: readonly BaselineEntry[] = [
       source: 'use<module:lib> => $f\n5 -> $f',
       options: {
         moduleSources: {
-          lib: '|x| ($x -> .head)',
+          lib: 'fn(x) { $x -> .head }',
           top: '5 -> .head',
         },
       },
     },
     thrownClass: 'RuntimeError',
     errorId: 'RILL-R003',
-    message: 'head requires list or string, got number at 1:12',
+    message: 'head requires list or string, got number at 1:15',
     rawMessage: 'head requires list or string, got number',
     location: {
       line: 1,
-      column: 12,
-      offset: 11,
+      column: 15,
+      offset: 14,
     },
     span: {
       start: {
         line: 1,
-        column: 12,
-        offset: 11,
+        column: 15,
+        offset: 14,
       },
       end: {
         line: 1,
-        column: 12,
-        offset: 11,
+        column: 15,
+        offset: 14,
       },
     },
     sourceId: 'module:lib',
     context: {
-      sourceText: '|x| ($x -> .head)',
+      sourceText: 'fn(x) { $x -> .head }',
       callStack: [
         {
           location: {
@@ -1742,7 +1742,7 @@ export const HALT_MIGRATION_BASELINE: readonly BaselineEntry[] = [
       source: 'use<module:top>',
       options: {
         moduleSources: {
-          lib: '|x| ($x -> .head)',
+          lib: 'fn(x) { $x -> .head }',
           top: '5 -> .head',
         },
       },

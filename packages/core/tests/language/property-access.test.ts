@@ -134,7 +134,9 @@ describe('implicit $ property access bug', () => {
     it('invokes closure when dict key matching built-in name holds a closure', async () => {
       // When the dict value under the shadowing key is a callable, accessing
       // it as a method should invoke the closure, not the built-in.
-      const result = await run('dict[model: ||{ "custom" }] => $d\n$d.model()');
+      const result = await run(
+        'dict[model: fn() { "custom" }] => $d\n$d.model()'
+      );
       expect(result).toBe('custom');
     });
 
@@ -155,7 +157,7 @@ describe('implicit $ property access bug', () => {
         'invokes the closure stored under key "%s"',
         async (keyword) => {
           const result = await run(
-            `dict["${keyword}": ||{ "value-${keyword}" }] => $d\n$d.${keyword}()`
+            `dict["${keyword}": fn() { "value-${keyword}" }] => $d\n$d.${keyword}()`
           );
           expect(result).toBe(`value-${keyword}`);
         }
@@ -211,7 +213,9 @@ describe('implicit $ property access bug', () => {
       });
 
       it('call form invokes a closure stored under a keyword-named key', async () => {
-        const result = await run('dict["error": ||{ "v" }] => $d\n$d.error()');
+        const result = await run(
+          'dict["error": fn() { "v" }] => $d\n$d.error()'
+        );
         expect(result).toBe('v');
       });
 

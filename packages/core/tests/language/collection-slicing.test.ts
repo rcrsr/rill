@@ -57,7 +57,7 @@ describe('Rill Language: Collection Slicing', () => {
     it('accepts a named closure captured in a variable', async () => {
       expect(
         await run(
-          '|x| ($x > 3) => $threshold\nrange(1, 8) -> start_when($threshold)'
+          'fn(x) { $x > 3 } => $threshold\nrange(1, 8) -> start_when($threshold)'
         )
       ).toEqual([4, 5, 6, 7]);
     });

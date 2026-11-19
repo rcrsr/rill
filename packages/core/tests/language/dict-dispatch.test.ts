@@ -52,19 +52,19 @@ describe('Rill Runtime: Dict Dispatch', () => {
   describe('Closure Auto-Invocation', () => {
     it('auto-invokes closure value with piped key as $', async () => {
       // AC-27: Auto-invoke closure, $ is piped key
-      const result = await run('"x" -> dict[x: ||{ $ -> .upper }]');
+      const result = await run('"x" -> dict[x: fn { $ -> .upper }]');
       expect(result).toBe('X');
     });
 
     it('auto-invokes closure with transform logic', async () => {
-      const result = await run('"hello" -> dict[hello: ||{ "{$}!" }]');
+      const result = await run('"hello" -> dict[hello: fn { "{$}!" }]');
       expect(result).toBe('hello!');
     });
 
     it('auto-invokes closure that accesses dict', async () => {
       const result = await run(`
         dict[name: "test"] => $d
-        "key" -> dict[key: ||{ $d.name }]
+        "key" -> dict[key: fn() { $d.name }]
       `);
       expect(result).toBe('test');
     });
@@ -261,7 +261,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
 
     it('auto-invokes closure in multi-key dispatch', async () => {
       const result = await run(
-        '"x" -> dict[list["x", "y"]: ||{ $ -> .upper }]'
+        '"x" -> dict[list["x", "y"]: fn { $ -> .upper }]'
       );
       expect(result).toBe('X');
     });
@@ -476,11 +476,11 @@ describe('Rill Runtime: Dict Dispatch', () => {
 
     it('halts with RILL-R002 when multi-key contains a closure', async () => {
       // Dict key validation rejects the closure element.
-      await expectHalt(() => run('dict[list[||{1}, "valid"]: "value"]'), {
+      await expectHalt(() => run('dict[list[fn() {1}, "valid"]: "value"]'), {
         code: 'RILL_R002',
         hostErrorId: 'RILL-R002',
         messagePattern:
-          'Multi-key dict entry keys must be string, got closure; quote the key',
+          'Multi-key dict entry keys must be string, got fn; quote the key',
       });
     });
 

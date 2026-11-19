@@ -24,7 +24,7 @@ describe('error_code host signatures', () => {
   const makeCtx = (body: () => RillValue) =>
     createRuntimeContext({
       functions: {
-        check: { signature: '|codes: list(error_code)| :bool', fn: body },
+        check: { signature: 'fn(codes: list(error_code)):bool', fn: body },
       },
     });
 
@@ -51,7 +51,7 @@ describe('error_code host signatures', () => {
       createRuntimeContext({
         functions: {
           bad: {
-            signature: '|c: error_code(string)| :bool',
+            signature: 'fn(c: error_code(string)):bool',
             fn: (): RillValue => true,
           },
         },
@@ -82,7 +82,7 @@ describe('error_code manifest round-trip', () => {
     const ctx = createRuntimeContext({
       functions: {
         check: {
-          signature: '|codes: list(error_code)| :bool',
+          signature: 'fn(codes: list(error_code)):bool',
           fn: (): RillValue => true,
         },
       },

@@ -217,10 +217,10 @@ const ROWS: readonly Row[] = [
   },
   {
     label: 'closure, method sugar key params',
-    setup: '|x|($x) => $r',
+    setup: 'fn(x) { $x } => $r',
     key: '"params"',
     name: 'params',
-    read: { halt: 'RILL_R002', message: 'Cannot index closure' },
+    read: { halt: 'RILL_R002', message: 'Cannot index fn' },
     literal: { value: { x: {} } },
     exists: false,
   },
@@ -547,7 +547,9 @@ describe('pipe selection from a declared collection', () => {
 
   it('takes the own type when the selected value is invoked', async () => {
     expect(
-      await run('dict[a: |x|("s")] => $d\n"a" -> $d => $v\n$v.^type == string')
+      await run(
+        'dict[a: fn(x) { "s" }] => $d\n"a" -> $d => $v\n$v.^type == string'
+      )
     ).toBe(true);
   });
 
@@ -603,7 +605,7 @@ describe('wrong-typed keys halt in every probe form', () => {
   describe.each([
     ['iterator', 'range(0, 3) => $r', 'Cannot index iterator'],
     ['atom', '#A => $r', 'Cannot index atom'],
-    ['closure', '|x| $x => $r', 'Cannot index closure'],
+    ['fn', 'fn(x) { $x } => $r', 'Cannot index fn'],
     ['string', '"s" => $r', 'Cannot index string'],
     ['list', 'list[1] => $r', 'List index must be number, got bool'],
     ['tuple', 'tuple[1] => $r', 'Tuple index must be number, got bool'],
@@ -640,7 +642,7 @@ describe('wrong-typed keys halt in every probe form', () => {
   describe.each([
     ['iterator', 'range(0, 3) => $r', 'Cannot index iterator'],
     ['atom', '#A => $r', 'Cannot index atom'],
-    ['closure', '|x| $x => $r', 'Cannot index closure'],
+    ['fn', 'fn(x) { $x } => $r', 'Cannot index fn'],
     ['string', '"s" => $r', 'Cannot index string'],
     ['list', 'list[1] => $r', 'List index must be number, got string'],
     ['tuple', 'tuple[1] => $r', 'Tuple index must be number, got string'],

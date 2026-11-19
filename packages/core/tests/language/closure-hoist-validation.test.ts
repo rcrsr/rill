@@ -41,7 +41,7 @@ describe('Rill Runtime: Closure Hoist Validation', () => {
     it('resolves outer variable inside map inline closure body', async () => {
       const script = `
         10 => $multiplier
-        list[1, 2, 3] -> fan(|x| ($x * $multiplier))
+        list[1, 2, 3] -> fan(fn(x) { $x * $multiplier })
       `;
       expect(await run(script)).toEqual([10, 20, 30]);
     });
@@ -49,7 +49,7 @@ describe('Rill Runtime: Closure Hoist Validation', () => {
     it('resolves outer variable inside each inline closure body', async () => {
       const script = `
         10 => $multiplier
-        list[1, 2, 3] -> seq(|x| ($x * $multiplier))
+        list[1, 2, 3] -> seq(fn(x) { $x * $multiplier })
       `;
       expect(await run(script)).toEqual([10, 20, 30]);
     });
@@ -104,7 +104,7 @@ describe('Rill Runtime: Closure Hoist Validation', () => {
   describe('VAL-2: annotation persistence across 3+ invocations', () => {
     it('returns identical .^min across three repeated accesses', async () => {
       const script = `
-        ^(min: 5, max: 99) |x|($x) => $fn
+        ^(min: 5, max: 99) fn(x) { $x } => $fn
         list[$fn.^min, $fn.^min, $fn.^min]
       `;
       expect(await run(script)).toEqual([5, 5, 5]);
@@ -112,7 +112,7 @@ describe('Rill Runtime: Closure Hoist Validation', () => {
 
     it('returns identical .^max across three repeated accesses', async () => {
       const script = `
-        ^(min: 5, max: 99) |x|($x) => $fn
+        ^(min: 5, max: 99) fn(x) { $x } => $fn
         list[$fn.^max, $fn.^max, $fn.^max]
       `;
       expect(await run(script)).toEqual([99, 99, 99]);
@@ -120,7 +120,7 @@ describe('Rill Runtime: Closure Hoist Validation', () => {
 
     it('returns consistent reflection for mixed repeated accesses of .^min and .^max', async () => {
       const script = `
-        ^(min: 5, max: 99) |x|($x) => $fn
+        ^(min: 5, max: 99) fn(x) { $x } => $fn
         list[$fn.^min, $fn.^min, $fn.^min, $fn.^max, $fn.^max, $fn.^max]
       `;
       expect(await run(script)).toEqual([5, 5, 5, 99, 99, 99]);
@@ -128,7 +128,7 @@ describe('Rill Runtime: Closure Hoist Validation', () => {
 
     it('preserves .^min after three regular invocations of the callable', async () => {
       const script = `
-        ^(min: 5, max: 99) |x|($x) => $fn
+        ^(min: 5, max: 99) fn(x) { $x } => $fn
         list[$fn(1), $fn(2), $fn(3)] => $calls
         $fn.^min
       `;
@@ -137,7 +137,7 @@ describe('Rill Runtime: Closure Hoist Validation', () => {
 
     it('preserves .^max after three regular invocations of the callable', async () => {
       const script = `
-        ^(min: 5, max: 99) |x|($x) => $fn
+        ^(min: 5, max: 99) fn(x) { $x } => $fn
         list[$fn(1), $fn(2), $fn(3)] => $calls
         $fn.^max
       `;

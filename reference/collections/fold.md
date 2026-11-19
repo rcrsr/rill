@@ -77,7 +77,7 @@ list[] -> fold(42, { $@ + $ })
 ```
 
 ```rill
-list[1, 2, 3] -> fold(0, |number, number| { $@ + $ })
+list[1, 2, 3] -> fold(0, fn(number, number) { $@ + $ })
 # Result: 6
 ```
 

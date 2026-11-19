@@ -215,15 +215,7 @@ function isStreamClosure(chain: PipeChainNode): boolean {
   const returnType = closure.returnTypeTarget;
   if (!returnType) return false;
 
-  if ('type' in returnType && returnType.type === 'TypeConstructor') {
-    return returnType.constructorName === 'stream';
-  }
-
-  if ('kind' in returnType && returnType.kind === 'static') {
-    return returnType.typeName === 'stream';
-  }
-
-  return false;
+  return returnType.kind === 'static' && returnType.typeName === 'stream';
 }
 
 /**
@@ -430,7 +422,7 @@ export function collectFacts(root: ASTNode): AstFacts {
   let currentBindingScopeDepth = 0;
 
   // Collection-op body nodes that are a bare `{...}` Block (not an explicit
-  // `|x|(...)` Closure). Populated when the enclosing HostCall is entered,
+  // `fn(x) { ... }` Closure). Populated when the enclosing HostCall is entered,
   // consulted when that specific Block node is entered/exited below, so the
   // extra closureOrOpDepth bump scopes only the resolved body subtree - not
   // the call's other arguments (e.g. `fold`/`acc`'s seed value).

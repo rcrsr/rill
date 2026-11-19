@@ -1,88 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { runRules } from './run-rules.js';
-import { closureBareDollar } from './closure-bare-dollar.js';
-import { closureBraces } from './closure-braces.js';
 import { closureLateBinding } from './closure-late-binding.js';
 import { makeConfig, toParseResult } from './test-support.js';
 
-describe('CLOSURE_BARE_DOLLAR', () => {
-  it('fires on a zero-param stored closure with a bare $ body', () => {
-    const source = '(|| { $ }) => $f\n';
-    const parsed = toParseResult(source);
-
-    const result = runRules(parsed, source, makeConfig(), [closureBareDollar]);
-
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({
-      code: 'CLOSURE_BARE_DOLLAR',
-      severity: 'warning',
-      message:
-        'Bare $ in stored closure has ambiguous binding. Use explicit capture: $ => $item',
-      fix: null,
-    });
-  });
-
-  it('does not fire on a parameterized closure', () => {
-    const source = '|x| ($x * 2) => $f\n';
-    const parsed = toParseResult(source);
-
-    const result = runRules(parsed, source, makeConfig(), [closureBareDollar]);
-
-    expect(result).toEqual([]);
-  });
-
-  it('does not fire on a bare $ closure that is a dict entry value', () => {
-    const source = 'dict[double: || { $ * 2 }] => $handlers\n';
-    const parsed = toParseResult(source);
-
-    const result = runRules(parsed, source, makeConfig(), [closureBareDollar]);
-
-    expect(result).toEqual([]);
-  });
-
-  it('still fires on a bare $ closure stored outside a dict entry', () => {
-    const source = '(|| { $ * 2 }) => $f\n';
-    const parsed = toParseResult(source);
-
-    const result = runRules(parsed, source, makeConfig(), [closureBareDollar]);
-
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({
-      code: 'CLOSURE_BARE_DOLLAR',
-      severity: 'warning',
-    });
-  });
-});
-
-describe('CLOSURE_BRACES', () => {
-  it('fires when a grouped-expression closure body wraps a conditional', () => {
-    const source = '|n| (($n < 1) ? 1 ! 2) => $f\n';
-    const parsed = toParseResult(source);
-
-    const result = runRules(parsed, source, makeConfig(), [closureBraces]);
-
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({
-      code: 'CLOSURE_BRACES',
-      severity: 'info',
-      message: 'Use braces for complex closure bodies (conditionals, loops)',
-      fix: null,
-    });
-  });
-
-  it('does not fire on a simple grouped-expression closure body', () => {
-    const source = '|x| ($x * 2) => $f\n';
-    const parsed = toParseResult(source);
-
-    const result = runRules(parsed, source, makeConfig(), [closureBraces]);
-
-    expect(result).toEqual([]);
-  });
-});
-
 describe('CLOSURE_LATE_BINDING', () => {
-  it('fires when seq creates a closure with no preceding explicit capture', () => {
-    const source = '[1, 2, 3] -> seq({ (|| { $ }) => $g\n $g() })\n';
+  it('fires when seq creates a fn with no preceding explicit capture', () => {
+    const source = '[1, 2, 3] -> seq({ fn { $ } => $g\n $g() })\n';
     const parsed = toParseResult(source);
 
     const result = runRules(parsed, source, makeConfig(), [closureLateBinding]);
@@ -99,7 +22,7 @@ describe('CLOSURE_LATE_BINDING', () => {
 
   it('does not fire when the loop variable is captured explicitly first', () => {
     const source =
-      '[1, 2, 3] -> seq({ $ => $item\n (|| { $item }) => $g\n $g() })\n';
+      '[1, 2, 3] -> seq({ $ => $item\n fn() { $item } => $g\n $g() })\n';
     const parsed = toParseResult(source);
 
     const result = runRules(parsed, source, makeConfig(), [closureLateBinding]);
@@ -117,18 +40,14 @@ describe('CLOSURE_LATE_BINDING', () => {
   });
 });
 
-describe('with all closure-mechanism rules on', () => {
+describe('with the fn rules on', () => {
   it('returns no findings for a clean script', () => {
     const source =
-      '|x| ($x * 2) => $f\n' +
-      '[1, 2, 3] -> seq({ $ => $item\n (|| { $item }) => $g\n $g() })\n';
+      'fn(x) { $x * 2 } => $f\n' +
+      '[1, 2, 3] -> seq({ $ => $item\n fn() { $item } => $g\n $g() })\n';
     const parsed = toParseResult(source);
 
-    const result = runRules(parsed, source, makeConfig(), [
-      closureBareDollar,
-      closureBraces,
-      closureLateBinding,
-    ]);
+    const result = runRules(parsed, source, makeConfig(), [closureLateBinding]);
 
     expect(result).toEqual([]);
   });

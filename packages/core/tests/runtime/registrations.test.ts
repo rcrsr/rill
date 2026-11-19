@@ -124,9 +124,9 @@ const testValues: {
     formatted: 'string',
   },
   {
-    typeName: 'closure',
+    typeName: 'fn',
     value: callable(() => 'test'),
-    formatted: 'type(closure)',
+    formatted: 'type(fn)',
   },
   {
     typeName: 'field_descriptor',
@@ -275,8 +275,8 @@ describe('types/registrations', () => {
       expect(typeof dictReg!.protocol.convertTo).toBe('object');
     });
 
-    it('closure and iterator have no string conversion', () => {
-      for (const name of ['closure', 'iterator']) {
+    it('fn and iterator have no string conversion', () => {
+      for (const name of ['fn', 'iterator']) {
         const reg = BUILT_IN_TYPES.find((t) => t.name === name);
         expect(reg).toBeDefined();
         expect(reg!.protocol.convertTo?.['string']).toBeUndefined();
@@ -322,7 +322,7 @@ describe('types/registrations', () => {
 
   // serializeValue on non-serializable types throws RuntimeError (RILL-R067)
   describe('non-serializable type errors', () => {
-    it('throws RuntimeError for closure', () => {
+    it('throws RuntimeError for fn', () => {
       const closureValue = callable(() => 'test');
       expect(() => serializeValue(closureValue)).toThrow(RuntimeError);
       expect(() => serializeValue(closureValue)).toThrow(
@@ -631,20 +631,20 @@ describe('types/registrations', () => {
   // json built-in on non-serializable type halts typed-atom
   describe('Integration: json on non-serializable halts typed-atom', () => {
     it('halts #INVALID_INPUT for closure passed to json', async () => {
-      await expectHalt(() => run('||{ "test" } -> json'), {
+      await expectHalt(() => run('fn() { "test" } -> json'), {
         code: 'INVALID_INPUT',
       });
     });
 
     it('rejects with RuntimeHaltSignal (not RuntimeError)', async () => {
-      await expect(run('||{ "test" } -> json')).rejects.toBeInstanceOf(
+      await expect(run('fn() { "test" } -> json')).rejects.toBeInstanceOf(
         RuntimeHaltSignal
       );
     });
 
     it('error message contains "not JSON-serializable"', async () => {
       await expectHaltMessage(
-        () => run('||{ "test" } -> json'),
+        () => run('fn() { "test" } -> json'),
         /not JSON-serializable/
       );
     });

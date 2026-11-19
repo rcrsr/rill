@@ -35,7 +35,7 @@ import {
   expectHaltMessage,
   expectRuntimeError,
 } from '../helpers/halt.js';
-import { isClosureStructure } from '../helpers/structure.js';
+import { isFnStructure } from '../helpers/structure.js';
 
 describe('Rill Runtime: Host Integration', () => {
   describe('Custom Functions', () => {
@@ -717,7 +717,7 @@ describe('Rill Runtime: Host Integration', () => {
       expect(isScriptCallable(appCallable)).toBe(false);
 
       // Script callable returned as RillValue
-      const scriptResult = await run('|x| { $x }');
+      const scriptResult = await run('fn(x) { $x }');
       expect(scriptResult).not.toBeNull();
     });
 
@@ -749,8 +749,8 @@ describe('Rill Runtime: Host Integration', () => {
         annotations: {},
       };
       const result = inferStructure(fn);
-      expect(result.kind).toBe('closure');
-      if (isClosureStructure(result)) {
+      expect(result.kind).toBe('fn');
+      if (isFnStructure(result)) {
         expect(result.params).toEqual([
           { name: 'text', type: { kind: 'string' } },
         ]);
@@ -769,8 +769,8 @@ describe('Rill Runtime: Host Integration', () => {
         annotations: {},
       };
       const result = inferStructure(fn);
-      expect(result.kind).toBe('closure');
-      if (isClosureStructure(result)) {
+      expect(result.kind).toBe('fn');
+      if (isFnStructure(result)) {
         expect(result.params).toEqual([]);
       }
     });
@@ -786,8 +786,8 @@ describe('Rill Runtime: Host Integration', () => {
         annotations: {},
       };
       const result = inferStructure(fn);
-      expect(result.kind).toBe('closure');
-      if (isClosureStructure(result)) {
+      expect(result.kind).toBe('fn');
+      if (isFnStructure(result)) {
         expect(result.ret).toEqual({ kind: 'any' });
       }
     });
@@ -949,17 +949,17 @@ describe('Callable reflection via ^ operator', () => {
   });
 
   describe('^description on ScriptCallable (AC-1)', () => {
-    it('returns description annotation value from rill script closure', async () => {
+    it('returns description annotation value from rill script fn', async () => {
       // Annotation must precede the closure expression
       const result = await run(
-        '^("greets") |x: string| { $x } => $fn\n$fn.^description'
+        '^("greets") fn(x: string) { $x } => $fn\n$fn.^description'
       );
       expect(result).toBe('greets');
     });
   });
 
   describe('.^type on ApplicationCallable (AC-2, AC-28, AC-29)', () => {
-    it('returns RillTypeValue with closure type (AC-28)', async () => {
+    it('returns RillTypeValue with fn type (AC-28)', async () => {
       const result = (await run('$myFn.^type', {
         variables: {
           myFn: callableLiteral({
@@ -981,10 +981,10 @@ describe('Callable reflection via ^ operator', () => {
         },
       })) as Record<string, unknown>;
       expect(result['__rill_type']).toBe(true);
-      expect(result['typeName']).toBe('closure');
+      expect(result['typeName']).toBe('fn');
     });
 
-    it('returns closure type for zero-param callable (AC-5, AC-29)', async () => {
+    it('returns fn type for zero-param callable (AC-5, AC-29)', async () => {
       const result = (await run('$myFn.^type', {
         variables: {
           myFn: callableLiteral({
@@ -999,19 +999,19 @@ describe('Callable reflection via ^ operator', () => {
         },
       })) as Record<string, unknown>;
       expect(result['__rill_type']).toBe(true);
-      expect(result['typeName']).toBe('closure');
+      expect(result['typeName']).toBe('fn');
       const structure = result['structure'] as Record<string, unknown>;
       expect(structure['params']).toEqual([]);
     });
   });
 
   describe('.^type on ScriptCallable (AC-37)', () => {
-    it('returns RillTypeValue reflecting script closure params', async () => {
+    it('returns RillTypeValue reflecting script fn params', async () => {
       const result = (await run(
-        '|x: string, y: number| { $x } => $fn\n$fn.^type'
+        'fn(x: string, y: number) { $x } => $fn\n$fn.^type'
       )) as Record<string, unknown>;
       expect(result['__rill_type']).toBe(true);
-      expect(result['typeName']).toBe('closure');
+      expect(result['typeName']).toBe('fn');
     });
   });
 
@@ -1361,13 +1361,13 @@ describe('AC-5: Block closure sets $ to pipe value post-marshaling', () => {
     expect(result).toBe(42);
   });
 
-  it('block closure $ matches pipe value for string input', async () => {
+  it('block fn $ matches pipe value for string input', async () => {
     // Block closure with string input: $ resolves to the piped string value.
     const result = await run('"hello" -> { $ }');
     expect(result).toBe('hello');
   });
 
-  it('block closure exposes $ to host function via ctx.pipeValue', async () => {
+  it('block fn exposes $ to host function via ctx.pipeValue', async () => {
     // Host function with one param receives the pipe value (which becomes $).
     let capturedDollar: RillValue = null;
     await run('42 -> { capture($) }', {
@@ -1395,13 +1395,13 @@ describe('AC-5: Block closure sets $ to pipe value post-marshaling', () => {
 });
 
 describe('AC-6: Named-param closure does not modify $', () => {
-  it('|x| closure called with value does not expose that value as $', async () => {
+  it('fn(x) { closure } called with value does not expose that value as $', async () => {
     let capturedDollar: RillValue = null;
 
     // A named-param closure: the pipe value before the closure should NOT be $ inside
     await run(
       `
-      |x| { capture() } => $fn
+      fn(x) { capture() } => $fn
       99 -> $fn()
     `,
       {

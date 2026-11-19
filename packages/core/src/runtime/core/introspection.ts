@@ -11,11 +11,8 @@ import type {
   RillValue,
   TypeStructure,
 } from './types/structures.js';
-import {
-  compareStructuredFields,
-  formatStructure,
-} from './types/operations.js';
-import type { FieldComparisonCallbacks } from './types/operations.js';
+import { formatStructure, formatRillLiteral } from './types/operations.js';
+import { resolveAtom, toAtomValue } from './types/atom-registry.js';
 import {
   escapeRillStringBody,
   formatFieldKey,
@@ -34,12 +31,9 @@ import type {
   PipeChainNode,
   ScriptNode,
   StatementNode,
-  TypeConstructorNode,
 } from '../../types.js';
-import { isPipeChainNode } from '../../types.js';
+import { isPipeChainNode, isUnnamedParam } from '../../types.js';
 import { throwFatalHostHalt } from './types/halt.js';
-import { isStructureKind } from './types/guards.js';
-import { formatUnion } from './types/error-code.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../error-registry.js';
 import type { FieldArg, TypeRef } from '../../value-types.js';
 
@@ -206,104 +200,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
 }
 
 /**
- * Field-comparison callbacks for `serializeSignatureType`'s dict/tuple/ordered
- * branch. Mirrors `formatStructure`'s `formatCallbacks`, but routes each
- * field's type back through `serializeSignatureType` instead of
- * `formatStructure` so the union/closure collapse applies at every nesting
- * depth, not just the top level.
- */
-const signatureFieldCallbacks: FieldComparisonCallbacks<string | null> = {
-  onValueType(valueType) {
-    return serializeSignatureType(valueType);
-  },
-  onValueTypeMismatch: () => null,
-  onBothEmpty: () => null,
-  onFieldPresenceMismatch: () => null,
-  onDictFields(fields) {
-    const parts: string[] = [];
-    for (const k of Object.keys(fields).sort()) {
-      const field = fields[k];
-      if (field !== undefined) {
-        parts.push(
-          `${formatFieldKey(k)}: ${serializeSignatureType(field.type)}`
-        );
-      }
-    }
-    return parts.join(', ');
-  },
-  onTupleElements(elements) {
-    const parts = elements.map((field) => serializeSignatureType(field.type));
-    return parts.join(', ');
-  },
-  onOrderedFields(fields) {
-    const parts = fields.map(
-      (field) =>
-        `${formatFieldKey(field.name ?? '')}: ${serializeSignatureType(field.type)}`
-    );
-    return parts.join(', ');
-  },
-};
-
-/**
- * Serialize a `TypeStructure` into a type-ref string that is always valid in
- * a bodyless `|params| :ret` closure type signature.
- *
- * `formatStructure` renders closures as `|params| :ret`, a form that is
- * unparseable when embedded inside the `|...|` delimiters of a manifest
- * closure signature, so closures collapse to `closure` here instead. Unions
- * print as `union(...)`, which nests safely. Every other structure already
- * round-trips through `formatStructure` (e.g. `string`, `list(number)`,
- * `dict`).
- *
- * The collapse is recursive: `list`, `dict`, `tuple`, `ordered`, and `stream`
- * walk their element/field/chunk sub-structures through this same function,
- * so a nested closure (e.g. a callback list's element type)
- * collapses too, not just one carried directly by a param or return type.
- * `stream`'s chunk and resolution type (`ret`) are both serialized through
- * this same function.
- */
-function serializeSignatureType(structure: TypeStructure): string {
-  if (isStructureKind(structure, 'union')) {
-    return formatUnion(structure.members, serializeSignatureType);
-  }
-  if (structure.kind === 'closure') return 'closure';
-
-  if (isStructureKind(structure, 'list')) {
-    const element = structure.element;
-    if (element === undefined) return 'list';
-    return `list(${serializeSignatureType(element)})`;
-  }
-
-  if (
-    structure.kind === 'dict' ||
-    structure.kind === 'tuple' ||
-    structure.kind === 'ordered'
-  ) {
-    const inner = compareStructuredFields(
-      structure,
-      structure,
-      signatureFieldCallbacks,
-      null
-    );
-    if (inner === null) return structure.kind;
-    return `${structure.kind}(${inner})`;
-  }
-
-  if (isStructureKind(structure, 'stream')) {
-    if (structure.chunk === undefined) {
-      if (structure.ret === undefined) return 'stream';
-      return `stream(any):${serializeSignatureType(structure.ret)}`;
-    }
-    const chunk = `stream(${serializeSignatureType(structure.chunk)})`;
-    if (structure.ret === undefined) return chunk;
-    return `${chunk}:${serializeSignatureType(structure.ret)}`;
-  }
-
-  return formatStructure(structure);
-}
-
-/**
- * Serialize a single RillParam into rill closure parameter syntax.
+ * Serialize a single RillParam into rill fn parameter syntax.
  *
  * Format: `^(description: "...") name: type`
  * - Annotation prefix included only when annotations.description is present.
@@ -325,23 +222,21 @@ function serializeParam(p: RillParam): string {
   }
 
   // Name and type
-  const typeName =
-    p.type !== undefined ? serializeSignatureType(p.type) : 'any';
+  const typeName = p.type !== undefined ? formatStructure(p.type) : 'any';
   parts.push(`${p.name}: ${typeName}`);
 
   return parts.join('');
 }
 
 /**
- * Serialize a typed ApplicationCallable entry into a rill closure type signature string.
+ * Serialize a typed ApplicationCallable entry into an fn type string.
  *
- * Format: `^(description: "...") |param: type|:returnType`
- * - Closure-level description annotation prefix included only when description is present.
- * - Return type suffix always emitted (including `:any`) so the signature matches
- *   the bodyless `|params| :ret` grammar unconditionally.
- * - The bodyless closure-signature form is emitted unconditionally, including
- *   `||:ret` for a zero-param entry and `^(description: "...")` prefixes on
- *   individual params (see `serializeParam`).
+ * Format: `^(description: "...") fn(param: type):returnType`
+ * - Description annotation prefix included only when description is present.
+ * - Return type suffix always emitted (including `:any`), matching the
+ *   complete form `formatStructure` prints.
+ * - `fn():ret` is emitted for a zero-param entry, and `^(description: "...")`
+ *   prefixes individual params (see `serializeParam`).
  */
 function serializeClosureSignature(
   params: readonly RillParam[],
@@ -355,11 +250,10 @@ function serializeClosureSignature(
     parts.push(`^(description: "${escapeRillStringBody(description)}") `);
   }
 
-  const retStr = serializeSignatureType(returnType);
+  const retStr = formatStructure(returnType);
   const paramStr = params.map(serializeParam).join(', ');
 
-  // Bodyless closure-signature form
-  parts.push(`|${paramStr}|`);
+  parts.push(`fn(${paramStr})`);
   parts.push(`:${retStr}`);
 
   return parts.join('');
@@ -369,7 +263,7 @@ function serializeClosureSignature(
  * Generate a rill manifest file from the registered host functions in ctx.
  *
  * Returns a string containing a valid rill file: a dict literal of
- * string-keyed closure type signatures followed by `-> export`.
+ * string-keyed fn type signatures followed by `-> export`.
  *
  * Every registered host function is included. Built-in functions (by registered
  * builtin name) are excluded.
@@ -527,7 +421,7 @@ export interface HandlerMetadataStatic {
 
 /** Render one type argument, appending ` = <literal>` when it has a default. */
 function fieldArgToString(arg: FieldArg): string {
-  const valueStr = typeRefToString(arg.value);
+  const valueStr = formatTypeRef(arg.value);
   const named =
     arg.name !== undefined
       ? `${formatFieldKey(arg.name)}: ${valueStr}`
@@ -536,12 +430,9 @@ function fieldArgToString(arg: FieldArg): string {
     arg.defaultValue !== undefined
       ? extractLiteralValue(arg.defaultValue)
       : undefined;
-  if (typeof literal === 'string')
-    return `${named} = ${JSON.stringify(literal)}`;
-  if (typeof literal === 'number' || typeof literal === 'boolean') {
-    return `${named} = ${String(literal)}`;
-  }
-  return named;
+  return literal === undefined
+    ? named
+    : `${named} = ${formatRillLiteral(literal)}`;
 }
 
 /** True for an unnamed `any` argument with no default: an unspecified slot. */
@@ -563,7 +454,7 @@ function isAnyArg(arg: FieldArg | undefined): boolean {
  * `introspectHandlerFromAST()` emits for parameter `type` strings and the
  * `returnType` field on `HandlerMetadataStatic`.
  */
-function typeRefToString(ref: TypeRef | null): string {
+export function formatTypeRef(ref: TypeRef | null): string {
   if (ref === null) return 'any';
   switch (ref.kind) {
     case 'static': {
@@ -589,42 +480,50 @@ function typeRefToString(ref: TypeRef | null): string {
         })
         .join(', ');
       const outerStr =
-        outer === undefined ? '' : `:${typeRefToString(outer.value)}`;
+        outer === undefined ? '' : `:${formatTypeRef(outer.value)}`;
       return `${ref.typeName}(${args})${outerStr}`;
     }
     case 'dynamic':
       return 'any';
     case 'union':
-      return `union(${ref.members.map(typeRefToString).join(', ')})`;
-    case 'literal': {
-      if (ref.value.type === 'AtomLiteral') return `#${ref.value.name}`;
-      const literal = extractLiteralValue(ref.value);
-      if (typeof literal === 'string') return JSON.stringify(literal);
-      if (typeof literal === 'number' || typeof literal === 'boolean') {
-        return String(literal);
+      return `union(${ref.members.map(formatTypeRef).join(', ')})`;
+    case 'literal':
+      return formatLiteral(ref.value) ?? 'any';
+    case 'fn': {
+      const outer =
+        ref.outer === undefined ? undefined : formatTypeRef(ref.outer);
+      if (ref.params === undefined) {
+        return outer === undefined || outer === 'any' ? 'fn' : `fn:${outer}`;
       }
-      return 'any';
+      const params = ref.params.map(formatFnParam).join(', ');
+      return `fn(${params}):${outer ?? 'any'}`;
     }
   }
   return throwFatalHostHalt(
-    { fn: 'typeRefToString' },
+    { fn: 'formatTypeRef' },
     ERROR_ATOMS[ERROR_IDS.RILL_R002],
     'Unhandled type reference kind'
   );
 }
 
+/** Print a scalar or atom literal in source form, or undefined for any other literal. */
+function formatLiteral(node: LiteralNode): string | undefined {
+  const literal = extractLiteralValue(node);
+  return literal === undefined ? undefined : formatRillLiteral(literal);
+}
+
 /**
- * Convert a TypeConstructorNode (`list(...)`, `dict(...)`, `stream(...)`, etc.)
- * to its source-grammar display form. Stream constructors render as
- * `stream(<chunk>):<ret>` to match the `:stream(T):R` annotation. An
- * unspecified stream prints as bare `stream`.
+ * Print an fn param in source form: an unnamed param (bound to `$` or `$@`)
+ * as its type, a named param as `name: type`, plus a default that has a
+ * scalar or atom source form.
  */
-function typeConstructorToString(node: TypeConstructorNode): string {
-  return typeRefToString({
-    kind: 'static',
-    typeName: node.constructorName,
-    args: node.args,
-  });
+function formatFnParam(param: ClosureParamNode): string {
+  const type = formatTypeRef(param.typeRef);
+  const unnamed = isUnnamedParam(param);
+  const base = unnamed ? type : `${param.name}: ${type}`;
+  if (param.defaultValue === null) return base;
+  const literal = formatLiteral(param.defaultValue);
+  return literal === undefined ? base : `${base} = ${literal}`;
 }
 
 /**
@@ -633,16 +532,17 @@ function typeConstructorToString(node: TypeConstructorNode): string {
  * can omit the field from the emitted metadata.
  */
 function formatReturnTypeTarget(
-  target: TypeRef | TypeConstructorNode | undefined
+  target: TypeRef | undefined
 ): string | undefined {
   if (target === undefined) return undefined;
-  if ('kind' in target) return typeRefToString(target);
-  return typeConstructorToString(target);
+  return formatTypeRef(target);
 }
 
 /** Extract a primitive value from a literal AST node. Returns undefined for complex literals. */
-function extractLiteralValue(node: LiteralNode): unknown {
+function extractLiteralValue(node: LiteralNode): RillValue | undefined {
   switch (node.type) {
+    case 'AtomLiteral':
+      return toAtomValue(resolveAtom(node.name));
     case 'NumberLiteral':
       return node.value;
     case 'BoolLiteral':
@@ -776,7 +676,7 @@ export function introspectHandlerFromAST(
 
         return {
           name: param.name,
-          type: typeRefToString(param.typeRef),
+          type: formatTypeRef(param.typeRef),
           required: param.defaultValue === null,
           ...(desc !== undefined && { description: desc }),
           ...(val !== undefined && { defaultValue: val }),

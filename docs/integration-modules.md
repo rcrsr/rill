@@ -28,8 +28,8 @@ The scheme (`module`) and resource (`greetings`) are separated by `:`. The host 
 A module is a rill script whose last expression is its exported value. There is no `export:` frontmatter. The last expression determines what the caller receives.
 
 ```rill
-|name|"Hello, {$name}!" => $hello
-|name|"Goodbye, {$name}!" => $goodbye
+fn(name) { "Hello, {$name}!" } => $hello
+fn(name) { "Goodbye, {$name}!" } => $goodbye
 dict[hello: $hello, goodbye: $goodbye]
 ```
 

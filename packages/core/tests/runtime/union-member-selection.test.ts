@@ -22,7 +22,7 @@ const NARROW = 'dict(a: number, b: number = 9)';
 const WIDE = 'dict(a: number)';
 
 function callWith(union: string, arg: string): Promise<RillValue> {
-  return run(`|x: ${union}| { $x } => $f\n${arg} -> $f()`);
+  return run(`fn(x: ${union}) { $x } => $f\n${arg} -> $f()`);
 }
 
 function signatureOf(union: string): Promise<RillValue> {
@@ -42,7 +42,7 @@ function permutations<T>(items: readonly T[]): T[][] {
 function hostCtx(union: string) {
   return createRuntimeContext({
     functions: {
-      f: { signature: `|x: ${union}|`, fn: (args): RillValue => args['x']! },
+      f: { signature: `fn(x: ${union})`, fn: (args): RillValue => args['x']! },
     },
   });
 }
@@ -187,18 +187,18 @@ describe('union member selection', () => {
       const ctx = createRuntimeContext({
         functions: {
           f: {
-            signature: '|x: union(string, number)|',
+            signature: 'fn(x: union(string, number))',
             fn: (): RillValue => 1,
           },
           g: {
-            signature: `|x: union(${NARROW}, ${WIDE})|`,
+            signature: `fn(x: union(${NARROW}, ${WIDE}))`,
             fn: (): RillValue => 1,
           },
         },
       });
       const manifest = generateManifest(ctx);
       expect(manifest).toContain('union(number, string)');
-      expect(manifest).toContain('dict(a: number, b: number)');
+      expect(manifest).toContain('dict(a: number, b: number = 9)');
       expect(() => parse(manifest)).not.toThrow();
     });
   });

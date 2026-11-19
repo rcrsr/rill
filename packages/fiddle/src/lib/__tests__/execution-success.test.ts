@@ -130,7 +130,7 @@ describe('executeRill', () => {
 
     it('executes closures', async () => {
       const result = await executeRill(
-        '|x| { $x * 2 } => $double\n21 -> $double'
+        'fn(x) { $x * 2 } => $double\n21 -> $double'
       );
 
       expect(result.status).toBe('success');

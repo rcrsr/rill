@@ -280,6 +280,7 @@ export {
   generateManifest,
   getDocumentationCoverage,
   getFunctions,
+  formatTypeRef,
   getLanguageReference,
   introspectHandlerFromAST,
 } from './runtime/core/introspection.js';
@@ -351,7 +352,6 @@ export type {
   ClosureCallNode,
   ClosureNode,
   ClosureParamNode,
-  ClosureSigLiteralNode,
   ConditionalNode,
   DestructNode,
   DestructPatternNode,
@@ -368,6 +368,7 @@ export type {
   FieldAccessAnnotation,
   FieldAccessLiteral,
   FieldAccessVariable,
+  FnTypeNode,
   FrontmatterNode,
   GroupedExprNode,
   GuardBlockNode,

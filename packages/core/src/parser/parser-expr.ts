@@ -5,13 +5,11 @@
 
 import { Parser } from './parser.js';
 import type {
-  AnnotationArg,
   ArithHead,
   BinaryOp,
   BlockNode,
   CaptureNode,
   ChainTerminator,
-  ClosureSigLiteralNode,
   ConditionalNode,
   DoWhileLoopNode,
   ExpressionNode,
@@ -95,7 +93,6 @@ declare module './parser.js' {
       loop: WhileLoopNode | DoWhileLoopNode,
       span: SourceSpan
     ): PostfixExprNode;
-    parseClosureSigLiteral(): ClosureSigLiteralNode;
     parseUseExpr(): UseExprNode;
     parseBinaryExprChain(
       nextParser: (this: Parser) => ArithHead,
@@ -849,103 +846,6 @@ function parseUnaryImpl(this: Parser): UnaryExprNode | PostfixExprNode {
   }
   return this.parsePostfixExpr();
 }
-
-// ============================================================
-// CLOSURE SIG LITERAL PARSING
-// ============================================================
-
-Parser.prototype.parseClosureSigLiteral = function (
-  this: Parser
-): ClosureSigLiteralNode {
-  const start = current(this.state).span.start;
-
-  const params: {
-    name: string;
-    typeExpr: ExpressionNode;
-    annotations?: AnnotationArg[];
-  }[] = [];
-
-  if (check(this.state, TOKEN_TYPES.OR)) {
-    // `||:ret` — empty param list.
-    advance(this.state);
-    skipNewlines(this.state);
-  } else {
-    // Consume opening |
-    expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |');
-    skipNewlines(this.state);
-
-    // Parse param-type-list: [^(annots)] name: typeExpr [, [^(annots)] name: typeExpr]*
-    while (!check(this.state, TOKEN_TYPES.PIPE_BAR)) {
-      let annotations: AnnotationArg[] | undefined;
-      while (check(this.state, TOKEN_TYPES.CARET)) {
-        advance(this.state); // consume ^
-        expect(this.state, TOKEN_TYPES.LPAREN, 'Expected ( after ^');
-        const block = this.parseAnnotationArgs();
-        expect(
-          this.state,
-          TOKEN_TYPES.RPAREN,
-          'Expected )',
-          ERROR_IDS.RILL_P005
-        );
-        skipNewlines(this.state);
-
-        annotations = annotations ? annotations.concat(block) : block;
-
-        // Guard: annotation must be followed by a field
-        if (check(this.state, TOKEN_TYPES.PIPE_BAR)) {
-          throw new ParseError(
-            ERROR_IDS.RILL_P014,
-            'Expected field after annotation',
-            current(this.state).span.start
-          );
-        }
-      }
-
-      const nameToken = expect(
-        this.state,
-        TOKEN_TYPES.IDENTIFIER,
-        'Expected parameter name'
-      );
-      expect(this.state, TOKEN_TYPES.COLON, 'Expected : after parameter name');
-      skipNewlines(this.state);
-      const typeExpr = this.parseExpression();
-      const param: {
-        name: string;
-        typeExpr: ExpressionNode;
-        annotations?: AnnotationArg[];
-      } = { name: nameToken.value, typeExpr };
-      if (annotations) {
-        param.annotations = annotations;
-      }
-      params.push(param);
-      skipNewlines(this.state);
-      if (check(this.state, TOKEN_TYPES.COMMA)) {
-        advance(this.state);
-        skipNewlines(this.state);
-      }
-    }
-
-    // Consume closing |
-    expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', ERROR_IDS.RILL_P005);
-  }
-
-  // Consume : before return type
-  expect(
-    this.state,
-    TOKEN_TYPES.COLON,
-    'Expected : before return type in closure sig literal'
-  );
-  skipNewlines(this.state);
-
-  const returnType = this.parsePostfixExpr();
-
-  return {
-    type: 'ClosureSigLiteral',
-    params,
-    returnType,
-    span: makeSpan(start, previous(this.state).span.end),
-  };
-};
 
 // ============================================================
 // PASS BLOCK PARSER

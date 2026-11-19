@@ -4,12 +4,7 @@
  */
 
 import { Parser } from './parser.js';
-import type {
-  UseExprNode,
-  UseIdentifier,
-  TypeRef,
-  LiteralNode,
-} from '../types.js';
+import type { UseExprNode, UseIdentifier, TypeRef } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import {
   check,
@@ -18,7 +13,6 @@ import {
   current,
   previous,
   makeSpan,
-  peek,
 } from './state.js';
 import { parseScriptTypeRef } from './parser-types.js';
 import { expectVariableName } from './helpers.js';
@@ -117,83 +111,15 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
   );
 
   let typeRef: TypeRef | null = null;
-  let closureAnnotation: Array<{
-    name: string;
-    typeRef: TypeRef;
-    defaultValue?: LiteralNode;
-  }> | null = null;
-  const parseLiteral = () => this.parseLiteral();
-
   if (check(this.state, TOKEN_TYPES.COLON)) {
-    if (peek(this.state, 1).type === TOKEN_TYPES.OR) {
-      // Zero-param closure annotation: :||
-      advance(this.state); // consume :
-      advance(this.state); // consume || (OR token)
-      closureAnnotation = [];
-      // Optional return type after :||
-      if (check(this.state, TOKEN_TYPES.COLON)) {
-        advance(this.state); // consume :
-        typeRef = parseScriptTypeRef(this);
-      }
-    } else if (peek(this.state, 1).type === TOKEN_TYPES.PIPE_BAR) {
-      // Closure annotation: :|param: type, ...|
-      advance(this.state); // consume :
-      advance(this.state); // consume opening |
-      closureAnnotation = [];
-      while (!check(this.state, TOKEN_TYPES.PIPE_BAR)) {
-        const nameToken = expect(
-          this.state,
-          TOKEN_TYPES.IDENTIFIER,
-          'Expected parameter name in closure annotation'
-        );
-        expect(
-          this.state,
-          TOKEN_TYPES.COLON,
-          'Expected : after parameter name in closure annotation'
-        );
-        const paramTypeRef = parseScriptTypeRef(this, {
-          allowTrailingPipe: true,
-        });
-        const entry: {
-          name: string;
-          typeRef: TypeRef;
-          defaultValue?: LiteralNode;
-        } = {
-          name: nameToken.value,
-          typeRef: paramTypeRef,
-        };
-        if (check(this.state, TOKEN_TYPES.ASSIGN)) {
-          advance(this.state); // consume =
-          entry.defaultValue = parseLiteral();
-        }
-        closureAnnotation.push(entry);
-        if (check(this.state, TOKEN_TYPES.COMMA)) {
-          advance(this.state); // consume ,
-        } else if (!check(this.state, TOKEN_TYPES.PIPE_BAR)) {
-          throw new ParseError(
-            ERROR_IDS.RILL_P001,
-            'Expected , or | after parameter type in closure annotation',
-            current(this.state).span.start
-          );
-        }
-      }
-      advance(this.state); // consume closing |
-      // Optional return type after :|params|
-      if (check(this.state, TOKEN_TYPES.COLON)) {
-        advance(this.state); // consume :
-        typeRef = parseScriptTypeRef(this);
-      }
-    } else {
-      advance(this.state); // consume :
-      typeRef = parseScriptTypeRef(this);
-    }
+    advance(this.state); // consume :
+    typeRef = parseScriptTypeRef(this);
   }
 
   return {
     type: 'UseExpr',
     identifier,
     typeRef,
-    closureAnnotation,
     span: makeSpan(start, previous(this.state).span.end),
   };
 };

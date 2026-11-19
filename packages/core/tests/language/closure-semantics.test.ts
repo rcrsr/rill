@@ -19,7 +19,7 @@ describe('Rill Runtime: Closure Semantics', () => {
         $a.^type
       `;
       const result = (await run(script)) as any;
-      expect(result.typeName).toBe('closure');
+      expect(result.typeName).toBe('fn');
     });
   });
 
@@ -84,7 +84,7 @@ describe('Rill Runtime: Closure Semantics', () => {
         dict[a: { $ * 2 }, b: (5 + 5), c: 42] => $d
         $d.a.^type
       `;
-      expect(((await run(scriptA)) as any).typeName).toBe('closure');
+      expect(((await run(scriptA)) as any).typeName).toBe('fn');
       const scriptB = `
         dict[a: { $ * 2 }, b: (5 + 5), c: 42] => $d
         $d.b
@@ -116,9 +116,9 @@ describe('Rill Runtime: Closure Semantics', () => {
     });
 
     it('nested block-closures work correctly', async () => {
-      // Note: ||{ } creates zero-param outer closure that returns inner block-closure
+      // Note: fn() { } creates zero-param outer closure that returns inner block-closure
       const script = `
-        ||{ { $ + 1 } } => $outer
+        fn() { { $ + 1 } } => $outer
         $outer()(5)
       `;
       expect(await run(script)).toBe(6);
@@ -152,9 +152,9 @@ describe('Rill Runtime: Closure Semantics', () => {
   });
 
   describe('Distinction from Traditional Closures', () => {
-    it('traditional closure with params uses |param| syntax', async () => {
+    it('traditional closure with params uses fn(param) syntax', async () => {
       const script = `
-        |x| { $x + 1 } => $add
+        fn(x) { $x + 1 } => $add
         $add(5)
       `;
       expect(await run(script)).toBe(6);
@@ -170,7 +170,7 @@ describe('Rill Runtime: Closure Semantics', () => {
 
     it('traditional closure receives the piped value as its first argument', async () => {
       const script = `
-        |x, y| { $x + $y } => $add
+        fn(x, y) { $x + $y } => $add
         999 -> $add(5)
       `;
       expect(await run(script)).toBe(1004);
@@ -181,7 +181,7 @@ describe('Rill Runtime: Closure Semantics', () => {
       // Using $c param instead, showing explicit params work but $ doesn't leak
       await expect(
         run(`
-        |a, b, c| { $c + $ } => $fn
+        fn(a, b, c) { $c + $ } => $fn
         "caller-pipe-value" -> $fn(2, 3)
       `)
       ).rejects.toThrow('Undefined variable: $');
@@ -196,7 +196,7 @@ describe('Rill Runtime: Closure Semantics', () => {
         $a.^type
       `;
       const result = (await run(script)) as any;
-      expect(result.typeName).toBe('closure');
+      expect(result.typeName).toBe('fn');
     });
 
     it('AC-14 variant: minimal block-closure returns empty string when invoked', async () => {
@@ -223,7 +223,7 @@ describe('Rill Runtime: Closure Semantics', () => {
       expect(
         ((await run('$result.y.^type', { variables: { result: a! } })) as any)
           .typeName
-      ).toBe('closure');
+      ).toBe('fn');
     });
 
     it('AC-16: block-closure in list', async () => {
@@ -234,8 +234,8 @@ describe('Rill Runtime: Closure Semantics', () => {
       const t1 = (await run(
         'list[{ $ + 1 }, { $ + 2 }] => $list\n$list[1].^type'
       )) as any;
-      expect(t0.typeName).toBe('closure');
-      expect(t1.typeName).toBe('closure');
+      expect(t0.typeName).toBe('fn');
+      expect(t1.typeName).toBe('fn');
     });
 
     it('AC-16 variant: verify both closures execute correctly', async () => {
@@ -247,12 +247,10 @@ describe('Rill Runtime: Closure Semantics', () => {
     });
 
     it('AC-17: dict with all value types', async () => {
-      // Note: ||{ 42 } is property-style (isProperty: true), auto-invokes on access
+      // Note: fn() { 42 } is property-style (isProperty: true), auto-invokes on access
       // Verify each field type via host typeName property (mixed-type list not allowed)
-      const dict = `dict[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n`;
-      expect(((await run(dict + '$d.a.^type')) as any).typeName).toBe(
-        'closure'
-      );
+      const dict = `dict[a: { $ }, b: (1), c: "s", d: fn() { 42 }] => $d\n`;
+      expect(((await run(dict + '$d.a.^type')) as any).typeName).toBe('fn');
       expect(((await run(dict + '$d.b.^type')) as any).typeName).toBe('number');
       expect(((await run(dict + '$d.c.^type')) as any).typeName).toBe('string');
       expect(((await run(dict + '$d.d.^type')) as any).typeName).toBe('number');
@@ -260,13 +258,13 @@ describe('Rill Runtime: Closure Semantics', () => {
 
     it('AC-17 variant: verify closure values execute correctly', async () => {
       // Mixed-type list [10, 1, 's', 42] not allowed; verify each value separately
-      const scriptA = `dict[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n10 -> $d.a`;
+      const scriptA = `dict[a: { $ }, b: (1), c: "s", d: fn() { 42 }] => $d\n10 -> $d.a`;
       expect(await run(scriptA)).toBe(10);
-      const scriptB = `dict[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n$d.b`;
+      const scriptB = `dict[a: { $ }, b: (1), c: "s", d: fn() { 42 }] => $d\n$d.b`;
       expect(await run(scriptB)).toBe(1);
-      const scriptC = `dict[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n$d.c`;
+      const scriptC = `dict[a: { $ }, b: (1), c: "s", d: fn() { 42 }] => $d\n$d.c`;
       expect(await run(scriptC)).toBe('s');
-      const scriptD = `dict[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n$d.d`;
+      const scriptD = `dict[a: { $ }, b: (1), c: "s", d: fn() { 42 }] => $d\n$d.d`;
       expect(await run(scriptD)).toBe(42);
     });
 
@@ -308,11 +306,11 @@ describe('Rill Runtime: Closure Semantics', () => {
     });
 
     it('AC-11: arguments to zero-param closure throws RUNTIME_TYPE_ERROR', async () => {
-      // Zero-param closure ||{} should not accept arguments
+      // Zero-param closure fn() {} should not accept arguments
       await expectRuntimeError(
         () =>
           run(`
-          ||{ 42 } => $a
+          fn() { 42 } => $a
           $a(5)
         `),
         {
@@ -327,7 +325,7 @@ describe('Rill Runtime: Closure Semantics', () => {
       await expectRuntimeError(
         () =>
           run(`
-          |x|{ $x + 1 } => $a
+          fn(x) { $x + 1 } => $a
           $a()
         `),
         {
@@ -384,7 +382,7 @@ describe('Rill Runtime: Closure Semantics', () => {
 
     it('AC-23: zero-param dict member is not injected with the pipe value', async () => {
       const script = `
-        dict[f: ||{ 42 }] => $d
+        dict[f: fn() { 42 }] => $d
         5 -> (true) ? $d.f() ! 0
       `;
       expect(await run(script)).toBe(42);
@@ -394,7 +392,7 @@ describe('Rill Runtime: Closure Semantics', () => {
       // args.length === 0 guards existing explicit arguments from being
       // displaced. Fails (binds 5 instead of 1) if that guard is loosened.
       const script = `
-        dict[g: |a|{ $a + 1 }] => $d
+        dict[g: fn(a) { $a + 1 }] => $d
         5 -> { $
 $d.g(1) }
       `;
@@ -413,7 +411,7 @@ $app.flag } => $captured
         $captured.^type
       `;
       const typeResult = (await run(typeScript)) as any;
-      expect(typeResult.typeName).toBe('closure');
+      expect(typeResult.typeName).toBe('fn');
 
       const invokeScript = `
         dict[flag: { $ + 1 }] => $app
@@ -426,7 +424,7 @@ $app.flag } => $captured
 
     it('AC-26: dict member with an all-optional param uses its default on an empty-paren call', async () => {
       const script = `
-        dict[h: |a: number = 99|{ $a }] => $d
+        dict[h: fn(a: number = 99) { $a }] => $d
         5 -> (true) ? $d.h() ! 0
       `;
       expect(await run(script)).toBe(99);
@@ -445,7 +443,7 @@ $app.flag } => $captured
 
     it('AC-27: bare .field on a pipe target does not receive the piped value', async () => {
       try {
-        await run(`dict[flag: |x|($x)] -> .flag`);
+        await run(`dict[flag: fn(x) { $x }] -> .flag`);
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toHaveProperty('errorId');
@@ -458,7 +456,7 @@ $app.flag } => $captured
 
     it('AC-28: bare .field on a grouped expression does not receive an implicit value', async () => {
       try {
-        await run(`(dict[flag: |x|($x)]).flag`);
+        await run(`(dict[flag: fn(x) { $x }]).flag`);
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toHaveProperty('errorId');
@@ -471,7 +469,7 @@ $app.flag } => $captured
 
     it('AC-29: bare .field directly on a dict literal does not receive an implicit value', async () => {
       try {
-        await run(`dict[flag: |x|($x)].flag`);
+        await run(`dict[flag: fn(x) { $x }].flag`);
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toHaveProperty('errorId');
@@ -485,7 +483,7 @@ $app.flag } => $captured
     it('spreading an empty tuple into a one-untyped-param closure reports the missing parameter, not an undefined variable', async () => {
       try {
         await run(`
-          |x|($x) => $f
+          fn(x) { $x } => $f
           tuple[] -> $f(...)
         `);
         expect.fail('Should have thrown');
@@ -501,7 +499,7 @@ $app.flag } => $captured
     it('spreading an empty dict into a one-untyped-param closure reports the missing parameter, not an undefined variable', async () => {
       try {
         await run(`
-          |x|($x) => $f
+          fn(x) { $x } => $f
           dict[] -> $f(...)
         `);
         expect.fail('Should have thrown');
@@ -533,7 +531,7 @@ $app.flag } => $captured
       await expectHalt(
         () =>
           run(`
-          |x|{ $x + "text" } => $a
+          fn(x) { $x + "text" } => $a
           5 -> $a()
         `),
         {
@@ -564,9 +562,9 @@ $app.flag } => $captured
     });
 
     it('AC-17: typed-param empty closure body raises RILL-R043 on invocation (not RILL-R005)', async () => {
-      // |x: number| { } has no producing statements — invocation raises RILL-R043
+      // fn(x: number) { } has no producing statements — invocation raises RILL-R043
       await expect(
-        run('|x: number| { } => $fn\n5 -> $fn()')
+        run('fn(x: number) { } => $fn\n5 -> $fn()')
       ).rejects.toHaveProperty('errorId', 'RILL-R043');
     });
   });
@@ -575,7 +573,7 @@ $app.flag } => $captured
     it('AC-12 success: $t bound to string — closure accepts string argument', async () => {
       const script = `
         string => $t
-        |val: $t| { $val } => $f
+        fn(val: $t) { $val } => $f
         $f("hello")
       `;
       expect(await run(script)).toBe('hello');
@@ -584,7 +582,7 @@ $app.flag } => $captured
     it('AC-12 rejection: $t bound to number — closure rejects string argument', async () => {
       const script = `
         number => $t
-        |val: $t| { $val } => $f
+        fn(val: $t) { $val } => $f
         $f("hello")
       `;
       await expect(run(script)).rejects.toThrow(
@@ -597,7 +595,7 @@ $app.flag } => $captured
       // must not change the closure's captured parameter type.
       const script = `
         string => $t
-        |val: $t| { $val } => $f
+        fn(val: $t) { $val } => $f
         number => $t
         $f("hello")
       `;
@@ -610,7 +608,7 @@ $app.flag } => $captured
       // Regression test: zero-param closure $c() with explicit empty parens
       // should not receive pipe value (accumulator) in loop body
       const script = `
-        || {
+        fn() {
           "a"
         } => $c
 
@@ -640,7 +638,7 @@ $app.flag } => $captured
     it('zero-param closure in while-loop with explicit call', async () => {
       // Zero-param closure called explicitly should not receive loop accumulator
       const script = `
-        || { 100 } => $constant
+        fn() { 100 } => $constant
 
         0 -> while ($ < 3) do {
           $constant()
@@ -653,7 +651,7 @@ $app.flag } => $captured
     it('zero-param closure in do-while with mixed expressions', async () => {
       // Complex case: zero-param closure alongside accumulator operations
       const script = `
-        || { 0 } => $reset
+        fn() { 0 } => $reset
 
         5 -> do {
           $ => $prev
@@ -679,43 +677,45 @@ $app.flag } => $captured
     it('AC-6: list[{$ + 1}, {$ + 2}] infers structural closure match (same shape)', async () => {
       // Implicit-param closures share identical signature -> structural match
       const result = await run('list[{$ + 1}, {$ + 2}].^type.signature');
-      expect(result).toBe('list(|$: any| :any)');
+      expect(result).toBe('list(fn(any):any)');
     });
 
-    it('AC-7: list[|a: number, b: string|($a), |a: number, b: string|($b)] infers structural closure match', async () => {
+    it('AC-7: list[fn(a: number, b: string)($a), fn(a: number, b: string)($b)] infers structural closure match', async () => {
       // Typed closures with identical params -> structural match preserves full sig
       const result = await run(
-        'list[|a: number, b: string|($a), |a: number, b: string|($b)].^type.signature'
+        'list[fn(a: number, b: string) { $a }, fn(a: number, b: string) { $b }].^type.signature'
       );
-      expect(result).toBe('list(|a: number, b: string| :any)');
+      expect(result).toBe('list(fn(a: number, b: string):any)');
     });
 
-    it('AC-17: list[|x|($x), |a, b|($a)] infers a union of both closure types (arity differs)', async () => {
+    it('AC-17: list[fn(x)($x), fn(a, b)($a)] infers a union of both closure types (arity differs)', async () => {
       // Different param counts -> distinct union members
-      const result = await run('list[|x|($x), |a, b|($a)].^type.signature');
+      const result = await run(
+        'list[fn(x) { $x }, fn(a, b) { $a }].^type.signature'
+      );
       expect(result).toMatch(/^list\(union\(/);
-      expect(result).toContain('|x: any| :any');
-      expect(result).toContain('|a: any, b: any| :any');
+      expect(result).toContain('fn(x: any):any');
+      expect(result).toContain('fn(a: any, b: any):any');
     });
 
-    it('AC-18: list[|x: number|($x + 1), |y: number|($y + 1)] infers a union of both closure types (param names differ)', async () => {
+    it('AC-18: list[fn(x: number)($x + 1), fn(y: number)($y + 1)] infers a union of both closure types (param names differ)', async () => {
       // Same types but different param names -> distinct union members
       const result = await run(
-        'list[|x: number|($x + 1), |y: number|($y + 1)].^type.signature'
+        'list[fn(x: number) { $x + 1 }, fn(y: number) { $y + 1 }].^type.signature'
       );
       expect(result).toMatch(/^list\(union\(/);
-      expect(result).toContain('|x: number| :any');
-      expect(result).toContain('|y: number| :any');
+      expect(result).toContain('fn(x: number):any');
+      expect(result).toContain('fn(y: number):any');
     });
 
-    it('AC-19: list[|x: number|($x), |x: string|($x)] infers a union of both closure types (param types differ)', async () => {
+    it('AC-19: list[fn(x: number)($x), fn(x: string)($x)] infers a union of both closure types (param types differ)', async () => {
       // Same param name but different types -> distinct union members
       const result = await run(
-        'list[|x: number|($x), |x: string|($x)].^type.signature'
+        'list[fn(x: number) { $x }, fn(x: string) { $x }].^type.signature'
       );
       expect(result).toMatch(/^list\(union\(/);
-      expect(result).toContain('|x: number| :any');
-      expect(result).toContain('|x: string| :any');
+      expect(result).toContain('fn(x: number):any');
+      expect(result).toContain('fn(x: string):any');
     });
   });
 
@@ -725,20 +725,20 @@ $app.flag } => $captured
 
   describe('Closure Return Type Assertions', () => {
     it('return type :number passes when closure returns number', async () => {
-      expect(await run('|x: number| { $x * 2 }:number => $fn\n$fn(5)')).toBe(
+      expect(await run('fn(x: number):number { $x * 2 } => $fn\n$fn(5)')).toBe(
         10
       );
     });
 
     it('return type :string passes when closure returns string', async () => {
-      expect(await run('|x: number| { "{$x}" }:string => $fn\n$fn(42)')).toBe(
+      expect(await run('fn(x: number):string { "{$x}" } => $fn\n$fn(42)')).toBe(
         '42'
       );
     });
 
     it('return type :number halts with #TYPE_MISMATCH on mismatch', async () => {
       await expectHalt(
-        () => run('|x: number| { "{$x}" }:number => $fn\n$fn(5)'),
+        () => run('fn(x: number):number { "{$x}" } => $fn\n$fn(5)'),
         { code: 'TYPE_MISMATCH' }
       );
     });
@@ -746,14 +746,14 @@ $app.flag } => $captured
     it('.^type.outer reflects declared return type', async () => {
       // .^type.outer returns a type value; access typeName via host API
       const result = (await run(
-        '|x: number| { $x }:number => $fn\n$fn.^type.outer'
+        'fn(x: number):number { $x } => $fn\n$fn.^type.outer'
       )) as any;
       expect(result.typeName).toBe('number');
     });
 
     it('.^type.outer defaults to any when no return type declared', async () => {
       const result = (await run(
-        '|x: number| { $x } => $fn\n$fn.^type.outer'
+        'fn(x: number) { $x } => $fn\n$fn.^type.outer'
       )) as any;
       expect(result.typeName).toBe('any');
     });
@@ -762,8 +762,8 @@ $app.flag } => $captured
       // Closure with :number matches sig literal with :number
       expect(
         await run(`
-          |x: number| { $x }:number => $fn
-          (|x: number| :number) => $sig
+          fn(x: number):number { $x } => $fn
+          (fn(x: number):number) => $sig
           $fn.^type == $sig
         `)
       ).toBe(true);
@@ -773,8 +773,8 @@ $app.flag } => $captured
       // Without :type, return defaults to any — differs from explicit :number
       expect(
         await run(`
-          |x: number| { $x } => $fn
-          (|x: number| :number) => $sig
+          fn(x: number) { $x } => $fn
+          (fn(x: number):number) => $sig
           $fn.^type == $sig
         `)
       ).toBe(false);
@@ -786,29 +786,29 @@ $app.flag } => $captured
   // ============================================================
 
   describe('Closure Sig Literals', () => {
-    it('parses |x: number| :string as a type value', async () => {
+    it('parses fn(x: number):string as a type value', async () => {
       // Closure sig literal is a type value; typeName accessible via host API
-      const result = (await run('(|x: number| :string) => $t\n$t')) as any;
+      const result = (await run('(fn(x: number):string) => $t\n$t')) as any;
       expect(result.__rill_type).toBe(true);
-      expect(result.typeName).toBe('closure');
+      expect(result.typeName).toBe('fn');
     });
 
     it('sig literal equality: same signature', async () => {
-      expect(await run('(|x: number| :string) == (|x: number| :string)')).toBe(
-        true
-      );
+      expect(
+        await run('(fn(x: number):string) == (fn(x: number):string)')
+      ).toBe(true);
     });
 
     it('sig literal inequality: different return type', async () => {
-      expect(await run('(|x: number| :number) == (|x: number| :string)')).toBe(
-        false
-      );
+      expect(
+        await run('(fn(x: number):number) == (fn(x: number):string)')
+      ).toBe(false);
     });
 
     it('sig literal inequality: different param name', async () => {
-      expect(await run('(|x: number| :string) == (|y: number| :string)')).toBe(
-        false
-      );
+      expect(
+        await run('(fn(x: number):string) == (fn(y: number):string)')
+      ).toBe(false);
     });
   });
 });

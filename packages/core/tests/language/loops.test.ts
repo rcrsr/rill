@@ -770,7 +770,7 @@ describe('Rill Runtime: Loops', () => {
   describe('Return Inside Loop Condition', () => {
     it('return inside a do-while condition exits the enclosing closure', async () => {
       const script = `
-        |x| {
+        fn(x) {
           0 -> do { $ + 1 } while (($ > 2) ? ("early" -> return) ! true)
         } => $g
         $g(1)
@@ -780,7 +780,7 @@ describe('Rill Runtime: Loops', () => {
 
     it('return inside a while condition exits the enclosing closure (unchanged)', async () => {
       const script = `
-        |x| {
+        fn(x) {
           0 -> while (($ > 2) ? ("early" -> return) ! true) do { $ + 1 }
         } => $h
         $h(1)

@@ -4,7 +4,7 @@ import { getHover } from './get-hover.js';
 
 describe('getHover', () => {
   it("shows a variable's declared type from its closure-param annotation", () => {
-    const source = `|x: number| ($x + 1) => $double
+    const source = `fn(x: number) { $x + 1 } => $double
 `;
     const parsed = parseWithRecovery(source);
     expect(parsed.success).toBe(true);
@@ -147,8 +147,8 @@ $person.name -> log
     expect(hover?.contents).toContain('true');
   });
 
-  it('returns the introspected signature for a closure invocation', () => {
-    const source = `|x: number| ($x * 2) => $double
+  it('returns the introspected signature for a fn invocation', () => {
+    const source = `fn(x: number) { $x * 2 } => $double
 $double(5) => $result
 `;
     const parsed = parseWithRecovery(source);
@@ -159,6 +159,46 @@ $double(5) => $result
 
     expect(hover).not.toBeNull();
     expect(hover?.type).toContain('x: number');
+  });
+
+  it('prints the complete fn form with unnamed and defaulted params', () => {
+    const source = `fn(x: number, y: string = "a"):string { "{$x}{$y}" } => $named
+fn(any, any):number { 1 } => $unnamed
+$named(1) => $a
+$unnamed(1, 2) => $b
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const named = getHover(parsed, source.indexOf('$named(1)') + 1);
+    const unnamed = getHover(parsed, source.indexOf('$unnamed(1') + 1);
+
+    expect(named?.type).toBe('fn(x: number, y: string = "a"):string');
+    expect(unnamed?.type).toBe('fn(any, any):number');
+  });
+
+  it('prints an atom default in the fn form', () => {
+    const source = `fn(a: string = #A):string { $a } => $f
+$f() => $r
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const hover = getHover(parsed, source.indexOf('$f()') + 1);
+
+    expect(hover?.type).toBe('fn(a: string = #A):string');
+  });
+
+  it('prints an omitted outer type as any', () => {
+    const source = `fn() { 1 } => $one
+$one() => $r
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const hover = getHover(parsed, source.indexOf('$one()') + 1);
+
+    expect(hover?.type).toBe('fn():any');
   });
 
   it('returns null for an unresolved variable reference', () => {
@@ -276,10 +316,10 @@ $user -> log
 
 describe('getHover field keys', () => {
   it('quotes a non-identifier dict type key', () => {
-    const source = `|x: dict("a b": number)| ($x) => $f
+    const source = `fn(x: dict("a b": number)) { $x } => $f
 `;
     const parsed = parseWithRecovery(source);
-    const hover = getHover(parsed, source.indexOf('($x)') + 2);
+    const hover = getHover(parsed, source.indexOf('$x') + 1);
 
     expect(hover?.type).toBe('dict("a b": number)');
   });

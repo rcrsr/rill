@@ -2,7 +2,7 @@
  * Rill Language Tests: Closure Annotation Defaults
  *
  * Tests that closure parameters support default values via `= literal` syntax
- * in the annotation position: `|name: type = default|`.
+ * in the annotation position: `fn(name: type = default)`.
  *
  * AC-1  through AC-24: acceptance criteria for parsing defaults in closure annotations
  * EC-1  through EC-3:  error contracts for invalid defaults and missing delimiters
@@ -14,18 +14,18 @@ import { run } from '../helpers/runtime.js';
 
 describe('Rill Language: Closure Annotation Defaults', () => {
   // ============================================================
-  // AC-1: |model: string = "gpt-4"| parses without error
+  // AC-1: fn(model: string = "gpt-4") parses without error
   // ============================================================
 
   describe('AC-1: string default parses in closure annotation', () => {
-    it('|model: string = "gpt-4"| parses without error', () => {
-      const ast = parse('|model: string = "gpt-4"|{ $model }');
+    it('fn(model: string = "gpt-4") parses without error', () => {
+      const ast = parse('fn(model: string = "gpt-4") { $model }');
       expect(ast.statements).toHaveLength(1);
     });
 
     it('closure with string default executes and returns default', async () => {
       const result = await run(
-        '|model: string = "gpt-4"|{ $model } => $fn\n$fn()'
+        'fn(model: string = "gpt-4") { $model } => $fn\n$fn()'
       );
       expect(result).toBe('gpt-4');
     });
@@ -37,42 +37,42 @@ describe('Rill Language: Closure Annotation Defaults', () => {
 
   describe('AC-2: all 7 literal types parse as defaults', () => {
     it('string default: = "hello"', () => {
-      const ast = parse('|x: string = "hello"|{ $x }');
+      const ast = parse('fn(x: string = "hello") { $x }');
       expect(ast.statements).toHaveLength(1);
     });
 
     it('number default: = 42', () => {
-      const ast = parse('|x: number = 42|{ $x }');
+      const ast = parse('fn(x: number = 42) { $x }');
       expect(ast.statements).toHaveLength(1);
     });
 
     it('bool default (true): = true', () => {
-      const ast = parse('|x: bool = true|{ $x }');
+      const ast = parse('fn(x: bool = true) { $x }');
       expect(ast.statements).toHaveLength(1);
     });
 
     it('bool default (false): = false', () => {
-      const ast = parse('|x: bool = false|{ $x }');
+      const ast = parse('fn(x: bool = false) { $x }');
       expect(ast.statements).toHaveLength(1);
     });
 
     it('list default: = [1, 2, 3]', () => {
-      const ast = parse('|x: list = [1, 2, 3]|{ $x }');
+      const ast = parse('fn(x: list = [1, 2, 3]) { $x }');
       expect(ast.statements).toHaveLength(1);
     });
 
     it('dict default: = [a: 1]', () => {
-      const ast = parse('|x: dict = [a: 1]|{ $x }');
+      const ast = parse('fn(x: dict = [a: 1]) { $x }');
       expect(ast.statements).toHaveLength(1);
     });
 
     it('empty dict default: = [:]', () => {
-      const ast = parse('|x: dict = [:]|{ $x }');
+      const ast = parse('fn(x: dict = [:]) { $x }');
       expect(ast.statements).toHaveLength(1);
     });
 
     it('tuple default: = [1, "a"]', () => {
-      const ast = parse('|x: tuple = [1, "a"]|{ $x }');
+      const ast = parse('fn(x: tuple = [1, "a"]) { $x }');
       expect(ast.statements).toHaveLength(1);
     });
   });
@@ -83,11 +83,13 @@ describe('Rill Language: Closure Annotation Defaults', () => {
 
   describe('AC-4: computed expression in default produces parse error', () => {
     it('= $var in closure annotation default throws ParseError', () => {
-      expect(() => parse('|x: string = $var|{ $x }')).toThrow(ParseError);
+      expect(() => parse('fn(x: string = $var) { $x }')).toThrow(ParseError);
     });
 
     it('= some_fn() in closure annotation default throws ParseError', () => {
-      expect(() => parse('|x: number = some_fn()|{ $x }')).toThrow(ParseError);
+      expect(() => parse('fn(x: number = some_fn()) { $x }')).toThrow(
+        ParseError
+      );
     });
   });
 
@@ -97,7 +99,7 @@ describe('Rill Language: Closure Annotation Defaults', () => {
 
   describe('AC-16: parenthesized expression in default produces parse error', () => {
     it('= (1 + 2) in closure param default throws ParseError', () => {
-      expect(() => parse('|x: number = (1 + 2)|{ $x }')).toThrow(ParseError);
+      expect(() => parse('fn(x: number = (1 + 2)) { $x }')).toThrow(ParseError);
     });
   });
 
@@ -122,7 +124,7 @@ describe('Rill Language: Closure Annotation Defaults', () => {
   describe('AC-20: missing delimiter after default produces RILL-P001', () => {
     it('missing pipe after single param with default throws ParseError', () => {
       try {
-        parse('|x: string = "test" { $x }');
+        parse('fn(x: string = "test" { $x }');
         expect.fail('Should have thrown ParseError');
       } catch (err) {
         expect(err).toBeInstanceOf(ParseError);
@@ -131,7 +133,7 @@ describe('Rill Language: Closure Annotation Defaults', () => {
 
     it('missing comma between params with defaults throws ParseError', () => {
       try {
-        parse('|x: string = "a" y: number = 1|{ $x }');
+        parse('fn(x: string = "a" y: number = 1) { $x }');
         expect.fail('Should have thrown ParseError');
       } catch (err) {
         expect(err).toBeInstanceOf(ParseError);
@@ -140,38 +142,40 @@ describe('Rill Language: Closure Annotation Defaults', () => {
   });
 
   // ============================================================
-  // AC-21: All params have defaults; structureMatches passes
-  //        against annotation without defaults
+  // AC-21: A fn whose params carry defaults does not match a type that
+  //        omits them (fn type equality is exact)
   // ============================================================
 
-  describe('AC-21: all params with defaults matches annotation without defaults', () => {
+  describe('AC-21: all params with defaults does not match annotation without defaults', () => {
     it('closure with all defaulted params parses', () => {
-      const ast = parse('|x: string = "a", y: number = 0|{ $x } => $fn\ntrue');
+      const ast = parse(
+        'fn(x: string = "a", y: number = 0) { $x } => $fn\ntrue'
+      );
       expect(ast.statements).toHaveLength(2);
     });
 
-    it('closure with defaults passes :? against type without defaults', async () => {
-      // Build a closure type without defaults, then verify that a
-      // closure with all-defaulted params structureMatches it via :?.
+    it('fn with defaults does not match a type without defaults', async () => {
+      // Fn type equality is exact: a default is part of the type, so a fn
+      // whose params carry defaults is not the type that omits them.
       const result = await run(
-        '|x: string, y: number|{ $x } => $ref\n' +
+        'fn(x: string, y: number) { $x } => $ref\n' +
           '$ref.^type => $refType\n' +
-          '|x: string = "a", y: number = 0|{ $x } => $fn\n' +
+          'fn(x: string = "a", y: number = 0) { $x } => $fn\n' +
           '$fn -> :?$refType'
       );
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
   });
 
   // ============================================================
-  // AC-22: Zero params (||) parses unchanged
+  // AC-22: Zero params (fn()) parses unchanged
   // ============================================================
 
   describe('AC-22: zero params parses unchanged', () => {
-    it('||{ 42 } parses and executes', async () => {
-      const ast = parse('||{ 42 }');
+    it('fn() { 42 } parses and executes', async () => {
+      const ast = parse('fn() { 42 }');
       expect(ast.statements).toHaveLength(1);
-      const result = await run('||{ 42 } => $fn\n$fn()');
+      const result = await run('fn() { 42 } => $fn\n$fn()');
       expect(result).toBe(42);
     });
   });
@@ -182,7 +186,7 @@ describe('Rill Language: Closure Annotation Defaults', () => {
 
   describe('AC-23: nested type with default parses', () => {
     it('dict(items: list = []) in closure param default parses', () => {
-      const ast = parse('|cfg: dict(items: list = []) = [:]|{ $cfg }');
+      const ast = parse('fn(cfg: dict(items: list = []) = [:]) { $cfg }');
       expect(ast.statements).toHaveLength(1);
     });
 
@@ -193,25 +197,25 @@ describe('Rill Language: Closure Annotation Defaults', () => {
   });
 
   // ============================================================
-  // AC-24: Union type with default: |mode: union(string, number) = "auto"|
+  // AC-24: Union type with default: fn(mode: union(string, number) = "auto")
   // ============================================================
 
   describe('AC-24: union type with default parses', () => {
-    it('|mode: union(string, number) = "auto"| parses without error', () => {
-      const ast = parse('|mode: union(string, number) = "auto"|{ $mode }');
+    it('fn(mode: union(string, number) = "auto") parses without error', () => {
+      const ast = parse('fn(mode: union(string, number) = "auto") { $mode }');
       expect(ast.statements).toHaveLength(1);
     });
 
     it('closure with union type and default executes with default', async () => {
       const result = await run(
-        '|mode: union(string, number) = "auto"|{ $mode } => $fn\n$fn()'
+        'fn(mode: union(string, number) = "auto") { $mode } => $fn\n$fn()'
       );
       expect(result).toBe('auto');
     });
 
     it('closure with union type and default accepts explicit value', async () => {
       const result = await run(
-        '|mode: union(string, number) = "auto"|{ $mode } => $fn\n$fn(42)'
+        'fn(mode: union(string, number) = "auto") { $mode } => $fn\n$fn(42)'
       );
       expect(result).toBe(42);
     });
@@ -224,7 +228,7 @@ describe('Rill Language: Closure Annotation Defaults', () => {
   describe('EC-1: non-literal after = produces RILL-P001', () => {
     it('= $var throws ParseError with RILL-P001', () => {
       try {
-        parse('|x: string = $var|{ $x }');
+        parse('fn(x: string = $var) { $x }');
         expect.fail('Should have thrown ParseError');
       } catch (err) {
         expect(err).toBeInstanceOf(ParseError);
@@ -234,7 +238,7 @@ describe('Rill Language: Closure Annotation Defaults', () => {
 
     it('= (1 + 2) throws ParseError with RILL-P001', () => {
       try {
-        parse('|x: number = (1 + 2)|{ $x }');
+        parse('fn(x: number = (1 + 2)) { $x }');
         expect.fail('Should have thrown ParseError');
       } catch (err) {
         expect(err).toBeInstanceOf(ParseError);
@@ -260,7 +264,7 @@ describe('Rill Language: Closure Annotation Defaults', () => {
   describe('EC-3: missing delimiter after default produces parse error', () => {
     it('missing | after default throws ParseError', () => {
       try {
-        parse('|x: number = 42 { $x }');
+        parse('fn(x: number = 42 { $x }');
         expect.fail('Should have thrown ParseError');
       } catch (err) {
         expect(err).toBeInstanceOf(ParseError);
@@ -269,7 +273,7 @@ describe('Rill Language: Closure Annotation Defaults', () => {
 
     it('missing , between defaulted params throws ParseError', () => {
       try {
-        parse('|a: string = "x" b: number = 1|{ $a }');
+        parse('fn(a: string = "x" b: number = 1) { $a }');
         expect.fail('Should have thrown ParseError');
       } catch (err) {
         expect(err).toBeInstanceOf(ParseError);
@@ -370,60 +374,62 @@ describe('Rill Language: Closure Annotation Defaults', () => {
   // ============================================================
 
   describe('additional literal forms parse and evaluate as closure parameter defaults', () => {
-    it('negative number default: |x: number = -42|', async () => {
-      const ast = parse('|x: number = -42|{ $x }');
+    it('negative number default: fn(x: number = -42)', async () => {
+      const ast = parse('fn(x: number = -42) { $x }');
       expect(ast.statements).toHaveLength(1);
-      const result = await run('|x: number = -42|{ $x } => $fn\n$fn()');
+      const result = await run('fn(x: number = -42) { $x } => $fn\n$fn()');
       expect(result).toBe(-42);
     });
 
-    it('atom literal default: |x: atom = #TIMEOUT|', async () => {
-      const ast = parse('|x: atom = #TIMEOUT|{ $x }');
+    it('atom literal default: fn(x: atom = #TIMEOUT)', async () => {
+      const ast = parse('fn(x: atom = #TIMEOUT) { $x }');
       expect(ast.statements).toHaveLength(1);
       const result = await run(
-        '|x: atom = #TIMEOUT|{ $x -> string } => $fn\n$fn()'
+        'fn(x: atom = #TIMEOUT) { $x -> string } => $fn\n$fn()'
       );
       expect(result).toBe('TIMEOUT');
     });
 
-    it('keyword list literal default: |x: list = list[1, 2, 3]|', async () => {
-      const ast = parse('|x: list = list[1, 2, 3]|{ $x }');
+    it('keyword list literal default: fn(x: list = list[1, 2, 3])', async () => {
+      const ast = parse('fn(x: list = list[1, 2, 3]) { $x }');
       expect(ast.statements).toHaveLength(1);
-      const result = await run('|x: list = list[1, 2, 3]|{ $x } => $fn\n$fn()');
+      const result = await run(
+        'fn(x: list = list[1, 2, 3]) { $x } => $fn\n$fn()'
+      );
       expect(result).toEqual([1, 2, 3]);
     });
 
-    it('keyword dict literal default: |x: dict = dict[a: 1]|', async () => {
-      const ast = parse('|x: dict = dict[a: 1]|{ $x }');
+    it('keyword dict literal default: fn(x: dict = dict[a: 1])', async () => {
+      const ast = parse('fn(x: dict = dict[a: 1]) { $x }');
       expect(ast.statements).toHaveLength(1);
-      const result = await run('|x: dict = dict[a: 1]|{ $x } => $fn\n$fn()');
+      const result = await run('fn(x: dict = dict[a: 1]) { $x } => $fn\n$fn()');
       expect(result).toEqual({ a: 1 });
     });
 
-    it('keyword tuple literal default: |x: tuple = tuple[1, "a"]|', async () => {
-      const ast = parse('|x: tuple = tuple[1, "a"]|{ $x }');
+    it('keyword tuple literal default: fn(x: tuple = tuple[1, "a"])', async () => {
+      const ast = parse('fn(x: tuple = tuple[1, "a"]) { $x }');
       expect(ast.statements).toHaveLength(1);
       const result = await run(
-        '|x: tuple = tuple[1, "a"]|{ $x -> string } => $fn\n$fn()'
+        'fn(x: tuple = tuple[1, "a"]) { $x -> string } => $fn\n$fn()'
       );
       expect(typeof result).toBe('string');
     });
 
-    it('keyword ordered literal default: |x: ordered = ordered[a: 1]|', async () => {
-      const ast = parse('|x: ordered = ordered[a: 1]|{ $x }');
+    it('keyword ordered literal default: fn(x: ordered = ordered[a: 1])', async () => {
+      const ast = parse('fn(x: ordered = ordered[a: 1]) { $x }');
       expect(ast.statements).toHaveLength(1);
       const result = await run(
-        '|x: ordered = ordered[a: 1]|{ $x -> string } => $fn\n$fn()'
+        'fn(x: ordered = ordered[a: 1]) { $x -> string } => $fn\n$fn()'
       );
       expect(typeof result).toBe('string');
     });
 
-    it('expression is still rejected as a default: |x: number = $x + 1|', () => {
-      expect(() => parse('|x: number = $x + 1|{ $x }')).toThrow(ParseError);
+    it('expression is still rejected as a default: fn(x: number = $x + 1)', () => {
+      expect(() => parse('fn(x: number = $x + 1) { $x }')).toThrow(ParseError);
     });
 
-    it('function call is still rejected as a default: |x: number = f()|', () => {
-      expect(() => parse('|x: number = f()|{ $x }')).toThrow(ParseError);
+    it('function call is still rejected as a default: fn(x: number = f())', () => {
+      expect(() => parse('fn(x: number = f()) { $x }')).toThrow(ParseError);
     });
   });
 

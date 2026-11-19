@@ -93,13 +93,13 @@ describe('MIXED_ELEMENT_TYPE_READ is silent', () => {
 
   it('is silent for a dict parameter sharing the captured name', () => {
     const source =
-      'dict[a: 1, b: "x"] => $d\n|d: dict| { $d.values.^type } => $f\n';
+      'dict[a: 1, b: "x"] => $d\nfn(d: dict) { $d.values.^type } => $f\n';
     expect(run(source)).toHaveLength(0);
   });
 
-  it('is silent for a closure parameter sharing the captured name', () => {
+  it('is silent for a fn parameter sharing the captured name', () => {
     const source =
-      'list[list[1], list["a"]] => $l\n|l: list| { $l.^type } => $f\n';
+      'list[list[1], list["a"]] => $l\nfn(l: list) { $l.^type } => $f\n';
     expect(run(source)).toHaveLength(0);
   });
 });

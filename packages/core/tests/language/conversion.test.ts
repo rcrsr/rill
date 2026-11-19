@@ -592,10 +592,10 @@ describe('Rill Language: -> Conversion Operator', () => {
     });
 
     it('throws RILL-R036: closure -> string (no string form)', async () => {
-      await expectHalt(() => run('||(42) -> string'), {
+      await expectHalt(() => run('fn() { 42 } -> string'), {
         code: 'RILL_R036',
         hostErrorId: 'RILL-R036',
-        messagePattern: /cannot convert closure to string/,
+        messagePattern: /cannot convert fn to string/,
       });
     });
 
@@ -607,18 +607,18 @@ describe('Rill Language: -> Conversion Operator', () => {
       });
     });
 
-    const NESTED_PRELUDE = '||(42) => $f\nrange(0, 3) => $it\n';
+    const NESTED_PRELUDE = 'fn() { 42 } => $f\nrange(0, 3) => $it\n';
 
     it.each([
       [
         'list holding a closure',
         'list[$f] -> string',
-        /cannot convert list to string: contains closure/,
+        /cannot convert list to string: contains fn/,
       ],
       [
         'dict holding a closure',
         'dict[a: $f] -> string',
-        /cannot convert dict to string: contains closure/,
+        /cannot convert dict to string: contains fn/,
       ],
       [
         'tuple holding an iterator',
@@ -628,7 +628,7 @@ describe('Rill Language: -> Conversion Operator', () => {
       [
         'ordered holding a closure',
         'ordered[a: $f] -> string',
-        /cannot convert ordered to string: contains closure/,
+        /cannot convert ordered to string: contains fn/,
       ],
       [
         'deeply nested iterator',
@@ -638,12 +638,12 @@ describe('Rill Language: -> Conversion Operator', () => {
       [
         'dict with a typed key',
         'dict[1: $f] -> string',
-        /cannot convert dict to string: contains closure/,
+        /cannot convert dict to string: contains fn/,
       ],
       [
         'string-typed $T route',
         'string => $T\nlist[$f] -> $T',
-        /cannot convert list to string: contains closure/,
+        /cannot convert list to string: contains fn/,
       ],
       [
         'list holding an iterator names iterator',
@@ -665,7 +665,7 @@ describe('Rill Language: -> Conversion Operator', () => {
       await expectHalt(() => run(`${NESTED_PRELUDE}list[$it] -> string`), {
         code: 'RILL_R036',
         hostErrorId: 'RILL-R036',
-        messagePattern: /^(?!.*closure)/,
+        messagePattern: /^(?!.*fn)/,
       });
     });
 
@@ -705,7 +705,7 @@ describe('Rill Language: -> Conversion Operator', () => {
       await expectHalt(() => run(`${NESTED_PRELUDE}list[$f] -> .join(",")`), {
         code: 'RILL_R036',
         hostErrorId: 'RILL-R036',
-        messagePattern: /cannot convert list to string: contains closure/,
+        messagePattern: /cannot convert list to string: contains fn/,
       });
     });
 
@@ -775,7 +775,7 @@ describe('Rill Language: -> Conversion Operator', () => {
     });
 
     it('closure => $t; 42 -> $t raises RILL-R036 (UCP-EC-3 unsupported via variable)', async () => {
-      await expect(run('closure => $t\n42 -> $t')).rejects.toHaveProperty(
+      await expect(run('fn => $t\n42 -> $t')).rejects.toHaveProperty(
         'errorId',
         'RILL-R036'
       );

@@ -124,7 +124,7 @@ const LATENCY_TEST_TIMEOUT_MS = 120_000;
 function generateFixtureScript(targetLines: number): string {
   const blockLines = [
     'dict[name: "item-{$i}", index: $i, score: 42] => $record:dict',
-    '|x| ($x * 2 + 1) => $double',
+    'fn(x) { $x * 2 + 1 } => $double',
     '$record.index -> $double => $doubled',
     '"prefix-{$record.name}-{$doubled}" => $label:string',
     '$record -> .name -> .upper => $upperName',

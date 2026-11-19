@@ -21,7 +21,7 @@ annotation.reserved 1c783a27813a
 annotation.shorthand 775a2d4447b1
 annotation.stack 2490423f9120
 annotation.values 1a314342136c
-any 6ac6864f3c91 dict.empty-parens@c8b91cfc3a0e fn.empty@bc536d0a2ca0 introspection.bare@4675364a5ade introspection.leaf@c3102e0c1886 list.unspecified@546466e216ff ordered.empty-parens@dee46359e906 stream.unspecified@6d472df28d3e tuple.unspecified@171dd6d58c4c union.empty@1f0396741c84
+any 6ac6864f3c91 dict.empty-parens@c8b91cfc3a0e fn.empty@c49f1cdccf0d introspection.bare@4675364a5ade introspection.leaf@c3102e0c1886 list.unspecified@546466e216ff ordered.empty-parens@dee46359e906 stream.unspecified@6d472df28d3e tuple.unspecified@171dd6d58c4c union.empty@1f0396741c84
 any.admits 7b4420687b3a
 any.assert 0df138bbb10d
 any.collection b7208d2d5fe1
@@ -34,7 +34,7 @@ assert.fail 8b58b422606f
 assert.non-catchable 6a005e13d63e halt.non-catchable@8eb8c26644b7
 assert.pass f9943a52d133
 assertion.any c486fea6b8eb
-assertion.bare-fn 50bc7169d957
+assertion.bare-fn ddccb3b2a613
 assertion.bare-kind ce7953cbeae7
 assertion.binding 7c2ca9c39f26
 assertion.check 2b9639133d91
@@ -109,7 +109,7 @@ carried-type.own-element 1613e0cd4bce equality.no-overlap@39f213f599cf inference
 carried-type.replace 92d0ac2c5056 assertion.any@c486fea6b8eb
 carried-type.reserved-key 482d6a7d0ebf
 carried-type.type-probe eaad72137ace
-code-block a4e6c8169004 break.return-body@23c89e6d85e2 dispatch.fn@b3dfba5720a1 fn.bare-literal@a391a34699ca fn.block-outer@be72ae142ad7 fn.block-type@93aee32dd6d0 pipe.uses-value@b0a557eb924b statement.result@4c84cfa0816c
+code-block a4e6c8169004 break.return-body@23c89e6d85e2 dispatch.fn@b3dfba5720a1 fn.bare-literal@964bcde3ee45 fn.block-outer@be72ae142ad7 fn.block-type@93aee32dd6d0 pipe.uses-value@b0a557eb924b statement.result@4c84cfa0816c
 code-block.access ecc52b36f876
 code-block.access-target cd3b87998d88
 code-block.assert ddf153eb53d5 assertion.mismatch@9dc0075657b2 assertion.pass@1a0a1da3896c
@@ -212,7 +212,7 @@ defaults.nested 4308e8623b6a
 defaults.non-literal aa98fbcbe35c
 defaults.operator f0b443d57f0e
 defaults.param 4bd0a3bd35c5
-defaults.param-form ad26f93e0517
+defaults.param-form 968fd2d28064
 defaults.param-required 94b94909db07
 defaults.required 704c2fe56b2e
 defaults.synthesis e8200f8bec23
@@ -340,31 +340,31 @@ filter.element 9fc7495950e6
 filter.keep 4dfefc2f4747
 filter.map 4100d2d447e0
 filter.options 9d8d2a71a7be fan.concurrency@da9c8948cfa0 fan.options-dict@6932795c473b fan.options-number@e1eb0f26d539 fan.options-positive@c5ec919ab770 fan.options-unknown@de8f23d23359
-fn.bare 50d21497d91f
-fn.bare-literal a391a34699ca fn.block-type@93aee32dd6d0
+fn.bare c9f7a5dead8c
+fn.bare-literal 964bcde3ee45 fn.block-type@93aee32dd6d0
 fn.block-outer be72ae142ad7
 fn.block-reads-acc 1850a4462f3b
 fn.block-reads-none 2e7cc7720e4c
 fn.block-reads-pipe 383431d11e5c
 fn.block-type 93aee32dd6d0
-fn.empty bc536d0a2ca0
-fn.equality 89ecb465048b
-fn.inner-named 97fb8a9d6c94
-fn.inner-type 7fad75b9ceac
-fn.inner-unnamed d415c2e33acb
-fn.name 78aea35262e3
-fn.named 45fc9b96756d
-fn.no-closure 3d8ce97eeff7
-fn.no-mix 99b4c084c771
-fn.no-self 05899fa7dca8
-fn.omitted 1a2c8550bc21
-fn.outer 3446a89c3606
-fn.position 46ef9606aae8
-fn.print 8d00756eec9e
-fn.unnamed 9fd3078b8c41
-fn.unnamed-limit 969884beb79f
-fn.unnamed-no-default 6e695e4ecb3d
-fn.value 658d218c661c
+fn.empty c49f1cdccf0d
+fn.equality 92e467864033
+fn.inner-named 69c414fd83c9
+fn.inner-type 1181c9f16830
+fn.inner-unnamed 17efffd801c1
+fn.name 9ec178066ab5
+fn.named dcde4dc7a87e
+fn.no-closure 527e0f66812a
+fn.no-mix a65124bc0550
+fn.no-self b02e18c75198
+fn.omitted f6fc3fe96a17
+fn.outer 2f0427c57080
+fn.position b6987f8565c6
+fn.print 840ffa300ce1
+fn.unnamed 8233f4604955
+fn.unnamed-limit a456e1724695
+fn.unnamed-no-default 9638b7bdf49e
+fn.value 663ed76812c6
 fold b853a4d7a16d acc.result@0d21f65369ea break.unsupported@2ea2eb802674
 fold.accumulator e19bdd8e9418
 fold.arity b15a248f6af1
@@ -734,7 +734,7 @@ structural-typing.equal 4dbb04f3ce7c
 structural-typing.equal-order feff5c53b758
 structural-typing.exact-dict edc7a049d7b0 structural-typing.bare-dict@47f054dbadd3
 structural-typing.exact-position cb3617c378f1
-structural-typing.function a3162e14d79d
+structural-typing.function 68c5fdf04b11
 structural-typing.has c9a47b47ba3a
 structural-typing.missing 9f65eada49ab
 structural-typing.overlap-fields 10ec669ce02c

@@ -99,7 +99,7 @@ Sources: list, tuple, string, dict, ordered, iterator, stream. Any other value h
 All operators accept any callable as the body argument:
 
     -> seq({ $ * 2 })           # block, $ is current element
-    -> seq(|x| ($x * 2))        # inline closure
+    -> seq(fn(x) { $x * 2 })    # inline function
     -> seq($double)             # variable closure
     -> seq({ log($) })          # built-in wrapped in a closure
 

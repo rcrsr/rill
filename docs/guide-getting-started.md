@@ -98,7 +98,7 @@ rill has seven value types:
 | List | `[1, 2, 3]` |
 | Dict | `[name: "alice", age: 30]` |
 | Tuple | `tuple[1, 2, 3]` |
-| Closure | `\|x\|($x + 1)` |
+| Function | `fn(x) { $x + 1 }` |
 
 ### Strings
 
@@ -165,7 +165,7 @@ Methods are called with `.name()` syntax. The pipe value becomes the implicit fi
 "hello" -> .contains("ell")
 # Result: true
 
-[1, 2, 3] -> fan(|x|($x * 2))
+[1, 2, 3] -> fan(fn(x) { $x * 2 })
 # Result: list[2, 4, 6]
 ```
 
@@ -255,10 +255,10 @@ Use `break` to exit a loop early:
 
 ## Closures (Functions)
 
-Define reusable logic with closure syntax `|params| body`. See [Closures](topic-closures.md) for advanced patterns including late binding and dict-bound closures.
+Define reusable logic with fn syntax `fn(params) { body }`. See [Closures](topic-closures.md) for advanced patterns including late binding and dict-bound closures.
 
 ```rill
-|x|($x * 2) => $double
+fn(x) { $x * 2 } => $double
 
 5 -> $double()
 # Result: 10
@@ -270,7 +270,7 @@ Define reusable logic with closure syntax `|params| body`. See [Closures](topic-
 ### Multiple Parameters
 
 ```rill
-|a, b|($a + $b) => $add
+fn(a, b) { $a + $b } => $add
 
 $add(3, 4)
 # Result: 7
@@ -281,7 +281,7 @@ $add(3, 4)
 Optional type hints help catch errors:
 
 ```rill
-|name: string, age: number| "Name: {$name}, Age: {$age}" => $fn
+fn(name: string, age: number) { "Name: {$name}, Age: {$age}" } => $fn
 $fn("Alice", 30)
 ```
 
@@ -348,7 +348,7 @@ Here's a complete example that processes a list of names:
 
 ```rill
 ["alice", "bob", "charlie"] => $names
-$names -> fan(|name| { "{$name}: {$name -> .len} chars" }) => $descriptions
+$names -> fan(fn(name) { "{$name}: {$name -> .len} chars" }) => $descriptions
 $descriptions -> .join(", ")
 ```
 
@@ -382,7 +382,7 @@ true, false                 # boolean
 [1, 2, 3]               # list
 [a: 1, b: 2]            # dict
 tuple[1, 2, 3]              # tuple (positional)
-|x|($x + 1)                 # closure
+fn(x) { $x + 1 }            # fn
 
 # Conditionals
 cond ? then ! else          # if-else

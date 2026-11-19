@@ -5,7 +5,7 @@ Type names, assertions, conversion, parameterized types, dict shapes, type inspe
 ## Type names
 
     string   number   bool     list     dict     ordered
-    tuple    closure  vector   iterator any      type
+    tuple    fn       vector   iterator any      type
     atom     datetime duration    error_code
 
 ## Type assertion `:type`
@@ -70,9 +70,9 @@ An outer type (`:string` after the parentheses or a bare name) attaches only to 
 
 Assertion is exact: an extra key halts #TYPE_MISMATCH (`:?` gives false). Bare `dict` and `dict()` accept any keys.
 
-In closure params (validates input structure):
+In fn params (validates input structure):
 
-    |d: dict(name: string, age: number)| {
+    fn(d: dict(name: string, age: number)) {
       "{$d.name} is {$d.age}"
     } => $format_person
 
@@ -154,7 +154,7 @@ To validate a shape write `-> :dict(a: string)`, never `-> dict(a: string)`. To 
     ⁴ true → 1, false → 0
     ⁵ 0 → false, 1 → true; all other values halt with RILL-R036
 
-    closure, iterator, and vector have no -> string, nor does a list, dict, tuple, or ordered holding one at any depth; converting, interpolating, or .join-ing one halts RILL-R036
+    fn, iterator, and vector have no -> string, nor does a list, dict, tuple, or ordered holding one at any depth; converting, interpolating, or .join-ing one halts RILL-R036
     datetime and duration interpolate as their printed form, and duration -> string yields it; -> string on a datetime, or on a collection holding a datetime or duration, halts RILL-R036
 
 ## Default values in type constructors
@@ -204,7 +204,7 @@ Read what a type holds with `.inner` and what a function or stream yields with `
     $u.^type.signature              # "list(union(number, string))"
     string.inner ?? any             # any; leaf types halt RILL-R003 without ??
     string.?inner                   # false
-    |x: number|{ $x }:string => $f
+    fn(x: number):string { $x } => $f
     $f.^type.outer                  # string
     dict(a: string = "x").defaults  # dict[a: "x"]
 
@@ -217,7 +217,7 @@ Under a declared union, `.^type` reports the declaration and `.^effective` the o
 Dispatch on `.^effective.name`, not `.^type.name`. `any` declares nothing:
 `1 => $x:any` locks as number.
 
-A declaration carries through `$`, plain and inline captures, grouped `( )`, `pass`, destructure, closure params, iteration over a declared `list(E)`, and every element or field read on a declared collection: `[i]`, `.name`, `.$k`, and pipe selection `"a" -> $d`. A capture locks to the carried declaration.
+A declaration carries through `$`, plain and inline captures, grouped `( )`, `pass`, destructure, function params, iteration over a declared `list(E)`, and every element or field read on a declared collection: `[i]`, `.name`, `.$k`, and pipe selection `"a" -> $d`. A capture locks to the carried declaration.
 Computed results (operators, methods like `.head`, calls) take their own type.
 A bare `list`, `list(any)`, or `union(list(number), string)` projects no element type. A bare kind such as `:list` makes `.^type` report `list` and `.^effective` report `list(number)`.
 Host boundary: `toNative` reports the own type.

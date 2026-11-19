@@ -163,12 +163,7 @@ const rows: [string, TypeStructure, TypeStructure, boolean][] = [
     { kind: 'dict', fields: { a: { type: str } } },
     false,
   ],
-  [
-    'closures overlap by kind',
-    { kind: 'closure' },
-    { kind: 'closure', ret: num },
-    true,
-  ],
+  ['closures overlap by kind', { kind: 'fn' }, { kind: 'fn', ret: num }, true],
   [
     'iterators overlap by kind',
     { kind: 'iterator' },
@@ -196,12 +191,7 @@ const rows: [string, TypeStructure, TypeStructure, boolean][] = [
     { kind: 'stream', chunk: num },
     true,
   ],
-  [
-    'stream does not overlap closure',
-    { kind: 'stream' },
-    { kind: 'closure' },
-    false,
-  ],
+  ['stream does not overlap fn', { kind: 'stream' }, { kind: 'fn' }, false],
 ];
 
 describe('structureOverlaps', () => {

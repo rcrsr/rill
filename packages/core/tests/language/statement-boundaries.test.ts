@@ -44,7 +44,7 @@ $x`;
       });
 
       it('variable call starts new statement', async () => {
-        const script = `|x| { $x } => $fn
+        const script = `fn(x) { $x } => $fn
 $fn("test")`;
         expect(await run(script)).toBe('test');
       });
@@ -261,14 +261,14 @@ $parts -> seq({ "{$}!" })`;
       });
 
       it('newline after comma in multi-arg closure call', async () => {
-        const script = `|a, b| { $a + $b } => $add
+        const script = `fn(a, b) { $a + $b } => $add
 $add(10,
 20)`;
         expect(await run(script)).toBe(30);
       });
 
       it('multiple newlines between args in closure call', async () => {
-        const script = `|a, b, c| { $a + $b + $c } => $sum
+        const script = `fn(a, b, c) { $a + $b + $c } => $sum
 $sum(1,
 
 2,
@@ -278,7 +278,7 @@ $sum(1,
       });
 
       it('newline after opening paren in closure call', async () => {
-        const script = `|x| { $x } => $fn
+        const script = `fn(x) { $x } => $fn
 $fn(
 "world")`;
         expect(await run(script)).toBe('world');
@@ -298,7 +298,7 @@ $fn(
       });
 
       it('newline before closing paren in closure call', async () => {
-        const script = `|a, b| { $a + $b } => $add
+        const script = `fn(a, b) { $a + $b } => $add
 $add(
 10,
 20
@@ -314,7 +314,7 @@ $add(
       });
 
       it('fully expanded multi-line call', async () => {
-        const script = `|a, b, c| { $a + $b + $c } => $sum
+        const script = `fn(a, b, c) { $a + $b + $c } => $sum
 $sum(
   1,
   2,
@@ -339,9 +339,9 @@ true ? { "second" }`;
         // Regression test: Original bug reproduction case.
         // (cond) ? { block } followed by (cond2) on next line should NOT
         // parse (cond2) as postfix invocation of the conditional result.
-        const script = `|path| { "draft" } => $get_status
+        const script = `fn(path) { "draft" } => $get_status
 
-|doc_path, target_status, max_attempts| {
+fn(doc_path, target_status, max_attempts) {
   0 -> do {
     $get_status($doc_path) => $new_status
 
@@ -366,7 +366,7 @@ $review_loop("spec.md", "plan-ready", 3)`;
         // Regression test: Verify 0.7.0 fix still works.
         // (cond) ? { break } followed by (expr) should NOT parse (expr)
         // as invocation since break is a terminator.
-        const script = `|n| {
+        const script = `fn(n) {
   0 -> do {
     ($ == $n) ? { $ -> break }
     $ + 1
@@ -382,14 +382,14 @@ $loop(5)`;
         // Regression test: a closure body's closing brace followed by a
         // newline and an unrelated parenthesized expression must not be
         // treated as a same-statement postfix invocation of the closure.
-        const script = `|x| { $x * 2 }\n(5)`;
+        const script = `fn(x) { $x * 2 }\n(5)`;
         const ast = parse(script);
         expect(ast.statements.length).toBe(2);
         expect(await run(script)).toBe(5);
       });
 
       it('closure literal followed by a newline then a property access is two statements', async () => {
-        const script = `|| { 1 }\n.len`;
+        const script = `fn() { 1 }\n.len`;
         const ast = parse(script);
         expect(ast.statements.length).toBe(2);
         await expect(run(script)).rejects.toHaveProperty(
@@ -406,19 +406,14 @@ $loop(5)`;
       });
 
       it('same-line return type annotation still parses after a closure body', async () => {
-        const script = `|x| ($x):number => $f\n$f(5)`;
-        expect(await run(script)).toBe(5);
-      });
-
-      it('return type annotation on the line after the closure body still parses', async () => {
-        const script = `|x| ($x)\n:number => $f\n$f(5)`;
+        const script = `fn(x):number { $x } => $f\n$f(5)`;
         expect(await run(script)).toBe(5);
       });
 
       it('allows postfix invocation after conditional with non-block then-branch', async () => {
         // Verify that postfix invocation still works when then-branch is NOT a block.
         // (cond) ? value followed by (args) should parse as invocation if value is callable.
-        const script = `|x| { $x * 2 } => $double
+        const script = `fn(x) { $x * 2 } => $double
 
 (true ? $double ! $double)(5)`;
         // Conditional returns $double, then (5) invokes it as postfix

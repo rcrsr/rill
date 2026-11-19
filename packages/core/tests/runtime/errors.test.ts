@@ -369,7 +369,7 @@ describe('Rill Runtime: Error Taxonomy', () => {
         expect(definition.resolution).toBeTruthy();
         expect(definition.examples).toBeTruthy();
         expect(definition.examples!.length).toBeGreaterThan(0);
-        expect(definition.examples!.length).toBeLessThanOrEqual(3);
+        expect(definition.examples!.length).toBeLessThanOrEqual(6);
       }
     });
 

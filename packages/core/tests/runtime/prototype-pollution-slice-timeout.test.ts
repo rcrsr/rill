@@ -155,7 +155,7 @@ describe('setDictField rebuild sites: toNative() and JSON serialization', () => 
 describe('setDictField rebuild sites: hydrateStructure and convertToDictWithSig', () => {
   it('hydrateStructure fills a missing __proto__-named field as an own property', async () => {
     const result = await run(
-      '|d: dict(__proto__: number = 1)| ($d) => $f\n$f(dict[])'
+      'fn(d: dict(__proto__: number = 1)) { $d } => $f\n$f(dict[])'
     );
     const native = toNative(result);
     const value = native.value as Record<string, unknown>;
@@ -218,9 +218,9 @@ describe('reserved brand keys as type-constructor field names', () => {
     );
   });
 
-  it('a closure parameter type naming a brand key halts when invoked', async () => {
+  it('a fn parameter type naming a brand key halts when invoked', async () => {
     await expectHalt(
-      () => run('|d: dict(__type: string = "x")| ($d) => $f\n$f(dict[])'),
+      () => run('fn(d: dict(__type: string = "x")) { $d } => $f\n$f(dict[])'),
       { code: 'RILL_R002', messagePattern: /reserved brand key '__type'/ }
     );
   });

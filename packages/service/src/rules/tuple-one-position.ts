@@ -5,9 +5,9 @@
  * through union members and every argument value.
  */
 
+import { formatTypeRef } from '@rcrsr/rill';
 import type { ASTNode, FieldArg, SourceLocation, TypeRef } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
-import { typeRefToString } from '../type-rendering.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
 
@@ -23,13 +23,17 @@ function collectFromRef(ref: TypeRef, out: string[]): void {
       if (args === undefined) return;
       const [only] = args;
       if (ref.typeName === 'tuple' && args.length === 1 && only !== undefined) {
-        out.push(typeRefToString(only.value));
+        out.push(formatTypeRef(only.value));
       }
       collectFromArgs(args, out);
       return;
     }
     case 'union':
       for (const member of ref.members) collectFromRef(member, out);
+      return;
+    case 'fn':
+      // Params are ClosureParam nodes the traversal visits on their own.
+      if (ref.outer !== undefined) collectFromRef(ref.outer, out);
       return;
     case 'dynamic':
     case 'literal':
@@ -47,22 +51,17 @@ function typeRefsOf(node: ASTNode): TypeRef[] {
     case 'ClosureParam':
     case 'DestructPattern':
       return node.typeRef ? [node.typeRef] : [];
-    case 'UseExpr': {
-      const refs: TypeRef[] = node.typeRef ? [node.typeRef] : [];
-      for (const param of node.closureAnnotation ?? []) {
-        refs.push(param.typeRef);
-      }
-      return refs;
-    }
+    case 'UseExpr':
+      return node.typeRef ? [node.typeRef] : [];
+    case 'FnType':
+      return [node.typeRef];
     case 'PostfixExpr':
     case 'Variable': {
       const ref = node.existenceCheck?.typeRef;
       return ref ? [ref] : [];
     }
-    case 'Closure': {
-      const target = node.returnTypeTarget;
-      return target !== undefined && !('type' in target) ? [target] : [];
-    }
+    case 'Closure':
+      return node.returnTypeTarget === undefined ? [] : [node.returnTypeTarget];
     default:
       return [];
   }
@@ -78,6 +77,7 @@ export const tupleOnePosition: Rule = {
     'Closure',
     'DestructPattern',
     'UseExpr',
+    'FnType',
     'PostfixExpr',
     'Variable',
     'TypeConstructor',
@@ -90,7 +90,7 @@ export const tupleOnePosition: Rule = {
     if (node.type === 'TypeConstructor') {
       if (node.constructorName === 'tuple' && node.args.length === 1) {
         const [only] = node.args;
-        if (only !== undefined) elements.push(typeRefToString(only.value));
+        if (only !== undefined) elements.push(formatTypeRef(only.value));
       }
       collectFromArgs(node.args, elements);
     } else {

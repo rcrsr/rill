@@ -21,7 +21,7 @@ export const VALID_TYPE_NAMES = [
   'string',
   'number',
   'bool',
-  'closure',
+  'fn',
   'list',
   'dict',
   'tuple',

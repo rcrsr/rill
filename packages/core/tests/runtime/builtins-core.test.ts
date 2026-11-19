@@ -54,7 +54,7 @@ describe('Rill Runtime: chain built-in missing-argument message', () => {
     }
   });
 
-  it('still names the actual type when a non-closure value is supplied', async () => {
+  it('still names the actual type when a non-fn value is supplied', async () => {
     try {
       await run('chain(5, 42)');
       expect.fail('Should have thrown');

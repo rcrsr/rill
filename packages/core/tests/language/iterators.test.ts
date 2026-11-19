@@ -262,11 +262,11 @@ describe('Rill Runtime: Iterators', () => {
   describe('custom iterators', () => {
     it('recognizes iterator protocol in each', async () => {
       const script = `
-        |start| dict[
+        fn(start) { dict[
           value: $start,
           done: ($start > 2),
-          next: || { $countdown($.value + 1) }
-        ] => $countdown
+          next: fn() { $countdown($start + 1) }
+        ] } => $countdown
         $countdown(0) -> seq({ $ })
       `;
       expect(await run(script)).toEqual([0, 1, 2]);
@@ -274,11 +274,11 @@ describe('Rill Runtime: Iterators', () => {
 
     it('recognizes iterator protocol in map', async () => {
       const script = `
-        |start| dict[
+        fn(start) { dict[
           value: $start,
           done: ($start > 2),
-          next: || { $counter($.value + 1) }
-        ] => $counter
+          next: fn() { $counter($start + 1) }
+        ] } => $counter
         $counter(0) -> fan({ $ * 10 })
       `;
       expect(await run(script)).toEqual([0, 10, 20]);
@@ -286,11 +286,11 @@ describe('Rill Runtime: Iterators', () => {
 
     it('recognizes iterator protocol in fold', async () => {
       const script = `
-        |start| dict[
+        fn(start) { dict[
           value: $start,
           done: ($start > 3),
-          next: || { $counter($.value + 1) }
-        ] => $counter
+          next: fn() { $counter($start + 1) }
+        ] } => $counter
         $counter(1) -> fold(0, { $@ + $ })
       `;
       expect(await run(script)).toBe(6); // 1 + 2 + 3 = 6
@@ -338,11 +338,11 @@ describe('Rill Runtime: Iterators', () => {
   describe('custom iterators with filter', () => {
     it('filter works on custom iterator', async () => {
       const script = `
-        |start| dict[
+        fn(start) { dict[
           value: $start,
           done: ($start > 5),
-          next: || { $counter($.value + 1) }
-        ] => $counter
+          next: fn() { $counter($start + 1) }
+        ] } => $counter
         $counter(0) -> filter({ ($ % 2) == 0 })
       `;
       expect(await run(script)).toEqual([0, 2, 4]);
@@ -352,7 +352,7 @@ describe('Rill Runtime: Iterators', () => {
   describe('iterator edge cases', () => {
     it('dict without done is not iterator', async () => {
       const result = (await run(
-        'dict[value: 1, next: ||{ 0 }] -> seq({ $ })'
+        'dict[value: 1, next: fn() { 0 }] -> seq({ $ })'
       )) as any[];
       expect(Array.isArray(result)).toBe(true);
       const valueEntry = result.find((e: any) => e.key === 'value');
@@ -370,7 +370,7 @@ describe('Rill Runtime: Iterators', () => {
 
     it('dict with non-bool done is not iterator', async () => {
       const result = (await run(
-        'dict[value: 1, done: "false", next: ||{ 0 }] -> seq({ $ })'
+        'dict[value: 1, done: "false", next: fn() { 0 }] -> seq({ $ })'
       )) as any[];
       expect(Array.isArray(result)).toBe(true);
       expect(result).toHaveLength(3);
@@ -378,7 +378,7 @@ describe('Rill Runtime: Iterators', () => {
 
     it('empty done iterator works with each', async () => {
       const script = `
-        |n| dict[done: true, next: ||{ $emptyIter(0) }] => $emptyIter
+        fn(n) { dict[done: true, next: fn() { $emptyIter(0) }] } => $emptyIter
         $emptyIter(0) -> seq({ $ })
       `;
       expect(await run(script)).toEqual([]);
@@ -386,7 +386,7 @@ describe('Rill Runtime: Iterators', () => {
 
     it('empty done iterator works with fold', async () => {
       const script = `
-        |n| dict[done: true, next: ||{ $emptyIter(0) }] => $emptyIter
+        fn(n) { dict[done: true, next: fn() { $emptyIter(0) }] } => $emptyIter
         $emptyIter(0) -> fold(42, { $@ + $ })
       `;
       expect(await run(script)).toBe(42);

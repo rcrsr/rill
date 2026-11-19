@@ -133,19 +133,21 @@ describe('Rill Runtime: structural conversion field type mismatch halts', () => 
 describe('Rill Runtime: hydration through a union-typed parameter', () => {
   it('hydrates dict field defaults when the dict member of a union matches', async () => {
     const result = await run(
-      '|d: union(dict(a: number = 1), string)| ($d) => $f\n$f(dict[])'
+      'fn(d: union(dict(a: number = 1), string)) { $d } => $f\n$f(dict[])'
     );
     expect(result).toEqual({ a: 1 });
   });
 
   it('non-union dict param still hydrates field defaults', async () => {
-    const result = await run('|d: dict(a: number = 1)| ($d) => $g\n$g(dict[])');
+    const result = await run(
+      'fn(d: dict(a: number = 1)) { $d } => $g\n$g(dict[])'
+    );
     expect(result).toEqual({ a: 1 });
   });
 
   it('leaves a value matching the non-dict union member unchanged', async () => {
     const result = await run(
-      '|d: union(dict(a: number = 1), string)| ($d) => $f\n$f("hi")'
+      'fn(d: union(dict(a: number = 1), string)) { $d } => $f\n$f("hi")'
     );
     expect(result).toBe('hi');
   });
@@ -154,7 +156,7 @@ describe('Rill Runtime: hydration through a union-typed parameter', () => {
     await expectRuntimeError(
       () =>
         run(
-          '|d: union(dict(a: number = 1), string)| ($d) => $f\n$f(list[1, 2])'
+          'fn(d: union(dict(a: number = 1), string)) { $d } => $f\n$f(list[1, 2])'
         ),
       { code: 'RILL-R001' }
     );

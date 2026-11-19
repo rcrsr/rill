@@ -262,7 +262,7 @@ describe('Existence Check', () => {
     it.each([
       ['variable', 'dict[a: 1] => $d\n$d.x.?b ?? true', 'RILL_R009'],
       ['bracket', 'dict[a: 1] => $d\n$d["x"].?b ?? true', 'RILL_R009'],
-      ['annotation', '|x| ($x) => $f\n$f.^zz.?b ?? true', 'RILL_R008'],
+      ['annotation', 'fn(x) { $x } => $f\n$f.^zz.?b ?? true', 'RILL_R008'],
       ['pipe variable', 'dict[a: 1] -> $.x.?b ?? true', 'RILL_R009'],
     ])(
       'halts a ?? default across a missing step before .? (%s)',

@@ -3,7 +3,7 @@ id: structural-typing
 title: Structural typing
 status: normative
 since: 0.24.0
-issues: [623]
+issues: []
 errors: [TYPE_MISMATCH]
 depends: [type-value, any, list, dict, tuple, ordered, union]
 tests: [equality-gate.test.ts, structural-type-identity.test.ts, structural-type-boundaries.test.ts, structural-type-errors.test.ts, structural-type-defaults.test.ts, type-field-keys.test.ts]
@@ -70,7 +70,7 @@ A bare `dict` MUST admit every dict.
 r[structural-typing.bare-ordered] A bare ordered type admits every ordered
 A bare `ordered` MUST admit every ordered value.
 
-r[structural-typing.function] A function has a function type only when its own type equals it {pending #623}
+r[structural-typing.function] A function has a function type only when its own type equals it
 A function value MUST have a function type only when its own type equals that type.
 
 ### Overlap

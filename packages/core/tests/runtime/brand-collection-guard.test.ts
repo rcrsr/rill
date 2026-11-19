@@ -168,7 +168,7 @@ describe('brand-value guards against the generic dict path', () => {
         expect(tupleHalt.errorId).toBe('RILL-R003');
 
         const streamHalt = await haltOf(
-          `|| ("a" -> yield) :stream(string) => $gen\n$gen() => $s\n$s -> .${method}`
+          `fn():stream(string) { "a" -> yield } => $gen\n$gen() => $s\n$s -> .${method}`
         );
         expect(streamHalt.errorId).toBe('RILL-R003');
       }

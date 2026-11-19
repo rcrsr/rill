@@ -92,10 +92,10 @@ describe('executeRill edge cases', () => {
   describe('call stack extraction', () => {
     it('resolves source lines for frames of a runtime error raised in a closure', async () => {
       const source = [
-        '|x| ($x -> .nope) => $inner',
-        '|y| (',
+        'fn(x) { $x -> .nope } => $inner',
+        'fn(y) {',
         '  $inner($y)',
-        ') => $outer',
+        '} => $outer',
         '"a" => $v',
         '$outer($v)',
       ].join('\n');

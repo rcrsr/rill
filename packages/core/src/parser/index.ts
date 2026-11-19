@@ -175,16 +175,7 @@ function createEmptyScript(): ScriptNode {
 // ============================================================
 
 // State (for advanced usage)
-export {
-  createParserState,
-  type ParserState,
-  advance,
-  check,
-  current,
-  expect,
-  skipNewlines,
-  isAtEnd,
-} from './state.js';
+export { createParserState } from './state.js';
 import { ERROR_IDS } from '../error-registry.js';
 
 // Type parsing (for advanced usage)

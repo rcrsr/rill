@@ -14,7 +14,7 @@ function createGreetExtension(config: { prefix: string }): ExtensionFactoryResul
   return {
     value: {
       greet: toCallable({
-        signature: '|name: string|:string',
+        signature: 'fn(name: string):string',
         fn: async (args) => `${config.prefix} ${args.name}!`,
         description: 'Generate greeting',
       }),
@@ -44,7 +44,7 @@ function createMyExtension(config: MyConfig): ExtensionFactoryResult {
   return {
     value: {
       greet: toCallable({
-        signature: '|name: string|:string',
+        signature: 'fn(name: string):string',
         fn: async (args) => `Hello, ${args.name}!`,
         description: 'Generate greeting',
       }),
@@ -276,7 +276,7 @@ function createPooledExtension(config: PoolConfig): ExtensionFactoryResult {
   return {
     value: {
       query: toCallable({
-        signature: '|sql: string|:any',
+        signature: 'fn(sql: string):any',
         fn: async (args) => pool.query(args.sql),
         description: 'Execute SQL query',
       }),
@@ -325,7 +325,7 @@ function createCounterExtension(): ExtensionFactoryResult {
   return {
     value: {
       increment: toCallable({
-        signature: '||:number',
+        signature: 'fn():number',
         fn: () => ++state.count,
         description: 'Increment counter',
       }),
@@ -498,7 +498,7 @@ function createMyExtension(): ExtensionFactoryResult {
   return {
     value: {
       run: toCallable({
-        signature: '|cmd: string|:string',
+        signature: 'fn(cmd: string):string',
         fn: async (args) => {
           const proc = spawn(args.cmd);
           const cleanup = () => proc.kill();
@@ -586,7 +586,7 @@ const context = createTestContext({
   myExt: {
     value: {
       greet: toCallable({
-        signature: '|name: string|:string',
+        signature: 'fn(name: string):string',
         fn: (args) => `Hello, ${args.name}!`,
       })
     }
@@ -597,7 +597,7 @@ const result = await execute(parse('myExt.greet("World")'), context);
 // result.result === "Hello, World!"
 ```
 
-`createTestContext` throws `ExtensionBindingError` at construction—before any script runs—when a binding's generated source fails to parse: a closure-signature parameter with a `dict` type whose field name is not a bare identifier, or a reserved-word parameter name, each surface this way.
+`createTestContext` throws `ExtensionBindingError` at construction—before any script runs—when a binding's generated source fails to parse: an fn signature parameter with a `dict` type whose field name is not a bare identifier, or a reserved-word parameter name, each surface this way.
 
 ---
 

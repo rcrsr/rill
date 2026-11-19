@@ -97,7 +97,7 @@ describe('Rill Runtime: Host Reference and Expression Annotations', () => {
   describe('AC-6: Expression-position ^(...) before closure attaches annotation', () => {
     it('attaches description annotation to script callable', async () => {
       const result = await run(
-        `^("Greets users") |name: string| { "Hello " + $name }`
+        `^("Greets users") fn(name: string) { "Hello " + $name }`
       );
       expect(isScriptCallable(result)).toBe(true);
       if (!isScriptCallable(result)) return;
@@ -106,7 +106,7 @@ describe('Rill Runtime: Host Reference and Expression Annotations', () => {
 
     it('attaches multiple annotations to script callable', async () => {
       const result = await run(
-        `^("Search the web", cache: true) |q: string| { $q }`
+        `^("Search the web", cache: true) fn(q: string) { $q }`
       );
       expect(isScriptCallable(result)).toBe(true);
       if (!isScriptCallable(result)) return;
@@ -117,7 +117,7 @@ describe('Rill Runtime: Host Reference and Expression Annotations', () => {
     });
 
     it('annotations field is empty dict when no annotation provided', async () => {
-      const result = await run(`|x: string| { $x }`);
+      const result = await run(`fn(x: string) { $x }`);
       expect(isScriptCallable(result)).toBe(true);
       if (!isScriptCallable(result)) return;
       expect(result.annotations).toEqual({});
@@ -161,15 +161,15 @@ describe('Rill Runtime: Host Reference and Expression Annotations', () => {
   describe('EC-6: Malformed annotation syntax produces parse error', () => {
     it('throws parse error for unclosed annotation paren', async () => {
       await expectThrowMessage(
-        () => run(`^( |x| { $x }`),
-        'Expected annotation name',
+        () => run(`^( fn(x) { $x }`),
+        'Expected :',
         ParseError
       );
     });
 
     it('throws parse error for annotation without parens', async () => {
       await expectThrowMessage(
-        () => run(`^ |x| { $x }`),
+        () => run(`^ fn(x) { $x }`),
         'Expected (',
         ParseError
       );

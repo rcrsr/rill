@@ -4,7 +4,7 @@
  * ordinary HostCall nodes whose `name` is one of the five callable
  * builtins below. The closure argument may parse as either a bare-block
  * form (`seq({ body })`, primary is a BlockNode) or an explicit closure
- * (`seq(|x|(body))`, primary is a ClosureNode).
+ * (`seq(fn(x) { body })`, primary is a ClosureNode).
  */
 
 import type {
@@ -79,7 +79,7 @@ export function getCollectionOpBody(
 /**
  * Resolve a bare zero-arg host call sitting in the body slot of a
  * collection-op call, e.g. `seq(foo)` where `foo` should have been
- * `seq({ foo($) })` or `seq(|x|(foo($x)))`.
+ * `seq({ foo($) })` or `seq(fn(x) { foo($x) })`.
  * Only the last arg is inspected: `fold`/`acc` take `(initial, body)`, and a
  * bare zero-arg call is legitimate in the initial slot (`fold(zero, ...)`).
  * Only the last arg is ever the body slot, so scanning earlier args would
@@ -104,7 +104,7 @@ export function isParallelOp(name: CollectionOpName): boolean {
  * Resolve the body to inspect for a collection-op call.
  * - `seq({block})` - arg primary is a Block; that Block is inspected
  *   directly.
- * - `seq(|x|(expr))` - arg primary is a Closure; its `.body` is inspected.
+ * - `seq(fn(x) { expr })` - arg primary is a Closure; its `.body` is inspected.
  * Both return values are valid `BodyNode` shapes.
  */
 export function resolveOpBody(node: HostCallNode): BodyNode | null {

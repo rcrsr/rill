@@ -73,9 +73,9 @@ range(1, 11) -> fold(1, { $@ * $ })`,
   closures: {
     id: 'closures',
     label: 'Closures',
-    source: `|x| ($x * 2) => $double
-|x| ($x + 10) => $offset
-|x| ($x * $x) => $square
+    source: `fn(x) { $x * 2 } => $double
+fn(x) { $x + 10 } => $offset
+fn(x) { $x * $x } => $square
 
 # Closure chain: 3 -> 6 -> 16 -> 256
 3 -> chain(list[$double, $offset, $square])`,
@@ -149,11 +149,11 @@ $val:?string ? "it's a string" ! "not a string"`,
     label: 'Dict Methods',
     source: `dict[
   items: list[12, 5, 8, 23, 3],
-  total: ||{ $.items -> fold(0, { $@ + $ }) },
-  max: ||{ $.items -> fold(0, { ($@ > $) ? $@ ! $ }) }
+  total: fn(d) { $d.items -> fold(0, { $@ + $ }) },
+  max: fn(d) { $d.items -> fold(0, { ($@ > $) ? $@ ! $ }) }
 ] => $bag
-log($bag.total)
-log($bag.max)
+log($bag -> $bag.total)
+log($bag -> $bag.max)
 $bag.items -> filter({ $ > 10 })`,
   },
   'state-machine': {
@@ -227,20 +227,20 @@ dict[value: 27, steps: 0]
   'typed-closures': {
     id: 'typed-closures',
     label: 'Typed Closures',
-    source: `# Anonymous typed closure: |type|{ body }
-"hello" -> |string|{ $ -> .upper } => $shouted
+    source: `# Unnamed parameter: fn(type) { body } binds the pipe value as $
+"hello" -> fn(string) { $ -> .upper } => $shouted
 log($shouted)
 
 # Return type assertion with :type
-|x: number| { $x * 2 }:number => $double
+fn(x: number):number { $x * 2 } => $double
 log($double(5))
 
 # Type-checked parameter
-|n: number| { $n + 1 } => $inc
+fn(n: number) { $n + 1 } => $inc
 log($inc(10))
 
 # Default parameter values
-|x = 0| ($x + 1) => $inc_or_one
+fn(x = 0) { $x + 1 } => $inc_or_one
 log($inc_or_one())
 $inc_or_one(99)`,
   },
@@ -460,7 +460,7 @@ list[
 log($sorted)
 
 # ordered[...] unpacks into named parameters
-|a, b| ($a - $b) => $subtract
+fn(a, b) { $a - $b } => $subtract
 log(ordered[a: 10, b: 3] -> $subtract(...))
 
 # ordered converts to dict
@@ -484,8 +484,8 @@ $start -> .add(duration(...dict[days: 1, hours: 2])) -> .iso()`,
   'closure-reflection': {
     id: 'closure-reflection',
     label: 'Closure Reflection',
-    source: `# A description annotation and a return type on a typed closure
-^("Doubles a number") |x: number| ($x * 2):number => $fn
+    source: `# A description annotation and a return type on a typed fn
+^("Doubles a number") fn(x: number):number { $x * 2 } => $fn
 
 log($fn.^description)
 log($fn.^type.inner)

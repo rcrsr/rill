@@ -102,7 +102,8 @@ Parser.prototype.parseTypeConstructor = function (
   const opts: {
     parseLiteral: () => LiteralNode;
     parseAnnotations?: () => AnnotationArg[];
-  } = { parseLiteral };
+    parseFnAnnotations: () => AnnotationArg[];
+  } = { parseLiteral, parseFnAnnotations: () => this.parseAnnotationArgs() };
   if (constructorName !== 'list' && constructorName !== 'union') {
     opts.parseAnnotations = () => this.parseAnnotationArgs();
   }

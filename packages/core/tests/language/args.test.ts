@@ -27,7 +27,7 @@ describe('explicit spread call syntax', () => {
 
   it('AC-1: tuple pipe spread binds positional params', async () => {
     const result = await run(`
-      |a, b| { ($a + $b) } => $fn
+      fn(a, b) { ($a + $b) } => $fn
       tuple[1, 2] -> $fn(...)
     `);
     expect(result).toBe(3);
@@ -35,7 +35,7 @@ describe('explicit spread call syntax', () => {
 
   it('AC-2: ordered pipe spread binds by name', async () => {
     const result = await run(`
-      |a, b| { ($a + $b) } => $fn
+      fn(a, b) { ($a + $b) } => $fn
       ordered[a: 1, b: 2] -> $fn(...)
     `);
     expect(result).toBe(3);
@@ -43,7 +43,7 @@ describe('explicit spread call syntax', () => {
 
   it('AC-3: dict pipe spread binds by name regardless of order', async () => {
     const result = await run(`
-      |a, b, c| { ($a + $b + $c) } => $fn
+      fn(a, b, c) { ($a + $b + $c) } => $fn
       dict[c: 3, a: 1, b: 2] -> $fn(...)
     `);
     expect(result).toBe(6);
@@ -51,7 +51,7 @@ describe('explicit spread call syntax', () => {
 
   it('AC-4: stored tuple spread via explicit ...expr', async () => {
     const result = await run(`
-      |a, b| { ($a + $b) } => $fn
+      fn(a, b) { ($a + $b) } => $fn
       tuple[1, 2] => $t
       $fn(...$t)
     `);
@@ -60,7 +60,7 @@ describe('explicit spread call syntax', () => {
 
   it('AC-5: positional arg followed by ordered inline spread', async () => {
     const result = await run(`
-      |a, b, c| { ($a + $b + $c) } => $fn
+      fn(a, b, c) { ($a + $b + $c) } => $fn
       $fn(1, ...ordered[b: 2, c: 3])
     `);
     expect(result).toBe(6);
@@ -68,7 +68,7 @@ describe('explicit spread call syntax', () => {
 
   it('AC-6: positional args followed by tuple inline spread', async () => {
     const result = await run(`
-      |a, b, c| { ($a + $b + $c) } => $fn
+      fn(a, b, c) { ($a + $b + $c) } => $fn
       $fn(1, 2, ...tuple[3])
     `);
     expect(result).toBe(6);
@@ -76,11 +76,11 @@ describe('explicit spread call syntax', () => {
 
   it('AC-7: bare ... is identical to ...$', async () => {
     const withBare = await run(`
-      |a, b| { ($a + $b) } => $fn
+      fn(a, b) { ($a + $b) } => $fn
       tuple[3, 4] -> $fn(...)
     `);
     const withExplicit = await run(`
-      |a, b| { ($a + $b) } => $fn
+      fn(a, b) { ($a + $b) } => $fn
       tuple[3, 4] -> $fn(...$)
     `);
     expect(withBare).toBe(withExplicit);
@@ -138,7 +138,7 @@ describe('explicit spread call syntax', () => {
   it('AC-10: dict-bound closure invoked with spread', async () => {
     // $obj.method(...$args) is a parse error (AC-21), so extract the closure first
     const result = await run(`
-      |a, b| { ($a + $b) } => $process
+      fn(a, b) { ($a + $b) } => $process
       dict[process: $process] => $obj
       $obj.process => $fn
       tuple[3, 4] -> $fn(...)
@@ -148,7 +148,7 @@ describe('explicit spread call syntax', () => {
 
   it('AC-23: spread of empty dict with zero params — no error', async () => {
     const result = await run(`
-      || { 42 } => $fn
+      fn() { 42 } => $fn
       dict[] -> $fn(...)
     `);
     expect(result).toBe(42);
@@ -156,7 +156,7 @@ describe('explicit spread call syntax', () => {
 
   it('AC-24: spread of single-element tuple binds single param', async () => {
     const result = await run(`
-      |a| { $a } => $fn
+      fn(a) { $a } => $fn
       $fn(...tuple[1])
     `);
     expect(result).toBe(1);
@@ -167,7 +167,7 @@ describe('explicit spread call syntax', () => {
     // and must NOT take the dict-by-name path (which ignores order)
     await expect(
       run(`
-        |a, b| { ($a + $b) } => $fn
+        fn(a, b) { ($a + $b) } => $fn
         ordered[b: 2, a: 1] -> $fn(...)
       `)
     ).rejects.toThrow(/does not match expected parameter/i);
@@ -180,7 +180,7 @@ describe('explicit spread call syntax', () => {
   it('AC-11 (EC-3): bare ... with no active pipe value errors', async () => {
     await expect(
       run(`
-        |a, b| { ($a + $b) } => $fn
+        fn(a, b) { ($a + $b) } => $fn
         $fn(...)
       `)
     ).rejects.toThrow(/\$/);
@@ -189,7 +189,7 @@ describe('explicit spread call syntax', () => {
   it('AC-12 (EC-4): string pipe to spread errors naming the type', async () => {
     await expect(
       run(`
-        |a| { $a } => $fn
+        fn(a) { $a } => $fn
         "hello" -> $fn(...)
       `)
     ).rejects.toThrow(/string/i);
@@ -198,7 +198,7 @@ describe('explicit spread call syntax', () => {
   it('AC-13 (EC-5): dict spread with unknown key errors', async () => {
     await expect(
       run(`
-        |a, b| { ($a + $b) } => $fn
+        fn(a, b) { ($a + $b) } => $fn
         dict[a: 1, z: 2] -> $fn(...)
       `)
     ).rejects.toThrow(/z/);
@@ -207,7 +207,7 @@ describe('explicit spread call syntax', () => {
   it('AC-14 (EC-6): ordered spread key order mismatch errors', async () => {
     await expect(
       run(`
-        |a, b, c| { 1 } => $fn
+        fn(a, b, c) { 1 } => $fn
         ordered[c: 3, a: 1, b: 2] -> $fn(...)
       `)
     ).rejects.toThrow(/does not match expected parameter/i);
@@ -216,7 +216,7 @@ describe('explicit spread call syntax', () => {
   it('AC-15 (EC-7): duplicate param binding via positional + ordered spread errors', async () => {
     await expect(
       run(`
-        |a, b, c| { 1 } => $fn
+        fn(a, b, c) { 1 } => $fn
         $fn(1, ...ordered[a: 2, b: 3])
       `)
     ).rejects.toThrow(/does not match expected parameter/i);
@@ -225,7 +225,7 @@ describe('explicit spread call syntax', () => {
   it('AC-16 (EC-9): tuple spread with more values than remaining params errors', async () => {
     await expect(
       run(`
-        |a| { $a } => $fn
+        fn(a) { $a } => $fn
         $fn(...tuple[1, 2])
       `)
     ).rejects.toThrow(/2 values/i);
@@ -234,7 +234,7 @@ describe('explicit spread call syntax', () => {
   it('AC-17 (EC-8): dict spread missing required param errors', async () => {
     await expect(
       run(`
-        |a, b| { ($a + $b) } => $fn
+        fn(a, b) { ($a + $b) } => $fn
         dict[a: 1] -> $fn(...)
       `)
     ).rejects.toThrow(/missing argument for parameter/i);
@@ -259,7 +259,7 @@ describe('explicit spread call syntax', () => {
   it('AC-22 (Boundary): spread of empty tuple with required params errors', async () => {
     await expect(
       run(`
-        |a, b| { ($a + $b) } => $fn
+        fn(a, b) { ($a + $b) } => $fn
         $fn(...tuple[])
       `)
     ).rejects.toThrow(/missing argument for parameter/i);
@@ -268,17 +268,17 @@ describe('explicit spread call syntax', () => {
   it('AC-26 (Boundary): spread of closure type errors', async () => {
     await expect(
       run(`
-        || { 1 } => $t
-        |a| { $a } => $fn
+        fn() { 1 } => $t
+        fn(a) { $a } => $fn
         $fn(...$t)
       `)
-    ).rejects.toThrow(/closure/i);
+    ).rejects.toThrow(/Spread requires a tuple, dict, or ordered/i);
   });
 
   it('AC-27 (Boundary): spread with zero remaining params after positional binding errors', async () => {
     await expect(
       run(`
-        |a, b| { ($a + $b) } => $fn
+        fn(a, b) { ($a + $b) } => $fn
         $fn(1, 2, ...tuple[3])
       `)
     ).rejects.toThrow(/only 0 parameter/i);
@@ -515,7 +515,7 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
     describe('Positional args (from list spread)', () => {
       it('unpacks list as positional args via tuple', async () => {
         const result = await run(`
-          |x, y| { ($x + $y) } => $add
+          fn(x, y) { ($x + $y) } => $add
           tuple[3, 4] -> $add(...)
         `);
         expect(result).toBe(7);
@@ -525,7 +525,7 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
     describe('Named args (from dict)', () => {
       it('unpacks dict by parameter name', async () => {
         const result = await run(`
-          |a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
+          fn(a, b, c) { "{$a}-{$b}-{$c}" } => $fmt
           ordered[a: 1, b: 2, c: 3] -> $fmt(...)
         `);
         expect(result).toBe('1-2-3');
@@ -533,7 +533,7 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
 
       it('allows any order for named args', async () => {
         const result = await run(`
-          |width, height| { ($width * $height) } => $area
+          fn(width, height) { ($width * $height) } => $area
           ordered[width: 10, height: 20] -> $area(...)
         `);
         expect(result).toBe(200);
@@ -544,7 +544,7 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
   describe('Parameter defaults', () => {
     it('applies defaults for missing named args', async () => {
       const result = await run(`
-        |x, y = 10, z = 20| { ($x + $y + $z) } => $fn
+        fn(x, y = 10, z = 20) { ($x + $y + $z) } => $fn
         ordered[x: 5] -> $fn(...)
       `);
       expect(result).toBe(35); // 5 + 10 + 20
@@ -552,7 +552,7 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
 
     it('overrides defaults when named args provided', async () => {
       const result = await run(`
-        |x, y = 10, z = 20| { ($x + $y + $z) } => $fn
+        fn(x, y = 10, z = 20) { ($x + $y + $z) } => $fn
         ordered[x: 5, y: 15] -> $fn(...)
       `);
       expect(result).toBe(40); // 5 + 15 + 20
@@ -560,7 +560,7 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
 
     it('works with named args and defaults', async () => {
       const result = await run(`
-        |x, y = 10, z = 20| { ($x + $y + $z) } => $fn
+        fn(x, y = 10, z = 20) { ($x + $y + $z) } => $fn
         dict[x: 5, z: 30] -> $fn(...)
       `);
       expect(result).toBe(45); // 5 + 10 + 30
@@ -568,7 +568,7 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
 
     it('infers type from default value', async () => {
       const result = await run(`
-        |x = "hello"| { $x } => $fn
+        fn(x = "hello") { $x } => $fn
         ordered[x: "world"] -> $fn(...)
       `);
       expect(result).toBe('world');
@@ -580,7 +580,7 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
       it('errors on missing named argument', async () => {
         await expect(
           run(`
-            |x, y| { ($x + $y) } => $fn
+            fn(x, y) { ($x + $y) } => $fn
             ordered[x: 1] -> $fn(...)
           `)
         ).rejects.toThrow(/missing/i);
@@ -589,7 +589,7 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
       it('errors on unknown named argument', async () => {
         await expect(
           run(`
-            |x, y| { ($x + $y) } => $fn
+            fn(x, y) { ($x + $y) } => $fn
             dict[x: 1, y: 2, z: 3] -> $fn(...)
           `)
         ).rejects.toThrow(/does not match any parameter/i);
@@ -600,7 +600,7 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
       it('errors when missing required argument', async () => {
         await expect(
           run(`
-            |x, y| { ($x + $y) } => $fn
+            fn(x, y) { ($x + $y) } => $fn
             $fn(1)
           `)
         ).rejects.toThrow(/missing/i);
@@ -619,7 +619,7 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
 
     it('uses stored ordered spread for named arg call', async () => {
       const result = await run(`
-        |a, b| { ($a + $b) } => $add
+        fn(a, b) { ($a + $b) } => $add
         ordered[a: 3, b: 4] => $t
         $t -> $add(...)
       `);
@@ -707,9 +707,9 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
         expect(result.typeName).toBe('bool');
       });
 
-      it('returns "closure" for closure', async () => {
-        const result = (await run('|| { 1 } => $fn\n$fn.^type')) as any;
-        expect(result.typeName).toBe('closure');
+      it('returns "fn" for a function', async () => {
+        const result = (await run('fn() { 1 } => $fn\n$fn.^type')) as any;
+        expect(result.typeName).toBe('fn');
       });
     });
 
@@ -737,7 +737,7 @@ describe('Rill Runtime: Strict Closure Invocation', () => {
   it('errors on missing argument without default', async () => {
     await expect(
       run(`
-        |a, b, c| { $a } => $fn
+        fn(a, b, c) { $a } => $fn
         $fn(1, 2)
       `)
     ).rejects.toThrow(/missing argument/i);
@@ -745,7 +745,7 @@ describe('Rill Runtime: Strict Closure Invocation', () => {
 
   it('uses default when argument not provided', async () => {
     const result = await run(`
-      |a, b = 5| { ($a + $b) } => $fn
+      fn(a, b = 5) { ($a + $b) } => $fn
       $fn(3)
     `);
     expect(result).toBe(8);
@@ -754,18 +754,19 @@ describe('Rill Runtime: Strict Closure Invocation', () => {
   it('type checks arguments against explicit types', async () => {
     await expect(
       run(`
-        |x: number| { $x } => $fn
+        fn(x: number) { $x } => $fn
         $fn("not a number")
       `)
     ).rejects.toThrow(/type mismatch/i);
   });
 
-  it('type checks arguments against inferred types from defaults', async () => {
-    await expect(
-      run(`
-        |x = 10| { $x } => $fn
+  it('does not infer a parameter type from its default', async () => {
+    // A parameter with a default and no type is any, so any argument passes.
+    expect(
+      await run(`
+        fn(x = 10) { $x } => $fn
         $fn("not a number")
       `)
-    ).rejects.toThrow(/type mismatch/i);
+    ).toBe('not a number');
   });
 });

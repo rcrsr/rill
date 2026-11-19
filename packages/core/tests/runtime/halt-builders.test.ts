@@ -1615,7 +1615,7 @@ describe('host-error shape (file)', () => {
     };
   }
 
-  const MODULE_SOURCE = '|| { boom() }';
+  const MODULE_SOURCE = 'fn() { boom() }';
   const MODULE_RESOLVER = {
     module: (_resource: string): ResolverResult => ({
       kind: 'source',
@@ -1650,8 +1650,8 @@ describe('host-error shape (file)', () => {
     });
   });
 
-  describe('script closure boundary fills sourceId and sourceText', () => {
-    it('fills both for a closure defined in module source', async () => {
+  describe('script fn boundary fills sourceId and sourceText', () => {
+    it('fills both for a fn defined in module source', async () => {
       const ctx = createRuntimeContext({
         // oxlint-disable-next-line unicorn/no-useless-undefined -- makeClosureBoom requires its argument explicitly
         functions: { boom: makeClosureBoom(undefined) },
@@ -1666,13 +1666,13 @@ describe('host-error shape (file)', () => {
       expect(err.context?.['sourceText']).toBe(MODULE_SOURCE);
     });
 
-    it('adds neither for a closure defined with no module in play', async () => {
+    it('adds neither for a fn defined with no module in play', async () => {
       const ctx = createRuntimeContext({
         // oxlint-disable-next-line unicorn/no-useless-undefined -- makeClosureBoom requires its argument explicitly
         functions: { boom: makeClosureBoom(undefined) },
       });
       const err = await captureRuntimeError(() =>
-        execute(parse('|| { boom() } => $f\n$f()'), ctx)
+        execute(parse('fn() { boom() } => $f\n$f()'), ctx)
       );
 
       expect(err.sourceId).toBeUndefined();

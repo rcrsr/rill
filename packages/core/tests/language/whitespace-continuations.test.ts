@@ -58,24 +58,22 @@ describe('Rill Runtime: Whitespace Continuations', () => {
     });
   });
 
-  describe('G2: Closure structure with newlines around | delimiters', () => {
-    it('newline after opening | and closing | parses and executes', async () => {
+  describe('G2: Fn structure with newlines around parentheses', () => {
+    it('newline after opening ( and before closing ) parses and executes', async () => {
       const result = await run(
-        `|\nname: string|\n{ $name } => $fn\n$fn("alice")`
+        `fn(\nname: string\n) { $name } => $fn\n$fn("alice")`
       );
       expect(result).toBe('alice');
     });
 
-    it('newline before body after closing | parses and executes', async () => {
-      const result = await run(
-        `|name: string|\n{ $name } => $fn\n$fn("alice")`
-      );
-      expect(result).toBe('alice');
+    it('newline between the signature and the body ends the fn type statement', () => {
+      const ast = parse(`fn(name: string)\n{ $name }`);
+      expect(ast.statements).toHaveLength(2);
     });
 
-    it('empty-param || with newline before body parses and executes', async () => {
-      const result = await run(`||\n{ "hello" } => $fn\n$fn()`);
-      expect(result).toBe('hello');
+    it('empty-param fn() with newline before body is two statements', () => {
+      const ast = parse(`fn()\n{ "hello" }`);
+      expect(ast.statements).toHaveLength(2);
     });
   });
 
@@ -134,21 +132,21 @@ describe('Rill Runtime: Whitespace Continuations', () => {
   describe('G6: Closure param internals with newlines', () => {
     it('newline before : in typed param', async () => {
       const result = await run(
-        `|name\n: string| { $name } => $fn\n$fn("alice")`
+        `fn(name\n: string) { $name } => $fn\n$fn("alice")`
       );
       expect(result).toBe('alice');
     });
 
     it('newline after : in typed param', async () => {
       const result = await run(
-        `|name:\nstring| { $name } => $fn\n$fn("alice")`
+        `fn(name:\nstring) { $name } => $fn\n$fn("alice")`
       );
       expect(result).toBe('alice');
     });
 
     it('newlines around = in default value param', async () => {
       // *[] (list spread) removed in Phase 2; call $fn() directly using default value
-      const result = await run(`|x\n=\n1| { $x } => $fn\n$fn()`);
+      const result = await run(`fn(x\n=\n1) { $x } => $fn\n$fn()`);
       expect(result).toBe(1);
     });
   });
@@ -170,14 +168,14 @@ describe('Rill Runtime: Whitespace Continuations', () => {
       }
     });
 
-    it('EC-2 / AC-9: closure | opened with newline but unclosed throws ParseError RILL-P005', () => {
+    it('EC-2 / AC-9: fn ( opened with newline but unclosed throws ParseError RILL-P014', () => {
       try {
-        parse('|\nname');
+        parse('fn(\nname');
         expect.fail('Should have thrown ParseError');
       } catch (err) {
         expect(err).toBeInstanceOf(ParseError);
         const parseErr = err as ParseError;
-        expect(parseErr.errorId).toBe('RILL-P005');
+        expect(parseErr.errorId).toBe('RILL-P014');
       }
     });
 
@@ -210,14 +208,14 @@ describe('Rill Runtime: Whitespace Continuations', () => {
 
     it('AC-13: closure param with newlines before both : and type name parses correctly', async () => {
       const result = await run(
-        '|name\n:\nstring| { $name } => $fn\n$fn("test")'
+        'fn(name\n:\nstring) { $name } => $fn\n$fn("test")'
       );
       expect(result).toBe('test');
     });
 
-    it('AC-14: empty-param || with multiple newlines before body evaluates correctly', async () => {
-      const result = await run('||\n\n\n{ "hello" } => $fn\n$fn()');
-      expect(result).toBe('hello');
+    it('AC-14: empty-param fn() with multiple newlines before body is two statements', () => {
+      const ast = parse('fn()\n\n\n{ "hello" }');
+      expect(ast.statements).toHaveLength(2);
     });
   });
 
@@ -328,12 +326,12 @@ describe('Rill Runtime: Whitespace Continuations', () => {
     });
 
     it('closure literal followed by newline then .method remains two statements', async () => {
-      const script = parse('|x| { $x * 2 }\n.len');
+      const script = parse('fn(x) { $x * 2 }\n.len');
       expect(script.statements).toHaveLength(2);
     });
 
     it('closure literal captured to a variable is unaffected by the postfix guard', async () => {
-      const result = await run('|x| { $x * 2 } => $double\n5 -> $double');
+      const result = await run('fn(x) { $x * 2 } => $double\n5 -> $double');
       expect(result).toBe(10);
     });
   });
@@ -345,7 +343,7 @@ describe('Rill Runtime: Whitespace Continuations', () => {
     });
 
     it('AC-15: single-line closure with param still works', async () => {
-      const result = await run('|x| { $x } => $fn\n$fn("hi")');
+      const result = await run('fn(x) { $x } => $fn\n$fn("hi")');
       expect(result).toBe('hi');
     });
 
@@ -425,7 +423,7 @@ describe('Rill Runtime: Whitespace Continuations', () => {
 
     it('trailing ^( continues onto the annotation entries', async () => {
       const result = await run(
-        '^(\ndescription: "d"\n) |x| ($x) => $f\n1 -> $f'
+        '^(\ndescription: "d"\n) fn(x) { $x } => $f\n1 -> $f'
       );
       expect(result).toBe(1);
     });

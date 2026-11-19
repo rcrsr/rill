@@ -41,10 +41,8 @@ export const spacingBraces: Rule = {
     // For Closure nodes with return type annotations, span.end extends past
     // } to include the type annotation. Use body.span.end to find the
     // actual }.
-    // A closure body is not always a Block whose span.end lands just past a
-    // literal `}`: it can also be a GroupedExprNode (e.g. `|x| ($x * 2)`),
-    // whose span.end lands past a `)`. The `closeChar === '}'` guard below
-    // is what keeps those out of this check.
+    // A closure's own span can extend past its body's `}` (a return type
+    // follows the body), so the closing brace is read from the body span.
     const closeSpan = node.type === 'Closure' ? node.body.span : span;
     const closeEnd = closeSpan.end;
     const closeLineActual = lines[closeEnd.line - 1] ?? '';
@@ -56,10 +54,7 @@ export const spacingBraces: Rule = {
     const isCloseOnOwnLine = /^\s*$/.test(
       closeLineActual.slice(0, Math.max(0, closeEnd.column - 2))
     );
-    // Only fire when the body span actually ends at a literal `}`. Grouped
-    // closure bodies (e.g. `|x| ($x * 2)`) end at `)`, and closure return
-    // type annotations push `span.end` past the annotation, neither of
-    // which is a closing brace to space-check.
+    // Only fire when the body span actually ends at a literal `}`.
     if (
       closeChar === '}' &&
       charBeforeClose !== undefined &&

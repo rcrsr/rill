@@ -112,15 +112,15 @@ describe('Rill Runtime: Capture Type Assertions', () => {
 
   describe('Closure Type', () => {
     it('captures closure with closure type', async () => {
-      expect(await run('|| { "x" } => $fn:closure\n$fn()')).toBe('x');
+      expect(await run('fn() { "x" } => $fn:fn\n$fn()')).toBe('x');
     });
 
     it('captures parameterized closure', async () => {
-      expect(await run('|x| { $x } => $fn:closure\n$fn("test")')).toBe('test');
+      expect(await run('fn(x) { $x } => $fn:fn\n$fn("test")')).toBe('test');
     });
 
     it('rejects string captured as closure', async () => {
-      await expectHalt(() => run('"fn" => $fn:closure'), {
+      await expectHalt(() => run('"fn" => $fn:fn'), {
         code: 'TYPE_MISMATCH',
       });
     });

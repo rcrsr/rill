@@ -74,7 +74,7 @@ export type NativePlainObject = { [key: string]: NativeValue };
 export interface NativeResult {
   /** Rill type name -- matches RillTypeName, or 'iterator' for lazy sequences */
   rillTypeName: string;
-  /** Human-readable type signature, e.g. "string", "list(number)", "|x: number| :string" */
+  /** Human-readable type signature, e.g. "string", "list(number)", "fn(x: number):string" */
   rillTypeSignature: string;
   /**
    * Native JS representation. Non-native types produce descriptor objects.

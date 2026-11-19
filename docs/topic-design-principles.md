@@ -186,7 +186,7 @@ $step3
 
 ```rill
 # Not rillistic: verbose closure
-["hello", "world"] -> fan(|x| { $x.upper() })
+["hello", "world"] -> fan(fn(x) { $x.upper() })
 
 # Rillistic: method shorthand
 ["hello", "world"] -> fan({ $.upper })
@@ -220,7 +220,7 @@ $dict.field ?? "default"
 $str -> .empty ? "no" ! "yes"
 ```
 
-### `$` in Context, Parameters in Closures
+### `$` in Context, Parameters in Stored Functions
 
 ```text
 # Rillistic: $ in inline pipes and loops
@@ -228,12 +228,12 @@ $str -> .empty ? "no" ! "yes"
 [1, 2, 3] -> seq({ $ * 2 })
 0 -> while ($ < 5) do { $ + 1 }
 
-# Rillistic: named params in stored closures
-|x| ($x * 2) => $double
+# Rillistic: named params in stored functions
+fn(x) { $x * 2 } => $double
 5 -> $double
 ```
 
-`$` binds to the current pipe context. Stored closures use named parameters because `$` is undefined when called later.
+`$` binds to the current pipe context. Stored functions use named parameters because `$` is undefined when called later.
 
 ---
 

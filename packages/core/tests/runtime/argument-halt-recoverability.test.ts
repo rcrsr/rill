@@ -36,31 +36,31 @@ const BIG_LIST: number[] = Array.from({ length: 15000 }, (_, i) => i + 1);
 
 const CASES: readonly RecoverableCase[] = [
   {
-    name: 'seq with a non-closure body',
+    name: 'seq with a non-fn body',
     source: 'list[1] -> seq(5)',
     code: '#TYPE_MISMATCH',
     message: 'seq: body must be a closure, got number',
   },
   {
-    name: 'fan with a non-closure body',
+    name: 'fan with a non-fn body',
     source: 'list[1] -> fan(5)',
     code: '#TYPE_MISMATCH',
     message: 'fan: body must be a closure, got number',
   },
   {
-    name: 'acc with a non-closure body',
+    name: 'acc with a non-fn body',
     source: 'list[1] -> acc(0, 5)',
     code: '#TYPE_MISMATCH',
     message: 'acc: body must be a closure, got number',
   },
   {
-    name: 'fold with a non-closure body',
+    name: 'fold with a non-fn body',
     source: 'list[1] -> fold(0, 5)',
     code: '#TYPE_MISMATCH',
     message: 'fold: body must be a closure, got number',
   },
   {
-    name: 'filter with a non-closure body',
+    name: 'filter with a non-fn body',
     source: 'list[1] -> filter(5)',
     code: '#TYPE_MISMATCH',
     message: 'filter: body must be a closure, got number',
@@ -318,7 +318,7 @@ const CASES: readonly RecoverableCase[] = [
   {
     name: 'duration.multiply with an out-of-range result',
     source:
-      '|x| ($x * $x) => $sq\n10 -> $sq -> $sq -> $sq -> $sq -> $sq -> $sq -> $sq -> $sq => $big\nduration("1d") -> .multiply($big) -> .multiply($big)',
+      'fn(x) { $x * $x } => $sq\n10 -> $sq -> $sq -> $sq -> $sq -> $sq -> $sq -> $sq -> $sq => $big\nduration("1d") -> .multiply($big) -> .multiply($big)',
     code: '#INVALID_INPUT',
     message:
       'duration.multiply(): duration out of range (months 0, ms 8.640000000000005e+263); each component must be a non-negative integer no larger than 9007199254740991',
@@ -372,13 +372,13 @@ const CASES: readonly RecoverableCase[] = [
     message: 'vector dimension mismatch: 2 vs 3',
   },
   {
-    name: 'chain with a non-closure list element',
+    name: 'chain with a non-fn list element',
     source: '5 -> chain(list[5])',
     code: '#RILL_R040',
     message: 'chain: list element must be a closure, got number',
   },
   {
-    name: 'chain with a non-closure second argument',
+    name: 'chain with a non-fn second argument',
     source: '5 -> chain(5)',
     code: '#RILL_R040',
     message:

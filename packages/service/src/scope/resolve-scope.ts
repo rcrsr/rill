@@ -4,7 +4,7 @@
  */
 
 import { walkAst } from '@rcrsr/rill';
-import type { ParseResult } from '@rcrsr/rill';
+import type { ASTNode, ParseResult } from '@rcrsr/rill';
 import type { SourceSpan, TypeRef } from '@rcrsr/rill';
 
 import { opensScope } from '../opens-scope.js';
@@ -64,6 +64,9 @@ function computeScopeState(parsed: ParseResult, offset: number): ScopeState {
   const allFrames: ScopeFrame[] = [rootFrame];
   const openFrames: ScopeFrame[] = [rootFrame];
   let insideClosureBody = false;
+  // Only a direct param of a closure literal binds a name; a param inside an
+  // fn type is a signature slot, not a binding.
+  const boundParams = new Set<ASTNode>();
 
   walkAst(root, (node) => {
     for (
@@ -80,6 +83,7 @@ function computeScopeState(parsed: ParseResult, offset: number): ScopeState {
 
     switch (node.type) {
       case 'Closure':
+        for (const param of node.params) boundParams.add(param);
         if (spanContainsOffset(node.body.span, offset))
           insideClosureBody = true;
         break;
@@ -95,6 +99,7 @@ function computeScopeState(parsed: ParseResult, offset: number): ScopeState {
         );
         break;
       case 'ClosureParam':
+        if (!boundParams.has(node)) break;
         frame.bindings.push(
           createBinding(
             node.name,
