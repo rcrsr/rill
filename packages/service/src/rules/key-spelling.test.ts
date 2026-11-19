@@ -44,6 +44,30 @@ describe('DICT_KEY_SPELLING', () => {
     expect(run(source)).toEqual([]);
   });
 
+  it.each([
+    ['number element', 'dict[[0.50, 2]: "a"]\n', 'number', 1, 7],
+    ['bool element', 'dict[["x", true]: "a"]\n', 'bool', 1, 12],
+  ])(
+    'reports a %s of a multi-key list key as a halt',
+    async (_name, source, kind, line, column) => {
+      const result = run(source);
+
+      expect(result.length).toBeGreaterThan(0);
+      expect(result[0]).toMatchObject({
+        code: 'DICT_KEY_SPELLING',
+        message: `A multi-key list key takes strings, but this element is a ${kind}, so the literal halts RILL-R002. Quote it.`,
+        location: { line, column },
+      });
+      await expect(
+        execute(parse(source), createRuntimeContext({}))
+      ).rejects.toMatchObject({ errorId: 'RILL-R002' });
+    }
+  );
+
+  it('stays silent on a multi-key list key of strings', () => {
+    expect(run('dict[["a", "b"]: 1]\n')).toEqual([]);
+  });
+
   it('treats a number key as equal to its quoted spelling at runtime', async () => {
     const source = 'dict[1: "n"] == dict["1": "n"]';
 

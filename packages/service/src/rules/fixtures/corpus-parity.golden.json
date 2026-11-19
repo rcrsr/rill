@@ -17777,32 +17777,134 @@
   {
     "index": 1507,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 11,
+          "offset": 10
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "dict[list[0.50, 2]: \"a\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 17,
+          "offset": 16
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "dict[list[0.50, 2]: \"a\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1508,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 16,
+          "offset": 15
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a bool, so the literal halts RILL-R002. Quote it.",
+        "context": "dict[list[\"a\", true]: \"x\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1509,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 14,
+          "offset": 13
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "ordered[list[1, 2]: \"a\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 17,
+          "offset": 16
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "ordered[list[1, 2]: \"a\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1510,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 23,
+          "offset": 22
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "\"a\" -> dict[list[\"a\", 1]: \"x\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1511,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 23,
+          "offset": 22
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "\"b\" -> dict[list[\"a\", 1]: \"x\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1512,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 24,
+          "offset": 23
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "\"a\" -> dict[a: 1, list[1]: \"x\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1513,
@@ -17819,6 +17921,30 @@
         },
         "context": "1 -> dict[list[1, 2]: \"x\"]",
         "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 16,
+          "offset": 15
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "1 -> dict[list[1, 2]: \"x\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 19,
+          "offset": 18
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "1 -> dict[list[1, 2]: \"x\"]",
+        "fix": null
       }
     ]
   },
@@ -17830,7 +17956,32 @@
   {
     "index": 1515,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 18,
+          "offset": 17
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "\"1\" -> dict[list[1, 2]: \"a\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 21,
+          "offset": 20
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "\"1\" -> dict[list[1, 2]: \"a\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1516,

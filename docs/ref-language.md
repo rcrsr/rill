@@ -503,7 +503,7 @@ Methods marked "runtime checked" accept any receiver at parse time and halt at r
 
 | Method | Receiver Types | Params | Return |
 |--------|---------------|--------|--------|
-| `.len` | string, list, dict, ordered | (none) | `number` |
+| `.len` | string, list, dict, tuple, ordered | (none) | `number` |
 | `.trim` | string | (none) | `string` |
 | `.head`, `.tail` | string, list | (none) | `any` |
 | `.first` | string, list, dict, iterator (runtime checked) | (none) | `iterator` |

@@ -69,6 +69,20 @@ const FIRES: ReadonlyArray<readonly [string, string, string, string, string]> =
       MISSING,
     ],
     [
+      'a typed-variable selector',
+      '"b" => $unit:union("c", "b")\n$unit -> dict[c: 1]\n',
+      'DISPATCH_MISSING_MEMBER',
+      'no key for b',
+      MISSING,
+    ],
+    [
+      'a grouped chain whose ?? default does not recover the miss',
+      '"b" => $k:union("a", "b")\n($k -> dict[a: 1]) ?? 5\n',
+      'DISPATCH_MISSING_MEMBER',
+      'no key for b',
+      MISSING,
+    ],
+    [
       'a quoted member name',
       '"a b" -> :union("a b", "a") -> dict[a: 1]\n',
       'DISPATCH_MISSING_MEMBER',

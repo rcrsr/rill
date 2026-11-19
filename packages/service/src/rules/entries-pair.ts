@@ -8,8 +8,8 @@
  * - the result of `.entries` (directly, through pass-through steps, or via a
  *   variable captured once from it) checked against `list(list)` or
  *   `list(list(T))` with `:T`, `expr:T`, `:?T`, or a typed capture
- * - a list-only method, field read, or `-> dict` on an element: bare `$` in a
- *   body fed by `.entries`, the first parameter of such a closure, a
+ * - a list-only method, field read, or `-> dict` on an element: bare `$` heading
+ *   a statement of a body fed by `.entries`, the first parameter of such a closure, a
  *   method-shorthand body (`seq({ .head })`), or `$d.entries[n]` in one
  *   access chain
  *
@@ -147,13 +147,39 @@ function validatePipeChainCheck(
 // SITE B: ENTRIES ELEMENT USED AS A LIST
 // ============================================================
 
+/**
+ * The bare `$` variables heading a statement of an `.entries`-fed body. Only
+ * a statement's head still holds the pair: a `$` in a later pipe step,
+ * step argument, or conditional branch is that step's own input.
+ */
+const pairHeads = new WeakMap<ASTNode, ReadonlySet<ASTNode>>();
+
+function pairHeadsOf(body: ASTNode): ReadonlySet<ASTNode> {
+  const cached = pairHeads.get(body);
+  if (cached !== undefined) return cached;
+  const heads = new Set<ASTNode>();
+  if (body.type === 'Block') {
+    for (const entry of body.statements) {
+      const statement = entry.type === 'Statement' ? entry : entry.statement;
+      const head = statement.expression.head;
+      if (head.type === 'PostfixExpr') heads.add(head.primary);
+    }
+  }
+  pairHeads.set(body, heads);
+  return heads;
+}
+
 /** Whether a bare `$` or `$name` variable stands for an `.entries` element here. */
 function isElementVariable(node: VariableNode, context: RuleContext): boolean {
   const { entriesBodies } = context.facts.script;
   if (node.name === null) {
     if (!node.isPipeVar) return false;
     const scope = context.scopeStack.at(-1);
-    return scope !== undefined && entriesBodies.has(scope);
+    return (
+      scope !== undefined &&
+      entriesBodies.has(scope) &&
+      pairHeadsOf(scope).has(node)
+    );
   }
   for (const scope of [...context.scopeStack].reverse()) {
     if (scope.type !== 'Closure') continue;

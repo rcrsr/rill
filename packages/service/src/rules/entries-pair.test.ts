@@ -1,5 +1,4 @@
 import {
-  BUILTIN_METHODS,
   RuntimeError,
   RuntimeHaltSignal,
   createRuntimeContext,
@@ -37,15 +36,18 @@ async function haltOf(source: string): Promise<string> {
 }
 
 const SETUP = 'dict[a: 1] => $d\n';
+const LISTS = 'dict[a: list["x"]] => $d\n';
 
-const TABLE_GAP_METHODS: readonly string[] = ['at'];
-
-const LIST_ONLY_METHODS: readonly string[] = Object.keys(
-  BUILTIN_METHODS.list
-).filter(
-  (name) =>
-    !(name in BUILTIN_METHODS.tuple) && !TABLE_GAP_METHODS.includes(name)
-);
+const LIST_ONLY_METHODS: readonly string[] = [
+  'first',
+  'has',
+  'has_all',
+  'has_any',
+  'head',
+  'join',
+  'reverse',
+  'tail',
+];
 
 const METHOD_ARGS: Readonly<Record<string, string>> = {
   at: '0',
@@ -265,7 +267,7 @@ describe('ENTRIES_PAIR_AS_LIST', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0]?.message).toBe(listOnly(name));
-      await expect(runtime(source)).rejects.toThrow();
+      expect(await haltOf(source)).toContain('RILL-R003');
     }
   );
 
@@ -281,6 +283,18 @@ describe('ENTRIES_PAIR_AS_LIST', () => {
   it.each([
     ['positional first read', `${SETUP}$d.entries -> seq({ $[0] })\n`],
     ['positional second read', `${SETUP}$d.entries -> seq({ $[1] })\n`],
+    [
+      'field read on a rebound pipe value',
+      `${LISTS}$d.entries -> seq({ $[1] -> $.first })\n`,
+    ],
+    [
+      'field read in a conditional branch',
+      `${LISTS}$d.entries -> seq({ $[1] -> .empty ? "x" ! $.first })\n`,
+    ],
+    [
+      'method in a step argument',
+      `${LISTS}$d.entries -> seq({ $[1] -> .join($.head) })\n`,
+    ],
     [
       'positional destructure',
       `${SETUP}$d.entries -> seq({ $ -> destruct<$k, $v> })\n`,
