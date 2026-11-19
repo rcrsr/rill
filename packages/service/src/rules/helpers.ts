@@ -3,7 +3,12 @@
  * individual rule modules.
  */
 
-import type { ASTNode, ExpressionNode, SourceSpan } from '@rcrsr/rill';
+import type {
+  ASTNode,
+  DictEntryNode,
+  ExpressionNode,
+  SourceSpan,
+} from '@rcrsr/rill';
 import type { Diagnostic, RuleContext } from './types.js';
 
 // ============================================================
@@ -312,4 +317,33 @@ export function comparedOperands(
   const arg = call.args[0];
   if (call.args.length !== 1 || arg === undefined) return undefined;
   return [receiver, arg];
+}
+
+/** The key of a dict or ordered entry with a static spelling, or null for a spread or computed key. */
+export function staticEntryKey(entry: DictEntryNode): string | null {
+  return typeof entry.key === 'string' && entry.keyForm !== undefined
+    ? entry.key
+    : null;
+}
+
+/**
+ * The name of a paren-less, argument-less trailing member read on a variable
+ * access chain or on a postfix expression, or null when the node has none.
+ */
+export function trailingMemberName(node: ASTNode): string | null {
+  if (node.type === 'Variable') {
+    const last = node.accessChain.at(-1);
+    return last !== undefined && 'kind' in last && last.kind === 'literal'
+      ? last.field
+      : null;
+  }
+  if (node.type === 'PostfixExpr') {
+    const last = node.methods.at(-1);
+    return last?.type === 'MethodCall' &&
+      !last.hasParens &&
+      last.args.length === 0
+      ? last.name
+      : null;
+  }
+  return null;
 }

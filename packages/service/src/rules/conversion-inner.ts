@@ -17,21 +17,19 @@ import type {
   TypeConstructorNode,
 } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
-import { extractContextLine } from './helpers.js';
+import { extractContextLine, staticEntryKey } from './helpers.js';
 import { formatFieldKey } from '@rcrsr/rill';
-import { literalKind, unwrapBareLiteral } from './literal-shape.js';
+import {
+  SCALAR_KINDS,
+  scalarLiteralKind,
+  unwrapBareLiteral,
+} from './literal-shape.js';
 import { registeredRules } from './rules-registry.js';
 
 // ============================================================
 // SOURCE AND TARGET PARTS
 // ============================================================
 
-const SCALAR_KINDS: ReadonlySet<string> = new Set([
-  'number',
-  'string',
-  'bool',
-  'atom',
-]);
 const CONVERTING_CONSTRUCTORS: ReadonlySet<string> = new Set([
   'list',
   'dict',
@@ -43,12 +41,6 @@ const CONVERTING_CONSTRUCTORS: ReadonlySet<string> = new Set([
 interface SourcePart {
   readonly name: string | undefined;
   readonly kind: string;
-}
-
-/** The scalar kind of a literal expression, or null when it is not a scalar literal. */
-function scalarLiteralKind(expr: ASTNode): string | null {
-  const kind = literalKind(unwrapBareLiteral(expr));
-  return kind !== null && SCALAR_KINDS.has(kind) ? kind : null;
 }
 
 /** Parts of a literal collection of scalar literals, or null when unknowable. */
@@ -64,8 +56,9 @@ function literalParts(node: ASTNode): SourcePart[] | null {
     case 'OrderedLiteral': {
       values = [];
       for (const entry of node.entries) {
-        if (typeof entry.key !== 'string' || entry.key === '...') return null;
-        values.push({ name: entry.key, value: entry.value });
+        const name = staticEntryKey(entry);
+        if (name === null) return null;
+        values.push({ name, value: entry.value });
       }
       break;
     }

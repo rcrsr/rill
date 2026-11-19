@@ -45,6 +45,10 @@ describe('PIPE_CONVERTS_INNER', () => {
     expect(result[0]?.message).toContain('`-> :dict("a b": string)`');
   });
 
+  it('treats a quoted "..." key as a static key', () => {
+    expect(check('dict["...": 1] -> dict("...": string)\n')).toHaveLength(1);
+  });
+
   it('matches tuple positions by index', () => {
     expect(check('tuple[1, "a"] -> tuple(number, string)\n')).toEqual([]);
     expect(check('tuple[1, "a"] -> tuple(number, number)\n')).toHaveLength(1);

@@ -143,3 +143,26 @@ describe('Rill Language: tuple types name positions', () => {
     });
   });
 });
+
+describe('Rill Language: tuple value methods', () => {
+  const { it } = rule('tuple.len', 'selection.at');
+
+  it('.len returns the number of positions', async () => {
+    expect(await run('tuple[1, "a"].len')).toBe(2);
+    expect(await run('tuple[1, "a"] -> .len')).toBe(2);
+    expect(await run('tuple[].len')).toBe(0);
+  });
+
+  it('.len on an .entries pair is 2', async () => {
+    expect(await run('dict[a: 1].entries[0].len')).toBe(2);
+  });
+
+  it('.at reads a position, counting negative indexes from the end', async () => {
+    expect(await run('tuple[1, "a"].at(0)')).toBe(1);
+    expect(await run('tuple[1, "a"].at(-1)')).toBe('a');
+  });
+
+  it('.at out of range halts RILL-R009', async () => {
+    await expectHalt(() => run('tuple[1].at(3)'), { code: 'RILL_R009' });
+  });
+});

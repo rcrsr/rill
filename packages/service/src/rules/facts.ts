@@ -57,11 +57,14 @@ import type {
   PipeChainNode,
   PropertyAccess,
   SourceSpan,
+  TypeRef,
 } from '@rcrsr/rill';
 
 import { opensScope } from '../opens-scope.js';
 import { traverseForRules } from './traversal.js';
 import { getCollectionOpBody, isCollectionOpCall } from './collection-ops.js';
+import { chainlessVariableName } from './helpers.js';
+import { isEntriesRead } from './static-type.js';
 import {
   isMixedCompoundList,
   isMixedValueDict,
@@ -169,6 +172,16 @@ export interface ScriptFacts {
    * `PostfixExpr`) to a `Closure` primary.
    */
   readonly dictBoundClosures: ReadonlySet<ASTNode>;
+  /**
+   * Names bound exactly once script-wide (counting captures, destructure
+   * targets, and closure params), where that one binding is a typed capture
+   * or typed closure param with a non-dynamic type.
+   */
+  readonly declaredTypes: ReadonlyMap<string, TypeRef>;
+  /** Variables captured exactly once from a chain whose value is an `.entries` read. */
+  readonly entriesVars: ReadonlySet<string>;
+  /** Bodies of collection ops fed by an `.entries` read or an `entriesVars` variable. */
+  readonly entriesBodies: ReadonlySet<ASTNode>;
 }
 
 /** Result of a single fact-collection pass over an AST. */
@@ -405,6 +418,11 @@ export function collectFacts(root: ASTNode): AstFacts {
   const destructureCounts = new Map<string, number>();
   const literalFieldAccessNames = new Set<string>();
   const dictBoundClosures = new Set<ASTNode>();
+  const paramCounts = new Map<string, number>();
+  const paramTypes = new Map<string, TypeRef>();
+  const entriesCandidates = new Set<string>();
+  const entriesBodies = new Set<ASTNode>();
+  const entriesBodyCandidates: Array<readonly [string, ASTNode]> = [];
 
   const stack: Accumulator[] = [];
   let currentClosureDepth = 0;
@@ -531,6 +549,25 @@ export function collectFacts(root: ASTNode): AstFacts {
           }
         }
 
+        if (capture) {
+          const before = node.pipes.at(-2) ?? node.head;
+          if (isEntriesRead(before)) entriesCandidates.add(capture.name);
+        }
+
+        node.pipes.forEach((pipe, index) => {
+          if (!isCollectionOpCall(pipe)) return;
+          const body = getCollectionOpBody(pipe);
+          if (body === null) return;
+          const input = index === 0 ? node.head : node.pipes[index - 1];
+          if (input === undefined) return;
+          if (isEntriesRead(input)) {
+            entriesBodies.add(body);
+          } else if (index === 0) {
+            const name = chainlessVariableName(unwrapBareLiteral(input));
+            if (name !== null) entriesBodyCandidates.push([name, body]);
+          }
+        });
+
         const varName = getPipeHeadVariableName(node);
         if (varName !== null && !firstPipeIteration.has(varName)) {
           for (const pipe of node.pipes) {
@@ -554,6 +591,10 @@ export function collectFacts(root: ASTNode): AstFacts {
 
       if (node.type === 'ClosureParam') {
         paramNames.add(node.name);
+        paramCounts.set(node.name, (paramCounts.get(node.name) ?? 0) + 1);
+        if (node.typeRef !== null && node.typeRef.kind !== 'dynamic') {
+          paramTypes.set(node.name, node.typeRef);
+        }
       }
 
       if (node.type === 'Destructure' || node.type === 'Destruct') {
@@ -654,6 +695,28 @@ export function collectFacts(root: ASTNode): AstFacts {
     [...dictLiteralCandidates].filter(([name]) => qualifies(name))
   );
 
+  const entriesVars = new Set([...entriesCandidates].filter(qualifies));
+  for (const [name, body] of entriesBodyCandidates) {
+    if (entriesVars.has(name)) entriesBodies.add(body);
+  }
+
+  const declaredTypes = new Map<string, TypeRef>();
+  const bindingCount = (name: string): number =>
+    (captureCounts.get(name) ?? 0) + (paramCounts.get(name) ?? 0);
+  for (const entry of captureLog) {
+    const { name, typeRef } = entry.node;
+    if (
+      typeRef !== null &&
+      typeRef.kind !== 'dynamic' &&
+      bindingCount(name) === 1
+    ) {
+      declaredTypes.set(name, typeRef);
+    }
+  }
+  for (const [name, typeRef] of paramTypes) {
+    if (bindingCount(name) === 1) declaredTypes.set(name, typeRef);
+  }
+
   return {
     bySubtree,
     script: {
@@ -669,6 +732,9 @@ export function collectFacts(root: ASTNode): AstFacts {
       paramNames,
       literalFieldAccessNames,
       dictBoundClosures,
+      declaredTypes,
+      entriesVars,
+      entriesBodies,
     },
   };
 }

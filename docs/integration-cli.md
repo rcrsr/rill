@@ -169,6 +169,9 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `MIXED_ELEMENT_TYPE_READ` | types | info | `.^type` or `.^effective` read from a list literal of distinct compound shapes, or from the result of iterating a dict literal of distinct value shapes, where the read reports a union element type |
 | `TYPE_EXTRA_KEY` | types | warning | Typed check, capture, or parameter on a statically known dict or ordered literal with a key the type does not name, so it halts `#TYPE_MISMATCH` or `RILL-R001` |
 | `SIGNATURE_BARE_KEY` | types | warning | `.signature` compared with a string literal that spells a non-identifier key bare, so the comparison is always false (true for `!=`) |
+| `ENTRIES_PAIR_AS_LIST` | types | warning | An `.entries` pair checked against `list(list)` or used with a list-only method, field read, or `-> dict`, so it halts `#TYPE_MISMATCH`, `RILL-R003`, or `RILL-R036` |
+| `DISPATCH_SELECTOR_NOT_STRING` | types | warning | Dispatch table piped a number, bool, or atom selector, so it halts `#TYPE_MISMATCH` before any lookup |
+| `DICT_KEY_SPELLING` | types | info | Number or bool key in a dict, ordered, or dispatch literal, stored as the string of its spelling |
 | `ATOM_CASE_MISMATCH` | errors | warning | Atom differs from a builtin only by case |
 | `ATOM_NOT_ERROR_CODE` | errors | warning | `.!code` compared with `==`, `!=`, `.eq`, or `.ne` (operator, method, or pipe form) to an atom that is not `#ok` or a core error code, so the comparison halts `#TYPE_MISMATCH` |
 | `ATOM_DISCARDED` | anti-patterns | warning | Bare atom as a discarded statement; a comment needs a space after `#` |
@@ -192,6 +195,7 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `METHOD_SHORTHAND` | collections | info | Use method reference shorthand |
 | `USE_DEFAULT_OPERATOR` | conditionals | info | Use `??` instead of conditional |
 | `CONDITION_TYPE` | conditionals | warning | Condition is a non-boolean literal |
+| `DISPATCH_MISSING_MEMBER` | conditionals | warning | Dispatch table with no default piped a union of string literals, where a member has no key, so that member halts `RILL-R009` |
 | `CLOSURE_BARE_DOLLAR` | closures | warning | Stored closure uses bare `$` |
 | `CLOSURE_BRACES` | closures | info | Multi-statement closure needs braces |
 | `CLOSURE_LATE_BINDING` | closures | warning | Closure captures late-bound variable |

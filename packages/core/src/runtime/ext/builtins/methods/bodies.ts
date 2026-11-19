@@ -66,7 +66,7 @@ export const mLen: RillMethod = (receiver) => {
     return isBmpOnly(receiver) ? receiver.length : Array.from(receiver).length;
   }
   if (Array.isArray(receiver)) return receiver.length;
-  if (isOrdered(receiver)) return receiver.entries.length;
+  if (isOrdered(receiver) || isTuple(receiver)) return receiver.entries.length;
   if (receiver !== null && typeof receiver === 'object') {
     return Object.keys(receiver).length;
   }

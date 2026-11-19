@@ -6180,12 +6180,38 @@
   {
     "index": 440,
     "file": "bare-bracket-literals.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 2,
+          "offset": 1
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "[1: \"x\"] == dict[\"1\": \"x\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 441,
     "file": "bare-bracket-literals.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 2,
+          "offset": 1
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "[true: 1] == dict[\"true\": 1]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 442,
@@ -6341,7 +6367,32 @@
   {
     "index": 457,
     "file": "bare-bracket-literals.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 2,
+          "offset": 1
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key -1 is stored as the string \"-1\". Quote it to write that spelling directly.",
+        "context": "[-1: 1] == dict[-1: 1]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 17,
+          "offset": 16
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key -1 is stored as the string \"-1\". Quote it to write that spelling directly.",
+        "context": "[-1: 1] == dict[-1: 1]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 458,
@@ -11327,7 +11378,20 @@
   {
     "index": 864,
     "file": "collection-literals.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 14,
+          "offset": 13
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key -1 is stored as the string \"-1\". Quote it to write that spelling directly.",
+        "context": "\"-1\" -> dict[-1: \"x\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 865,
@@ -11382,7 +11446,20 @@
   {
     "index": 875,
     "file": "collection-literals.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 9,
+          "offset": 8
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key -1 is stored as the string \"-1\". Quote it to write that spelling directly.",
+        "context": "ordered[-1: \"x\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 876,
@@ -16300,6 +16377,18 @@
     "file": "default-value-operator.test.ts",
     "diagnostics": [
       {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"x\"] => $d",
+        "fix": null
+      },
+      {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $d -> ...' instead of separate statements",
         "severity": "info",
@@ -16317,6 +16406,18 @@
     "index": 1406,
     "file": "default-value-operator.test.ts",
     "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"x\"] => $d",
+        "fix": null
+      },
       {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $d -> ...' instead of separate statements",
@@ -17056,87 +17157,464 @@
   {
     "index": 1471,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 13,
+          "offset": 12
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "\"1\" -> dict[1: \"one\", 2: \"two\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 23,
+          "offset": 22
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 2 is stored as the string \"2\". Quote it to write that spelling directly.",
+        "context": "\"1\" -> dict[1: \"one\", 2: \"two\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1472,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 13,
+          "offset": 12
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "\"2\" -> dict[1: \"one\", 2: \"two\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 23,
+          "offset": 22
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 2 is stored as the string \"2\". Quote it to write that spelling directly.",
+        "context": "\"2\" -> dict[1: \"one\", 2: \"two\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1473,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 14,
+          "offset": 13
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key -1 is stored as the string \"-1\". Quote it to write that spelling directly.",
+        "context": "\"-1\" -> dict[-1: \"negative\", 1: \"positive\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 30,
+          "offset": 29
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "\"-1\" -> dict[-1: \"negative\", 1: \"positive\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1474,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 16,
+          "offset": 15
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 3.14 is stored as the string \"3.14\". Quote it to write that spelling directly.",
+        "context": "\"3.14\" -> dict[3.14: \"pi\", 2.71: \"e\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 28,
+          "offset": 27
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 2.71 is stored as the string \"2.71\". Quote it to write that spelling directly.",
+        "context": "\"3.14\" -> dict[3.14: \"pi\", 2.71: \"e\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1475,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 16,
+          "offset": 15
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "\"true\" -> dict[true: \"yes\", false: \"no\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 29,
+          "offset": 28
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key false is stored as the string \"false\". Quote it to write that spelling directly.",
+        "context": "\"true\" -> dict[true: \"yes\", false: \"no\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1476,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 17,
+          "offset": 16
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "\"false\" -> dict[true: \"yes\", false: \"no\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 30,
+          "offset": 29
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key false is stored as the string \"false\". Quote it to write that spelling directly.",
+        "context": "\"false\" -> dict[true: \"yes\", false: \"no\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1477,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 13,
+          "offset": 12
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "\"3\" -> dict[1: \"one\", 2: \"two\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 23,
+          "offset": 22
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 2 is stored as the string \"2\". Quote it to write that spelling directly.",
+        "context": "\"3\" -> dict[1: \"one\", 2: \"two\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1478,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "DISPATCH_SELECTOR_NOT_STRING",
+        "message": "A dispatch table takes a string selector, but this value is number; the dispatch halts #TYPE_MISMATCH before any lookup, even with a ?? default. Convert first with -> string.",
+        "severity": "warning",
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "context": "1 -> dict[1: \"one\", 2: \"two\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 11,
+          "offset": 10
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "1 -> dict[1: \"one\", 2: \"two\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 21,
+          "offset": 20
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 2 is stored as the string \"2\". Quote it to write that spelling directly.",
+        "context": "1 -> dict[1: \"one\", 2: \"two\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1479,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "DISPATCH_SELECTOR_NOT_STRING",
+        "message": "A dispatch table takes a string selector, but this value is bool; the dispatch halts #TYPE_MISMATCH before any lookup, even with a ?? default. Convert first with -> string.",
+        "severity": "warning",
+        "location": {
+          "line": 1,
+          "column": 9,
+          "offset": 8
+        },
+        "context": "true -> dict[true: \"yes\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 14,
+          "offset": 13
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "true -> dict[true: \"yes\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1480,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 13,
+          "offset": 12
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "\"3\" -> dict[1: \"one\", 2: \"two\"] ?? \"other\"",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 23,
+          "offset": 22
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 2 is stored as the string \"2\". Quote it to write that spelling directly.",
+        "context": "\"3\" -> dict[1: \"one\", 2: \"two\"] ?? \"other\"",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1481,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 17,
+          "offset": 16
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "\"false\" -> dict[true: \"yes\"] ?? \"no\"",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1482,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 13,
+          "offset": 12
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "\"1\" -> dict[1: \"number\", one: \"identifier\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1483,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "DISPATCH_SELECTOR_NOT_STRING",
+        "message": "A dispatch table takes a string selector, but this value is number; the dispatch halts #TYPE_MISMATCH before any lookup, even with a ?? default. Convert first with -> string.",
+        "severity": "warning",
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "context": "1 -> dict[1: \"n\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 11,
+          "offset": 10
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "1 -> dict[1: \"n\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1484,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 16,
+          "offset": 15
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "\"true\" -> dict[true: \"bool\", truthy: \"identifier\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1485,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 18,
+          "offset": 17
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "\"truthy\" -> dict[true: \"b\", truthy: \"s\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1486,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "DISPATCH_SELECTOR_NOT_STRING",
+        "message": "A dispatch table takes a string selector, but this value is number; the dispatch halts #TYPE_MISMATCH before any lookup, even with a ?? default. Convert first with -> string.",
+        "severity": "warning",
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "context": "1 -> dict[one: \"s\", two: \"s\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1487,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 13,
+          "offset": 12
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "\"3\" -> dict[1: \"n\", 2: \"n\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 21,
+          "offset": 20
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 2 is stored as the string \"2\". Quote it to write that spelling directly.",
+        "context": "\"3\" -> dict[1: \"n\", 2: \"n\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1488,
@@ -17146,12 +17624,38 @@
   {
     "index": 1489,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 14,
+          "offset": 13
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 42 is stored as the string \"42\". Quote it to write that spelling directly.",
+        "context": "\"42\" -> dict[42: \"answer\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1490,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 16,
+          "offset": 15
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "\"true\" -> dict[true: \"yes\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1491,
@@ -17273,37 +17777,176 @@
   {
     "index": 1507,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 11,
+          "offset": 10
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "dict[list[0.50, 2]: \"a\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 17,
+          "offset": 16
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "dict[list[0.50, 2]: \"a\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1508,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 16,
+          "offset": 15
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a bool, so the literal halts RILL-R002. Quote it.",
+        "context": "dict[list[\"a\", true]: \"x\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1509,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 14,
+          "offset": 13
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "ordered[list[1, 2]: \"a\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 17,
+          "offset": 16
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "ordered[list[1, 2]: \"a\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1510,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 23,
+          "offset": 22
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "\"a\" -> dict[list[\"a\", 1]: \"x\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1511,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 23,
+          "offset": 22
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "\"b\" -> dict[list[\"a\", 1]: \"x\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1512,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 24,
+          "offset": 23
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "\"a\" -> dict[a: 1, list[1]: \"x\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1513,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "DISPATCH_SELECTOR_NOT_STRING",
+        "message": "A dispatch table takes a string selector, but this value is number; the dispatch halts #TYPE_MISMATCH before any lookup, even with a ?? default. Convert first with -> string.",
+        "severity": "warning",
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "context": "1 -> dict[list[1, 2]: \"x\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 16,
+          "offset": 15
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "1 -> dict[list[1, 2]: \"x\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 19,
+          "offset": 18
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "1 -> dict[list[1, 2]: \"x\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1514,
@@ -17313,7 +17956,32 @@
   {
     "index": 1515,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 18,
+          "offset": 17
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "\"1\" -> dict[list[1, 2]: \"a\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 21,
+          "offset": 20
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "A multi-key list key takes strings, but this element is a number, so the literal halts RILL-R002. Quote it.",
+        "context": "\"1\" -> dict[list[1, 2]: \"a\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1516,
@@ -17478,12 +18146,62 @@
   {
     "index": 1535,
     "file": "dict-key-form.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"x\", -2.50: \"y\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 14,
+          "offset": 13
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key -2.50 is stored as the string \"-2.50\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"x\", -2.50: \"y\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1536,
     "file": "dict-key-form.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "dict[true: \"x\", false: \"y\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 17,
+          "offset": 16
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key false is stored as the string \"false\". Quote it to write that spelling directly.",
+        "context": "dict[true: \"x\", false: \"y\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1537,
@@ -17518,7 +18236,44 @@
   {
     "index": 1543,
     "file": "dict-key-form.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 9 is stored as the string \"9\". Quote it to write that spelling directly.",
+        "context": "dict[9: \"a\", 10: \"b\", 1: \"c\"] -> .keys",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 14,
+          "offset": 13
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 10 is stored as the string \"10\". Quote it to write that spelling directly.",
+        "context": "dict[9: \"a\", 10: \"b\", 1: \"c\"] -> .keys",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 23,
+          "offset": 22
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[9: \"a\", 10: \"b\", 1: \"c\"] -> .keys",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1544,
@@ -17668,6 +18423,18 @@
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
       {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
+      {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $d -> ...' instead of separate statements",
         "severity": "info",
@@ -17685,6 +18452,18 @@
     "index": 1558,
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "dict[true: \"t\"] => $b",
+        "fix": null
+      },
       {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $b -> ...' instead of separate statements",
@@ -18206,6 +18985,18 @@
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
       {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
+      {
         "code": "THROWAWAY_CAPTURE",
         "message": "'$d' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
@@ -18223,6 +19014,18 @@
     "index": 1601,
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
+      {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "dict[true: \"t\"] => $b",
+        "fix": null
+      },
       {
         "code": "THROWAWAY_CAPTURE",
         "message": "'$b' is captured and used only once, away from its capture; consider inlining instead",
@@ -18242,6 +19045,18 @@
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
       {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
+      {
         "code": "THROWAWAY_CAPTURE",
         "message": "'$d' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
@@ -18259,6 +19074,18 @@
     "index": 1603,
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
+      {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
       {
         "code": "THROWAWAY_CAPTURE",
         "message": "'$d' is captured and used only once, away from its capture; consider inlining instead",
@@ -18308,6 +19135,18 @@
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
       {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
+      {
         "code": "THROWAWAY_CAPTURE",
         "message": "'$d' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
@@ -18325,6 +19164,18 @@
     "index": 1606,
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
+      {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
       {
         "code": "THROWAWAY_CAPTURE",
         "message": "'$d' is captured and used only once, away from its capture; consider inlining instead",
@@ -18368,6 +19219,18 @@
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
       {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
+      {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $d -> ...' instead of separate statements",
         "severity": "info",
@@ -18386,6 +19249,18 @@
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
       {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
+      {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $d -> ...' instead of separate statements",
         "severity": "info",
@@ -18403,6 +19278,18 @@
     "index": 1609,
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
+      {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
       {
         "location": {
           "line": 3,
@@ -18433,6 +19320,18 @@
     "index": 1610,
     "file": "dict-variable-keys.test.ts",
     "diagnostics": [
+      {
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"] => $d",
+        "fix": null
+      },
       {
         "code": "THROWAWAY_CAPTURE",
         "message": "'$d' is captured and used only once, away from its capture; consider inlining instead",
@@ -18479,6 +19378,18 @@
           "offset": 14
         },
         "context": "\"1\" => $k",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 3,
+          "column": 15,
+          "offset": 31
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "ordered[1: \"a\", $k: \"b\"] => $o",
         "fix": null
       }
     ]
@@ -30747,12 +31658,50 @@
   {
     "index": 2824,
     "file": "parser-syntax-errors.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 2825,
     "file": "parser-syntax-errors.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "dict[true: \"yes\", false: \"no\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 19,
+          "offset": 18
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key false is stored as the string \"false\". Quote it to write that spelling directly.",
+        "context": "dict[true: \"yes\", false: \"no\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 2826,
@@ -30762,22 +31711,110 @@
   {
     "index": 2827,
     "file": "parser-syntax-errors.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 42 is stored as the string \"42\". Quote it to write that spelling directly.",
+        "context": "dict[42: \"answer\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 2828,
     "file": "parser-syntax-errors.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 3.14 is stored as the string \"3.14\". Quote it to write that spelling directly.",
+        "context": "dict[3.14: \"pi\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 2829,
     "file": "parser-syntax-errors.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 21,
+          "offset": 20
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[name: \"alice\", 1: \"one\", true: \"yes\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 31,
+          "offset": 30
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "dict[name: \"alice\", 1: \"one\", true: \"yes\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 2830,
     "file": "parser-syntax-errors.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key -1 is stored as the string \"-1\". Quote it to write that spelling directly.",
+        "context": "dict[-1: \"negative\", 0: \"zero\", 1: \"positive\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 22,
+          "offset": 21
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 0 is stored as the string \"0\". Quote it to write that spelling directly.",
+        "context": "dict[-1: \"negative\", 0: \"zero\", 1: \"positive\"]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 33,
+          "offset": 32
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[-1: \"negative\", 0: \"zero\", 1: \"positive\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 2831,
@@ -33088,12 +34125,62 @@
   {
     "index": 3097,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\", 2: \"two\"] -> .entries => $e",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 16,
+          "offset": 15
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 2 is stored as the string \"2\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"one\", 2: \"two\"] -> .entries => $e",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3098,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "dict[true: \"yes\", false: \"no\"] => $d",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 19,
+          "offset": 18
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key false is stored as the string \"false\". Quote it to write that spelling directly.",
+        "context": "dict[true: \"yes\", false: \"no\"] => $d",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3099,
@@ -33866,17 +34953,56 @@
   {
     "index": 3175,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 13,
+          "offset": 12
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "\"1\" -> dict[1: \"number\", one: \"word\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3176,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 15,
+          "offset": 14
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "\"one\" -> dict[1: \"number\", one: \"word\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3177,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 16,
+          "offset": 15
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "\"true\" -> dict[true: \"bool\", truthy: \"str\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3178,
@@ -34785,7 +35911,32 @@
   {
     "index": 3309,
     "file": "sort.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 12,
+          "offset": 11
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 9 is stored as the string \"9\". Quote it to write that spelling directly.",
+        "context": "dict[b: 1, 9: \"y\", 10: \"x\"] -> sort -> .keys",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 20,
+          "offset": 19
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 10 is stored as the string \"10\". Quote it to write that spelling directly.",
+        "context": "dict[b: 1, 9: \"y\", 10: \"x\"] -> sort -> .keys",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3310,
@@ -37667,12 +38818,38 @@
   {
     "index": 3545,
     "file": "string-dict-keys.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"n\"] == dict[\"1\": \"n\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3546,
     "file": "string-dict-keys.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 1 is stored as the string \"1\". Quote it to write that spelling directly.",
+        "context": "dict[1: \"n\"] -> .keys",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3547,
@@ -37915,7 +39092,32 @@
   {
     "index": 3570,
     "file": "string-dict-keys.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 26,
+          "offset": 25
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key 3 is stored as the string \"3\". Quote it to write that spelling directly.",
+        "context": "dict[\"str\": 1, ident: 2, 3: 3, true: 4]",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 1,
+          "column": 32,
+          "offset": 31
+        },
+        "severity": "info",
+        "code": "DICT_KEY_SPELLING",
+        "message": "Key true is stored as the string \"true\". Quote it to write that spelling directly.",
+        "context": "dict[\"str\": 1, ident: 2, 3: 3, true: 4]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3571,
@@ -41514,37 +42716,37 @@
   },
   {
     "index": 3955,
-    "file": "type-assertions.test.ts",
+    "file": "tuple-positions.test.ts",
     "diagnostics": []
   },
   {
     "index": 3956,
-    "file": "type-assertions.test.ts",
+    "file": "tuple-positions.test.ts",
     "diagnostics": []
   },
   {
     "index": 3957,
-    "file": "type-assertions.test.ts",
+    "file": "tuple-positions.test.ts",
     "diagnostics": []
   },
   {
     "index": 3958,
-    "file": "type-assertions.test.ts",
+    "file": "tuple-positions.test.ts",
     "diagnostics": []
   },
   {
     "index": 3959,
-    "file": "type-assertions.test.ts",
+    "file": "tuple-positions.test.ts",
     "diagnostics": []
   },
   {
     "index": 3960,
-    "file": "type-assertions.test.ts",
+    "file": "tuple-positions.test.ts",
     "diagnostics": []
   },
   {
     "index": 3961,
-    "file": "type-assertions.test.ts",
+    "file": "tuple-positions.test.ts",
     "diagnostics": []
   },
   {
@@ -41670,20 +42872,7 @@
   {
     "index": 3986,
     "file": "type-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $v -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 7,
-          "offset": 6
-        },
-        "context": "42 => $v",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 3987,
@@ -41718,25 +42907,25 @@
   {
     "index": 3993,
     "file": "type-assertions.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $v -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 7,
+          "offset": 6
+        },
+        "context": "42 => $v",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3994,
     "file": "type-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $result -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 24,
-          "offset": 23
-        },
-        "context": "\"hello\" -> :?string => $result",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 3995,
@@ -41771,7 +42960,20 @@
   {
     "index": 4001,
     "file": "type-assertions.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $result -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 24,
+          "offset": 23
+        },
+        "context": "\"hello\" -> :?string => $result",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4002,
@@ -41796,20 +42998,7 @@
   {
     "index": 4006,
     "file": "type-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "PIPE_CONVERTS_INNER",
-        "message": "Piping into list(string) converts number values to string; write `-> :list(string)` to check without converting.",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 15,
-          "offset": 14
-        },
-        "context": "list[1, 2] -> list(string)",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 4007,
@@ -41829,20 +43018,7 @@
   {
     "index": 4010,
     "file": "type-assertions.test.ts",
-    "diagnostics": [
-      {
-        "location": {
-          "line": 1,
-          "column": 1,
-          "offset": 0
-        },
-        "severity": "info",
-        "code": "TUPLE_ONE_POSITION",
-        "message": "tuple(string) names exactly one position. Write :tuple to accept a tuple of any length, or -> list(string) for a sequence; a type meant for one element needs no change.",
-        "context": "\"x\" :tuple(x: string)",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 4011,
@@ -41857,7 +43033,20 @@
   {
     "index": 4013,
     "file": "type-assertions.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "PIPE_CONVERTS_INNER",
+        "message": "Piping into list(string) converts number values to string; write `-> :list(string)` to check without converting.",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 15,
+          "offset": 14
+        },
+        "context": "list[1, 2] -> list(string)",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4014,
@@ -41867,20 +43056,7 @@
   {
     "index": 4015,
     "file": "type-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "PREFER_MAP",
-        "message": "Consider using 'fan' instead of 'seq' for pure transformations (no side effects)",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 37,
-          "offset": 68
-        },
-        "context": "$data -> :?list ? ($data -> seq({ ($ * 2) })) ! list[]",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 4016,
@@ -41890,7 +43066,20 @@
   {
     "index": 4017,
     "file": "type-assertions.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 1,
+          "offset": 0
+        },
+        "severity": "info",
+        "code": "TUPLE_ONE_POSITION",
+        "message": "tuple(string) names exactly one position. Write :tuple to accept a tuple of any length, or -> list(string) for a sequence; a type meant for one element needs no change.",
+        "context": "\"x\" :tuple(x: string)",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4018,
@@ -41914,21 +43103,69 @@
   },
   {
     "index": 4022,
-    "file": "type-field-keys.test.ts",
-    "diagnostics": []
+    "file": "type-assertions.test.ts",
+    "diagnostics": [
+      {
+        "code": "PREFER_MAP",
+        "message": "Consider using 'fan' instead of 'seq' for pure transformations (no side effects)",
+        "severity": "info",
+        "location": {
+          "line": 3,
+          "column": 37,
+          "offset": 68
+        },
+        "context": "$data -> :?list ? ($data -> seq({ ($ * 2) })) ! list[]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4023,
-    "file": "type-field-keys.test.ts",
+    "file": "type-assertions.test.ts",
     "diagnostics": []
   },
   {
     "index": 4024,
-    "file": "type-field-keys.test.ts",
+    "file": "type-assertions.test.ts",
     "diagnostics": []
   },
   {
     "index": 4025,
+    "file": "type-assertions.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4026,
+    "file": "type-assertions.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4027,
+    "file": "type-assertions.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4028,
+    "file": "type-assertions.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4029,
+    "file": "type-field-keys.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4030,
+    "file": "type-field-keys.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4031,
+    "file": "type-field-keys.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4032,
     "file": "type-field-keys.test.ts",
     "diagnostics": [
       {
@@ -41946,32 +43183,32 @@
     ]
   },
   {
-    "index": 4026,
+    "index": 4033,
     "file": "type-field-keys.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4027,
+    "index": 4034,
     "file": "type-field-keys.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4028,
+    "index": 4035,
     "file": "type-field-keys.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4029,
+    "index": 4036,
     "file": "type-form-outer.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4030,
+    "index": 4037,
     "file": "type-form-outer.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4031,
+    "index": 4038,
     "file": "type-form-outer.test.ts",
     "diagnostics": [
       {
@@ -41989,17 +43226,17 @@
     ]
   },
   {
-    "index": 4032,
+    "index": 4039,
     "file": "type-form-outer.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4033,
+    "index": 4040,
     "file": "type-form-outer.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4034,
+    "index": 4041,
     "file": "type-form-outer.test.ts",
     "diagnostics": [
       {
@@ -42017,7 +43254,7 @@
     ]
   },
   {
-    "index": 4035,
+    "index": 4042,
     "file": "type-form-outer.test.ts",
     "diagnostics": [
       {
@@ -42035,7 +43272,7 @@
     ]
   },
   {
-    "index": 4036,
+    "index": 4043,
     "file": "type-form-outer.test.ts",
     "diagnostics": [
       {
@@ -42053,7 +43290,7 @@
     ]
   },
   {
-    "index": 4037,
+    "index": 4044,
     "file": "type-form-outer.test.ts",
     "diagnostics": [
       {
@@ -42071,22 +43308,22 @@
     ]
   },
   {
-    "index": 4038,
+    "index": 4045,
     "file": "type-form-outer.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4039,
+    "index": 4046,
     "file": "type-form-outer.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4040,
+    "index": 4047,
     "file": "type-form-outer.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4041,
+    "index": 4048,
     "file": "type-form-outer.test.ts",
     "diagnostics": [
       {
@@ -42104,17 +43341,17 @@
     ]
   },
   {
-    "index": 4042,
+    "index": 4049,
     "file": "type-form-outer.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4043,
+    "index": 4050,
     "file": "type-form-outer.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4044,
+    "index": 4051,
     "file": "type-form-outer.test.ts",
     "diagnostics": [
       {
@@ -42144,111 +43381,76 @@
     ]
   },
   {
-    "index": 4045,
-    "file": "type-inner-outer.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 17,
-          "offset": 16
-        },
-        "context": "list(number) => $t",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4046,
-    "file": "type-inner-outer.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 17,
-          "offset": 16
-        },
-        "context": "list(number) => $t",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4047,
-    "file": "type-inner-outer.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 29,
-          "offset": 28
-        },
-        "context": "union(#wired, #wireless) => $t",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4048,
-    "file": "type-inner-outer.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 29,
-          "offset": 28
-        },
-        "context": "union(#wired, #wireless) => $t",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4049,
-    "file": "type-inner-outer.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4050,
-    "file": "type-inner-outer.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4051,
-    "file": "type-inner-outer.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 4052,
     "file": "type-inner-outer.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 17,
+          "offset": 16
+        },
+        "context": "list(number) => $t",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4053,
     "file": "type-inner-outer.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 17,
+          "offset": 16
+        },
+        "context": "list(number) => $t",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4054,
     "file": "type-inner-outer.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 29,
+          "offset": 28
+        },
+        "context": "union(#wired, #wireless) => $t",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4055,
     "file": "type-inner-outer.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 29,
+          "offset": 28
+        },
+        "context": "union(#wired, #wireless) => $t",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4056,
@@ -42283,6 +43485,41 @@
   {
     "index": 4062,
     "file": "type-inner-outer.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4063,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4064,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4065,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4066,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4067,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4068,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4069,
+    "file": "type-inner-outer.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -42299,7 +43536,7 @@
     ]
   },
   {
-    "index": 4063,
+    "index": 4070,
     "file": "type-inner-outer.test.ts",
     "diagnostics": [
       {
@@ -42317,7 +43554,7 @@
     ]
   },
   {
-    "index": 4064,
+    "index": 4071,
     "file": "type-inner-outer.test.ts",
     "diagnostics": [
       {
@@ -42335,7 +43572,7 @@
     ]
   },
   {
-    "index": 4065,
+    "index": 4072,
     "file": "type-inner-outer.test.ts",
     "diagnostics": [
       {
@@ -42353,7 +43590,7 @@
     ]
   },
   {
-    "index": 4066,
+    "index": 4073,
     "file": "type-inner-outer.test.ts",
     "diagnostics": [
       {
@@ -42371,70 +43608,22 @@
     ]
   },
   {
-    "index": 4067,
-    "file": "type-inner-outer.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 11,
-          "offset": 10
-        },
-        "context": "string => $t",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4068,
-    "file": "type-inner-outer.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4069,
-    "file": "type-inner-outer.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4070,
-    "file": "type-inner-outer.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4071,
-    "file": "type-inner-outer.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4072,
-    "file": "type-inner-outer.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 11,
-          "offset": 10
-        },
-        "context": "string => $t",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4073,
-    "file": "type-inner-outer.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 4074,
     "file": "type-inner-outer.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 11,
+          "offset": 10
+        },
+        "context": "string => $t",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4075,
@@ -42459,7 +43648,20 @@
   {
     "index": 4079,
     "file": "type-inner-outer.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 11,
+          "offset": 10
+        },
+        "context": "string => $t",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4080,
@@ -42469,23 +43671,40 @@
   {
     "index": 4081,
     "file": "type-inner-outer.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $f -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 15,
-          "offset": 14
-        },
-        "context": "|a| { $a } => $f",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 4082,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4083,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4084,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4085,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4086,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4087,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4088,
     "file": "type-inner-outer.test.ts",
     "diagnostics": [
       {
@@ -42503,7 +43722,25 @@
     ]
   },
   {
-    "index": 4083,
+    "index": 4089,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $f -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 15,
+          "offset": 14
+        },
+        "context": "|a| { $a } => $f",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 4090,
     "file": "type-inner-outer.test.ts",
     "diagnostics": [
       {
@@ -42521,12 +43758,12 @@
     ]
   },
   {
-    "index": 4084,
+    "index": 4091,
     "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4085,
+    "index": 4092,
     "file": "type-inner-outer.test.ts",
     "diagnostics": [
       {
@@ -42544,7 +43781,7 @@
     ]
   },
   {
-    "index": 4086,
+    "index": 4093,
     "file": "type-inner-outer.test.ts",
     "diagnostics": [
       {
@@ -42562,7 +43799,7 @@
     ]
   },
   {
-    "index": 4087,
+    "index": 4094,
     "file": "type-inner-outer.test.ts",
     "diagnostics": [
       {
@@ -42580,7 +43817,7 @@
     ]
   },
   {
-    "index": 4088,
+    "index": 4095,
     "file": "type-inner-outer.test.ts",
     "diagnostics": [
       {
@@ -42598,7 +43835,7 @@
     ]
   },
   {
-    "index": 4089,
+    "index": 4096,
     "file": "type-inner-outer.test.ts",
     "diagnostics": [
       {
@@ -42616,7 +43853,7 @@
     ]
   },
   {
-    "index": 4090,
+    "index": 4097,
     "file": "type-inner-outer.test.ts",
     "diagnostics": [
       {
@@ -42632,41 +43869,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 4091,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4092,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4093,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4094,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4095,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4096,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4097,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
   },
   {
     "index": 4098,
@@ -42796,20 +43998,7 @@
   {
     "index": 4123,
     "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 31,
-          "offset": 30
-        },
-        "context": "dict(^(\"label\") a: number) => $t",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 4124,
@@ -42839,6 +44028,54 @@
   {
     "index": 4129,
     "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4130,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 31,
+          "offset": 30
+        },
+        "context": "dict(^(\"label\") a: number) => $t",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 4131,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4132,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4133,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4134,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4135,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4136,
+    "file": "type-ref-arg-unification.test.ts",
     "diagnostics": [
       {
         "location": {
@@ -42855,7 +44092,7 @@
     ]
   },
   {
-    "index": 4130,
+    "index": 4137,
     "file": "type-ref-arg-unification.test.ts",
     "diagnostics": [
       {
@@ -42873,48 +44110,13 @@
     ]
   },
   {
-    "index": 4131,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4132,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4133,
-    "file": "type-values.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4134,
-    "file": "type-values.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4135,
-    "file": "type-values.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4136,
-    "file": "type-values.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4137,
-    "file": "type-values.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 4138,
-    "file": "type-values.test.ts",
+    "file": "type-ref-arg-unification.test.ts",
     "diagnostics": []
   },
   {
     "index": 4139,
-    "file": "type-values.test.ts",
+    "file": "type-ref-arg-unification.test.ts",
     "diagnostics": []
   },
   {
@@ -42965,6 +44167,41 @@
   {
     "index": 4149,
     "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4150,
+    "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4151,
+    "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4152,
+    "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4153,
+    "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4154,
+    "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4155,
+    "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4156,
+    "file": "type-values.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -42981,7 +44218,7 @@
     ]
   },
   {
-    "index": 4150,
+    "index": 4157,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -42999,7 +44236,7 @@
     ]
   },
   {
-    "index": 4151,
+    "index": 4158,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -43017,7 +44254,7 @@
     ]
   },
   {
-    "index": 4152,
+    "index": 4159,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -43035,7 +44272,7 @@
     ]
   },
   {
-    "index": 4153,
+    "index": 4160,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -43048,67 +44285,6 @@
           "offset": 14
         },
         "context": "dict[a: 1] => $v",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4154,
-    "file": "type-values.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4155,
-    "file": "type-values.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4156,
-    "file": "type-values.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4157,
-    "file": "type-values.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4158,
-    "file": "type-values.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4159,
-    "file": "type-values.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $v -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 12,
-          "offset": 11
-        },
-        "context": "\"hello\" => $v",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4160,
-    "file": "type-values.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $v -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 7,
-          "offset": 6
-        },
-        "context": "42 => $v",
         "fix": null
       }
     ]
@@ -43148,6 +44324,67 @@
         "severity": "info",
         "location": {
           "line": 1,
+          "column": 12,
+          "offset": 11
+        },
+        "context": "\"hello\" => $v",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 4167,
+    "file": "type-values.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $v -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 7,
+          "offset": 6
+        },
+        "context": "42 => $v",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 4168,
+    "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4169,
+    "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4170,
+    "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4171,
+    "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4172,
+    "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4173,
+    "file": "type-values.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $v -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
           "column": 11,
           "offset": 10
         },
@@ -43157,7 +44394,7 @@
     ]
   },
   {
-    "index": 4167,
+    "index": 4174,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -43175,7 +44412,7 @@
     ]
   },
   {
-    "index": 4168,
+    "index": 4175,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -43193,7 +44430,7 @@
     ]
   },
   {
-    "index": 4169,
+    "index": 4176,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -43223,37 +44460,37 @@
     ]
   },
   {
-    "index": 4170,
+    "index": 4177,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4171,
+    "index": 4178,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4172,
+    "index": 4179,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4173,
+    "index": 4180,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4174,
+    "index": 4181,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4175,
+    "index": 4182,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4176,
+    "index": 4183,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -43271,7 +44508,7 @@
     ]
   },
   {
-    "index": 4177,
+    "index": 4184,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -43289,7 +44526,7 @@
     ]
   },
   {
-    "index": 4178,
+    "index": 4185,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -43331,7 +44568,7 @@
     ]
   },
   {
-    "index": 4179,
+    "index": 4186,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -43361,7 +44598,7 @@
     ]
   },
   {
-    "index": 4180,
+    "index": 4187,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -43379,32 +44616,32 @@
     ]
   },
   {
-    "index": 4181,
+    "index": 4188,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4182,
+    "index": 4189,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4183,
+    "index": 4190,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4184,
+    "index": 4191,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4185,
+    "index": 4192,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4186,
+    "index": 4193,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -43422,7 +44659,7 @@
     ]
   },
   {
-    "index": 4187,
+    "index": 4194,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -43452,7 +44689,7 @@
     ]
   },
   {
-    "index": 4188,
+    "index": 4195,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -43470,86 +44707,32 @@
     ]
   },
   {
-    "index": 4189,
-    "file": "type-values.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4190,
-    "file": "type-values.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4191,
-    "file": "type-values.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4192,
-    "file": "type-values.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4193,
-    "file": "type-values.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4194,
-    "file": "type-var-positions.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$t' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 11,
-          "offset": 10
-        },
-        "context": "number => $t",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4195,
-    "file": "type-var-positions.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$t' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 11,
-          "offset": 10
-        },
-        "context": "number => $t",
-        "fix": null
-      }
-    ]
-  },
-  {
     "index": 4196,
-    "file": "type-var-positions.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$t' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 11,
-          "offset": 10
-        },
-        "context": "string => $t",
-        "fix": null
-      }
-    ]
+    "file": "type-values.test.ts",
+    "diagnostics": []
   },
   {
     "index": 4197,
+    "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4198,
+    "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4199,
+    "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4200,
+    "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4201,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -43567,7 +44750,25 @@
     ]
   },
   {
-    "index": 4198,
+    "index": 4202,
+    "file": "type-var-positions.test.ts",
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$t' is captured but never referenced",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 11,
+          "offset": 10
+        },
+        "context": "number => $t",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 4203,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -43585,7 +44786,7 @@
     ]
   },
   {
-    "index": 4199,
+    "index": 4204,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -43603,7 +44804,43 @@
     ]
   },
   {
-    "index": 4200,
+    "index": 4205,
+    "file": "type-var-positions.test.ts",
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$t' is captured but never referenced",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 11,
+          "offset": 10
+        },
+        "context": "string => $t",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 4206,
+    "file": "type-var-positions.test.ts",
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$t' is captured but never referenced",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 11,
+          "offset": 10
+        },
+        "context": "number => $t",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 4207,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -43621,7 +44858,7 @@
     ]
   },
   {
-    "index": 4201,
+    "index": 4208,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -43639,7 +44876,7 @@
     ]
   },
   {
-    "index": 4202,
+    "index": 4209,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -43657,7 +44894,7 @@
     ]
   },
   {
-    "index": 4203,
+    "index": 4210,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -43711,7 +44948,7 @@
     ]
   },
   {
-    "index": 4204,
+    "index": 4211,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -43729,7 +44966,7 @@
     ]
   },
   {
-    "index": 4205,
+    "index": 4212,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -43759,7 +44996,7 @@
     ]
   },
   {
-    "index": 4206,
+    "index": 4213,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -43789,7 +45026,7 @@
     ]
   },
   {
-    "index": 4207,
+    "index": 4214,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -43819,7 +45056,7 @@
     ]
   },
   {
-    "index": 4208,
+    "index": 4215,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -43849,7 +45086,7 @@
     ]
   },
   {
-    "index": 4209,
+    "index": 4216,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -43879,7 +45116,7 @@
     ]
   },
   {
-    "index": 4210,
+    "index": 4217,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -43933,7 +45170,7 @@
     ]
   },
   {
-    "index": 4211,
+    "index": 4218,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -43951,7 +45188,7 @@
     ]
   },
   {
-    "index": 4212,
+    "index": 4219,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -43969,12 +45206,12 @@
     ]
   },
   {
-    "index": 4213,
+    "index": 4220,
     "file": "type-var-positions.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4214,
+    "index": 4221,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -43992,7 +45229,7 @@
     ]
   },
   {
-    "index": 4215,
+    "index": 4222,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -44038,7 +45275,7 @@
     ]
   },
   {
-    "index": 4216,
+    "index": 4223,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -44056,7 +45293,7 @@
     ]
   },
   {
-    "index": 4217,
+    "index": 4224,
     "file": "typed-atom-migration.test.ts",
     "diagnostics": [
       {
@@ -44074,12 +45311,12 @@
     ]
   },
   {
-    "index": 4218,
+    "index": 4225,
     "file": "typed-atom-migration.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4219,
+    "index": 4226,
     "file": "typed-atom-migration.test.ts",
     "diagnostics": [
       {
@@ -44097,7 +45334,7 @@
     ]
   },
   {
-    "index": 4220,
+    "index": 4227,
     "file": "typed-atom-migration.test.ts",
     "diagnostics": [
       {
@@ -44115,7 +45352,7 @@
     ]
   },
   {
-    "index": 4221,
+    "index": 4228,
     "file": "typed-atom-migration.test.ts",
     "diagnostics": [
       {
@@ -44145,43 +45382,8 @@
     ]
   },
   {
-    "index": 4222,
-    "file": "typed-atom-migration.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4223,
-    "file": "unified-dispatch.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4224,
-    "file": "unified-dispatch.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4225,
-    "file": "unified-dispatch.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4226,
-    "file": "unified-dispatch.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4227,
-    "file": "unified-dispatch.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4228,
-    "file": "unified-dispatch.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 4229,
-    "file": "unified-dispatch.test.ts",
+    "file": "typed-atom-migration.test.ts",
     "diagnostics": []
   },
   {
@@ -44191,6 +45393,41 @@
   },
   {
     "index": 4231,
+    "file": "unified-dispatch.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4232,
+    "file": "unified-dispatch.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4233,
+    "file": "unified-dispatch.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4234,
+    "file": "unified-dispatch.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4235,
+    "file": "unified-dispatch.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4236,
+    "file": "unified-dispatch.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4237,
+    "file": "unified-dispatch.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4238,
     "file": "unified-dispatch.test.ts",
     "diagnostics": [
       {
@@ -44208,7 +45445,7 @@
     ]
   },
   {
-    "index": 4232,
+    "index": 4239,
     "file": "unified-dispatch.test.ts",
     "diagnostics": [
       {
@@ -44238,7 +45475,7 @@
     ]
   },
   {
-    "index": 4233,
+    "index": 4240,
     "file": "unified-dispatch.test.ts",
     "diagnostics": [
       {
@@ -44254,41 +45491,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 4234,
-    "file": "unified-dispatch.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4235,
-    "file": "unified-dispatch.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4236,
-    "file": "unified-dispatch.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4237,
-    "file": "unified-dispatch.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4238,
-    "file": "unified-dispatch.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4239,
-    "file": "unified-dispatch.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4240,
-    "file": "unified-dispatch.test.ts",
-    "diagnostics": []
   },
   {
     "index": 4241,
@@ -44368,20 +45570,7 @@
   {
     "index": 4256,
     "file": "unified-dispatch.test.ts",
-    "diagnostics": [
-      {
-        "code": "CLOSURE_BARE_DOLLAR",
-        "message": "Bare $ in stored closure has ambiguous binding. Use explicit capture: $ => $item",
-        "severity": "warning",
-        "location": {
-          "line": 2,
-          "column": 14,
-          "offset": 14
-        },
-        "context": "list[||{ $ * 2 }] => $list",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 4257,
@@ -44415,16 +45604,64 @@
   },
   {
     "index": 4263,
-    "file": "uniform-value-type.test.ts",
-    "diagnostics": []
+    "file": "unified-dispatch.test.ts",
+    "diagnostics": [
+      {
+        "code": "CLOSURE_BARE_DOLLAR",
+        "message": "Bare $ in stored closure has ambiguous binding. Use explicit capture: $ => $item",
+        "severity": "warning",
+        "location": {
+          "line": 2,
+          "column": 14,
+          "offset": 14
+        },
+        "context": "list[||{ $ * 2 }] => $list",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4264,
-    "file": "uniform-value-type.test.ts",
+    "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
     "index": 4265,
+    "file": "unified-dispatch.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4266,
+    "file": "unified-dispatch.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4267,
+    "file": "unified-dispatch.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4268,
+    "file": "unified-dispatch.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4269,
+    "file": "unified-dispatch.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4270,
+    "file": "uniform-value-type.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4271,
+    "file": "uniform-value-type.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4272,
     "file": "uniform-value-type.test.ts",
     "diagnostics": [
       {
@@ -44442,17 +45679,17 @@
     ]
   },
   {
-    "index": 4266,
+    "index": 4273,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4267,
+    "index": 4274,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4268,
+    "index": 4275,
     "file": "uniform-value-type.test.ts",
     "diagnostics": [
       {
@@ -44470,32 +45707,32 @@
     ]
   },
   {
-    "index": 4269,
+    "index": 4276,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4270,
+    "index": 4277,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4271,
+    "index": 4278,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4272,
+    "index": 4279,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4273,
+    "index": 4280,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4274,
+    "index": 4281,
     "file": "uniform-value-type.test.ts",
     "diagnostics": [
       {
@@ -44525,67 +45762,6 @@
     ]
   },
   {
-    "index": 4275,
-    "file": "uniform-value-type.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4276,
-    "file": "uniform-value-type.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4277,
-    "file": "uniform-value-type.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4278,
-    "file": "uniform-value-type.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4279,
-    "file": "uniform-value-type.test.ts",
-    "diagnostics": [
-      {
-        "location": {
-          "line": 1,
-          "column": 12,
-          "offset": 11
-        },
-        "severity": "info",
-        "code": "TUPLE_ONE_POSITION",
-        "message": "tuple(number) names exactly one position. Write :tuple to accept a tuple of any length, or -> list(number) for a sequence; a type meant for one element needs no change.",
-        "context": "tuple[] -> tuple(number)",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4280,
-    "file": "uniform-value-type.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4281,
-    "file": "uniform-value-type.test.ts",
-    "diagnostics": [
-      {
-        "location": {
-          "line": 1,
-          "column": 31,
-          "offset": 30
-        },
-        "severity": "info",
-        "code": "MIXED_ELEMENT_TYPE_READ",
-        "message": "The elements of this collection differ in type, so .^type reports a union element type, not one shared type. Use a type check such as :?list(list) when only the kind matters.",
-        "context": "list[dict[a: 1], dict[a: \"s\"]].^type == list(union(dict(a: number), dict(a: string)))",
-        "fix": null
-      }
-    ]
-  },
-  {
     "index": 4282,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
@@ -44603,6 +45779,67 @@
   {
     "index": 4285,
     "file": "uniform-value-type.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4286,
+    "file": "uniform-value-type.test.ts",
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 12,
+          "offset": 11
+        },
+        "severity": "info",
+        "code": "TUPLE_ONE_POSITION",
+        "message": "tuple(number) names exactly one position. Write :tuple to accept a tuple of any length, or -> list(number) for a sequence; a type meant for one element needs no change.",
+        "context": "tuple[] -> tuple(number)",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 4287,
+    "file": "uniform-value-type.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4288,
+    "file": "uniform-value-type.test.ts",
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 31,
+          "offset": 30
+        },
+        "severity": "info",
+        "code": "MIXED_ELEMENT_TYPE_READ",
+        "message": "The elements of this collection differ in type, so .^type reports a union element type, not one shared type. Use a type check such as :?list(list) when only the kind matters.",
+        "context": "list[dict[a: 1], dict[a: \"s\"]].^type == list(union(dict(a: number), dict(a: string)))",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 4289,
+    "file": "uniform-value-type.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4290,
+    "file": "uniform-value-type.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4291,
+    "file": "uniform-value-type.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4292,
+    "file": "uniform-value-type.test.ts",
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
@@ -44619,7 +45856,7 @@
     ]
   },
   {
-    "index": 4286,
+    "index": 4293,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -44635,41 +45872,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 4287,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4288,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4289,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4290,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4291,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4292,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4293,
-    "file": "union-types.test.ts",
-    "diagnostics": []
   },
   {
     "index": 4294,
@@ -44729,6 +45931,41 @@
   {
     "index": 4305,
     "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4306,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4307,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4308,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4309,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4310,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4311,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4312,
+    "file": "union-types.test.ts",
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
@@ -44745,17 +45982,17 @@
     ]
   },
   {
-    "index": 4306,
+    "index": 4313,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4307,
+    "index": 4314,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4308,
+    "index": 4315,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -44773,7 +46010,7 @@
     ]
   },
   {
-    "index": 4309,
+    "index": 4316,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -44791,7 +46028,7 @@
     ]
   },
   {
-    "index": 4310,
+    "index": 4317,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -44833,54 +46070,6 @@
     ]
   },
   {
-    "index": 4311,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4312,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4313,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4314,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4315,
-    "file": "union-types.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$v' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 8,
-          "offset": 7
-        },
-        "context": "\"c\" => $v",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4316,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4317,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 4318,
     "file": "union-types.test.ts",
     "diagnostics": []
@@ -44903,7 +46092,20 @@
   {
     "index": 4322,
     "file": "union-types.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$v' is captured but never referenced",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 8,
+          "offset": 7
+        },
+        "context": "\"c\" => $v",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4323,
@@ -44973,6 +46175,41 @@
   {
     "index": 4336,
     "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4337,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4338,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4339,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4340,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4341,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4342,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4343,
+    "file": "union-types.test.ts",
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
@@ -45001,7 +46238,7 @@
     ]
   },
   {
-    "index": 4337,
+    "index": 4344,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -45043,41 +46280,6 @@
     ]
   },
   {
-    "index": 4338,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4339,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4340,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4341,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4342,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4343,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4344,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 4345,
     "file": "union-types.test.ts",
     "diagnostics": []
@@ -45094,6 +46296,41 @@
   },
   {
     "index": 4348,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4349,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4350,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4351,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4352,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4353,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4354,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4355,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -45144,7 +46381,7 @@
     ]
   },
   {
-    "index": 4349,
+    "index": 4356,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -45195,7 +46432,7 @@
     ]
   },
   {
-    "index": 4350,
+    "index": 4357,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -45213,7 +46450,7 @@
     ]
   },
   {
-    "index": 4351,
+    "index": 4358,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -45276,27 +46513,27 @@
     ]
   },
   {
-    "index": 4352,
+    "index": 4359,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4353,
+    "index": 4360,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4354,
+    "index": 4361,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4355,
+    "index": 4362,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4356,
+    "index": 4363,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -45314,53 +46551,18 @@
     ]
   },
   {
-    "index": 4357,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4358,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4359,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4360,
-    "file": "unspecified-type-args.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4361,
-    "file": "unspecified-type-args.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4362,
-    "file": "unspecified-type-args.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4363,
-    "file": "unspecified-type-args.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 4364,
-    "file": "unspecified-type-args.test.ts",
+    "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
     "index": 4365,
-    "file": "unspecified-type-args.test.ts",
+    "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
     "index": 4366,
-    "file": "unspecified-type-args.test.ts",
+    "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
@@ -45410,6 +46612,41 @@
   },
   {
     "index": 4376,
+    "file": "unspecified-type-args.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4377,
+    "file": "unspecified-type-args.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4378,
+    "file": "unspecified-type-args.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4379,
+    "file": "unspecified-type-args.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4380,
+    "file": "unspecified-type-args.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4381,
+    "file": "unspecified-type-args.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4382,
+    "file": "unspecified-type-args.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4383,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -45427,7 +46664,7 @@
     ]
   },
   {
-    "index": 4377,
+    "index": 4384,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -45457,7 +46694,7 @@
     ]
   },
   {
-    "index": 4378,
+    "index": 4385,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -45475,7 +46712,7 @@
     ]
   },
   {
-    "index": 4379,
+    "index": 4386,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -45493,7 +46730,7 @@
     ]
   },
   {
-    "index": 4380,
+    "index": 4387,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -45511,12 +46748,12 @@
     ]
   },
   {
-    "index": 4381,
+    "index": 4388,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4382,
+    "index": 4389,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -45534,37 +46771,37 @@
     ]
   },
   {
-    "index": 4383,
+    "index": 4390,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4384,
+    "index": 4391,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4385,
+    "index": 4392,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4386,
+    "index": 4393,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4387,
+    "index": 4394,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4388,
+    "index": 4395,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4389,
+    "index": 4396,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -45594,7 +46831,7 @@
     ]
   },
   {
-    "index": 4390,
+    "index": 4397,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -45612,12 +46849,12 @@
     ]
   },
   {
-    "index": 4391,
+    "index": 4398,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4392,
+    "index": 4399,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -45635,7 +46872,7 @@
     ]
   },
   {
-    "index": 4393,
+    "index": 4400,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -45653,17 +46890,17 @@
     ]
   },
   {
-    "index": 4394,
+    "index": 4401,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4395,
+    "index": 4402,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4396,
+    "index": 4403,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -45681,7 +46918,7 @@
     ]
   },
   {
-    "index": 4397,
+    "index": 4404,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -45699,7 +46936,7 @@
     ]
   },
   {
-    "index": 4398,
+    "index": 4405,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -45717,7 +46954,7 @@
     ]
   },
   {
-    "index": 4399,
+    "index": 4406,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -45735,7 +46972,7 @@
     ]
   },
   {
-    "index": 4400,
+    "index": 4407,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -45751,54 +46988,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 4401,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4402,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4403,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4404,
-    "file": "use-expr.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $g -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 26,
-          "offset": 25
-        },
-        "context": "use<module:greetings> => $g",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4405,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4406,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4407,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
   },
   {
     "index": 4408,
@@ -45818,7 +47007,20 @@
   {
     "index": 4411,
     "file": "use-expr.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $g -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 26,
+          "offset": 25
+        },
+        "context": "use<module:greetings> => $g",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4412,
@@ -45833,24 +47035,41 @@
   {
     "index": 4414,
     "file": "use-expr.test.ts",
-    "diagnostics": [
-      {
-        "location": {
-          "line": 1,
-          "column": 1,
-          "offset": 0
-        },
-        "severity": "warning",
-        "code": "USE_UNTYPED_HOST_REF",
-        "message": "use<host:api> has no :type annotation in permissive mode; add :TypeName to declare the resolved type",
-        "context": "use<host:api>",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 4415,
     "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4416,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4417,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4418,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4419,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4420,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4421,
+    "file": "use-expr.test.ts",
     "diagnostics": [
       {
         "location": {
@@ -45867,7 +47086,25 @@
     ]
   },
   {
-    "index": 4416,
+    "index": 4422,
+    "file": "use-expr.test.ts",
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 1,
+          "offset": 0
+        },
+        "severity": "warning",
+        "code": "USE_UNTYPED_HOST_REF",
+        "message": "use<host:api> has no :type annotation in permissive mode; add :TypeName to declare the resolved type",
+        "context": "use<host:api>",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 4423,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -45897,7 +47134,7 @@
     ]
   },
   {
-    "index": 4417,
+    "index": 4424,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -45927,7 +47164,7 @@
     ]
   },
   {
-    "index": 4418,
+    "index": 4425,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -45957,7 +47194,7 @@
     ]
   },
   {
-    "index": 4419,
+    "index": 4426,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -45973,41 +47210,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 4420,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4421,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4422,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4423,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4424,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4425,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4426,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
   },
   {
     "index": 4427,
@@ -46046,6 +47248,41 @@
   },
   {
     "index": 4434,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4435,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4436,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4437,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4438,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4439,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4440,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4441,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -46099,7 +47336,7 @@
     ]
   },
   {
-    "index": 4435,
+    "index": 4442,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -46129,17 +47366,17 @@
     ]
   },
   {
-    "index": 4436,
+    "index": 4443,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4437,
+    "index": 4444,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4438,
+    "index": 4445,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -46157,7 +47394,7 @@
     ]
   },
   {
-    "index": 4439,
+    "index": 4446,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -46175,12 +47412,12 @@
     ]
   },
   {
-    "index": 4440,
+    "index": 4447,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4441,
+    "index": 4448,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -46198,68 +47435,68 @@
     ]
   },
   {
-    "index": 4442,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4443,
-    "file": "use-expr.test.ts",
-    "diagnostics": [
-      {
-        "location": {
-          "line": 1,
-          "column": 1,
-          "offset": 0
-        },
-        "severity": "info",
-        "code": "GUARD_BARE",
-        "message": "Bare guard catches every error. Prefer guard<on: list[#X, ...]> to make recoverability explicit.",
-        "context": "guard { use<m:bad> }",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4444,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4445,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4446,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4447,
-    "file": "use-expr.test.ts",
-    "diagnostics": [
-      {
-        "location": {
-          "line": 1,
-          "column": 1,
-          "offset": 0
-        },
-        "severity": "info",
-        "code": "GUARD_BARE",
-        "message": "Bare guard catches every error. Prefer guard<on: list[#X, ...]> to make recoverability explicit.",
-        "context": "guard { use<m:bad> }",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4448,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 4449,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4450,
+    "file": "use-expr.test.ts",
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 1,
+          "offset": 0
+        },
+        "severity": "info",
+        "code": "GUARD_BARE",
+        "message": "Bare guard catches every error. Prefer guard<on: list[#X, ...]> to make recoverability explicit.",
+        "context": "guard { use<m:bad> }",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 4451,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4452,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4453,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4454,
+    "file": "use-expr.test.ts",
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 1,
+          "offset": 0
+        },
+        "severity": "info",
+        "code": "GUARD_BARE",
+        "message": "Bare guard catches every error. Prefer guard<on: list[#X, ...]> to make recoverability explicit.",
+        "context": "guard { use<m:bad> }",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 4455,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4456,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -46277,7 +47514,7 @@
     ]
   },
   {
-    "index": 4450,
+    "index": 4457,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -46295,7 +47532,7 @@
     ]
   },
   {
-    "index": 4451,
+    "index": 4458,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -46337,7 +47574,7 @@
     ]
   },
   {
-    "index": 4452,
+    "index": 4459,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -46355,57 +47592,57 @@
     ]
   },
   {
-    "index": 4453,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4454,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4455,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4456,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4457,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4458,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4459,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 4460,
-    "file": "vacancy-coerce.test.ts",
+    "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
     "index": 4461,
-    "file": "vacancy-coerce.test.ts",
+    "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
     "index": 4462,
-    "file": "vacancy-coerce.test.ts",
+    "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
     "index": 4463,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4464,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4465,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4466,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4467,
+    "file": "vacancy-coerce.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4468,
+    "file": "vacancy-coerce.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4469,
+    "file": "vacancy-coerce.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4470,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -46423,7 +47660,7 @@
     ]
   },
   {
-    "index": 4464,
+    "index": 4471,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -46441,7 +47678,7 @@
     ]
   },
   {
-    "index": 4465,
+    "index": 4472,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -46459,7 +47696,7 @@
     ]
   },
   {
-    "index": 4466,
+    "index": 4473,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -46477,7 +47714,7 @@
     ]
   },
   {
-    "index": 4467,
+    "index": 4474,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -46495,12 +47732,12 @@
     ]
   },
   {
-    "index": 4468,
+    "index": 4475,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4469,
+    "index": 4476,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -46518,7 +47755,7 @@
     ]
   },
   {
-    "index": 4470,
+    "index": 4477,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -46536,7 +47773,7 @@
     ]
   },
   {
-    "index": 4471,
+    "index": 4478,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -46554,12 +47791,12 @@
     ]
   },
   {
-    "index": 4472,
+    "index": 4479,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4473,
+    "index": 4480,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -46577,7 +47814,7 @@
     ]
   },
   {
-    "index": 4474,
+    "index": 4481,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46595,7 +47832,7 @@
     ]
   },
   {
-    "index": 4475,
+    "index": 4482,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46613,7 +47850,7 @@
     ]
   },
   {
-    "index": 4476,
+    "index": 4483,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46631,7 +47868,7 @@
     ]
   },
   {
-    "index": 4477,
+    "index": 4484,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46649,7 +47886,7 @@
     ]
   },
   {
-    "index": 4478,
+    "index": 4485,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46667,7 +47904,7 @@
     ]
   },
   {
-    "index": 4479,
+    "index": 4486,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46685,7 +47922,7 @@
     ]
   },
   {
-    "index": 4480,
+    "index": 4487,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46703,7 +47940,7 @@
     ]
   },
   {
-    "index": 4481,
+    "index": 4488,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46721,7 +47958,7 @@
     ]
   },
   {
-    "index": 4482,
+    "index": 4489,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46739,7 +47976,7 @@
     ]
   },
   {
-    "index": 4483,
+    "index": 4490,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46757,7 +47994,7 @@
     ]
   },
   {
-    "index": 4484,
+    "index": 4491,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46775,7 +48012,7 @@
     ]
   },
   {
-    "index": 4485,
+    "index": 4492,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46793,7 +48030,7 @@
     ]
   },
   {
-    "index": 4486,
+    "index": 4493,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46811,7 +48048,7 @@
     ]
   },
   {
-    "index": 4487,
+    "index": 4494,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46829,7 +48066,7 @@
     ]
   },
   {
-    "index": 4488,
+    "index": 4495,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46847,7 +48084,7 @@
     ]
   },
   {
-    "index": 4489,
+    "index": 4496,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46865,7 +48102,7 @@
     ]
   },
   {
-    "index": 4490,
+    "index": 4497,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46883,7 +48120,7 @@
     ]
   },
   {
-    "index": 4491,
+    "index": 4498,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46901,7 +48138,7 @@
     ]
   },
   {
-    "index": 4492,
+    "index": 4499,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46931,7 +48168,7 @@
     ]
   },
   {
-    "index": 4493,
+    "index": 4500,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -46961,7 +48198,7 @@
     ]
   },
   {
-    "index": 4494,
+    "index": 4501,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -46979,7 +48216,7 @@
     ]
   },
   {
-    "index": 4495,
+    "index": 4502,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -46997,7 +48234,7 @@
     ]
   },
   {
-    "index": 4496,
+    "index": 4503,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47015,7 +48252,7 @@
     ]
   },
   {
-    "index": 4497,
+    "index": 4504,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47045,7 +48282,7 @@
     ]
   },
   {
-    "index": 4498,
+    "index": 4505,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47075,7 +48312,7 @@
     ]
   },
   {
-    "index": 4499,
+    "index": 4506,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47105,7 +48342,7 @@
     ]
   },
   {
-    "index": 4500,
+    "index": 4507,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47123,12 +48360,12 @@
     ]
   },
   {
-    "index": 4501,
+    "index": 4508,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4502,
+    "index": 4509,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47146,7 +48383,7 @@
     ]
   },
   {
-    "index": 4503,
+    "index": 4510,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47164,7 +48401,7 @@
     ]
   },
   {
-    "index": 4504,
+    "index": 4511,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47182,7 +48419,7 @@
     ]
   },
   {
-    "index": 4505,
+    "index": 4512,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47200,7 +48437,7 @@
     ]
   },
   {
-    "index": 4506,
+    "index": 4513,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47242,7 +48479,7 @@
     ]
   },
   {
-    "index": 4507,
+    "index": 4514,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47260,12 +48497,12 @@
     ]
   },
   {
-    "index": 4508,
+    "index": 4515,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4509,
+    "index": 4516,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47283,7 +48520,7 @@
     ]
   },
   {
-    "index": 4510,
+    "index": 4517,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47301,47 +48538,47 @@
     ]
   },
   {
-    "index": 4511,
-    "file": "variables.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4512,
-    "file": "variables.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4513,
-    "file": "variables.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4514,
-    "file": "variables.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4515,
-    "file": "variables.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4516,
-    "file": "variables.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4517,
-    "file": "variables.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 4518,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
     "index": 4519,
+    "file": "variables.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4520,
+    "file": "variables.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4521,
+    "file": "variables.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4522,
+    "file": "variables.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4523,
+    "file": "variables.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4524,
+    "file": "variables.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4525,
+    "file": "variables.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4526,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47359,7 +48596,7 @@
     ]
   },
   {
-    "index": 4520,
+    "index": 4527,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47377,7 +48614,7 @@
     ]
   },
   {
-    "index": 4521,
+    "index": 4528,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47395,12 +48632,12 @@
     ]
   },
   {
-    "index": 4522,
+    "index": 4529,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4523,
+    "index": 4530,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47418,7 +48655,7 @@
     ]
   },
   {
-    "index": 4524,
+    "index": 4531,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47436,22 +48673,22 @@
     ]
   },
   {
-    "index": 4525,
+    "index": 4532,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4526,
+    "index": 4533,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4527,
+    "index": 4534,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4528,
+    "index": 4535,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47469,17 +48706,17 @@
     ]
   },
   {
-    "index": 4529,
+    "index": 4536,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4530,
+    "index": 4537,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4531,
+    "index": 4538,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47497,7 +48734,7 @@
     ]
   },
   {
-    "index": 4532,
+    "index": 4539,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47515,12 +48752,12 @@
     ]
   },
   {
-    "index": 4533,
+    "index": 4540,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4534,
+    "index": 4541,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47538,7 +48775,7 @@
     ]
   },
   {
-    "index": 4535,
+    "index": 4542,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -47568,7 +48805,7 @@
     ]
   },
   {
-    "index": 4536,
+    "index": 4543,
     "file": "vectors.test.ts",
     "diagnostics": [
       {
@@ -47596,41 +48833,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 4537,
-    "file": "vectors.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4538,
-    "file": "vectors.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4539,
-    "file": "vectors.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4540,
-    "file": "vectors.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4541,
-    "file": "vectors.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4542,
-    "file": "vectors.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4543,
-    "file": "vectors.test.ts",
-    "diagnostics": []
   },
   {
     "index": 4544,
@@ -47665,20 +48867,7 @@
   {
     "index": 4550,
     "file": "vectors.test.ts",
-    "diagnostics": [
-      {
-        "code": "PREFER_MAP",
-        "message": "Consider using 'fan' instead of 'seq' for pure transformations (no side effects)",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 7,
-          "offset": 6
-        },
-        "context": "$v -> seq({ $ * 2 })",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 4551,
@@ -47713,7 +48902,20 @@
   {
     "index": 4557,
     "file": "vectors.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "PREFER_MAP",
+        "message": "Consider using 'fan' instead of 'seq' for pure transformations (no side effects)",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 7,
+          "offset": 6
+        },
+        "context": "$v -> seq({ $ * 2 })",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4558,
@@ -47788,20 +48990,7 @@
   {
     "index": 4572,
     "file": "vectors.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$result' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 21,
-          "offset": 20
-        },
-        "context": "$v -> .normalize => $result",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 4573,
@@ -47830,6 +49019,54 @@
   },
   {
     "index": 4578,
+    "file": "vectors.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4579,
+    "file": "vectors.test.ts",
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$result' is captured but never referenced",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 21,
+          "offset": 20
+        },
+        "context": "$v -> .normalize => $result",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 4580,
+    "file": "vectors.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4581,
+    "file": "vectors.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4582,
+    "file": "vectors.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4583,
+    "file": "vectors.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4584,
+    "file": "vectors.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4585,
     "file": "vectors.test.ts",
     "diagnostics": [
       {
@@ -47937,17 +49174,17 @@
     ]
   },
   {
-    "index": 4579,
+    "index": 4586,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4580,
+    "index": 4587,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4581,
+    "index": 4588,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -47965,132 +49202,6 @@
     ]
   },
   {
-    "index": 4582,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$x' is captured and used only once, away from its capture; consider inlining instead",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 6,
-          "offset": 5
-        },
-        "context": "3 => $x",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4583,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$x' is captured and used only once, away from its capture; consider inlining instead",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 6,
-          "offset": 5
-        },
-        "context": "3 => $x",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4584,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$a' is captured and used only once, away from its capture; consider inlining instead",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 10,
-          "offset": 9
-        },
-        "context": "false => $a",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4585,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$a' is captured and used only once, away from its capture; consider inlining instead",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 9,
-          "offset": 8
-        },
-        "context": "true => $a",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4586,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$a' is captured and used only once, away from its capture; consider inlining instead",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 12,
-          "offset": 11
-        },
-        "context": "\"hello\" => $a",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4587,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$a' is captured and used only once, away from its capture; consider inlining instead",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 6,
-          "offset": 5
-        },
-        "context": "1 => $a",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4588,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$x' is captured and used only once, away from its capture; consider inlining instead",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 6,
-          "offset": 5
-        },
-        "context": "3 => $x",
-        "fix": null
-      }
-    ]
-  },
-  {
     "index": 4589,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
@@ -48100,10 +49211,10 @@
         "severity": "info",
         "location": {
           "line": 1,
-          "column": 7,
-          "offset": 6
+          "column": 6,
+          "offset": 5
         },
-        "context": "10 => $x",
+        "context": "3 => $x",
         "fix": null
       }
     ]
@@ -48121,7 +49232,7 @@
           "column": 6,
           "offset": 5
         },
-        "context": "7 => $x",
+        "context": "3 => $x",
         "fix": null
       }
     ]
@@ -48129,32 +49240,71 @@
   {
     "index": 4591,
     "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$a' is captured and used only once, away from its capture; consider inlining instead",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 10,
+          "offset": 9
+        },
+        "context": "false => $a",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4592,
     "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$a' is captured and used only once, away from its capture; consider inlining instead",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 9,
+          "offset": 8
+        },
+        "context": "true => $a",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4593,
     "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$a' is captured and used only once, away from its capture; consider inlining instead",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 12,
+          "offset": 11
+        },
+        "context": "\"hello\" => $a",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4594,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $user -> ...' instead of separate statements",
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$a' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 1,
-          "column": 24,
-          "offset": 23
+          "column": 6,
+          "offset": 5
         },
-        "context": "dict[name: \"alice\"] => $user",
+        "context": "1 => $a",
         "fix": null
       }
     ]
@@ -48162,22 +49312,35 @@
   {
     "index": 4595,
     "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$x' is captured and used only once, away from its capture; consider inlining instead",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "context": "3 => $x",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4596,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $items -> ...' instead of separate statements",
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$x' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 1,
-          "column": 19,
-          "offset": 18
+          "column": 7,
+          "offset": 6
         },
-        "context": "list[\"a\", \"b\"] => $items",
+        "context": "10 => $x",
         "fix": null
       }
     ]
@@ -48187,15 +49350,15 @@
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $user -> ...' instead of separate statements",
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$x' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 1,
-          "column": 24,
-          "offset": 23
+          "column": 6,
+          "offset": 5
         },
-        "context": "dict[name: \"alice\"] => $user",
+        "context": "7 => $x",
         "fix": null
       }
     ]
@@ -48218,7 +49381,20 @@
   {
     "index": 4601,
     "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $user -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 24,
+          "offset": 23
+        },
+        "context": "dict[name: \"alice\"] => $user",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4602,
@@ -48228,34 +49404,35 @@
   {
     "index": 4603,
     "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $items -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 19,
+          "offset": 18
+        },
+        "context": "list[\"a\", \"b\"] => $items",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4604,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$a' is captured but never referenced",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $user -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 1,
-          "column": 8,
-          "offset": 7
+          "column": 24,
+          "offset": 23
         },
-        "context": "\"a\" => $a",
-        "fix": null
-      },
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $b -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 8,
-          "offset": 17
-        },
-        "context": "\"b\" => $b",
+        "context": "dict[name: \"alice\"] => $user",
         "fix": null
       }
     ]
@@ -48293,7 +49470,32 @@
   {
     "index": 4611,
     "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$a' is captured but never referenced",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 8,
+          "offset": 7
+        },
+        "context": "\"a\" => $a",
+        "fix": null
+      },
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $b -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 2,
+          "column": 8,
+          "offset": 17
+        },
+        "context": "\"b\" => $b",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4612,
@@ -48358,38 +49560,12 @@
   {
     "index": 4624,
     "file": "whitespace-continuations.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $s -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 10,
-          "offset": 9
-        },
-        "context": "\"a,b\" => $s",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 4625,
     "file": "whitespace-continuations.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $s -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 12,
-          "offset": 11
-        },
-        "context": "\"hello\" => $s",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 4626,
@@ -48414,6 +49590,67 @@
   {
     "index": 4630,
     "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4631,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $s -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 10,
+          "offset": 9
+        },
+        "context": "\"a,b\" => $s",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 4632,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $s -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 12,
+          "offset": 11
+        },
+        "context": "\"hello\" => $s",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 4633,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4634,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4635,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4636,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4637,
+    "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -48430,12 +49667,12 @@
     ]
   },
   {
-    "index": 4631,
+    "index": 4638,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4632,
+    "index": 4639,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -48469,73 +49706,73 @@
     ]
   },
   {
-    "index": 4633,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4634,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4635,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4636,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4637,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $user -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 24,
-          "offset": 23
-        },
-        "context": "dict[name: \"alice\"] => $user",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 4638,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4639,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $user -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 24,
-          "offset": 23
-        },
-        "context": "dict[name: \"alice\"] => $user",
-        "fix": null
-      }
-    ]
-  },
-  {
     "index": 4640,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
     "index": 4641,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4642,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4643,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4644,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $user -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 24,
+          "offset": 23
+        },
+        "context": "dict[name: \"alice\"] => $user",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 4645,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4646,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $user -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 24,
+          "offset": 23
+        },
+        "context": "dict[name: \"alice\"] => $user",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 4647,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4648,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -48553,27 +49790,27 @@
     ]
   },
   {
-    "index": 4642,
+    "index": 4649,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4643,
+    "index": 4650,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4644,
+    "index": 4651,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4645,
+    "index": 4652,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4646,
+    "index": 4653,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   }

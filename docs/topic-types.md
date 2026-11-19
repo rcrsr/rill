@@ -538,6 +538,13 @@ Tuples are positional containers created with `tuple[...]` syntax.
 
 Index a tuple by position with `[i]` (negative indexes count from the end for both `[i]` and `.at(i)`), or with `.at(i)`. Indexing applies directly to a `tuple[...]` literal as well as to a captured tuple.
 
+`.len` returns the number of positions.
+
+```rill
+tuple[1, "a"].len
+# Result: 2
+```
+
 ```rill
 tuple[1, "a"] => $t
 $t[1]

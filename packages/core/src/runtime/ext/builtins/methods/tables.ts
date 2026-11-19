@@ -310,6 +310,8 @@ export const DURATION_METHODS = Object.freeze({
 
 export const TUPLE_METHODS = Object.freeze({
   empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
+  len: buildMethodEntry('len', SIG_LEN, mLen),
+  at: buildMethodEntry('at', SIG_AT, mAt, true),
   ...EQUALITY_METHODS,
 });
 
