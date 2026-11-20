@@ -222,7 +222,7 @@ status-probe  = ".!" , [ identifier ] ;
      union("a", "b") "a" => $x       -- declared type union("a", "b")
      list [1, 2] == list[1, 2]       -- true; spaces allowed before "["
      union(#off, #on) #on => $s      -- declared type union(#off, #on) *)
-declaration   = type-form , literal ;
+declaration   = type-form , ( string | number | bool | atom-literal | list | dict | tuple | ordered ) ;
 
 primary       = declaration
               | literal
@@ -457,6 +457,7 @@ brace-escape  = "{{" | "}}" ;   (* {{ -> literal {, }} -> literal } *)
 interpolation = "{" , expression , "}" ;
 
 number        = [ "-" ] , digit , { digit } , [ "." , digit , { digit } ] ;
+              (* the "-" must touch the first digit: -1 is a literal, "- 1" is not *)
 bool          = "true" | "false" ;
 
 (* List literal: bare bracket form or keyword-prefixed form.

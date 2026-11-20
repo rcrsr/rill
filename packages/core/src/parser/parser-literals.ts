@@ -1120,7 +1120,8 @@ function parseCollectionLiteral(
       const entryStart = current(this.state).span.start;
 
       // Detect missing key (e.g. dict[1] without colon after)
-      // LIST_LBRACKET and LBRACKET keys are multi-token, skip this check for them
+      // LIST_LBRACKET and LBRACKET keys are multi-token, skip this check for them.
+      // A minus is left to parseDictEntry, which accepts -1 and rejects a spaced - 1 as a key.
       if (
         this.state.tokens[this.state.pos + 1]?.type !== TOKEN_TYPES.COLON &&
         !check(this.state, TOKEN_TYPES.DOLLAR) &&
@@ -1128,7 +1129,7 @@ function parseCollectionLiteral(
         !check(this.state, TOKEN_TYPES.LIST_LBRACKET) &&
         !check(this.state, TOKEN_TYPES.LBRACKET) &&
         !check(this.state, TOKEN_TYPES.DICT_LBRACKET) &&
-        !isNegativeNumber(this.state)
+        !check(this.state, TOKEN_TYPES.MINUS)
       ) {
         throw new ParseError(
           ERROR_IDS.RILL_P004,

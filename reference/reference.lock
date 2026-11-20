@@ -191,7 +191,7 @@ datetime.unknown-key 69aa6a35ba5d
 datetime.value c946ba174efd
 datetime.wrong-type 9585caa1d5dd
 declaration.atom a0c9e14d04a7
-declaration.form f14923c51d7c
+declaration.form a10429e8946c number.negative@28b80927e50e
 declaration.kind 743e4119b6fd
 declaration.leaf 1847668d1dfe
 declaration.mismatch 62da6f75d63a
@@ -211,7 +211,7 @@ defaults.hydrated-type 7e897e168814
 defaults.hydration-tie 30b8fe06af36
 defaults.hydration-union 8d0580dfa977
 defaults.literal 7e2ff50ce07b
-defaults.negative 70dba7be9657
+defaults.negative f90e21b0849a number.negative@28b80927e50e
 defaults.nested 4308e8623b6a
 defaults.non-literal aa98fbcbe35c
 defaults.operator f0b443d57f0e
@@ -555,6 +555,7 @@ number.from-string-fail 56311bb2eeec
 number.literal 86cb2f92f979
 number.malformed 247ef493dd4c
 number.membership 526973115597
+number.negative 28b80927e50e
 number.no-coercion 9f7aea628c19
 number.no-equality-coercion 29f712ee53f8 equality.no-overlap@39f213f599cf
 number.ordering 5576feb3fc7f

@@ -17,10 +17,12 @@ A declaration is a type construction: a type written in front of a literal, such
 ## Syntax
 
 r[declaration.form] A type followed by a value forms one literal
-A written type followed by a value on the same line MUST form one literal.
+A written type followed by a value on the same line MUST form one literal. A negative number
+value follows `number.negative`, so `number -1` declares `-1` and `number - 1` is subtraction,
+which halts with RILL-R002.
 
 ```text
-declaration = type-form , literal ;
+declaration   = type-form , ( string | number | bool | atom-literal | list | dict | tuple | ordered ) ;
 ```
 
 ## Static rules

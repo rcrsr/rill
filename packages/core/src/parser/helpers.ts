@@ -198,13 +198,16 @@ export function describeToken(token: Token): string {
 }
 
 /**
- * Check for negative number: -42
+ * True when the cursor holds a minus whose end touches the next token and that
+ * token is a number: `-42`. A spaced `- 42` is not a negative literal.
  * @internal
  */
 export function isNegativeNumber(state: ParserState): boolean {
+  if (!check(state, TOKEN_TYPES.MINUS)) return false;
+  const next = peek(state, 1);
   return (
-    check(state, TOKEN_TYPES.MINUS) &&
-    peek(state, 1).type === TOKEN_TYPES.NUMBER
+    next.type === TOKEN_TYPES.NUMBER &&
+    current(state).span.end.offset === next.span.start.offset
   );
 }
 
@@ -358,11 +361,7 @@ export function isDictStart(state: ParserState): boolean {
   }
 
   // Dict can start with negative number followed by colon: [-42: value]
-  if (
-    check(state, TOKEN_TYPES.MINUS) &&
-    peek(state, 1).type === TOKEN_TYPES.NUMBER &&
-    peek(state, 2).type === TOKEN_TYPES.COLON
-  ) {
+  if (isNegativeNumber(state) && peek(state, 2).type === TOKEN_TYPES.COLON) {
     return true;
   }
 
@@ -414,7 +413,11 @@ function skipDictKey(state: ParserState, pos: number): number {
     return pos + 1;
   }
   if (type === TOKEN_TYPES.MINUS) {
-    return state.tokens[pos + 1]?.type === TOKEN_TYPES.NUMBER ? pos + 2 : -1;
+    const digit = state.tokens[pos + 1];
+    return digit?.type === TOKEN_TYPES.NUMBER &&
+      token.span.end.offset === digit.span.start.offset
+      ? pos + 2
+      : -1;
   }
   if (type === TOKEN_TYPES.DOLLAR) {
     const name = state.tokens[pos + 1];

@@ -321,4 +321,93 @@ describe('Rill Language: declarations', () => {
       }
     );
   });
+
+  describe('negative literal', () => {
+    rule('number.negative', 'declaration.form').it(
+      'declares -1 from number -1',
+      async () => {
+        expect(await run('number -1')).toBe(-1);
+      }
+    );
+
+    rule('number.negative', 'declaration.form').it(
+      'declares -1 from number-1 because the minus touches the digit',
+      async () => {
+        expect(await run('number-1')).toBe(-1);
+      }
+    );
+
+    rule('number.negative', 'declaration.form').it(
+      'halts number - 1 as subtraction on a type',
+      async () => {
+        const error = await run('number - 1').catch((e: unknown) => e);
+        expect(error).toMatchObject({ errorId: 'RILL-R002' });
+        expect((error as Error).message).toContain(
+          'Arithmetic requires number'
+        );
+      }
+    );
+
+    rule('number.negative').it('keeps unary minus on a spaced 1', async () => {
+      expect(await run('- 1')).toBe(-1);
+      expect(await run('list[- 1]')).toEqual([-1]);
+    });
+
+    rule('number.negative').it(
+      'keeps binary minus after an operand',
+      async () => {
+        expect(await run('3 -1')).toBe(2);
+        expect(await run('3 - 1')).toBe(2);
+      }
+    );
+
+    rule('number.negative', 'defaults.negative').it(
+      'accepts -5 and rejects - 5 as a param default',
+      async () => {
+        expect(await run('fn(b: number = -5) { $b } => $f\n$f()')).toBe(-5);
+        await expectParseError('fn(b: number = - 5) { $b }', 'RILL-P001');
+      }
+    );
+
+    rule('number.negative').it(
+      'rejects a spaced minus as a dict key',
+      async () => {
+        expect(await run('dict[-1: "a"]')).toEqual({ '-1': 'a' });
+        await expectParseError('dict[- 1: "a"]', 'RILL-P001');
+      }
+    );
+
+    rule('number.negative').it(
+      'rejects a spaced minus as an ordered key like a dict key',
+      async () => {
+        expect(await run('ordered[-1: 1] -> .len')).toBe(1);
+        await expectParseError('ordered[- 1: 1]', 'RILL-P001');
+      }
+    );
+
+    rule('number.negative').it(
+      'rejects a spaced minus as a type-argument literal default',
+      async () => {
+        expect(await run('dict[a: 1] -> dict(a: number = -1)')).toEqual({
+          a: 1,
+        });
+        await expectParseError('dict(a: number = - 1)', 'RILL-P001');
+      }
+    );
+
+    rule('number.negative').it(
+      'rejects a spaced minus as a slice bound',
+      async () => {
+        expect(await run('list[1, 2, 3, 4] -> slice<-2:>')).toEqual([3, 4]);
+        await expectParseError('list[1, 2, 3, 4] -> slice<- 2:>', 'RILL-P001');
+      }
+    );
+
+    rule('number.negative').it(
+      'rejects a spaced minus in a union member',
+      async () => {
+        await expectParseError('union(- 1, 2)', 'RILL-P001');
+      }
+    );
+  });
 });
