@@ -14981,7 +14981,36 @@
   {
     "index": 1456,
     "file": "declarations.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "SPACING_DECLARATION",
+        "message": "No space between 'list' and '[': write 'list[...]'",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 10,
+          "offset": 9
+        },
+        "context": "dict[list [\"a\", \"b\"]: 1]",
+        "fix": {
+          "description": "Remove the space before the bracket",
+          "applicable": true,
+          "range": {
+            "start": {
+              "line": 1,
+              "column": 10,
+              "offset": 9
+            },
+            "end": {
+              "line": 1,
+              "column": 11,
+              "offset": 10
+            }
+          },
+          "replacement": ""
+        }
+      }
+    ]
   },
   {
     "index": 1457,
@@ -34822,12 +34851,70 @@
   {
     "index": 3317,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "SPACING_DECLARATION",
+        "message": "No space between 'list' and '[': write 'list[...]'",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 5,
+          "offset": 4
+        },
+        "context": "list [1, 2]",
+        "fix": {
+          "description": "Remove the space before the bracket",
+          "applicable": true,
+          "range": {
+            "start": {
+              "line": 1,
+              "column": 5,
+              "offset": 4
+            },
+            "end": {
+              "line": 1,
+              "column": 6,
+              "offset": 5
+            }
+          },
+          "replacement": ""
+        }
+      }
+    ]
   },
   {
     "index": 3318,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "SPACING_DECLARATION",
+        "message": "No space between 'list' and '[': write 'list[...]'",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 5,
+          "offset": 4
+        },
+        "context": "list [1, 2]",
+        "fix": {
+          "description": "Remove the space before the bracket",
+          "applicable": true,
+          "range": {
+            "start": {
+              "line": 1,
+              "column": 5,
+              "offset": 4
+            },
+            "end": {
+              "line": 1,
+              "column": 6,
+              "offset": 5
+            }
+          },
+          "replacement": ""
+        }
+      }
+    ]
   },
   {
     "index": 3319,
@@ -36552,7 +36639,36 @@
   {
     "index": 3513,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "SPACING_DECLARATION",
+        "message": "No space between 'list' and '[': write 'list[...]'",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 5,
+          "offset": 4
+        },
+        "context": "list [1, 2] == list[1, 2]",
+        "fix": {
+          "description": "Remove the space before the bracket",
+          "applicable": true,
+          "range": {
+            "start": {
+              "line": 1,
+              "column": 5,
+              "offset": 4
+            },
+            "end": {
+              "line": 1,
+              "column": 6,
+              "offset": 5
+            }
+          },
+          "replacement": ""
+        }
+      }
+    ]
   },
   {
     "index": 3514,

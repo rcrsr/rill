@@ -47,6 +47,7 @@ import './signature-bare-key.js';
 import './spacing-braces.js';
 import './spacing-brackets.js';
 import './spacing-closure.js';
+import './spacing-declaration.js';
 import './spacing-member.js';
 import './spacing-operator.js';
 import './status-probe-no-field.js';

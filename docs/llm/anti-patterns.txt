@@ -363,7 +363,7 @@ Only the first halts. The rest parse and run; the checker reports them at
 info level. Write them tight anyway.
 
     use <ext:app>     # ERROR (RILL-P007): keyword and `<` must be adjacent
-    list [1, 2, 3]    # parses as list[1, 2, 3]; write it tight
+    list [1, 2, 3]    # SPACING_DECLARATION: keyword must touch its [
     $obj. field       # SPACING_MEMBER: dot must touch the field name
     $obj .field       # SPACING_MEMBER: same, on the other side
     $x->.upper        # SPACING_OPERATOR: pipe needs spaces both sides

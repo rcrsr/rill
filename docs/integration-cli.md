@@ -206,6 +206,7 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `SPACING_BRACES` | formatting | info | Braces need inner spacing |
 | `SPACING_BRACKETS` | formatting | info | Brackets need consistent spacing |
 | `SPACING_CLOSURE` | formatting | info | Space between an opening bracket and an `fn` literal |
+| `SPACING_DECLARATION` | formatting | info | No space before `[` after a type or collection keyword; one space before a scalar or atom value |
 | `SPACING_MEMBER` | formatting | info | Member access dot must touch the field name |
 | `INDENT_CONTINUATION` | formatting | info | Continuation line indentation |
 | `IMPLICIT_DOLLAR_METHOD` | formatting | info | Prefer implicit `$` for methods |
