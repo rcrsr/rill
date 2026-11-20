@@ -3,7 +3,7 @@ id: type-lock
 title: Type-locked variables
 status: normative
 since: 0.24.0
-issues: [628]
+issues: []
 grammar: []
 errors: [RILL-R001]
 depends: [type-value, structural-typing, any, union, assertion, carried-type, declaration, inference]
@@ -38,7 +38,7 @@ r[type-lock.empty] An empty collection locks its unspecified form
 An empty collection infers its unspecified form. `list[] => $x` MUST lock `$x` to `list` and
 admit any list.
 
-r[type-lock.declaration] A declaration locks a narrower type {pending #628}
+r[type-lock.declaration] A declaration locks a narrower type
 `list(number)[] => $x` MUST lock `$x` to `list(number)`, so `list["a"] => $x` MUST halt with
 RILL-R001.
 
@@ -108,7 +108,7 @@ $x
 # Result: list["a"]
 ```
 
-```rill pending=628
+```rill
 # Error: RILL-R001, $x is locked as list(number)
 list(number)[] => $x
 list["a"] => $x

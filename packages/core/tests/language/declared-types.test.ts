@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: declared types travel with the value
  *
@@ -19,6 +20,7 @@ import {
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 const U = 'union(number, string)';
 const DECL = `1 => $x:${U}\n`;
@@ -504,5 +506,42 @@ describe('Rill Language: declared types', () => {
     it('rejects ^(effective: 1) as a reserved annotation key', () => {
       expect(() => parse('^(effective: 1) fn(x) { $x }')).toThrow(ParseError);
     });
+  });
+
+  describe('declarations', () => {
+    rule('carried-type.carriage-declared').it(
+      'carries a declared type through a capture and a later assertion replaces it',
+      async () => {
+        const src = 'list(union(number, string))[1] => $l\n';
+        expect(await run(`${src}$l.^type.signature`)).toBe(
+          'list(union(number, string))'
+        );
+        expect(
+          await run(`${src}$l -> :list(number) => $m\n$m.^type.signature`)
+        ).toBe('list(number)');
+      }
+    );
+
+    rule('carried-type.carriage-declared').it(
+      'carries a declared type through element access',
+      async () => {
+        expect(
+          await run(
+            'list(union(number, string))[1, 2] => $l\n$l[0] => $e\n$e.^type.signature'
+          )
+        ).toBe('union(number, string)');
+      }
+    );
+
+    rule('carried-type.declared-probe').it(
+      'reports the declared type for .^type and the value type for .^effective',
+      async () => {
+        const src = 'list(union(number, string))[1] => $l\n';
+        expect(await run(`${src}$l.^type.signature`)).toBe(
+          'list(union(number, string))'
+        );
+        expect(await run(`${src}$l.^effective.signature`)).toBe('list(number)');
+      }
+    );
   });
 });

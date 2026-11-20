@@ -13,7 +13,7 @@ import type {
   UnaryExprNode,
 } from '@rcrsr/rill';
 import { nodeAtPosition, parse, parseWithRecovery, walkAst } from '@rcrsr/rill';
-import { unnamedParamsRead } from '../../src/ast-walk.js';
+import { readsPipeValue, unnamedParamsRead } from '../../src/ast-walk.js';
 
 /**
  * Full set of NodeType string literals, used as the membership oracle for
@@ -90,6 +90,7 @@ const KNOWN_NODE_TYPES_RECORD = {
   RetryBlock: true,
   AtomLiteral: true,
   StatusProbe: true,
+  Declaration: true,
 } satisfies Record<NodeType, true>;
 
 const KNOWN_NODE_TYPES = new Set<string>(Object.keys(KNOWN_NODE_TYPES_RECORD));
@@ -182,6 +183,7 @@ use<host:fn>:fn(param: dict(name: string = "d")) => $use_typed
 const NODE_COVERAGE_FIXTURE = `---
 name: demo
 ---
+list(number) list[1, 2]
 list[1, 2, 3] => $l
 dict[a: 1, b: dict[c: 2]] => $d
 tuple[1, 2] => $t
@@ -592,5 +594,42 @@ describe('unnamedParamsRead', () => {
     ['{ 5 -> fn(x) { $ } }', 0],
   ] as const)('counts unnamed params read by %s as %i', (source, expected) => {
     expect(unnamedParamsRead(bodyOf(source))).toBe(expected);
+  });
+});
+
+describe('Declaration node', () => {
+  function findDeclaration(source: string): ASTNode {
+    let found: ASTNode | undefined;
+    walkAst(parse(source), (node) => {
+      if (found === undefined && node.type === 'Declaration') found = node;
+    });
+    if (found === undefined) throw new Error('no declaration in fixture');
+    return found;
+  }
+
+  it('visits the type expression before the value', () => {
+    const declaration = findDeclaration('list(number) list[1, 2]');
+    if (declaration.type !== 'Declaration') throw new Error('unreachable');
+
+    const visited: ASTNode[] = [];
+    walkAst(declaration, (node) => {
+      visited.push(node);
+    });
+
+    expect(visited[0]).toBe(declaration);
+    expect(visited[1]).toBe(declaration.typeExpr);
+    expect(visited.indexOf(declaration.value)).toBeGreaterThan(1);
+    expect(declaration.typeExpr.type).toBe('TypeConstructor');
+    expect(declaration.value.type).toBe('ListLiteral');
+  });
+
+  it('reports a pipe value read inside a declaration value', () => {
+    let body: ASTNode | undefined;
+    walkAst(parse('{ list(number)[$] }'), (node) => {
+      if (body === undefined && node.type === 'Block') body = node;
+    });
+    if (body === undefined) throw new Error('no block in fixture');
+
+    expect(readsPipeValue(body, 'written')).toBe(true);
   });
 });

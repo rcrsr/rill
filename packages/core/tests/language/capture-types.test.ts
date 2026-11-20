@@ -371,4 +371,16 @@ $s`);
       }
     );
   });
+
+  describe('Declaration locks', () => {
+    rule('type-lock.declaration').it(
+      'locks a variable to the declared type of an empty literal',
+      async () => {
+        await expectHalt(() => run('list(number)[] => $x\nlist["a"] => $x'), {
+          code: 'RILL_R001',
+          hostErrorId: 'RILL-R001',
+        });
+      }
+    );
+  });
 });

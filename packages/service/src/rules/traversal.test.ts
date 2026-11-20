@@ -279,6 +279,15 @@ describe('traverseForRules / walkAst parity: targeted constructs', () => {
     expect(viaRules).toEqual(viaCore);
   });
 
+  it('Declaration visits its written type and its literal', () => {
+    const { viaRules, viaCore } = computeParity('list(number) list[1, 2]\n');
+    expect(viaRules).toEqual(viaCore);
+    const types = viaCore.map((node) => node.type);
+    expect(types).toContain('Declaration');
+    expect(types).toContain('TypeConstructor');
+    expect(types).toContain('ListLiteral');
+  });
+
   it('FnType with a parameter annotation', () => {
     const { viaRules, viaCore } = computeParity(
       'fn(^("label") x: string):number\n'

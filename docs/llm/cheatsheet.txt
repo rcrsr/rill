@@ -91,7 +91,9 @@ All copies are deep. All comparisons are by value. No object identity.
     Comments:     # single line only; a space after # is required (#word is an atom)
     Frontmatter:  ---\nkey: value\n---  # YAML at top of script
 
-CRITICAL: `keyword[` must have NO space before `[`. `list [1]` is a parse error.
+A written type before a literal on the same line declares it: `list(number)[1, 2]`, `union("a", "b") "a" => $x`. The capture locks the declared type, and a value outside it halts #TYPE_MISMATCH. A newline ends the type: `list(number)` then `[1, 2]` on the next line is two statements.
+
+`list [1]` equals `list[1]`: spaces or tabs before `[` are allowed on the same line. `use <ext:app>` still halts RILL-P007: `<` needs adjacency.
 
 Atoms are identified and compared by name: #FOO == #BAR is false, and any well-formed name is an atom. Nothing is registered. See errors for the built-in atoms and the core error set.
 

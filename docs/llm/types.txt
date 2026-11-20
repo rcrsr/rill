@@ -184,6 +184,34 @@ Constructed with function-call syntax.
     # printed form: units in order y mo d h m s ms, each at most once; only ms may be decimal
     # (1s500.5ms); each component at most 2^53-1
 
+## Declared literals
+
+A written type before a literal on the same line declares it. The type is checked against the value; a mismatch halts #TYPE_MISMATCH.
+
+    list(number)[1, 2] == [1, 2]            # true
+    list(number)["a"]                       # halts #TYPE_MISMATCH
+    union("a", "b") "a" => $x               # $x.^type.signature is union("a", "b")
+    union(#off, #on) #on => $s              # $s.^type.signature is union(#off, #on)
+    list()[1] => $a                         # $a.^type.signature is list(number)
+
+`list`, `list()` and `list(any)` are the unspecified form: no declared type, so the elements decide. A capture locks the declared type.
+
+    list(number)[] => $x
+    list["a"] => $x                         # halts RILL-R001: locked as list(number)
+
+`.^type` reads the declared type; `.^effective` reads the held value's type.
+
+    union(string, number) 42 => $x
+    $x.^type.signature                      # union(number, string)
+    $x.^effective.signature                 # number
+
+`:any` locks to the first value's type, not to `any`.
+
+    1 => $x:any
+    "a" => $x                               # halts RILL-R001
+
+A newline ends the type, so `list(number)` then `[1, 2]` on the next line is two statements. An atom after the type is a value, so `list(number) #ids` halts #TYPE_MISMATCH with a hint; write `# ids` for a comment. `list [1, 2]` equals `list[1, 2]`.
+
 ## Type inspection `^type`
 
 Returns a type value for runtime inspection.

@@ -142,6 +142,7 @@ See [Collection Slicing](topic-collection-slicing.md) for detailed documentation
 | Stream | `:stream(T):R` | host-provided | Stream value |
 | Block | `{ body }` | `{ $ + 1 }` | Runs in place; yields its last statement's value, or is a held entry (never a value) |
 | Atom | `#NAME` | `#TIMEOUT`, `#wired` | `:atom` value |
+| Declared literal | `T literal` | `list(number)[1, 2]`, `union("a", "b") "a"` | Literal checked against `T`, carrying `T` as its declared type |
 
 **Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `fn`, `list`, `dict`, `ordered`, `tuple`, `vector`, `iterator`, `datetime`, `duration`, `stream`, `atom`, `error_code`, `any`, `type`
 

@@ -343,6 +343,7 @@ export type PrimaryNode =
   | StatusProbeNode
   | GuardBlockNode
   | RetryBlockNode
+  | DeclarationNode
   | RecoveryErrorNode;
 
 export type PipeTargetNode =
@@ -374,7 +375,8 @@ export type PipeTargetNode =
   | FnTypeNode
   | UseExprNode
   | PassBlockNode
-  | TimeoutBlockNode;
+  | TimeoutBlockNode
+  | DeclarationNode;
 
 /** Invoke pipe value as a closure: -> $() or -> $(arg1, arg2) */
 export interface PipeInvokeNode extends BaseNode {
@@ -1056,6 +1058,27 @@ export interface OrderedLiteralNode extends BaseNode {
   readonly entries: DictEntryNode[];
 }
 
+/**
+ * Declaration: a written type followed on the same line by the literal it
+ * describes, as in `list(number) list[1, 2]` or `atom #wired`.
+ */
+export interface DeclarationNode extends BaseNode {
+  readonly type: 'Declaration';
+  readonly typeExpr: TypeConstructorNode | TypeNameExprNode | FnTypeNode;
+  readonly value: DeclarationValueNode;
+}
+
+/** The literal forms a declaration may carry. */
+export type DeclarationValueNode =
+  | StringLiteralNode
+  | NumberLiteralNode
+  | BoolLiteralNode
+  | AtomLiteralNode
+  | ListLiteralNode
+  | DictNode
+  | TupleLiteralNode
+  | OrderedLiteralNode;
+
 // ============================================================
 // DESTRUCT OPERATOR
 // ============================================================
@@ -1183,4 +1206,5 @@ export type ASTNode =
   | PassBlockNode
   | TimeoutBlockNode
   | AtomLiteralNode
-  | StatusProbeNode;
+  | StatusProbeNode
+  | DeclarationNode;

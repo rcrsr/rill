@@ -180,6 +180,47 @@ A variable locks to the full type of its first value, element types included.
     Right: list[1] => $x:list(union(number, string))
            list["a"] => $x                  # list["a"]
 
+## Declared literals
+
+A written type before a literal on the same line declares that literal. A newline ends the type.
+
+    Wrong: list(number)
+           [1, 2]                            # two statements: the type value, then list[1, 2]
+    Right: list(number)[1, 2]                # declared list(number)
+
+    Wrong: list(number)["a"]                 # halts #TYPE_MISMATCH: "a" is not a number
+    Right: list(number)[1, 2]
+
+    Wrong: list(number) #ids                 # halts #TYPE_MISMATCH: #ids is an atom, not a comment
+    Right: list(number) # ids                # a comment needs a space after #
+           [1, 2]
+
+    Wrong: list(number)[] => $x
+           list["a"] => $x                   # halts RILL-R001: locked as list(number)
+    Right: list(union(number, string))[] => $x
+           list["a"] => $x
+
+    Wrong: $l -> list(number)[0]             # a declared list target, not convert-then-index; halts RILL-R009
+    Right: ($l -> list(number))[0]           # convert, then index
+
+    Wrong: $l:list [0]                       # RILL-P001: a type after : takes no value
+    Right: ($l:list)[0]                      # assert, then index
+
+    Wrong: "b" -> string "x"                 # RILL-P031: a string target must read $
+    Right: "b" -> string "x {$}"
+
+## Declared types
+
+    Wrong: union(string, number) 42 => $x
+           $x.^type.signature                # "union(number, string)": .^type is the declared type
+    Right: union(string, number) 42 => $x
+           $x.^effective.signature           # "number": .^effective is the held value's type
+
+    Wrong: 1 => $x:any
+           "a" => $x                         # halts RILL-R001: :any locks to number, the first value
+    Right: 1 => $x:union(number, string)
+           "a" => $x
+
 ## Try/catch
 
     Wrong: try { fetch(url) } catch (e) { fallback }
@@ -330,7 +371,8 @@ The `|params| body` literal is removed (RILL-P012 names the fn form). The body o
 Only the first halts. The rest parse and run; the checker reports them at
 info level. Write them tight anyway.
 
-    list [1, 2, 3]    # ERROR (RILL-P007): keyword and bracket must be adjacent
+    use <ext:app>     # ERROR (RILL-P007): keyword and `<` must be adjacent
+    list [1, 2, 3]    # SPACING_DECLARATION: keyword must touch its [
     $obj. field       # SPACING_MEMBER: dot must touch the field name
     $obj .field       # SPACING_MEMBER: same, on the other side
     $x->.upper        # SPACING_OPERATOR: pipe needs spaces both sides

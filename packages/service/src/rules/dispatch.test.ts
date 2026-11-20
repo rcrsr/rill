@@ -199,6 +199,16 @@ describe('DISPATCH rules', () => {
   });
 });
 
+describe('DISPATCH rules through a declared table', () => {
+  it('reports a missing member through a Declaration-wrapped dict', () => {
+    const result = check(`${ATOMS} -> string -> dict(number) dict[a: 1]\n`);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ code: 'DISPATCH_MISSING_MEMBER' });
+    expect(result[0]?.message).toContain('no key for b');
+  });
+});
+
 describe('DISPATCH_FN_ENTRY', () => {
   it.each([
     [

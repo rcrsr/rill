@@ -883,6 +883,8 @@ $x.^effective.signature
 # Result: "number"
 ```
 
+A written type before a literal declares the literal the same way; see [Declared Literals](topic-variables.md#declared-literals).
+
 A declaration comes from a capture annotation, a `:T` assertion, a pipe into a union, a typed parameter, or `.!code`. It stays with `$`, captures, grouped expressions, `pass`, destructures, and function parameters. Element and field reads on a declared collection project the declared element type:
 
 ```rill

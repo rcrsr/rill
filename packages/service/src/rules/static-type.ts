@@ -8,12 +8,16 @@
 import type { ASTNode, StringLiteralNode, TypeRef } from '@rcrsr/rill';
 import type { RuleContext } from './types.js';
 import { chainlessVariableName, trailingMemberName } from './helpers.js';
-import { scalarLiteralKind, unwrapBareLiteral } from './literal-shape.js';
+import {
+  declarationTypeRef,
+  scalarLiteralKind,
+  unwrapBareLiteral,
+} from './literal-shape.js';
 
 const STATIC_STRING: TypeRef = { kind: 'static', typeName: 'string' };
 
 /** The kind-only static type of a scalar literal kind name, or null. */
-function scalarKindType(kind: string): TypeRef | null {
+export function scalarKindType(kind: string): TypeRef | null {
   switch (kind) {
     case 'number':
       return { kind: 'static', typeName: 'number' };
@@ -30,7 +34,8 @@ function scalarKindType(kind: string): TypeRef | null {
 
 /**
  * The type an expression is known to have: a bare scalar literal gives its
- * kind, `expr:T` gives `T`, a chainless variable bound once with a declared
+ * kind, `expr:T` gives `T`, a declaration gives its stated type (null when it
+ * states none), a chainless variable bound once with a declared
  * type gives that type, and anything else gives null.
  */
 export function staticTypeOf(expr: ASTNode, ctx: RuleContext): TypeRef | null {
@@ -38,6 +43,7 @@ export function staticTypeOf(expr: ASTNode, ctx: RuleContext): TypeRef | null {
   if (node.type === 'TypeAssertion' && node.operand !== null) {
     return node.typeRef;
   }
+  if (node.type === 'Declaration') return declarationTypeRef(node);
   const kind = scalarLiteralKind(node);
   if (kind !== null) return scalarKindType(kind);
   const name = chainlessVariableName(node);
@@ -51,6 +57,23 @@ export function isPassThroughStep(step: ASTNode): boolean {
   return (
     (step.type === 'TypeAssertion' && step.operand === null) ||
     step.type === 'Capture'
+  );
+}
+
+/** True when a type is the `any` type, which constrains nothing. */
+export function isAnyType(type: TypeRef): boolean {
+  return type.kind === 'static' && type.typeName === 'any';
+}
+
+/**
+ * True for a union, or for a collection or stream type whose element, field
+ * or value type contains one, at any depth.
+ */
+export function hasUnionPart(type: TypeRef): boolean {
+  if (type.kind === 'union') return true;
+  return (
+    type.kind === 'static' &&
+    (type.args ?? []).some((arg) => hasUnionPart(arg.value))
   );
 }
 
@@ -88,7 +111,8 @@ function asStringLiteral(member: TypeRef): TypeRef | null {
 
 /**
  * The type of the piped value after `step`, given its type `prev` before it.
- * A pass-through step keeps `prev` unless it states a type (`:T`, `$x:T`).
+ * A pass-through step keeps `prev` unless it states a type (`:T`, `$x:T`);
+ * `any` states nothing, so `:any` and `$x:any` keep `prev` too.
  * `-> string` on a union of atom or string literals gives the union of their
  * string values; on anything else it gives a plain string.
  */
@@ -97,9 +121,11 @@ export function typeAfterStep(
   step: ASTNode,
   _ctx: RuleContext
 ): TypeRef | null {
-  if (isPassThroughStep(step)) {
-    if (step.type === 'TypeAssertion') return step.typeRef;
-    if (step.type === 'Capture') return step.typeRef ?? prev;
+  if (step.type === 'TypeAssertion' || step.type === 'Capture') {
+    if (isPassThroughStep(step)) {
+      const stated = step.typeRef;
+      return stated === null || isAnyType(stated) ? prev : stated;
+    }
   }
   if (step.type === 'TypeNameExpr' && step.typeName === 'string') {
     if (prev?.kind !== 'union') return STATIC_STRING;

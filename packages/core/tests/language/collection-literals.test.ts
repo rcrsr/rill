@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Keyword-Prefixed Collection Literals
  * Tests for list[], dict[], tuple[], ordered[] keyword forms.
@@ -11,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { parse, ParseError, isTuple } from '@rcrsr/rill';
 
 import { run, runWithContext } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 import { isOrdered, orderedEntries } from '../helpers/ordered.js';
 
 describe('Rill Language: Keyword-Prefixed Collection Literals', () => {
@@ -340,30 +342,23 @@ describe('Rill Language: Keyword-Prefixed Collection Literals', () => {
   });
 
   // ============================================================
-  // WHITESPACE ADJACENCY AND BARE BRACKET ERRORS (AC-27, AC-35, EC-1, EC-5)
+  // WHITESPACE BEFORE THE BRACKET
   // ============================================================
 
-  describe('whitespace adjacency and bare bracket errors', () => {
-    it('throws ParseError with errorId RILL-P007 for list with whitespace before bracket (EC-1/AC-27)', () => {
-      let err: unknown;
-      try {
-        parse('list [1, 2]');
-      } catch (e) {
-        err = e;
-      }
-      expect(err).toBeInstanceOf(ParseError);
-      expect(err).toHaveProperty('errorId', 'RILL-P007');
-    });
-
-    it('throws ParseError with errorId RILL-P007 for ordered with whitespace before bracket (EC-5)', () => {
-      let err: unknown;
-      try {
-        parse('ordered [1, 2]');
-      } catch (e) {
-        err = e;
-      }
-      expect(err).toBeInstanceOf(ParseError);
-      expect(err).toHaveProperty('errorId', 'RILL-P007');
-    });
+  describe('whitespace before the bracket', () => {
+    for (const [kind, spaced, adjacent] of [
+      ['list', 'list [1, 2]', 'list[1, 2]'],
+      ['dict', 'dict [a: 1]', 'dict[a: 1]'],
+      ['tuple', 'tuple [1]', 'tuple[1]'],
+      ['ordered', 'ordered [a: 1]', 'ordered[a: 1]'],
+    ] as const) {
+      rule('declaration.spacing').it(
+        `accepts ${kind} with whitespace before bracket as the adjacent form`,
+        async () => {
+          expect(() => parse(spaced)).not.toThrow();
+          expect(await run(spaced)).toEqual(await run(adjacent));
+        }
+      );
+    }
   });
 });

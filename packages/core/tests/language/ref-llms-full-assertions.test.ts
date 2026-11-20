@@ -194,14 +194,9 @@ describe('ref-llms-full: Grammar Patterns', () => {
     expect(result).toEqual({ __rill_tuple: true, entries: [1, 2, 3] });
   });
 
-  it('list [1, 2] with space errors RILL-P007', () => {
-    try {
-      parse('list [1, 2]');
-      expect.fail('Should have thrown');
-    } catch (err) {
-      expect(err).toBeInstanceOf(ParseError);
-      expect(err).toHaveProperty('errorId', 'RILL-P007');
-    }
+  it('list [1, 2] with space is accepted as list[1, 2]', async () => {
+    expect(() => parse('list [1, 2]')).not.toThrow();
+    expect(await run('list [1, 2]')).toEqual([1, 2]);
   });
 
   it('destruct<> extracts variables', async () => {
@@ -1161,5 +1156,58 @@ describe('ref-llms-full: Operator Precedence', () => {
 
   it('multiplicative before additive: 2 + 3 * 4', async () => {
     expect(await run('2 + 3 * 4')).toBe(14);
+  });
+});
+
+// ============================================================
+// § Typed Literals
+// ============================================================
+
+describe('ref-llms-full: Typed Literals', () => {
+  it('list(number)[1, 2] equals [1, 2]', async () => {
+    expect(await run('list(number)[1, 2] == [1, 2]')).toBe(true);
+  });
+
+  it('declared list type locks the capture: list["a"] halts RILL-R001', async () => {
+    await expectHalt(() => run('list(number)[] => $x\nlist["a"] => $x'), {
+      code: 'RILL_R001',
+      hostErrorId: 'RILL-R001',
+    });
+  });
+
+  it('declared type mismatch halts #TYPE_MISMATCH', async () => {
+    expect(
+      await run('guard { list(number)["a"] } => $r\n$r.!code == #TYPE_MISMATCH')
+    ).toBe(true);
+  });
+
+  it('list [1, 2] equals list[1, 2]', async () => {
+    expect(await run('list [1, 2] == list[1, 2]')).toBe(true);
+  });
+
+  it('bare kind constructor infers the element type: list()[1]', async () => {
+    expect(await run('list()[1] => $a\n$a.^type.signature')).toBe(
+      'list(number)'
+    );
+  });
+
+  it('type then newline then [1, 2] is two statements', async () => {
+    expect(await run('list(number)\n["a"]')).toEqual(['a']);
+  });
+
+  it('declared type with an atom halts #TYPE_MISMATCH', async () => {
+    await expectHalt(() => run('list(number) #ids'), {
+      code: 'TYPE_MISMATCH',
+    });
+  });
+
+  it('use <ext:app> with a space raises RILL-P007', () => {
+    try {
+      parse('use <ext:app> => $app');
+      expect.fail('Should have thrown');
+    } catch (err) {
+      expect(err).toBeInstanceOf(ParseError);
+      expect(err).toHaveProperty('errorId', 'RILL-P007');
+    }
   });
 });

@@ -2,7 +2,7 @@
 
 *Editor tooling: outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a static checker*
 
-`@rcrsr/rill-language-service` ships editor-tooling providers (outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a static checker with 59 rule codes) built on `@rcrsr/rill`'s parser and AST. Its version is held exactly equal to `@rcrsr/rill`'s version, character-for-character.
+`@rcrsr/rill-language-service` ships editor-tooling providers (outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a static checker with 62 rule codes) built on `@rcrsr/rill`'s parser and AST. Its version is held exactly equal to `@rcrsr/rill`'s version, character-for-character.
 
 ## Subpath Exports
 
@@ -247,7 +247,7 @@ interface DiagnosticEdit {
 }
 ```
 
-Only the `NAMING_SNAKE_CASE` and `UNNECESSARY_ASSERTION` rules ever produce a non-null `fix`. `range`/`replacement` is the primary/anchor edit; `additionalEdits`, when present, are disjoint edits accompanying it (e.g. renaming every reference to a declaration renamed by the anchor edit). Appliers must apply every edit — the primary `range`/`replacement` and each `additionalEdits` entry — in descending offset order (last edit first). Otherwise earlier edits shift the offsets of later ones and renames dangle references.
+Only the `NAMING_SNAKE_CASE`, `UNNECESSARY_ASSERTION`, `DECLARED_TYPE_PROBE`, and `SPACING_DECLARATION` rules ever produce a non-null `fix`. `range`/`replacement` is the primary/anchor edit; `additionalEdits`, when present, are disjoint edits accompanying it (e.g. renaming every reference to a declaration renamed by the anchor edit). Appliers must apply every edit — the primary `range`/`replacement` and each `additionalEdits` entry — in descending offset order (last edit first). Otherwise earlier edits shift the offsets of later ones and renames dangle references.
 
 ```typescript
 interface CheckConfig {
@@ -280,6 +280,12 @@ The atom rules read `BUILTIN_ATOMS` and `ERROR_CODES` from `@rcrsr/rill`. `ATOM_
 `PIPE_ZERO_PARAM_TARGET` fires on a function with no parameters used as a pipe target, since the piped value is an excess argument and the call halts `RILL-R045`. It stays silent on functions with a parameter, on block targets, and on zero-parameter functions that are not pipe targets.
 
 `UNNECESSARY_ASSERTION` fires on an assertion of a string, number, bool, list, tuple, or dict literal to its own bare type. It does not flag an atom or an ordered literal, a parameterized assertion, or a literal asserted to a different type.
+
+`DECLARED_TYPE_PROBE` (info, category `types`) fires when `.^type` is read from a value declared with a union, or with a collection whose element or field type holds one. The read reports the declared type, not the value's own type, so the message suggests `.^effective`. The receiver is a direct `expr:T`, a declaration, a pass-through pipe step, or a variable bound once with a declared type. It stays silent on computed results, element reads, undeclared values, and pipes longer than one step. Its fix replaces the `type` key with `effective`.
+
+`ANY_CAPTURE_LOCK` (error, category `types`) fires on a second capture into a variable first captured with `:any` when the new value has a different type. `:any` locks the variable to the first value's own type, so the re-capture halts `RILL-R001`. The message suggests annotating the first capture with a `union(...)`. It applies in the same or a parent scope. It stays silent on unknown types, a first capture not annotated `any`, a union-declared first value that admits the second, the same type, and sibling scopes. It has no fix. `ScriptFacts` gains a required `captureValueTypes` field that this rule reads, and `declaredTypes` now also records a plain capture of a declared value.
+
+`SPACING_DECLARATION` (info, category `formatting`) fires on a space between a collection keyword and its bracket (`list [1]`) or between a written type and its bracket (`list(number) [1]`), and on anything other than one space between a written type and a scalar or atom value (`string"x"`, `union(#a, #b)   #a`). Each spaced form parses the same as the preferred one, so the rule is the only signal. Its fix removes the space before a bracket or sets the gap to one space.
 
 `MIXED_ELEMENT_TYPE_READ` fires when `.^type` or `.^effective` is read from a list literal of distinct compound shapes, or from the result of iterating a dict literal of distinct value shapes with `seq`, `fan`, `filter`, `acc`, `.values`, or `.entries`. The receiver may be the literal, a pipe from it, or a variable captured once from it. A list holding distinct shapes has a union element type, so the read reports that union, not one shared type. An element read from an undeclared list carries its own type, so `.^type` read on an element inside an iteration body reports that element's type and the rule stays silent there. The message suggests a type check such as `:?list(list)` when only the kind matters. It does not flag lists of uniform shape or any receiver that is not a plain literal.
 

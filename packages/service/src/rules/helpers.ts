@@ -9,6 +9,7 @@ import type {
   BlockNode,
   DictEntryNode,
   ExpressionNode,
+  SourceLocation,
   SourceSpan,
 } from '@rcrsr/rill';
 import type { Diagnostic, RuleContext } from './types.js';
@@ -372,4 +373,31 @@ export function bareBlockHead(head: ASTNode): BlockNode | null {
     return bareBlockHead(head.primary.expression.head);
   }
   return null;
+}
+
+// ============================================================
+// SOURCE POSITIONS
+// ============================================================
+
+/**
+ * Walks `source` from `anchor` up to `targetOffset`, tracking line/column
+ * as it crosses newlines, so an arbitrary offset within the source can be
+ * translated back into a `SourceLocation` relative to a known anchor.
+ */
+export function advancePosition(
+  anchor: SourceLocation,
+  source: string,
+  targetOffset: number
+): SourceLocation {
+  let line = anchor.line;
+  let column = anchor.column;
+  for (let i = anchor.offset; i < targetOffset; i++) {
+    if (source[i] === '\n') {
+      line++;
+      column = 1;
+    } else {
+      column++;
+    }
+  }
+  return { line, column, offset: targetOffset };
 }

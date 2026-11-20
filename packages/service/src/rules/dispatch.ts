@@ -55,8 +55,9 @@ function dispatchTarget(
   step: ASTNode,
   context: RuleContext
 ): DispatchTarget | null {
-  if (step.type === 'Dict') {
-    return { entries: step.entries, hasDefault: step.defaultValue !== null };
+  const table = step.type === 'Declaration' ? step.value : step;
+  if (table.type === 'Dict') {
+    return { entries: table.entries, hasDefault: table.defaultValue !== null };
   }
   if (
     step.type !== 'Variable' ||

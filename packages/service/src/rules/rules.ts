@@ -9,6 +9,7 @@
 
 // Import every rule module for its self-registration side effect. Order
 // here has no consumer-visible meaning.
+import './any-capture-lock.js';
 import './atoms.js';
 import './avoid-reassignment.js';
 import './bare-callable-body.js';
@@ -24,6 +25,7 @@ import './conversion-inner.js';
 import './filter-negation.js';
 import './dispatch.js';
 import './entries-pair.js';
+import './declared-type-probe.js';
 import './equality-overlap.js';
 import './fold-intermediates.js';
 import './guard-over-try-catch.js';
@@ -45,6 +47,7 @@ import './signature-bare-key.js';
 import './spacing-braces.js';
 import './spacing-brackets.js';
 import './spacing-closure.js';
+import './spacing-declaration.js';
 import './spacing-member.js';
 import './spacing-operator.js';
 import './status-probe-no-field.js';

@@ -8,7 +8,13 @@
  * fully static literal (variables, calls, spreads, computed keys).
  */
 
-import type { ASTNode, BlockNode, DictEntryNode } from '@rcrsr/rill';
+import type {
+  ASTNode,
+  BlockNode,
+  DeclarationNode,
+  DictEntryNode,
+  TypeRef,
+} from '@rcrsr/rill';
 import { staticEntryKey } from './helpers.js';
 
 // ============================================================
@@ -38,10 +44,51 @@ const COMPOUND_PREFIXES: readonly string[] = [
 // UNWRAPPING
 // ============================================================
 
+const COLLECTION_KINDS: ReadonlySet<string> = new Set([
+  'list',
+  'dict',
+  'tuple',
+  'ordered',
+  'stream',
+]);
+
+/**
+ * The type a declaration states, or null for the unspecified form: a bare
+ * collection kind (`list`, `list()`, `list(any)`) or `any`, which declare
+ * nothing beyond the value itself.
+ */
+export function declarationTypeRef(node: DeclarationNode): TypeRef | null {
+  const expr = node.typeExpr;
+  // The parser does not yet produce a Declaration over an fn type; the
+  // branch only satisfies the node's declared typeExpr union.
+  if (expr.type === 'FnType') return expr.typeRef;
+  if (expr.type === 'TypeNameExpr') {
+    return expr.typeName === 'any' || COLLECTION_KINDS.has(expr.typeName)
+      ? null
+      : { kind: 'static', typeName: expr.typeName };
+  }
+  if (expr.constructorName === 'union') {
+    return { kind: 'union', members: expr.args.map((arg) => arg.value) };
+  }
+  const [only] = expr.args;
+  const bare =
+    (expr.args.length === 0 && COLLECTION_KINDS.has(expr.constructorName)) ||
+    (expr.args.length === 1 &&
+      only?.name === undefined &&
+      only?.defaultValue === undefined &&
+      only?.value.kind === 'static' &&
+      only.value.typeName === 'any' &&
+      only.value.args === undefined);
+  return bare
+    ? null
+    : { kind: 'static', typeName: expr.constructorName, args: expr.args };
+}
+
 /**
  * Unwrap a bare PipeChain (no pipes, no terminator) and a bare PostfixExpr
  * (no methods, default, or existence check) down to the primary node.
- * Any other node is returned unchanged.
+ * A Declaration of the unspecified form unwraps to its literal. Any other
+ * node is returned unchanged.
  */
 export function unwrapBareLiteral(node: ASTNode): ASTNode {
   let current = node;
@@ -58,9 +105,11 @@ export function unwrapBareLiteral(node: ASTNode): ASTNode {
     current.defaultValue === null &&
     !current.existenceCheck
   ) {
-    return current.primary;
+    current = current.primary;
   }
-  return current;
+  return current.type === 'Declaration' && declarationTypeRef(current) === null
+    ? current.value
+    : current;
 }
 
 // ============================================================

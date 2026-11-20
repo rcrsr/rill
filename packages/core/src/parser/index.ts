@@ -12,6 +12,7 @@ import { Parser } from './parser.js';
 import './parser-script.js';
 import './parser-expr.js';
 import './parser-primary.js';
+import './parser-declaration.js';
 import './parser-pipe-target.js';
 import './parser-literals.js';
 import './parser-closure.js';

@@ -4,7 +4,7 @@
 # An entry changing here means the arbiter changed. That must be a language
 # spec change, never a fix to make an implementation change pass.
 #
-# 116 files.
+# 117 files.
 49952ceb33ddcc7695d90088af3ea143b2668676b490acb39d4ab282148945cd  packages/core/tests/language/access-halt.test.ts
 ebd29c9fcdb0d9aa2e051b24e9421b50efda599c636a0f4eb083a6cb4163a59f  packages/core/tests/language/annotations.test.ts
 e9429ce7f9f6b86135dbf7db16a8a3d3f05c85eb7b2841d1cdd72d57e20e8de5  packages/core/tests/language/anonymous-typed-closure-reflection.test.ts
@@ -19,7 +19,7 @@ ec4a0cc0ceb4657ac431d41685f9dd5b88cbbd468232f2fc17832ee489ddbf5c  packages/core/
 6f11dda7ebb7cd7f2eb7d67528e1dc5985a1fbcb699a36a66181926804f78fae  packages/core/tests/language/block-argument.test.ts
 14d9b0d1d7ebe38e001516f82fdf0eedc6a6ef551fe5bc565ad07aa44c398a56  packages/core/tests/language/block-scoping.test.ts
 d677c7610d0f1cfbfe23cbc291616dd5c8cbfb08b1e503d7a3c7c209bed59a6e  packages/core/tests/language/boolean.test.ts
-9eb220d7e802ceca113195b184bb91bd2cc5650ffc6503321257762c5f31c84a  packages/core/tests/language/capture-types.test.ts
+9737eff755c94779ac4f6df8c561abf90af11ff99c22fec4594cdfc60fa63863  packages/core/tests/language/capture-types.test.ts
 d9f12ec5bbce9497911f959f2fd130e1371f703bcba755ac8828969ed5c3deaf  packages/core/tests/language/chain.test.ts
 a5de67fbc85d7910fe8ccf6a2835f252854aae7aa3586abf2fd217f2a616c516  packages/core/tests/language/closure-annotation-defaults.test.ts
 5568514a5f54d909c0ff5292cf65e887d04f7aaf92cd3c2024029a7f0a273a2c  packages/core/tests/language/closure-auto-invoke.test.ts
@@ -27,7 +27,7 @@ a5de67fbc85d7910fe8ccf6a2835f252854aae7aa3586abf2fd217f2a616c516  packages/core/
 52b06c16d40d9b7c8abaf11bc31031e30090036bc4e130d2bea4c579f6baa17f  packages/core/tests/language/closure-hoist-validation.test.ts
 5da0598fad0882cdd62a4027f8dfa375302e318e792b57bcf32654f38cbf3955  packages/core/tests/language/closure-semantics.test.ts
 18ede7cc72996aa4415bb5deabadfc34fbf51d72c6fdb03dc22dd4ba7f256c32  packages/core/tests/language/code-block.test.ts
-386d60d5e4b9b069746495f31e86e990704feaa4e37cca3bd147908799826fee  packages/core/tests/language/collection-literals.test.ts
+ede87942e10a16cbccd0815cbf324bae7d3899055c79f025a045a7745e32aa81  packages/core/tests/language/collection-literals.test.ts
 ef74de6af8a8b154b5e4ab71fac018055742d17e15ba2cef7975f05a9049e093  packages/core/tests/language/collection-operators.test.ts
 54b15819a75896c74ba1c6bc22e3b2e398683df6c6b47e572e70ce7b3247202c  packages/core/tests/language/collection-slicing.test.ts
 b45f94e9b4b91e1a7b5aaccc4678817fa4184cf77bbc9db791e8bb1d320e3af8  packages/core/tests/language/collection-type-defaults-bugs.test.ts
@@ -35,7 +35,8 @@ e01ef4389436b9136443261c44f21d664051e8f6db5e87011e1d6db7288dc57f  packages/core/
 ce8a507e168a57a6188b9d92c8bad0cc985b64931f25dbbcab390bd60f78cfae  packages/core/tests/language/conditionals.test.ts
 6534488e8476bdcf00a9b015eab7686bd5e4470bbaf0c71f12605b092725171e  packages/core/tests/language/conversion.test.ts
 c4e3c60b80325a1902248a1b58322960739aa6f1ecaa2374a7a69661c00583c3  packages/core/tests/language/datetime.test.ts
-87aeddecec3fe46909b1ed48ab8ec108dd14157149e96dd5304cb91b4084a66f  packages/core/tests/language/declared-types.test.ts
+e1f5d81f31c4847c285565c72e056de7463bac58e8dffc18f01e5ec3c582299c  packages/core/tests/language/declarations.test.ts
+37dff6da503d8837221342247562210228b8a39d35f697180175eb48ed3b9f93  packages/core/tests/language/declared-types.test.ts
 6bee0f83defab325983da706ed0f11f2c73cd54d3ae77d9947d488e65d31502d  packages/core/tests/language/default-value-operator.test.ts
 00e0a0474134d574e79859e1dc8943601a5e50c8cad1e0db604aeafe6d6fd18e  packages/core/tests/language/destruct-slice-keyword.test.ts
 f5b2ba2477a9b4b91d37a34e902b9d999eb3717d5bd4c70f92920e81bd233cd7  packages/core/tests/language/dict-dispatch.test.ts
@@ -85,7 +86,7 @@ ddfab8792de6a77b9b36f918fad7d4653dba751eb3baf3f893c64dd07e358453  packages/core/
 7b151474103b83e354aea75978226e14f2efb5917312fc7729d89e7d8983633f  packages/core/tests/language/pass.test.ts
 02621fe0a804b25dd86049152698e3ec883859a19d4dbf95baf84681dee3bfc9  packages/core/tests/language/pipe-targets.test.ts
 17c44ce8a639f451d761a0994c299d5309eba813dbbfd09b0d81ff68c6a1c32c  packages/core/tests/language/property-access.test.ts
-ee699df969bebafad90ca8ebd4e1137af29e930150d8814fc806835f89ca3b2c  packages/core/tests/language/ref-llms-full-assertions.test.ts
+c03a65ce4d3df898e3da2195d9739d9d2971d23ab024233b279ec6f8be2a4b20  packages/core/tests/language/ref-llms-full-assertions.test.ts
 098ad9fbd5e810bca9a338a72d09a1be81caa444f52e615be804367a40a2410c  packages/core/tests/language/scope-isolation.test.ts
 1f007ff8922c1b52284ffc48a97d8b5131f5eab7ff19c98a428376f329557d70  packages/core/tests/language/sort.test.ts
 16be37c86408402fbe87b410922eb54d94ddbcfbc7603496cf4270e29221910a  packages/core/tests/language/spread.test.ts

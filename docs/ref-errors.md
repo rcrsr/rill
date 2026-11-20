@@ -267,20 +267,23 @@ fn(x) { yield }  # yield requires :stream() return type
 
 ### rill-p007
 
-**Description:** Keyword and bracket not adjacent
+**Description:** Keyword not adjacent to opener, or extra spread
 
-**Cause:** Collection keyword (list, ordered, destruct, slice) must be written with its bracket immediately following, no whitespace allowed.
+**Cause:** The angle-opener keywords use<, destruct< and slice< must be written with '<' immediately following, no whitespace allowed. A second spread argument (...) in one argument list also raises this error.
 
-**Resolution:** Remove the whitespace between the keyword and its bracket. Write 'list[...]' not 'list [...]'.
+**Resolution:** Remove the whitespace between the keyword and '<'. Write 'use<ext:app>' not 'use <ext:app>'. Pass at most one spread argument per call.
 
 **Example:**
 
 ```text
-# list with whitespace before [
-list [1, 2]  # Error: use list[1, 2]
+# use with whitespace before <
+use <ext:app> => $app  # Error: use use<ext:app>
 
-# ordered with whitespace before [
-ordered [a: 1]  # Error: use ordered[a: 1]
+# destruct with whitespace before <
+destruct <a, b>  # Error: use destruct<a, b>
+
+# slice with whitespace before <
+slice <0:2>  # Error: use slice<0:2>
 ```
 
 ---

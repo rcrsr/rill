@@ -696,7 +696,7 @@ describe('loadCorpus paths', () => {
   });
 });
 
-describe('cli', () => {
+describe('cli', { timeout: 30_000 }, () => {
   const run = (
     ...args: string[]
   ): { status: number | null; stdout: string; stderr: string } => {

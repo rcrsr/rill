@@ -559,21 +559,25 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_P007,
     category: 'parse',
-    description: 'Keyword and bracket not adjacent',
+    description: 'Keyword not adjacent to opener, or extra spread',
     messageTemplate:
       "keyword and bracket must be adjacent; found whitespace before '{bracket}'",
     cause:
-      'Collection keyword (list, ordered, destruct, slice) must be written with its bracket immediately following, no whitespace allowed.',
+      "The angle-opener keywords use<, destruct< and slice< must be written with '<' immediately following, no whitespace allowed. A second spread argument (...) in one argument list also raises this error.",
     resolution:
-      "Remove the whitespace between the keyword and its bracket. Write 'list[...]' not 'list [...]'.",
+      "Remove the whitespace between the keyword and '<'. Write 'use<ext:app>' not 'use <ext:app>'. Pass at most one spread argument per call.",
     examples: [
       {
-        description: 'list with whitespace before [',
-        code: 'list [1, 2]  # Error: use list[1, 2]',
+        description: 'use with whitespace before <',
+        code: 'use <ext:app> => $app  # Error: use use<ext:app>',
       },
       {
-        description: 'ordered with whitespace before [',
-        code: 'ordered [a: 1]  # Error: use ordered[a: 1]',
+        description: 'destruct with whitespace before <',
+        code: 'destruct <a, b>  # Error: use destruct<a, b>',
+      },
+      {
+        description: 'slice with whitespace before <',
+        code: 'slice <0:2>  # Error: use slice<0:2>',
       },
     ],
   },

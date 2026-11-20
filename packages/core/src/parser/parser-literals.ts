@@ -117,6 +117,7 @@ declare module './parser.js' {
     parseTupleOrDict(): ListLiteralNode | DictNode;
     parseTupleElement(): ExpressionNode | ListSpreadNode;
     parseDict(start: SourceLocation): DictNode;
+    parseKeywordCollectionBody(start: SourceLocation): DictNode;
     parseDictEntry(): DictEntryNode;
     parseCollectionLiteral(collectionType: 'list'): ListLiteralNode;
     parseCollectionLiteral(collectionType: 'dict'): DictLiteralNode;
@@ -587,6 +588,27 @@ function finishTuple(
     span: makeSpan(start, rbracket.span.end),
   } satisfies ListLiteralNode;
 }
+
+/**
+ * Parse the body of a `dict[` opener after the opener token is consumed:
+ * the empty `dict[]` or a dict with entries. `start` is the opener's start.
+ */
+Parser.prototype.parseKeywordCollectionBody = function (
+  this: Parser,
+  start: SourceLocation
+): DictNode {
+  skipNewlines(this.state);
+  if (check(this.state, TOKEN_TYPES.RBRACKET)) {
+    const rbracket = advance(this.state); // consume ]
+    return {
+      type: 'Dict',
+      entries: [],
+      defaultValue: null,
+      span: makeSpan(start, rbracket.span.end),
+    };
+  }
+  return this.parseDict(start);
+};
 
 Parser.prototype.parseTupleOrDict = function (
   this: Parser
@@ -1098,7 +1120,8 @@ function parseCollectionLiteral(
       const entryStart = current(this.state).span.start;
 
       // Detect missing key (e.g. dict[1] without colon after)
-      // LIST_LBRACKET and LBRACKET keys are multi-token, skip this check for them
+      // LIST_LBRACKET and LBRACKET keys are multi-token, skip this check for them.
+      // A minus is left to parseDictEntry, which accepts -1 and rejects a spaced - 1 as a key.
       if (
         this.state.tokens[this.state.pos + 1]?.type !== TOKEN_TYPES.COLON &&
         !check(this.state, TOKEN_TYPES.DOLLAR) &&
@@ -1106,7 +1129,7 @@ function parseCollectionLiteral(
         !check(this.state, TOKEN_TYPES.LIST_LBRACKET) &&
         !check(this.state, TOKEN_TYPES.LBRACKET) &&
         !check(this.state, TOKEN_TYPES.DICT_LBRACKET) &&
-        !isNegativeNumber(this.state)
+        !check(this.state, TOKEN_TYPES.MINUS)
       ) {
         throw new ParseError(
           ERROR_IDS.RILL_P004,

@@ -7,7 +7,7 @@ issues: []
 grammar: [number]
 errors: [RILL-L003, RILL-P001, RILL-R002, RILL-R036, RILL-R038, INVALID_INPUT, TYPE_MISMATCH]
 depends: [notation, halt, type-value]
-tests: [arithmetic.test.ts, literals.test.ts, type-assertions.test.ts]
+tests: [arithmetic.test.ts, declarations.test.ts, literals.test.ts, type-assertions.test.ts]
 ---
 
 # Numbers
@@ -25,6 +25,13 @@ number        = [ "-" ] , digit , { digit } , [ "." , digit , { digit } ] ;
 r[number.literal] A decimal literal yields a number
 A literal of one or more digits, optionally followed by a point and one or more digits, MUST
 yield a number. A leading `-` MUST negate it.
+
+r[number.negative] A negative literal's minus touches its digit
+Only a `-` that touches the first digit, as in `-1`, MUST be a negative number literal. A `-`
+separated from the digit by whitespace, as in `- 1`, MUST NOT be a literal. Where an expression
+is allowed, `- 1` MUST be unary minus applied to `1` and yield `-1`; where only a literal is
+allowed, `- 1` MUST raise RILL-P001. A `-` after an operand is binary minus, so `3 - 1` and
+`3 -1` both yield `2`.
 
 r[number.malformed] Exponent, hexadecimal, and separator forms are rejected
 A number literal followed by an exponent (`1e3`), a radix prefix (`0x10`), or a digit separator

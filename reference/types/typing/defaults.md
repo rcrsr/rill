@@ -29,7 +29,8 @@ r[defaults.literal] A default is a literal, never an expression
 A default MUST be a string, number, bool, atom, or a list, dict, tuple, or ordered literal.
 
 r[defaults.negative] A negative number is a literal default
-A default MUST accept a negative number, as in `b: number = -5`.
+A default MUST accept a negative number literal, as in `b: number = -5`. `number.negative` owns
+what a negative literal is, so `b: number = - 5` raises RILL-P001.
 
 r[defaults.non-literal] A default that is not a literal is rejected
 A variable reference, call, or parenthesized expression after `=` MUST raise RILL-P001.
