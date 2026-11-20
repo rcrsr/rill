@@ -334,7 +334,7 @@ range(1, 8) -> start_when({ $ > 4 })
 # Result: list["START", "c", "d"]
 ```
 
-### Using a Named Closure
+### Using a Named Function
 
 ```rill
 fn(x) { $x > 3 } => $threshold
@@ -404,7 +404,7 @@ If no element satisfies the predicate, `stop_when` returns all elements.
 # Result: list[1, 2, 3]
 ```
 
-### Using a Named Closure
+### Using a Named Function
 
 ```rill
 fn(x) { $x == 5 } => $atFive
@@ -423,6 +423,13 @@ range(1, 11) -> stop_when($atFive)
 ```text
 # Error: #TYPE_MISMATCH — predicate must return bool
 [1, 2, 3] -> stop_when({ $ + 1 })
+```
+
+`start_when` and `stop_when` call the predicate with one argument. A block that reads nothing halts `RILL-R045`, and a block that reads `$@` halts `RILL-R044`:
+
+```text
+# Error: RILL-R045 — the block reads no argument, start_when passes one
+range(1, 5) -> start_when({ true })
 ```
 
 ---

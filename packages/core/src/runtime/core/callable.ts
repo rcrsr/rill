@@ -142,7 +142,7 @@ export interface ScriptCallable extends CallableBase {
    * Brand of a held block: a collection entry that holds a code block.
    * It has no params and runs with the defining scope. Absent on functions.
    */
-  readonly held?: true;
+  readonly held?: true | undefined;
 }
 
 /** Application callable - host application-provided functions */

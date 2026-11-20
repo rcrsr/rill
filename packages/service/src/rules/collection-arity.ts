@@ -1,7 +1,10 @@
 /**
  * Flags a collection operator whose function argument cannot take the
  * arguments the operator passes it. `seq`, `fan`, `filter`, and `sort` pass
- * the element alone, so their function takes exactly one argument. `fold` and
+ * the element alone, so their function takes exactly one argument; so do
+ * `start_when`, `stop_when` (the element), `iterate`, and `chain` (the current
+ * value). `chain` is covered only in its direct function-argument form; a
+ * list of functions holds its blocks and stays silent. `fold` and
  * `acc` pass the element and the accumulator, so theirs takes exactly two.
  * A block argument counts its params by the unnamed params it reads; an fn
  * literal counts its declared params. This is the static analogue of the

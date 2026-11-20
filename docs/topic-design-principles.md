@@ -139,11 +139,11 @@ The `$` prefix enables **single-pass, unambiguous parsing** without a symbol tab
 | Syntax | Meaning |
 |--------|---------|
 | `name()` | Host function call |
-| `$name()` | Closure invocation |
+| `$name()` | Function invocation |
 | `$name` | Variable reference |
 | `name` in dict | Key literal |
 
-Without `$`, `process(data)` is ambiguous: is `process` a host function or a stored closure? Is `data` a variable or a key? Resolving this requires tracking all declarations—turning a simple parser into a multi-pass compiler.
+Without `$`, `process(data)` is ambiguous: is `process` a host function or a stored function? Is `data` a variable or a key? Resolving this requires tracking all declarations—turning a simple parser into a multi-pass compiler.
 
 **Additional disambiguation:**
 
@@ -158,7 +158,7 @@ Without `$`, `process(data)` is ambiguous: is `process` a host function or a sto
 |----------|---------|
 | Different prefix (`@name`) | Same complexity, no improvement |
 | Type annotations required | Doubles verbosity, needs type registry at parse |
-| `var` keyword | Still can't distinguish `fn()` (host) from `$fn()` (closure) |
+| `var` keyword | Still can't distinguish `fn()` (host) from `$fn()` (function) |
 | Context-aware parsing | 3-5x slower, requires symbol table |
 
 The `$` prefix follows rill's "no magic" principle: syntax communicates intent without requiring context or implicit rules.
@@ -185,7 +185,7 @@ $step3
 ### Shorthand in Collection Operators
 
 ```rill
-# Not rillistic: verbose closure
+# Not rillistic: verbose function
 ["hello", "world"] -> fan(fn(x) { $x.upper() })
 
 # Rillistic: method shorthand

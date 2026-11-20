@@ -243,7 +243,7 @@ Dict fields are sorted alphabetically in the formatted output.
 
 ### Callable Introspection: .^type.inner and .^type.outer
 
-All callable kinds expose their parameter and return type shapes through `.^type`. `$fn.^type.inner` reads the parameters and `$fn.^type.outer` reads the declared return type. Both work on script closures and application callables.
+All callable kinds expose their parameter and return type shapes through `.^type`. `$fn.^type.inner` reads the parameters and `$fn.^type.outer` reads the declared return type. Both work on script functions and application callables.
 
 **`.^type.inner`** returns a `RillOrdered` value directly. Each entry is a `[paramName, RillTypeValue]` pair, preserving parameter declaration order. A callable with no parameters returns an empty ordered dict. A function with unnamed parameters (`fn { $ + 1 }`) returns a tuple of their types instead of an ordered value.
 
@@ -434,7 +434,7 @@ const functions = getFunctions(ctx);
 Returns `FunctionMetadata[]` combining:
 1. Host functions, including any host function that overrides a built-in name
 2. Built-in functions, listed after all host functions
-3. Script closures (reads `^(doc: "...")` annotation for description)
+3. Script functions (reads `^(doc: "...")` annotation for description)
 
 ### getLanguageReference()
 

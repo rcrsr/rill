@@ -251,7 +251,7 @@ use<ext:app> => $app
 ["critical bug", "minor note", "critical fix"] -> filter({ .contains("critical") })
 ```
 
-### Closures
+### Functions
 
 First-class functions with captured environment.
 

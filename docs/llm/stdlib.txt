@@ -103,6 +103,8 @@ atom is not a function. Convert a string to an atom through the pipe: "TIMEOUT" 
     list["a", "b"] -> enumerate -> seq({ "{$.index}: {$.value}" })
     # list["0: a", "1: b"]
 
+`enumerate` on a list or dict that holds a code block halts #TYPE_MISMATCH, as `seq` and `.values` do.
+
 ## chain example
 
     chain(5, list[fn { $ * 2 }, fn { $ + 1 }])   # 5 -> 10 -> 11

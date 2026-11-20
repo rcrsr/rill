@@ -2,7 +2,7 @@
 
 *Editor tooling: outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a static checker*
 
-`@rcrsr/rill-language-service` ships editor-tooling providers (outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a static checker with 58 rule codes) built on `@rcrsr/rill`'s parser and AST. Its version is held exactly equal to `@rcrsr/rill`'s version, character-for-character.
+`@rcrsr/rill-language-service` ships editor-tooling providers (outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a static checker with 59 rule codes) built on `@rcrsr/rill`'s parser and AST. Its version is held exactly equal to `@rcrsr/rill`'s version, character-for-character.
 
 ## Subpath Exports
 
@@ -293,7 +293,9 @@ The atom rules read `BUILTIN_ATOMS` and `ERROR_CODES` from `@rcrsr/rill`. `ATOM_
 
 `DISPATCH_MISSING_MEMBER` fires when a union of string literals enters a dict dispatch table with no key for some member, so that member halts `RILL-R009`. The message names the missing members and the halt id. It stays silent when the table has a default, when any key is dynamic, spread, or computed, and when the selector is not a union of string literals.
 
-`COLLECTION_ARITY` fires on a `seq`, `fan`, `filter`, or `sort` call whose function argument does not take exactly one argument, and on a `fold` or `acc` call whose function does not take exactly two. A block argument counts the unnamed params it reads; an `fn` literal counts its declared params. Too few params halts `RILL-R045`; a surplus required param halts `RILL-R044`. The rule has `error` severity in the `collections` category. It stays silent when the argument is neither a block nor an `fn` literal.
+`COLLECTION_ARITY` fires on a `seq`, `fan`, `filter`, `sort`, `start_when`, `stop_when`, `iterate`, or `chain` call whose function argument does not take exactly one argument, and on a `fold` or `acc` call whose function does not take exactly two. A block argument counts the unnamed params it reads; an `fn` literal counts its declared params. Too few params halts `RILL-R045`; a surplus required param halts `RILL-R044`. The rule has `error` severity in the `collections` category. It stays silent when the argument is neither a block nor an `fn` literal.
+
+`BLOCK_CAPTURE` fires on a bare block captured into a variable, as in `{ 5 } => $x`. The block runs where it is written and `$x` holds its result, not a function. The message names `fn { ... }` as the way to store a function. It also fires on a call `$x()` when `$x` was captured once from such a block. The rule has `warning` severity in the `closures` category. It stays silent on `fn` literals and on blocks that are arguments, branches, or collection entries, and on a block that continues the chain, as in `{ 5 } -> { $ + 1 } => $x`.
 
 `DISPATCH_FN_ENTRY` fires when a string literal, or a union of string literals, enters a dict dispatch table and a selected entry is an `fn` literal. Dispatch returns a selected function uncalled, so the entry never runs; the message suggests writing a bare block to have dispatch run it, or calling the result. The rule has `warning` severity in the `conditionals` category. It stays silent on list targets selected by a numeric index.
 

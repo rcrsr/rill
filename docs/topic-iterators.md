@@ -126,6 +126,8 @@ $r.!code -> string
 
 `iterate` produces an unbounded stream. It starts with `seed` as the first emitted value. After each emission, it calls the function with the current value in `$` to produce the next value, which becomes both the next emission and the next seed.
 
+The function takes exactly one argument. A block that reads no `$`, such as `iterate({ 5 })`, halts `RILL-R045` when the stream is read, and one that reads `$@` halts `RILL-R044`.
+
 The stream is always infinite. You must bound it externally with `take(n)`, or accept that the iteration ceiling (`RILL_R010`) will halt execution.
 
 ### Pipe form

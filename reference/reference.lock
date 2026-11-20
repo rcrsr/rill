@@ -109,7 +109,7 @@ carried-type.own-element 1613e0cd4bce equality.no-overlap@39f213f599cf inference
 carried-type.replace 92d0ac2c5056 assertion.any@c486fea6b8eb
 carried-type.reserved-key 482d6a7d0ebf
 carried-type.type-probe eaad72137ace
-code-block 04aeb7890b7b break.return-body@23c89e6d85e2 dispatch.fn@f6d568543692 fn.bare-literal@da926d363944 fn.block-outer@d1fc49ffe0c9 fn.block-type@52e90c07026e pipe.uses-value@b0a557eb924b statement.result@4c84cfa0816c
+code-block b91083ffb360 break.return-body@23c89e6d85e2 dispatch.fn@f6d568543692 fn.bare-literal@da926d363944 fn.block-outer@d1fc49ffe0c9 fn.block-type@52e90c07026e pipe.uses-value@b0a557eb924b statement.result@4c84cfa0816c
 code-block.access 3a85d15f615c
 code-block.access-target 3681f2360105
 code-block.assert adcd030a8f58 assertion.mismatch@9dc0075657b2 assertion.pass@1a0a1da3896c
@@ -122,8 +122,9 @@ code-block.each-time 85492459e40a
 code-block.head 50fc507875b8
 code-block.held 3e6bfe9018e1
 code-block.host e816d5479960
+code-block.host-argument e6da76ffef3e fn.block-type@52e90c07026e
 code-block.no-params 1c1a7753352f
-code-block.non-selecting a76a3f590590
+code-block.non-selecting e02513284f66
 code-block.not-value f7293a3f40a0
 code-block.parens 7d9c790478e5
 code-block.pipe-target 10cd486fec05
@@ -451,8 +452,9 @@ invocation.before-body 248c16d5ba59
 invocation.excess adc4936056b0
 invocation.positional 95d22ed507e2
 invocation.type 3b9d5f0b7e24
-iteration a21ca399416b break.return-each@14a36a5597f3 break.seq@e47b3a30461b break.unsupported@2ea2eb802674 map.iteration@430d605ecfa7 pipe.call-operand@3a33d5a45012 scope.iteration@6614cdd083b1
+iteration f33914c2b39a break.return-each@14a36a5597f3 break.seq@e47b3a30461b break.unsupported@2ea2eb802674 map.iteration@430d605ecfa7 pipe.call-operand@3a33d5a45012 scope.iteration@6614cdd083b1
 iteration.arity f822d653be93
+iteration.arity-single 34913319a6c3
 iteration.callable a0543ec98142
 iteration.ceiling ba8fa1118415
 iteration.dict 574e84e3af53

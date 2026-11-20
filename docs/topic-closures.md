@@ -145,7 +145,7 @@ fn():stream(T):R { body }           # chunk type T, resolution type R
 
 A function literal is `fn`, an optional parameter list, an optional `:outer` type, and a block on the same line. `fn { body }` takes the unnamed parameters the body reads: none for a body that reads neither `$` nor `$@`, one for `$`, two for `$@`.
 
-The pipe-delimited function literal and the `closure` type name are rejected with RILL-P012, which names the `fn` form.
+The pipe-delimited function literal and the removed `closure` type name are rejected with RILL-P012, which names the `fn` form.
 
 ---
 
@@ -358,7 +358,7 @@ Operators take exact arity. `seq`, `fan`, `filter`, and `sort` call their functi
 # Error: RILL-R044: function requires a second argument
 ```
 
-A `fold` or `acc` function with fewer than two parameters halts RILL-R045, and one with a third required parameter halts RILL-R044. For the operators themselves, see [Collections](topic-collections.md).
+`seq`, `fan`, `filter`, `sort`, `start_when`, `stop_when`, `iterate`, and `chain` pass one argument. A `fold` or `acc` function with fewer than two parameters halts RILL-R045, and one with a third required parameter halts RILL-R044. For the operators themselves, see [Collections](topic-collections.md).
 
 A closure annotation on an argument block attaches to the function it becomes. On a head block it is ignored. An annotation on a held entry attaches to the held block. See [Closure Annotations](topic-closure-annotations.md).
 
@@ -421,7 +421,7 @@ $d -> $d.double
 
 ### Reads That Do Not Select
 
-A read that does not select one entry halts `#TYPE_MISMATCH` naming the entry when it reaches a held block, so a held block never escapes as a value. These reads are iteration, `.values`, `.entries`, `.first`, `.head`, `.tail`, `.reverse`, `.join`, `.has`, `.has_any`, `.has_all`, spread, `slice<>`, `take`, `skip`, `chain`, equality, interpolation, conversion (`-> list(any)`, `-> string`), and `log`. `.keys` and `.len` do not read entries. `.^type` and a type lock see the entry as `fn()`, even for `{ 1 }:number`, and a host receives it as the signature `fn():any` without running it.
+A read that does not select one entry halts `#TYPE_MISMATCH` naming the entry when it reaches a held block, so a held block never escapes as a value. These reads are iteration, `.values`, `.entries`, `.first`, `.head`, `.tail`, `.reverse`, `.join`, `.has`, `.has_any`, `.has_all`, spread, `slice<>`, `take`, `skip`, `chain`, equality, interpolation, conversion (`-> list(any)`, `-> string`), and `log`. `enumerate` reads entries too, so a list or dict that holds a block halts `#TYPE_MISMATCH` there. `.keys` and `.len` do not read entries. `.^type` and a type lock see the entry as `fn()`, even for `{ 1 }:number`, and a host receives a returned entry as the signature `fn():any` without running it. Passing a collection that holds a block to a host function halts `#TYPE_MISMATCH` naming the entry.
 
 ```rill
 guard { list[{ 5 }] -> seq({ $ }) } => $r

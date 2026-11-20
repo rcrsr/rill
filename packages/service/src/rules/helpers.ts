@@ -3,8 +3,10 @@
  * individual rule modules.
  */
 
+import { codeBlockShape } from '@rcrsr/rill';
 import type {
   ASTNode,
+  BlockNode,
   DictEntryNode,
   ExpressionNode,
   SourceSpan,
@@ -344,6 +346,30 @@ export function trailingMemberName(node: ASTNode): string | null {
       last.args.length === 0
       ? last.name
       : null;
+  }
+  return null;
+}
+
+// ============================================================
+// BARE BLOCK HEAD
+// ============================================================
+
+/**
+ * The naked code block that heads an expression, or null when the head is
+ * anything else. A block alone in parentheses counts, and so does a block
+ * followed by a type assertion. An `fn` literal is a Closure node, not a block.
+ */
+export function bareBlockHead(head: ASTNode): BlockNode | null {
+  const shape = codeBlockShape(head);
+  if (shape !== undefined) return shape.block;
+  if (
+    head.type === 'PostfixExpr' &&
+    head.methods.length === 0 &&
+    head.primary.type === 'GroupedExpr' &&
+    head.primary.expression.type === 'PipeChain' &&
+    head.primary.expression.pipes.length === 0
+  ) {
+    return bareBlockHead(head.primary.expression.head);
   }
   return null;
 }

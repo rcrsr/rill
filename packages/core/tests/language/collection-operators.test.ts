@@ -1257,6 +1257,31 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       );
     }
 
+    for (const [name, src, tail] of [
+      ['start_when', 'list[1, 2] -> start_when', ''],
+      ['stop_when', 'list[1, 2] -> stop_when', ''],
+      ['iterate', '1 -> iterate', ' -> take(2)'],
+      ['chain', '1 -> chain', ''],
+    ]) {
+      rule('iteration.arity-single').it(
+        `${name} with a block that reads nothing halts RILL-R045`,
+        async () => {
+          await expectRuntimeError(() => run(`${src}({ true })${tail}`), {
+            code: 'RILL-R045',
+          });
+        }
+      );
+
+      rule('iteration.arity-single').it(
+        `${name} with a block that reads $@ halts RILL-R044`,
+        async () => {
+          await expectRuntimeError(() => run(`${src}({ $@ })${tail}`), {
+            code: 'RILL-R044',
+          });
+        }
+      );
+    }
+
     rule('iteration.arity').it(
       'seq calls a one-param function with the element',
       async () => {

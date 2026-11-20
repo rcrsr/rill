@@ -17,6 +17,7 @@ import {
 } from '../../src/index.js';
 import type { ConditionalNode, PipeChainNode } from '../../src/index.js';
 import { expectHalt } from '../helpers/halt.js';
+import { hostFn, hostParam } from '../helpers/host.js';
 import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
@@ -1204,6 +1205,47 @@ describe('Rill Language: Code Blocks', () => {
         const native = toNative(await run('dict[a: { 1 }]'));
         expect(native.value).toEqual({ a: { signature: 'fn():any' } });
         expect(native.rillTypeSignature).toBe('dict(a: fn():any)');
+      }
+    );
+  });
+
+  describe('host function arguments', () => {
+    const sink = {
+      functions: {
+        sink: hostFn({
+          params: [hostParam('value', { kind: 'any' })],
+          fn: () => 'called',
+        }),
+      },
+    };
+
+    rule('code-block.host-argument').it(
+      'halts #TYPE_MISMATCH when an argument holds a block at any depth',
+      async () => {
+        await expectHalt(() => run('sink(list[dict[a: { 1 }]])', sink), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: "'a'",
+        });
+      }
+    );
+
+    rule('code-block.host-argument').it(
+      'passes a whole-argument block and a fn entry',
+      async () => {
+        expect(await run('sink({ 1 })', sink)).toBe('called');
+        expect(await run('sink(dict[a: fn { 1 }])', sink)).toBe('called');
+      }
+    );
+  });
+
+  describe('enumerate', () => {
+    rule('code-block.non-selecting').it(
+      'enumerate halts #TYPE_MISMATCH on a held entry',
+      async () => {
+        await expectHalt(() => run('enumerate(dict[a: { 1 }])'), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: "'a'",
+        });
       }
     );
   });

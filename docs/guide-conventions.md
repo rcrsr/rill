@@ -276,7 +276,7 @@ true
 true
 ```
 
-### Dict functions for computed properties
+### Call functions stored in a dict
 
 Selecting a function from a dict returns it uncalled. Call it with parentheses:
 

@@ -79,7 +79,7 @@ If the installed version does not satisfy the range, the CLI exits with an error
 }
 ```
 
-The identifier after `:` must be a closure exported by the script.
+The identifier after `:` must be a function exported by the script.
 
 ---
 

@@ -139,6 +139,9 @@ A block argument is typed by what it reads. Operators call with exact arity.
     Wrong: list[1, 2, 3] -> seq({ $@ })          # halts RILL-R044: $@ asks for a second argument
     Right: list[1, 2, 3] -> seq({ $ })           # list[1, 2, 3]
 
+    Wrong: range(1, 5) -> start_when({ true })   # halts RILL-R045: start_when passes one argument
+    Right: range(1, 5) -> start_when({ $ > 1 })  # stream from 2 onward; stop_when, iterate, chain take one argument too
+
 ## Held blocks in collections
 
 A block written as a dict value or list element is held uncalled. Reads that select no entry halt.

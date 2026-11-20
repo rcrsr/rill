@@ -4,8 +4,9 @@
  * ordinary HostCall nodes whose `name` is one of the five callable
  * builtins below. The function argument may parse as either a bare-block
  * form (`seq({ body })`, primary is a BlockNode) or an explicit function
- * (`seq(fn(x) { body })`, primary is a ClosureNode). `sort` also takes a
- * function and is covered by the arity model below.
+ * (`seq(fn(x) { body })`, primary is a ClosureNode). `sort`, `start_when`,
+ * `stop_when`, `iterate`, and `chain` also take a function and are covered by
+ * the arity model below.
  */
 
 import { codeBlockShape, unnamedParamsRead } from '@rcrsr/rill';
@@ -121,13 +122,23 @@ export function resolveOpBody(node: HostCallNode): BodyNode | null {
 // ============================================================
 
 /** The operators whose function argument has an exact arity. */
-export type ArityOpName = CollectionOpName | 'sort';
+export type ArityOpName =
+  | CollectionOpName
+  | 'sort'
+  | 'start_when'
+  | 'stop_when'
+  | 'iterate'
+  | 'chain';
 
 const OP_ARITY: Readonly<Record<ArityOpName, 1 | 2>> = {
   seq: 1,
   fan: 1,
   filter: 1,
   sort: 1,
+  start_when: 1,
+  stop_when: 1,
+  iterate: 1,
+  chain: 1,
   fold: 2,
   acc: 2,
 };

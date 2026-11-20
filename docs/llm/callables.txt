@@ -41,7 +41,7 @@ A code block is never a value. A braced body is a code block when nothing in fro
 
 A code block has no parameters. `$` and `$@` inside it resolve lexically. Reading `$` where nothing binds it halts RILL-R005. To store a function, put `fn` in front: `fn { 5 } => $x` binds a function, and `$x()` yields 5.
 
-`{ body }:T` runs the block, then asserts its result against `T`. `{ body }:?T` yields whether the result has type `T`. The suffix covers the whole block, and `:T` or `:?T` after a block is parsed on conditional branches only, not on loop, guard, retry, pass, or timeout bodies.
+`{ body }:T` runs the block, then asserts its result against `T`. `{ body }:?T` yields whether the result has type `T`. The suffix covers the whole block, and every block that runs takes the suffix. Loop, guard, retry, pass, and timeout bodies do not.
 
 ## Held entries
 
@@ -69,7 +69,7 @@ A block that is a whole argument converts to a function. Its unnamed parameters 
     list[1, 2, 3] -> seq({ 5 })               # halts RILL-R045: no read, seq passes one
     list[1, 2, 3] -> seq({ $@ })              # halts RILL-R044: requires a second argument
 
-Operators take exact arity. `seq`, `fan`, `filter`, and `sort` call with the element alone. `fold` and `acc` call with the element and the accumulator: fewer than two parameters halt RILL-R045, and a third required parameter halts RILL-R044. Write the block so its reads match the operator.
+Operators take exact arity. `seq`, `fan`, `filter`, and `sort` call with the element alone. `start_when`, `stop_when`, `iterate`, and `chain` call their function with one argument too. `fold` and `acc` call with the element and the accumulator: fewer than two parameters halt RILL-R045, and a third required parameter halts RILL-R044. Write the block so its reads match the operator.
 
 ## Function forms
 

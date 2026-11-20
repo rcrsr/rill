@@ -79,7 +79,7 @@ A code block is a braced body that runs where control flow reaches it. It is nev
 
 A block that is a collection entry is held and runs on each selection. A whole-argument block such as `seq({ })` converts to a function. See [Functions and Code Blocks](topic-closures.md) for held entries, selection, dispatch path steps, `$@` scope, annotations, and held-block halts.
 
-`{ body }:T` asserts and `{ body }:?T` tests the result. Only conditional branches accept the suffix, as in `true ? { 5 }:number ! { 6 }`.
+`{ body }:T` asserts and `{ body }:?T` tests the result. Every block that runs takes the suffix: conditional branches, pipe targets, head and parenthesized blocks, and held entries, as in `{ 5 }:number`. Loop, `guard`, `retry`, `pass`, and `timeout` bodies do not.
 
 ### Collection Operators
 
@@ -96,7 +96,7 @@ Arity differs by operator:
 
 | Operator | Function receives | Wrong arity |
 |----------|-------------------|-------------|
-| `seq`, `fan`, `filter`, `sort` | Element alone | `seq({ 5 })` halts `RILL-R045`; `seq({ $@ })` halts `RILL-R044` |
+| `seq`, `fan`, `filter`, `sort`, `start_when`, `stop_when`, `iterate`, `chain` | Element, or current value, alone | `seq({ 5 })` halts `RILL-R045`; `seq({ $@ })` halts `RILL-R044` |
 | `fold`, `acc` | Element and accumulator | Fewer than two parameters halts `RILL-R045`; a third required parameter halts `RILL-R044` |
 
 See [Collections](topic-collections.md) for detailed documentation. All six operators work on streams. They consume chunks as they arrive and return collected results when the stream closes.
@@ -428,7 +428,7 @@ Dict keys are strings and multi-key syntax `[k1, k2]: value` maps several keys t
 
 Path element types: string keys for dict lookup, number indexes for list access (negative indexes supported). A string key on a list halts `RILL-R002`; a non-string key on a dict follows [Dict Keys Are Strings](topic-types.md); a missing key or an out-of-range index halts `RILL-R009`.
 
-Terminal held blocks and functions receive `$` bound to the final path key.
+A terminal held block receives `$` bound to the final path key. A terminal function is returned uncalled.
 
 ```text
 ["name", "given"] -> [name: dict[given: "Alice"]]              # "Alice" (dict path)

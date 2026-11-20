@@ -38,6 +38,7 @@ import { inferType } from '../../types/registrations.js';
 import { isStream } from '../../types/guards.js';
 import { structureMatches, formatStructure } from '../../types/operations.js';
 import { isInternalFn, notifyActivity } from '../../activity.js';
+import { rejectHeldEntries } from '../../types/held-block.js';
 import { ControlSignal, YieldSignal } from '../../signals.js';
 import type { EvalState } from '../state.js';
 import { haltSlowPath } from './access.js';
@@ -566,6 +567,19 @@ async function invokeFnCallable(
     transferArgsDeclared(effectiveArgs, fnArgs);
   }
 
+  // A host function takes values; a collection argument that holds a block
+  // has none to give. Built-ins are internal and gate their own arguments.
+  if (!isInternalFn(callable.fn)) {
+    const site = {
+      location: callLocation,
+      sourceId: s.ctx.sourceId,
+      fn: functionName,
+    };
+    for (const value of Object.values(fnArgs)) {
+      rejectHeldEntries(value, functionName, site, 'deep');
+    }
+  }
+
   let result: RillValue;
   try {
     // Sync host-fn throws and rejected dispatch promises must reach the same
@@ -795,6 +809,32 @@ export function invokeScriptCallable(
   return invokeRegularScriptCallable(s, callable, args, callLocation);
 }
 
+/**
+ * Build the halt a script-callable boundary rethrows: `value` with a trace
+ * frame recording the boundary, tagged as extension-originated. The frame
+ * kind is `access`, the kind used where a halt propagates across a non-host
+ * runtime boundary.
+ */
+export function haltWithTraceFrame(
+  halt: RuntimeHaltSignal,
+  value: RillValue,
+  location: SourceLocation | undefined,
+  sourceId: string | undefined,
+  fn: string
+): RuntimeHaltSignal {
+  const enriched = appendTraceFrame(
+    value,
+    createTraceFrame({
+      site: formatCallSite(location, sourceId),
+      kind: TRACE_KINDS.ACCESS,
+      fn,
+    })
+  );
+  const signal = new RuntimeHaltSignal(enriched, halt.catchable);
+  markExtensionThrow(signal);
+  return signal;
+}
+
 async function invokeRegularScriptCallable(
   s: EvalState,
   callable: ScriptCallable,
@@ -863,7 +903,8 @@ async function invokeRegularScriptCallable(
     // `protocols/shared.ts`) rather than `host`.
     markExtensionThrow(e);
     if (e instanceof RuntimeHaltSignal) {
-      const enriched = appendTraceFrame(
+      throw haltWithTraceFrame(
+        e,
         fillHostShape(e.value, {
           sourceId: callableCtx.sourceId,
           // sourceText travels with sourceId: filled together or not at all.
@@ -875,15 +916,10 @@ async function invokeRegularScriptCallable(
               ? { sourceText: callableCtx.sourceText }
               : undefined,
         }),
-        createTraceFrame({
-          site: formatCallSite(callLocation, callableCtx.sourceId),
-          kind: TRACE_KINDS.ACCESS,
-          fn: 'invokeRegularScriptCallable',
-        })
+        callLocation,
+        callableCtx.sourceId,
+        'invokeRegularScriptCallable'
       );
-      const newSignal = new RuntimeHaltSignal(enriched, e.catchable);
-      markExtensionThrow(newSignal);
-      throw newSignal;
     }
     // Restore sourceId on RillError instances that escaped without one.
     // RuntimeError throws that bypass the halt builders still need sourceId

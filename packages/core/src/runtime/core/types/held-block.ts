@@ -3,21 +3,27 @@
  *
  * A held block is a script callable with no params that a collection entry
  * holds. It is never a value, so operations that read entries as values
- * reject it. This module is the only producer of that halt.
+ * reject it. This module owns the checks that raise that halt.
  *
  * @internal
  */
 
+import type { SourceLocation } from '../../../types.js';
+import type { RuntimeContext } from './runtime.js';
 import type { RillValue } from './structures.js';
-import { isCallable, isOrdered, isPlainDict, isTuple } from './guards.js';
+import type { ScriptCallable } from '../callable.js';
+import { isScriptCallable } from '../callable.js';
+import { isOrdered, isPlainDict, isTuple } from './guards.js';
 import { throwHeldEntryHalt, type TypeHaltSite } from './halt.js';
 
 /** Which entries `rejectHeldEntries` inspects. */
 export type HeldEntryMode = 'direct' | 'deep';
 
 /** True when the value is a held block. */
-export function isHeldBlock(value: RillValue): boolean {
-  return isCallable(value) && 'held' in value && value.held === true;
+export function isHeldBlock(
+  value: RillValue
+): value is ScriptCallable & { readonly held: true } {
+  return isScriptCallable(value) && value.held === true;
 }
 
 function checkEntry(
@@ -54,5 +60,25 @@ export function rejectHeldEntries(
     for (const [key, entry] of Object.entries(value)) {
       checkEntry(entry, key, op, site, mode);
     }
+  }
+}
+
+/** Halt when the one entry a read selects is a held block. */
+export function rejectHeldSelection(
+  entry: RillValue,
+  index: number,
+  op: string,
+  at: {
+    readonly location: SourceLocation | undefined;
+    readonly ctx: RuntimeContext;
+    readonly fn: string;
+  }
+): void {
+  if (isHeldBlock(entry)) {
+    throwHeldEntryHalt(op, index, {
+      location: at.location,
+      sourceId: at.ctx.sourceId,
+      fn: at.fn,
+    });
   }
 }

@@ -9,7 +9,6 @@
 import type { BlockNode, SourceLocation } from '../../../../types.js';
 import type { RillValue, TypeStructure } from '../../types/structures.js';
 import type { ScriptCallable } from '../../callable.js';
-import { isScriptCallable } from '../../callable.js';
 import { isHeldBlock } from '../../types/held-block.js';
 import {
   createChildContext,
@@ -19,14 +18,13 @@ import {
 import { setPipe } from '../../types/declared.js';
 import { RillError } from '../../../../types.js';
 import { RuntimeHaltSignal, throwFatalHostHalt } from '../../types/halt.js';
-import { appendTraceFrame, getStatus, mergeRaw } from '../../types/status.js';
-import { createTraceFrame, TRACE_KINDS } from '../../types/trace.js';
+import { getStatus, mergeRaw } from '../../types/status.js';
 import { isExtensionThrow, markExtensionThrow } from '../../extension-throw.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import type { EvalState } from '../state.js';
 import { getNodeLocation, withChildScope } from '../shared.js';
 import { evaluateBodyExpression } from './control-flow.js';
-import { formatCallSite, invokeCallable } from './closures.js';
+import { haltWithTraceFrame, invokeCallable } from './closures.js';
 import { restorePipe } from './declared-flow.js';
 
 /**
@@ -95,17 +93,13 @@ export async function runCodeBlock(
         outer.callStack.length > 0 && !('callStack' in priorRaw)
           ? mergeRaw(e.value, { callStack: [...outer.callStack] })
           : e.value;
-      const enriched = appendTraceFrame(
+      throw haltWithTraceFrame(
+        e,
         stacked,
-        createTraceFrame({
-          site: formatCallSite(location, outer.sourceId),
-          kind: TRACE_KINDS.ACCESS,
-          fn: 'invokeRegularScriptCallable',
-        })
+        location,
+        outer.sourceId,
+        'runCodeBlock'
       );
-      const signal = new RuntimeHaltSignal(enriched, e.catchable);
-      markExtensionThrow(signal);
-      throw signal;
     }
     throw e;
   } finally {
@@ -161,7 +155,7 @@ export async function resolveSelected(
   declared?: TypeStructure,
   location?: SourceLocation
 ): Promise<SelectedValue> {
-  if (!isHeldBlock(value) || !isScriptCallable(value)) {
+  if (!isHeldBlock(value)) {
     return { value, ran: false };
   }
   return {

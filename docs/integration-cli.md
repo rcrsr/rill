@@ -166,6 +166,7 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `EQUALITY_NO_OVERLAP` | types | warning | `==`, `!=`, `.eq`, or `.ne` (operator or pipe form), or `.has`, `.has_any`, or `.has_all` on a list literal of scalar literals, between operands whose types never overlap, so the comparison halts `#TYPE_MISMATCH` |
 | `PIPE_CONVERTS_INNER` | types | info | Pipe into `list(T)`, `dict(...)`, or `tuple(...)` of a statically known source with elements of another scalar kind, so `->` converts them; write `-> :T` to check without converting |
 | `PIPE_ZERO_PARAM_TARGET` | closures | warning | Pipe target function with no parameters, so the call halts `RILL-R045` |
+| `BLOCK_CAPTURE` | closures | warning | Bare block captured into a variable, `{ ... } => $x`, or a call on that variable; write `fn { ... }` to store a function |
 | `MIXED_ELEMENT_TYPE_READ` | types | info | `.^type` or `.^effective` read from a list literal of distinct compound shapes, or from the result of iterating a dict literal of distinct value shapes, where the read reports a union element type |
 | `TYPE_EXTRA_KEY` | types | warning | Typed check, capture, or parameter on a statically known dict or ordered literal with a key the type does not name, so it halts `#TYPE_MISMATCH` or `RILL-R001` |
 | `SIGNATURE_BARE_KEY` | types | warning | `.signature` compared with a string literal that spells a non-identifier key bare, so the comparison is always false (true for `!=`) |
@@ -188,7 +189,7 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `PREFER_DO_WHILE` | loops | info | Consider do-while for init-then-loop |
 | `USE_EACH` | loops | info | Use `each` instead of while loop |
 | `BREAK_IN_PARALLEL` | collections | error | `break` inside `map` or `filter` |
-| `COLLECTION_ARITY` | collections | error | `seq`, `fan`, `filter`, or `sort` function that does not take exactly one argument, or `fold` or `acc` function that does not take exactly two, so the call halts `RILL-R045` (too few) or `RILL-R044` (too many required) |
+| `COLLECTION_ARITY` | collections | error | `seq`, `fan`, `filter`, `sort`, `start_when`, `stop_when`, `iterate`, or `chain` function that does not take exactly one argument, or `fold` or `acc` function that does not take exactly two, so the call halts `RILL-R045` (too few) or `RILL-R044` (too many required) |
 | `BARE_CALLABLE_BODY` | collections | warning | Bare builtin or host name as a collection-op body is a zero-arg call, not a callable |
 | `PREFER_MAP` | collections | info | Use `map` when body has no side effects |
 | `FOLD_INTERMEDIATES` | collections | info | `acc` used only for its final value |

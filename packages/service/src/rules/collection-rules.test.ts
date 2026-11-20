@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { runRules } from './run-rules.js';
 import { breakInParallel } from './break-in-parallel.js';
+import { blockCapture } from './block-capture.js';
 import { collectionArity } from './collection-arity.js';
 import { preferMap } from './prefer-map.js';
 import { filterNegation } from './filter-negation.js';
@@ -315,6 +316,36 @@ describe('COLLECTION_ARITY', () => {
       'RILL-R045',
     ],
     [
+      'start_when with a block that reads no param',
+      'list[1, 2] -> start_when({ true })\n',
+      'start_when',
+      'RILL-R045',
+    ],
+    [
+      'stop_when with a block that reads the accumulator',
+      'list[1, 2] -> stop_when({ $@ })\n',
+      'stop_when',
+      'RILL-R044',
+    ],
+    [
+      'iterate with a block that reads no param',
+      'iterate(1, { 5 })\n',
+      'iterate',
+      'RILL-R045',
+    ],
+    [
+      'chain with a two-param fn',
+      'chain(1, fn(a, b) { $a })\n',
+      'chain',
+      'RILL-R044',
+    ],
+    [
+      'chain in pipe form with a block that reads no param',
+      '1 -> chain({ 5 })\n',
+      'chain',
+      'RILL-R045',
+    ],
+    [
       'acc with a block that reads no param',
       'list[1, 2] -> acc(0, { 5 })\n',
       'acc',
@@ -376,7 +407,59 @@ describe('COLLECTION_ARITY', () => {
       'fold with a defaulted third param',
       'list[1, 2] -> fold(0, fn(a, b, c = 1) { $a })\n',
     ],
+    [
+      'start_when with a block that reads $',
+      'list[1] -> start_when({ $ > 0 })\n',
+    ],
+    ['iterate with a block that reads $', 'iterate(1, { $ + 1 })\n'],
+    ['chain with a block that reads $', 'chain(1, { $ + 1 })\n'],
+    ['chain with a list of functions', 'chain(1, list[{ 5 }, { 6 }])\n'],
   ])('stays silent on %s', (_name, source) => {
     expect(check(source)).toEqual([]);
+  });
+});
+
+describe('BLOCK_CAPTURE', () => {
+  function check(source: string) {
+    return runRules(toParseResult(source), source, makeConfig(), [
+      blockCapture,
+    ]);
+  }
+
+  it.each([
+    ['a naked block capture', '{ 5 } => $f\n'],
+    ['a parenthesized block capture', '({ 5 }) => $f\n'],
+    ['a block with an assertion', '{ 5 }:number => $f\n'],
+    ['a call on a block-captured variable', '{ 5 } => $f\n$f()\n'],
+  ])('fires on %s', (_name, source) => {
+    const result = check(source);
+
+    expect(result.length).toBeGreaterThan(0);
+    expect(result[0]).toMatchObject({
+      code: 'BLOCK_CAPTURE',
+      severity: 'warning',
+      fix: null,
+    });
+    expect(result.at(-1)?.message).toContain('fn { ... }');
+  });
+
+  it('reports the capture and the call separately', () => {
+    expect(check('{ 5 } => $f\n$f()\n')).toHaveLength(2);
+  });
+
+  it.each([
+    ['an fn literal capture', 'fn { 5 } => $f\n$f()\n'],
+    ['a block that continues the chain', '{ 5 } -> { $ + 1 } => $f\n'],
+    ['an argument block', 'list[1] -> seq({ $ + 1 }) => $r\n'],
+    ['conditional branch blocks', 'true ? { 5 } ! { 6 } => $r\n'],
+    ['a held dict entry', 'dict[a: { 1 }] => $d\n'],
+    ['a held list entry', 'list[{ 1 }] => $l\n'],
+    ['a call on an fn-captured variable', 'fn(x) { $x } => $f\n$f(1)\n'],
+  ])('stays silent on %s', (_name, source) => {
+    expect(check(source)).toEqual([]);
+  });
+
+  it('does not report a call when the name is captured twice', () => {
+    expect(check('{ 5 } => $f\nfn { 6 } => $f\n$f()\n')).toHaveLength(1);
   });
 });

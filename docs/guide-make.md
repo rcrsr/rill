@@ -503,7 +503,7 @@ $i -> while ($ < 3) do { $ + 1 }
 $items -> fan({ "- {$}" }) -> .join("\n")      # markdown bullet list
 ```
 
-**Closures:**
+**Functions:**
 
 ```rill
 "prefix" => $pre

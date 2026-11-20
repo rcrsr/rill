@@ -59,7 +59,7 @@ Every operator accepts these sources: list, tuple, string, dict, ordered, iterat
 # Result: 6
 ```
 
-A function that takes too few parameters halts with RILL-R045. A function that requires too many halts with RILL-R044. The same rules apply to `fold` and `acc`, where a third required parameter halts with RILL-R044.
+A function that takes too few parameters halts with RILL-R045. A function that requires too many halts with RILL-R044. The same rules apply to `start_when`, `stop_when`, `iterate`, and `chain`, which also pass one argument, and to `fold` and `acc`, where a third required parameter halts with RILL-R044.
 
 ```rill
 [1, 2, 3] -> seq({ 5 })
@@ -120,9 +120,9 @@ When iterating over a dict, `$` contains `key` and `value` fields. Iteration vis
 # Result: list[2, 4, 6]
 ```
 
-### Variable Closure
+### Variable Function
 
-Pass a pre-defined closure by reference.
+Pass a pre-defined function by reference.
 
 ```rill
 fn(x) { $x * 2 } => $double
@@ -276,9 +276,9 @@ filter([1, 2, 3, 4, 5], { $ > 2 })
 # Result: list[2, 4, 6]
 ```
 
-### Variable Closure
+### Variable Function
 
-Pass a pre-defined closure by reference.
+Pass a pre-defined function by reference.
 
 ```rill
 fn(x) { $x > 2 } => $gtTwo
@@ -415,9 +415,9 @@ fold([1, 2, 3], 0, { $@ + $ })
 # Result: "abc"
 ```
 
-### Typed Accumulator Closure
+### Typed Accumulator Function
 
-Use a two-type anonymous closure to declare element and accumulator types.
+Use a two-type anonymous function to declare element and accumulator types.
 
 ```rill
 [1, 2, 3] -> fold(0, fn(number, number) { $@ + $ })
@@ -435,7 +435,7 @@ When folding over a dict, `$` contains `key` and `value` fields.
 
 ### Reusable Reducers
 
-Define closures for common reductions.
+Define functions for common reductions.
 
 ```rill
 fn(x, total) { $total + $x } => $summer
@@ -504,9 +504,9 @@ acc([1, 2, 3], 0, { $@ + $ })
 # Result: list["a", "ab", "abc"]
 ```
 
-### Typed Accumulator Closure
+### Typed Accumulator Function
 
-Use a two-type anonymous closure to declare element and accumulator types.
+Use a two-type anonymous function to declare element and accumulator types.
 
 ```rill
 [1, 2, 3] -> acc(0, fn(number, number) { $@ + $ })
@@ -803,7 +803,7 @@ Combine operators for multi-stage transformations.
 | Concurrency not a number | `[1] -> fan({ $ }, dict[concurrency: "a"])` | `#TYPE_MISMATCH` (catchable) |
 | Concurrency not positive integer | `[1] -> fan({ $ }, dict[concurrency: -1])` | `#INVALID_INPUT` (catchable) |
 | Unknown option key | `[1] -> fan({ $ }, dict[bogus: 1])` | `#INVALID_INPUT` (catchable) |
-| Typed closure type violation | `[1,2,3] -> fold(0, fn(string, number) { $@ + $ })` | RILL-R001 |
+| Typed function type violation | `[1,2,3] -> fold(0, fn(string, number) { $@ + $ })` | RILL-R001 |
 
 ---
 
@@ -931,6 +931,6 @@ Process nested structures with nested operators.
 - [Collection Slicing and Restructuring Operators](topic-collection-slicing.md) — `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `debounce`, `throttle`, `sample`, `pass<>` body form
 - [Iterators](topic-iterators.md) — Lazy sequences with `range`, `repeat`, `iterate` (infinite source stream), `.first()`
 - [Reference](ref-language.md) — Complete language specification
-- [Functions and Code Blocks](topic-closures.md) — Closure semantics and patterns
+- [Functions and Code Blocks](topic-closures.md) — Function semantics and patterns
 - [Guide](guide-getting-started.md) — Beginner introduction
 - [Examples](guide-examples.md) — Workflow examples

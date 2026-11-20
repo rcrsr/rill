@@ -777,7 +777,8 @@ export async function evaluateDict(
  *
  * Searches dict entries for a key matching the piped value. Dict keys are
  * strings, so a non-string input halts #TYPE_MISMATCH.
- * Returns matched value. Auto-invokes if matched value is closure.
+ * Returns the matched value. A selected held block runs with the selector as
+ * `$`; any other value, including a function, is returned uncalled.
  *
  * Multi-key support: [["k1", "k2"]: value] syntax allows multiple keys
  * to map to the same value. Key tuple is evaluated to get list of candidates.
@@ -785,7 +786,7 @@ export async function evaluateDict(
  * @param s - Evaluator state
  * @param node - DictNode representing dispatch table
  * @param input - Piped value to use as lookup key
- * @returns Matched value (auto-invoked if closure)
+ * @returns Matched value (a held block's result when one was selected)
  * @throws RuntimeHaltSignal if no match and no default
  */
 export async function evaluateDictDispatch(
@@ -997,6 +998,18 @@ function peelArgumentBlock(node: ASTNode): ArgumentBlock | undefined {
   }
 }
 
+const ARGUMENT_BLOCK_PARAM_COUNTS = new WeakMap<BlockNode, number>();
+
+/** Count of unnamed params an argument block reads, cached per block node. */
+function argumentBlockParamCount(block: BlockNode): number {
+  let count = ARGUMENT_BLOCK_PARAM_COUNTS.get(block);
+  if (count === undefined) {
+    count = unnamedParamsRead(block);
+    ARGUMENT_BLOCK_PARAM_COUNTS.set(block, count);
+  }
+  return count;
+}
+
 /**
  * Create the function an argument block converts to. Its params are the
  * unnamed params the body reads, each typed any; its outer is the `:T` written
@@ -1009,17 +1022,19 @@ async function createArgumentFunction(
 ): Promise<ScriptCallable> {
   const definingScope = s.ctx;
   const annotations: Record<string, RillValue> = {};
-  Object.assign(annotations, s.ctx.immediateAnnotation);
+  for (const [k, v] of Object.entries(s.ctx.immediateAnnotation ?? {})) {
+    setDictField(annotations, k, v);
+  }
   s.ctx.immediateAnnotation = undefined;
   if (arg.annotations.length > 0) {
-    Object.assign(
-      annotations,
-      await evaluateAnnotations(s, [...arg.annotations])
-    );
+    const written = await evaluateAnnotations(s, [...arg.annotations]);
+    for (const [k, v] of Object.entries(written)) {
+      setDictField(annotations, k, v);
+    }
   }
 
   const params = fieldDefsToParams(
-    Array.from({ length: unnamedParamsRead(arg.block) }, () => ({
+    Array.from({ length: argumentBlockParamCount(arg.block) }, () => ({
       type: { kind: 'any' } as const,
     }))
   );

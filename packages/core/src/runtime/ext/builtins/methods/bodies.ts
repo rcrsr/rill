@@ -22,8 +22,8 @@ import {
 } from '../../../core/types/guards.js';
 import { orderedDictEntries } from '../../../core/types/dict-keys.js';
 import {
-  isHeldBlock,
   rejectHeldEntries,
+  rejectHeldSelection,
 } from '../../../core/types/held-block.js';
 import { createTuple } from '../../../core/types/constructors.js';
 import { isEmpty } from '../../../core/values.js';
@@ -36,7 +36,6 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import {
   throwCatchableHostHalt,
   throwFatalHostHalt,
-  throwHeldEntryHalt,
 } from '../../../core/types/halt.js';
 import {
   findIndexPosition,
@@ -80,26 +79,6 @@ export const mLen: RillMethod = (receiver) => {
 
 /** Trim whitespace from string */
 export const mTrim: RillMethod = (receiver) => formatValue(receiver).trim();
-
-/** Halt when the one entry a read selects is a held block. */
-function rejectHeldSelection(
-  entry: RillValue,
-  index: number,
-  op: string,
-  at: {
-    readonly location: SourceLocation | undefined;
-    readonly ctx: RuntimeContext;
-    readonly fn: string;
-  }
-): void {
-  if (isHeldBlock(entry)) {
-    throwHeldEntryHalt(op, index, {
-      location: at.location,
-      sourceId: at.ctx.sourceId,
-      fn: at.fn,
-    });
-  }
-}
 
 /** Halt when a membership read compares a held block, in the list or an operand. */
 function rejectHeldMembership(

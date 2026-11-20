@@ -390,6 +390,8 @@ type NativeValue =
   | NativeArray | NativePlainObject;
 ```
 
+A value returned to the host that holds a code block reports the entry as the signature `fn():any` and does not run it. Passing a collection that holds a code block to a host function as an argument halts `#TYPE_MISMATCH` naming the entry.
+
 `rillTypeName` and `rillTypeSignature` describe the own type of the value, never a declared type.
 
 A dict converts to a plain object with string keys; a single number or boolean key in the source literal is already the string of its spelling, and a multi-key list element is a string.

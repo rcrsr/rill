@@ -14,11 +14,15 @@ describe('registry/config/validator key equality', () => {
     expect(new Set(codes).size).toBe(codes.length);
   });
 
-  it('registers COLLECTION_ARITY and DISPATCH_FN_ENTRY in the registry and default config', () => {
+  it('registers BLOCK_CAPTURE, COLLECTION_ARITY, and DISPATCH_FN_ENTRY in the registry and default config', () => {
     const codes = RULES.map((rule) => rule.code);
     const configCodes = Object.keys(createDefaultConfig().rules);
 
-    for (const code of ['COLLECTION_ARITY', 'DISPATCH_FN_ENTRY']) {
+    for (const code of [
+      'BLOCK_CAPTURE',
+      'COLLECTION_ARITY',
+      'DISPATCH_FN_ENTRY',
+    ]) {
       expect(codes).toContain(code);
       expect(configCodes).toContain(code);
       expect(validateRuleCodes([code])).toBeNull();

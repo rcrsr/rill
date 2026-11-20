@@ -81,6 +81,13 @@ that takes no argument MUST halt with RILL-R045, and a function that requires a 
 argument MUST halt with RILL-R044. `seq({ 5 })` MUST halt with RILL-R045, and `seq({ $@ })`
 MUST halt with RILL-R044.
 
+r[iteration.arity-single] start_when, stop_when, iterate, and chain take exact arity
+`start_when` and `stop_when` MUST call their function with the element alone, `iterate` with the
+current value alone, and `chain` with the value alone. A function that takes no argument MUST
+halt with RILL-R045, and a function that requires a second argument MUST halt with RILL-R044.
+`start_when({ true })` MUST halt with RILL-R045, and `1 -> chain({ $@ })` MUST halt with
+RILL-R044.
+
 r[iteration.empty] An empty source calls nothing
 An empty source MUST yield the operator's empty result without calling the function.
 
@@ -105,6 +112,8 @@ A map's entries are stated in `map.iteration`.
 | The function argument is not callable | `#TYPE_MISMATCH` | Yes |
 | `seq`, `fan`, `filter`, or `sort` calls a function that takes no argument | RILL-R045 | No |
 | `seq`, `fan`, `filter`, or `sort` calls a function that requires a second argument | RILL-R044 | No |
+| `start_when`, `stop_when`, `iterate`, or `chain` calls a function that takes no argument | RILL-R045 | No |
+| `start_when`, `stop_when`, `iterate`, or `chain` calls a function that requires a second argument | RILL-R044 | No |
 
 ## Examples
 

@@ -76,7 +76,7 @@ Access written as a pipe target MUST run a held block with `$` bound to the pipe
 With `dict[n: 2, double: { $.n * 2 }] => $d`, `$d -> $d.double` MUST yield 4.
 
 r[code-block.non-selecting] A read that selects no entry halts on a held block
-Iteration, `.values`, `.entries`, `.first`, `.head`, `.tail`, `.reverse`, `.join`, `.has`,
+Iteration, `enumerate`, `.values`, `.entries`, `.first`, `.head`, `.tail`, `.reverse`, `.join`, `.has`,
 `.has_any`, `.has_all`, spread, slicing, `take`, `skip`, `chain`, equality, interpolation,
 conversion, and `log` that reach a held block MUST halt with `#TYPE_MISMATCH` naming the entry.
 `.^type` and a type lock MUST see a held entry as `fn()`.
@@ -84,6 +84,11 @@ conversion, and `log` that reach a held block MUST halt with `#TYPE_MISMATCH` na
 r[code-block.host] Host conversion reports a held entry as fn()
 Converting a collection that holds a block to a host value MUST report the entry as the
 signature of `fn()` (`fn():any`), and MUST NOT run it.
+
+r[code-block.host-argument] A host function argument halts on a held block
+Calling a host function with an argument that holds a code block at any depth MUST halt with
+`#TYPE_MISMATCH` naming the entry, and MUST NOT call the function. A whole-argument block is a
+function (`fn.block-type`) and a `fn` entry is a value, so both MUST pass.
 
 r[code-block.each-time] A held block runs on every selection
 Each selection of a held block MUST run it again.
@@ -122,6 +127,7 @@ r[code-block.assert-construct] A construct body accepts an assertion
 | `$` or `$@` read where none is bound | RILL-R005 | Yes |
 | A code block's result fails its assertion | `#TYPE_MISMATCH` | Yes |
 | A read that selects no entry reaches a held block | `#TYPE_MISMATCH` | Yes |
+| A host function argument holds a code block | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 

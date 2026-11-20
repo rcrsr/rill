@@ -12,6 +12,7 @@
 import './atoms.js';
 import './avoid-reassignment.js';
 import './bare-callable-body.js';
+import './block-capture.js';
 import './break-in-parallel.js';
 import './capture-before-branch.js';
 import './capture-inline-chain.js';

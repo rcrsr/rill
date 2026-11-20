@@ -118,8 +118,14 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       },
     ],
     returnType: structureToTypeValue({ kind: 'list' }),
-    fn: (args) => {
+    fn: (args, ctx, location) => {
       const input: RillValue = args['items'] ?? null;
+      rejectHeldEntries(
+        input,
+        'enumerate',
+        { location, sourceId: ctx.sourceId, fn: 'enumerate' },
+        'direct'
+      );
       if (Array.isArray(input)) {
         return input.map((value, index) => ({ index, value }));
       }
