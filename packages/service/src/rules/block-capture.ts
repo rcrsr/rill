@@ -5,8 +5,10 @@
  *
  * - Capture: a chain headed by a naked block, or a block alone in
  *   parentheses, whose first pipe is a capture.
- * - Call: a call on a variable captured exactly once from such a block, since
- *   the variable holds the block's result.
+ * - Call: a call on a variable captured exactly once from such a block whose
+ *   last statement provably yields no function (a literal, arithmetic, an
+ *   interpolated string, a collection literal). A block ending in a call or a
+ *   variable may yield a function, so a call on its capture stays silent.
  *
  * An `fn` literal, an argument block, a conditional branch, and a block held
  * as a dict or list entry are not chain heads and stay silent.
@@ -32,7 +34,7 @@ export const blockCapture: Rule = {
         {
           code: 'BLOCK_CAPTURE',
           message:
-            'A code block is never a value: this block runs now and the capture binds its result. To store a function, write `fn { ... }`.',
+            'A code block is never a value: this block runs now and the capture binds its result. To store a function, write `fn { ... }`; to bind the result, drop the braces.',
           severity: 'warning',
           location: block.span.start,
           context: extractContextLine(block.span.start.line, context.source),

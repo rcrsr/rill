@@ -459,6 +459,31 @@ describe('BLOCK_CAPTURE', () => {
     expect(check(source)).toEqual([]);
   });
 
+  it('names both fixes in the capture message', () => {
+    expect(check('{ 5 } => $f\n')[0]?.message).toContain('drop the braces');
+  });
+
+  it.each([
+    ['a host call', 'use<ext:app> => $app\n{ $app.make() } => $f\n$f()\n'],
+    ['a variable', 'fn { 1 } => $g\n{ $g } => $f\n$f()\n'],
+    ['a piped chain', '{ 1 -> $mk } => $f\n$f()\n'],
+  ])(
+    'reports only the capture when the block ends in %s that may yield a function',
+    (_name, source) => {
+      const result = check(source);
+      expect(result).toHaveLength(1);
+      expect(result[0]?.message).toContain('A code block is never a value');
+    }
+  );
+
+  it.each([
+    ['arithmetic', '{ 1 + 2 } => $f\n$f()\n'],
+    ['an interpolated string', '{ "a{1}" } => $f\n$f()\n'],
+    ['a list literal', '{ list[1] } => $f\n$f()\n'],
+  ])('reports the call when the block ends in %s', (_name, source) => {
+    expect(check(source)).toHaveLength(2);
+  });
+
   it('does not report a call when the name is captured twice', () => {
     expect(check('{ 5 } => $f\nfn { 6 } => $f\n$f()\n')).toHaveLength(1);
   });

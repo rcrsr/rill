@@ -64,6 +64,7 @@ import { getCollectionOpBody, isCollectionOpCall } from './collection-ops.js';
 import { bareBlockHead, chainlessVariableName } from './helpers.js';
 import { isEntriesRead } from './static-type.js';
 import {
+  blockYieldsNonFunction,
   isMixedCompoundList,
   isMixedValueDict,
   unwrapBareLiteral,
@@ -151,7 +152,7 @@ export interface ScriptFacts {
     string,
     DictNode | DictLiteralNode | OrderedLiteralNode
   >;
-  /** Variables captured exactly once from a naked code block, never a closure parameter. */
+  /** Variables captured exactly once from a naked code block whose result is provably not a function, never a closure parameter. */
   readonly blockCapturedVars: ReadonlySet<string>;
   /** First zero-accessChain ClosureCall per callee name, in source order. */
   readonly firstClosureCall: ReadonlyMap<string, ClosureCallNode>;
@@ -518,12 +519,11 @@ export function collectFacts(root: ASTNode): AstFacts {
           }
         }
 
-        if (
-          node.pipes.length === 1 &&
-          onlyPipe?.type === 'Capture' &&
-          bareBlockHead(node.head) !== null
-        ) {
-          blockCandidates.add(onlyPipe.name);
+        if (node.pipes.length === 1 && onlyPipe?.type === 'Capture') {
+          const block = bareBlockHead(node.head);
+          if (block !== null && blockYieldsNonFunction(block)) {
+            blockCandidates.add(onlyPipe.name);
+          }
         }
 
         if (capture) {
