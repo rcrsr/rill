@@ -168,6 +168,8 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `PIPE_ZERO_PARAM_TARGET` | closures | warning | Pipe target function with no parameters, so the call halts `RILL-R045` |
 | `BLOCK_CAPTURE` | closures | warning | Bare block captured into a variable, `{ ... } => $x`, or a call on that variable when the block provably yields no function; write `fn { ... }` to store a function, or drop the braces to bind the result |
 | `MIXED_ELEMENT_TYPE_READ` | types | info | `.^type` or `.^effective` read from a list literal of distinct compound shapes, or from the result of iterating a dict literal of distinct value shapes, where the read reports a union element type |
+| `DECLARED_TYPE_PROBE` | types | info | `.^type` read from a value declared with a union, where the read reports the declared type; `.^effective` reports the value's own type |
+| `ANY_CAPTURE_LOCK` | types | error | Second capture of a different type into a variable first captured with `:any`, so the re-capture halts `RILL-R001` |
 | `TYPE_EXTRA_KEY` | types | warning | Typed check, capture, or parameter on a statically known dict or ordered literal with a key the type does not name, so it halts `#TYPE_MISMATCH` or `RILL-R001` |
 | `SIGNATURE_BARE_KEY` | types | warning | `.signature` compared with a string literal that spells a non-identifier key bare, so the comparison is always false (true for `!=`) |
 | `ENTRIES_PAIR_AS_LIST` | types | warning | An `.entries` pair checked against `list(list)` or used with a list-only method, field read, or `-> dict`, so it halts `#TYPE_MISMATCH`, `RILL-R003`, or `RILL-R036` |

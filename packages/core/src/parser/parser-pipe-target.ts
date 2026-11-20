@@ -6,6 +6,7 @@
 import { Parser } from './parser.js';
 import type {
   AnnotationAccessNode,
+  DeclarationNode,
   DoWhileLoopNode,
   WhileLoopNode,
   HostCallNode,
@@ -14,11 +15,13 @@ import type {
   PassBlockNode,
   TimeoutBlockNode,
   DictNode,
+  ListLiteralNode,
   ExistenceCheck,
   PipeTargetNode,
   PostfixExprNode,
   SourceLocation,
   SourceSpan,
+  FnTypeNode,
   TypeConstructorNode,
   TypeNameExprNode,
   VariableNode,
@@ -33,7 +36,6 @@ import {
   isAtEnd,
   makeSpan,
   peek,
-  skipNewlines,
   skipNewlinesIfFollowedBy,
 } from './state.js';
 import {
@@ -205,17 +207,30 @@ Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
   };
 };
 
+/**
+ * Attaches a trailing `?? default` to a list or dict literal pipe target.
+ * The default is the value dispatched when the piped value selects nothing.
+ * The node's span grows to cover the default.
+ */
+function withDispatchDefault<T extends ListLiteralNode | DictNode>(
+  parser: Parser,
+  node: T
+): T {
+  if (!check(parser.state, TOKEN_TYPES.NULLISH_COALESCE)) return node;
+  advance(parser.state);
+  const defaultValue = parser.parseDefaultValue();
+  return {
+    ...node,
+    defaultValue,
+    span: makeSpan(node.span.start, defaultValue.span.end),
+  };
+}
+
 // Handler: -> [...] — bare bracket literal (tuple or dict) with optional nullish coalesce
 Parser.prototype.parsePipeTargetBracket = function (
   this: Parser
 ): PipeTargetNode {
-  const literal = this.parseTupleOrDict();
-  if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
-    advance(this.state);
-    const defaultValue = this.parseDefaultValue();
-    return { ...literal, defaultValue };
-  }
-  return literal;
+  return withDispatchDefault(this, this.parseTupleOrDict());
 };
 
 // Handler: -> dict[...] — keyword-prefixed dict literal with optional nullish coalesce
@@ -224,31 +239,7 @@ Parser.prototype.parsePipeTargetDictLiteral = function (
 ): PipeTargetNode {
   const start = current(this.state).span.start;
   advance(this.state); // consume dict[
-  skipNewlines(this.state);
-
-  // Handle empty dict: dict[]
-  if (check(this.state, TOKEN_TYPES.RBRACKET)) {
-    const rbracket = advance(this.state); // consume ]
-    let defaultValue = null;
-    if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
-      advance(this.state);
-      defaultValue = this.parseDefaultValue();
-    }
-    return {
-      type: 'Dict',
-      entries: [],
-      defaultValue,
-      span: makeSpan(start, rbracket.span.end),
-    };
-  }
-
-  const dict = this.parseDict(start);
-  if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
-    advance(this.state);
-    const defaultValue = this.parseDefaultValue();
-    return { ...dict, defaultValue };
-  }
-  return dict;
+  return withDispatchDefault(this, this.parseKeywordCollectionBody(start));
 };
 
 // Dispatch table for parsePipeTarget. Single-token forms only.
@@ -350,19 +341,8 @@ const pipeTargetDispatchTable: Record<
     return this.parsePipeTargetBracket();
   },
   [TOKEN_TYPES.LIST_LBRACKET]: function (this: Parser): PipeTargetNode {
-    const listStart = current(this.state).span.start;
     advance(this.state); // consume list[
-    const listLiteral = this.parseCollectionLiteral('list');
-    if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
-      advance(this.state);
-      const defaultValue = this.parseDefaultValue();
-      return {
-        ...listLiteral,
-        defaultValue,
-        span: makeSpan(listStart, defaultValue.span.end),
-      };
-    }
-    return listLiteral;
+    return withDispatchDefault(this, this.parseCollectionLiteral('list'));
   },
   [TOKEN_TYPES.DICT_LBRACKET]: function (this: Parser): PipeTargetNode {
     return this.parsePipeTargetDictLiteral();
@@ -411,6 +391,40 @@ function attachPipeTargetIndex(
     defaultValue: null,
     span: makeSpan(primary.span.start, (methods.at(-1) ?? primary).span.end),
   } satisfies PostfixExprNode;
+}
+
+/**
+ * Moves a trailing `?? default` onto the list or dict literal inside a
+ * declaration, since the default belongs to the literal that is dispatched.
+ */
+function withInnerDefault(
+  this: Parser,
+  declaration: DeclarationNode
+): DeclarationNode {
+  const value = declaration.value;
+  if (value.type !== 'ListLiteral' && value.type !== 'Dict') return declaration;
+  const withDefault = withDispatchDefault(this, value);
+  if (withDefault === value) return declaration;
+  return {
+    ...declaration,
+    value: withDefault,
+    span: makeSpan(declaration.span.start, withDefault.span.end),
+  };
+}
+
+/**
+ * Tries the declaration hook after a written type in pipe-target position;
+ * with no same-line literal the type takes its optional `[i]` index chain.
+ */
+function attachDeclarationOrIndex(
+  this: Parser,
+  typeExpr: TypeConstructorNode | TypeNameExprNode | FnTypeNode
+): PipeTargetNode {
+  const tail = this.parseDeclarationTail(typeExpr);
+  if (tail.type === 'Declaration') return withInnerDefault.call(this, tail);
+  return typeExpr.type === 'FnType'
+    ? tail
+    : attachPipeTargetIndex.call(this, typeExpr);
 }
 
 // Runs the same postfix dispatch loop parsePostfixExprBase uses, but over a
@@ -524,7 +538,10 @@ function parseUncheckedPipeTarget(this: Parser): PipeTargetNode {
 
   // Inline fn literal or fn type value: -> fn(x) { body }
   if (isFnStart(this.state)) {
-    return this.parseFnForm();
+    const fnForm = this.parseFnForm();
+    return fnForm.type === 'FnType'
+      ? attachDeclarationOrIndex.call(this, fnForm)
+      : fnForm;
   }
 
   // Closure call as pipe target (supports property access: $math.double())
@@ -560,7 +577,7 @@ function parseUncheckedPipeTarget(this: Parser): PipeTargetNode {
   // Mirrors the primary-expression dispatch in parsePrimary (see parseTypeConstructor).
   if (atTypeConstructor(this.state)) {
     const name = current(this.state).value;
-    return attachPipeTargetIndex.call(this, this.parseTypeConstructor(name));
+    return attachDeclarationOrIndex.call(this, this.parseTypeConstructor(name));
   }
 
   // The removed `closure` type name as a pipe target
@@ -571,6 +588,12 @@ function parseUncheckedPipeTarget(this: Parser): PipeTargetNode {
   ) {
     throwRemovedClosureType(current(this.state).span.start);
   }
+
+  // A leaf type written with empty parens before a same-line literal:
+  // -> string() "a"
+  const leafDeclaration = this.parseLeafCallDeclaration();
+  if (leafDeclaration !== null)
+    return withInnerDefault.call(this, leafDeclaration);
 
   // Bare type keyword as pipe target: -> string, -> number, -> bool, ...
   // Produces TypeNameExprNode (mirrors parseBareHostCall's dispatch location
@@ -589,7 +612,7 @@ function parseUncheckedPipeTarget(this: Parser): PipeTargetNode {
       typeName: typeKeyword,
       span: token.span,
     };
-    return attachPipeTargetIndex.call(this, typeNameExpr);
+    return attachDeclarationOrIndex.call(this, typeNameExpr);
   }
 
   // Function call with parens
@@ -679,6 +702,26 @@ function checkPipeTarget(target: PipeTargetNode): PipeTargetNode {
           target.span.start
         );
       }
+      return target;
+    }
+    case 'Declaration': {
+      const value = target.value;
+      if (
+        value.type !== 'ListLiteral' &&
+        value.type !== 'Dict' &&
+        value.type !== 'StringLiteral'
+      ) {
+        const hint =
+          value.type === 'AtomLiteral'
+            ? ". Hint: a comment needs a space after '#'"
+            : '';
+        throw new ParseError(
+          ERROR_IDS.RILL_P001,
+          `Expected pipe target, got a declared ${value.type} value${hint}`,
+          value.span.start
+        );
+      }
+      checkPipeTarget(value);
       return target;
     }
     default:

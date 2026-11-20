@@ -62,11 +62,17 @@ import { opensScope } from '../opens-scope.js';
 import { traverseForRules } from './traversal.js';
 import { getCollectionOpBody, isCollectionOpCall } from './collection-ops.js';
 import { bareBlockHead, chainlessVariableName } from './helpers.js';
-import { isEntriesRead } from './static-type.js';
+import {
+  declarationTypeRef,
+  isAnyType,
+  isEntriesRead,
+  scalarKindType,
+} from './static-type.js';
 import {
   blockYieldsNonFunction,
   isMixedCompoundList,
   isMixedValueDict,
+  scalarLiteralKind,
   unwrapBareLiteral,
 } from './literal-shape.js';
 
@@ -167,9 +173,16 @@ export interface ScriptFacts {
   /**
    * Names bound exactly once script-wide (counting captures, destructure
    * targets, and closure params), where that one binding is a typed capture
-   * or typed closure param with a non-dynamic type.
+   * or typed closure param with a non-dynamic type, or a plain capture of a
+   * value that carries a declared type.
    */
   readonly declaredTypes: ReadonlyMap<string, TypeRef>;
+  /**
+   * The type each Capture node's value is known to have: a scalar literal
+   * kind, a declared type, an asserted type, a conversion target, or the
+   * declared type of a variable. An inferred collection type is never held.
+   */
+  readonly captureValueTypes: ReadonlyMap<CaptureNode, TypeRef>;
   /** Variables captured exactly once from a chain whose value is an `.entries` read. */
   readonly entriesVars: ReadonlySet<string>;
   /** Bodies of collection ops fed by an `.entries` read or an `entriesVars` variable. */
@@ -186,6 +199,43 @@ export interface AstFacts {
 // STREAM-SHAPE HELPERS
 // (moved verbatim from stream-pre-iteration.ts - pure shape checks, no walk)
 // ============================================================
+
+/**
+ * The type a capture's value is known to have from the step feeding it, or
+ * null when it is only inferred (a collection literal, a call, anything else).
+ */
+function valueTypeBefore(
+  before: ASTNode,
+  isChainHead: boolean,
+  declaredTypes: ReadonlyMap<string, TypeRef>
+): TypeRef | null {
+  const node = unwrapBareLiteral(before);
+  switch (node.type) {
+    case 'Declaration':
+      return isChainHead ? declarationTypeRef(node) : null;
+    case 'TypeAssertion':
+      return (isChainHead && node.operand === null) ||
+        node.typeRef.kind === 'dynamic' ||
+        isAnyType(node.typeRef)
+        ? null
+        : node.typeRef;
+    case 'TypeNameExpr':
+      return isChainHead || node.typeName === 'any'
+        ? null
+        : { kind: 'static', typeName: node.typeName };
+    case 'TypeConstructor':
+      return isChainHead || node.constructorName === 'union'
+        ? null
+        : { kind: 'static', typeName: node.constructorName, args: node.args };
+    default: {
+      if (!isChainHead) return null;
+      const kind = scalarLiteralKind(node);
+      if (kind !== null) return scalarKindType(kind);
+      const name = chainlessVariableName(node);
+      return name === null ? null : (declaredTypes.get(name) ?? null);
+    }
+  }
+}
 
 /** Find the trailing Capture node in a PipeChain's pipes array. */
 function findTrailingCapture(chain: PipeChainNode): CaptureNode | null {
@@ -391,6 +441,11 @@ export function collectFacts(root: ASTNode): AstFacts {
   const paramTypes = new Map<string, TypeRef>();
   const entriesCandidates = new Set<string>();
   const entriesBodies = new Set<ASTNode>();
+  // The step feeding each Capture: the chain head, or the pipe before it.
+  const captureInputs = new Map<
+    CaptureNode,
+    { readonly input: ASTNode; readonly isChainHead: boolean }
+  >();
   const entriesBodyCandidates: Array<readonly [string, ASTNode]> = [];
 
   const stack: Accumulator[] = [];
@@ -532,6 +587,13 @@ export function collectFacts(root: ASTNode): AstFacts {
         }
 
         node.pipes.forEach((pipe, index) => {
+          if (pipe.type === 'Capture') {
+            const previous = node.pipes[index - 1];
+            captureInputs.set(pipe, {
+              input: previous ?? node.head,
+              isChainHead: previous === undefined,
+            });
+          }
           if (!isCollectionOpCall(pipe)) return;
           const body = getCollectionOpBody(pipe);
           if (body === null) return;
@@ -688,6 +750,29 @@ export function collectFacts(root: ASTNode): AstFacts {
   for (const [name, typeRef] of paramTypes) {
     if (bindingCount(name) === 1) declaredTypes.set(name, typeRef);
   }
+  for (const [capture, { input, isChainHead }] of captureInputs) {
+    if (
+      !isChainHead ||
+      capture.typeRef !== null ||
+      bindingCount(capture.name) !== 1
+    ) {
+      continue;
+    }
+    const declaration = unwrapBareLiteral(input);
+    if (declaration.type !== 'Declaration') continue;
+    const typeRef = declarationTypeRef(declaration);
+    if (typeRef !== null) declaredTypes.set(capture.name, typeRef);
+  }
+
+  const captureValueTypes = new Map<CaptureNode, TypeRef>();
+  for (const [capture, { input, isChainHead }] of captureInputs) {
+    const own = capture.typeRef;
+    const typeRef =
+      own !== null && own.kind !== 'dynamic' && !isAnyType(own)
+        ? own
+        : valueTypeBefore(input, isChainHead, declaredTypes);
+    if (typeRef !== null) captureValueTypes.set(capture, typeRef);
+  }
 
   return {
     bySubtree,
@@ -705,6 +790,7 @@ export function collectFacts(root: ASTNode): AstFacts {
       paramNames,
       literalFieldAccessNames,
       declaredTypes,
+      captureValueTypes,
       entriesVars,
       entriesBodies,
     },

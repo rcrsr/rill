@@ -213,7 +213,19 @@ postfix-type-op = type-assertion | type-check ;
      fetch("url").!code            -- atom, a member of union(#ok, error_code): #ok, #FORBIDDEN, ... *)
 status-probe  = ".!" , [ identifier ] ;
 
-primary       = literal
+(* Declaration: a written type followed by a literal on the same line.
+   A same-line atom is the value, not a comment. A newline ends the
+   statement, so a literal on the next line is a separate statement.
+   A "$" variable holding a type followed by "[" is an index: $t[1].
+   Examples:
+     list(number)[1, 2] == [1, 2]    -- true
+     union("a", "b") "a" => $x       -- declared type union("a", "b")
+     list [1, 2] == list[1, 2]       -- true; spaces allowed before "["
+     union(#off, #on) #on => $s      -- declared type union(#off, #on) *)
+declaration   = type-form , literal ;
+
+primary       = declaration
+              | literal
               | atom-literal        (* #NAME — symbolic constant, e.g. #FORBIDDEN, #QUOTA_EXCEEDED *)
               | type-constructor    (* list(T), dict(k:T), tuple(T, T2), ordered(k:T), stream(T):R, union(T, ...) *)
               | type-name           (* type name as value — produces structural type value e.g. list(number), dict *)
@@ -449,7 +461,7 @@ bool          = "true" | "false" ;
 
 (* List literal: bare bracket form or keyword-prefixed form.
    Both [1, 2, 3] and list[1, 2, 3] are valid and produce the same result.
-   For keyword form, keyword and "[" must be adjacent (no whitespace).
+   For keyword form, keyword and "[" may be separated by spaces or tabs on the same line.
    [] and list[] are empty lists. A bracket literal that mixes positional
    and keyed entries, such as [1, a: 2], is a parse error (RILL-P001).
 
@@ -472,7 +484,7 @@ list-element  = "..." , expression           (* spread: inline list elements *)
 
 (* Dict literal: bare bracket form or keyword-prefixed form.
    Both [a: 1] and dict[a: 1] are valid and produce the same result.
-   For keyword form, keyword and "[" must be adjacent (no whitespace).
+   For keyword form, keyword and "[" may be separated by spaces or tabs on the same line.
    [:] and dict[] are empty dicts. The bare form takes every entry the
    keyword form takes, spread included. [] is the empty list, not a dict.
    In the bare form, $x: and (expr): are keys, so [$x:number] is a dict; an
@@ -510,7 +522,7 @@ dict-entry    = ( dict-key | "[" , expression , { "," , expression } , "]" ) , "
                  with the enclosing $, not the containing dict. *)
 
 (* Tuple literal: keyword-prefixed ordered positional container.
-   tuple[...] — keyword and "[" must be adjacent (no whitespace).
+   tuple[...] — keyword and "[" may be separated by spaces or tabs on the same line.
 
    Examples:
      tuple[]                          -- empty tuple
@@ -521,7 +533,7 @@ tuple-element = "..." , expression           (* spread: inline tuple elements *)
               | expression ;                 (* regular element *)
 
 (* Ordered literal: keyword-prefixed ordered key-value container.
-   ordered[...] — keyword and "[" must be adjacent (no whitespace).
+   ordered[...] — keyword and "[" may be separated by spaces or tabs on the same line.
    Preserves insertion order. Used with spread unpacking at invocation.
 
    Examples:
@@ -1148,8 +1160,9 @@ positive-integer = nonzero-digit , { digit } ;
                  are parse errors. *)
 
 on-clause     = "on" , ":" , ( atom-literal | "list[" , atom-literal , { "," , atom-literal } , "]" ) ;
-              (* Lexer note: "list[" is a single compound token. The lexer requires
-                 NO whitespace between "list" and "[" — `list [ ... ]` is rejected.
+              (* Lexer note: "list[" is a single compound token. Spaces or tabs on
+                 the same line between "list" and "[" fold into the same token;
+                 a newline or comment between them stops the fold.
                  Likewise, "guard{" and "retry<" are compound tokens when no
                  whitespace separates the keyword from the bracket; the bare
                  "guard" / "retry" forms are also accepted when whitespace is present. *)

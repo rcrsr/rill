@@ -91,6 +91,7 @@ import {
   evaluateTypeCheck,
   evaluateTypeConstructor,
   evaluateFnType,
+  evaluateDeclarationCarried,
 } from './types.js';
 import { ERROR_CODE_STRUCTURE } from '../../types/error-code.js';
 import {
@@ -522,6 +523,9 @@ export async function evaluatePrimary(
     case 'FnType':
       return evaluateFnType(s, primary);
 
+    case 'Declaration':
+      return (await evaluateDeclarationCarried(s, primary)).value;
+
     case 'ListLiteral':
     case 'DictLiteral':
     case 'TupleLiteral':
@@ -679,7 +683,7 @@ export async function evaluatePipeTarget(
 }
 
 /** Where a held pipe-target value came from, for halts, labels and defaults. */
-interface HeldTargetSite {
+export interface HeldTargetSite {
   readonly node: ASTNode;
   readonly defaultValue: BodyNode | null;
   readonly label: string;
@@ -720,9 +724,11 @@ function useTargetLabel(target: UseExprNode): string {
  * Dispatch a held value as a pipe target: invoke a callable, convert through a
  * type value, or select an element from a list, dict, tuple or ordered value.
  * A selection carries the element's declared type; invocation and conversion
- * take their own type. Shared by variable and use<> targets.
+ * take their own type. Shared by variable, use<> and declared-literal targets.
+ *
+ * @internal
  */
-async function evaluateHeldPipeTarget(
+export async function evaluateHeldPipeTarget(
   s: EvalState,
   held: Carried,
   carried: Carried,

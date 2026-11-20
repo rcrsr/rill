@@ -11,9 +11,11 @@
  * plain literal never fires.
  */
 
-import type { ASTNode, PostfixExprNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { chainlessVariableName, extractContextLine } from './helpers.js';
+import { collectProbeReads } from './probe-reads.js';
+import type { ProbeRead, ProbeStage } from './probe-reads.js';
 import { registeredRules } from './rules-registry.js';
 import { isCollectionOpCall } from './collection-ops.js';
 import {
@@ -45,11 +47,19 @@ const DICT_ITERATION_METHODS: ReadonlySet<string> = new Set([
 type ReceiverKind = 'list' | 'dict' | null;
 
 /** Whether `input` is a mixed compound list (kind `list`) or a mixed-value dict (kind `dict`). */
-function sourceKind(input: ASTNode, context: RuleContext): ReceiverKind {
-  const node = unwrapBareLiteral(input);
-  if (isMixedCompoundList(node)) return 'list';
-  if (isMixedValueDict(node)) return 'dict';
-  const name = chainlessVariableName(node);
+function sourceKind(
+  input: ASTNode | string,
+  context: RuleContext
+): ReceiverKind {
+  let name: string | null;
+  if (typeof input === 'string') {
+    name = input;
+  } else {
+    const node = unwrapBareLiteral(input);
+    if (isMixedCompoundList(node)) return 'list';
+    if (isMixedValueDict(node)) return 'dict';
+    name = chainlessVariableName(node);
+  }
   if (name === null) return null;
   const { mixedListVars, mixedDictVars } = context.facts.script;
   if (mixedListVars.has(name)) return 'list';
@@ -58,27 +68,22 @@ function sourceKind(input: ASTNode, context: RuleContext): ReceiverKind {
 }
 
 /** The kind of message owed when `receiver` is read, given the node feeding it. */
-function directKind(input: ASTNode, context: RuleContext): ReceiverKind {
+function directKind(
+  input: ASTNode | string,
+  context: RuleContext
+): ReceiverKind {
   return sourceKind(input, context) === 'list' ? 'list' : null;
 }
 
-function isDictIterationStage(node: ASTNode): boolean {
-  if (node.type === 'MethodCall') return DICT_ITERATION_METHODS.has(node.name);
+function isDictIterationStage(stage: ProbeStage): boolean {
+  if (typeof stage === 'string') return DICT_ITERATION_METHODS.has(stage);
+  if (stage.type === 'MethodCall')
+    return DICT_ITERATION_METHODS.has(stage.name);
   return (
-    isCollectionOpCall(node) &&
-    DICT_ITERATION_OPS.has(node.name) &&
-    node.type === 'HostCall'
+    isCollectionOpCall(stage) &&
+    DICT_ITERATION_OPS.has(stage.name) &&
+    stage.type === 'HostCall'
   );
-}
-
-/** Kind for a read on the result of `stage` applied to `input`. */
-function stageResultKind(
-  stage: ASTNode,
-  input: ASTNode,
-  context: RuleContext
-): ReceiverKind {
-  if (!isDictIterationStage(stage)) return null;
-  return sourceKind(input, context) === 'dict' ? 'dict' : null;
 }
 
 // ============================================================
@@ -113,119 +118,14 @@ function report(
 // READ SITES
 // ============================================================
 
-/** Index of the first read-key AnnotationAccess in `methods`, or -1. */
-function readIndex(methods: PostfixExprNode['methods']): number {
-  return methods.findIndex(
-    (m) => m.type === 'AnnotationAccess' && READ_KEYS.has(m.key)
-  );
-}
-
-/**
- * Classify a read at position `k` of a method list applied to `input`:
- * k=0 reads the input itself; k=1 reads the result of a preceding
- * `.values`/`.entries`.
- */
-function methodsReadKind(
-  methods: PostfixExprNode['methods'],
-  k: number,
-  input: ASTNode,
-  context: RuleContext
-): ReceiverKind {
-  if (k === 0) return directKind(input, context);
-  const [first] = methods;
-  if (k === 1 && first?.type === 'MethodCall' && isDictIterationStage(first)) {
-    return sourceKind(input, context) === 'dict' ? 'dict' : null;
+/** The kind of message owed for a read, or null when it is not a mixed read. */
+function readKind(read: ProbeRead, context: RuleContext): ReceiverKind {
+  const { receiver, stage } = read;
+  if (stage === null) {
+    return directKind(receiver, context);
   }
-  return null;
-}
-
-function validatePostfix(
-  node: PostfixExprNode,
-  context: RuleContext
-): Diagnostic[] {
-  if (node.primary.type === 'Variable' && node.primary.isPipeVar) return [];
-  const k = readIndex(node.methods);
-  const read = node.methods[k];
-  if (read?.type !== 'AnnotationAccess') return [];
-  const kind = methodsReadKind(node.methods, k, node.primary, context);
-  return kind === null
-    ? []
-    : [report(kind, read.key, read.span.start, context)];
-}
-
-function validateVariable(node: ASTNode, context: RuleContext): Diagnostic[] {
-  if (node.type !== 'Variable' || node.name === null || node.isPipeVar) {
-    return [];
-  }
-  const k = node.accessChain.findIndex(
-    (a) => 'kind' in a && a.kind === 'annotation' && READ_KEYS.has(a.key)
-  );
-  const read = node.accessChain[k];
-  if (read === undefined || !('kind' in read) || read.kind !== 'annotation') {
-    return [];
-  }
-  const { mixedListVars, mixedDictVars } = context.facts.script;
-  let kind: ReceiverKind = null;
-  if (k === 0) {
-    kind = mixedListVars.has(node.name) ? 'list' : null;
-  } else if (k === 1) {
-    const first = node.accessChain[0];
-    if (
-      first !== undefined &&
-      'kind' in first &&
-      first.kind === 'literal' &&
-      DICT_ITERATION_METHODS.has(first.field) &&
-      mixedDictVars.has(node.name)
-    ) {
-      kind = 'dict';
-    }
-  }
-  return kind === null
-    ? []
-    : [report(kind, read.key, node.span.start, context)];
-}
-
-function validatePipeChain(node: ASTNode, context: RuleContext): Diagnostic[] {
-  if (node.type !== 'PipeChain') return [];
-  const diagnostics: Diagnostic[] = [];
-  let previous: ASTNode = node.head;
-  let beforePrevious: ASTNode = node.head;
-  node.pipes.forEach((pipe, i) => {
-    const input = previous;
-    if (pipe.type === 'AnnotationAccess' && READ_KEYS.has(pipe.key)) {
-      const kind =
-        i === 0
-          ? directKind(input, context)
-          : stageResultKind(input, beforePrevious, context);
-      if (kind !== null) {
-        diagnostics.push(report(kind, pipe.key, pipe.span.start, context));
-      }
-    } else if (
-      pipe.type === 'PostfixExpr' &&
-      pipe.primary.type === 'Variable' &&
-      pipe.primary.isPipeVar
-    ) {
-      const k = readIndex(pipe.methods);
-      const read = pipe.methods[k];
-      if (read?.type === 'AnnotationAccess') {
-        let kind: ReceiverKind = null;
-        if (k === 0) {
-          kind =
-            i === 0
-              ? directKind(input, context)
-              : stageResultKind(input, beforePrevious, context);
-        } else if (k === 1) {
-          kind = methodsReadKind(pipe.methods, k, input, context);
-        }
-        if (kind !== null) {
-          diagnostics.push(report(kind, read.key, read.span.start, context));
-        }
-      }
-    }
-    beforePrevious = previous;
-    previous = pipe;
-  });
-  return diagnostics;
+  if (!isDictIterationStage(stage)) return null;
+  return sourceKind(receiver, context) === 'dict' ? 'dict' : null;
 }
 
 // ============================================================
@@ -239,16 +139,14 @@ export const mixedElementTypeRead: Rule = {
   category: 'types',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    switch (node.type) {
-      case 'PostfixExpr':
-        return validatePostfix(node, context);
-      case 'Variable':
-        return validateVariable(node, context);
-      case 'PipeChain':
-        return validatePipeChain(node, context);
-      default:
-        return [];
+    const diagnostics: Diagnostic[] = [];
+    for (const read of collectProbeReads(node, READ_KEYS)) {
+      const kind = readKind(read, context);
+      if (kind !== null) {
+        diagnostics.push(report(kind, read.key, read.at, context));
+      }
     }
+    return diagnostics;
   },
 };
 

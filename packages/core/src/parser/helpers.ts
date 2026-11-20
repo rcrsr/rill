@@ -474,6 +474,26 @@ export function isLiteralStart(state: ParserState): boolean {
 }
 
 /**
+ * True when a literal, atom, or negative number starts on the same line as
+ * the token just consumed, so it reads as the value of a written type
+ * (`atom #wired`, `list(number) list[1]`). A plain `[` counts only when
+ * `plainBracket` is set, because after a type it otherwise opens an index.
+ * @internal
+ */
+export function isDeclarationValueStart(
+  state: ParserState,
+  plainBracket: boolean
+): boolean {
+  if (current(state).span.start.line !== previous(state).span.end.line) {
+    return false;
+  }
+  if (isNegativeNumber(state)) return true;
+  if (check(state, TOKEN_TYPES.ATOM)) return true;
+  if (check(state, TOKEN_TYPES.LBRACKET)) return plainBracket;
+  return isLiteralStart(state);
+}
+
+/**
  * Raise RILL-P012 when the cursor sits on the removed closure literal opener
  * `|` or `||`, naming the fn form that replaces it.
  * @internal

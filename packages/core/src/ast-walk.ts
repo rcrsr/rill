@@ -268,6 +268,8 @@ function astChildren(node: ASTNode): ASTNode[] {
       return [];
     case 'StatusProbe':
       return [node.target];
+    case 'Declaration':
+      return [node.typeExpr, node.value];
     default: {
       const exhaustive: never = node;
       throw new Error(

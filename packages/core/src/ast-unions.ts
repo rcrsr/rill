@@ -69,4 +69,5 @@ export type NodeType =
   | 'GuardBlock'
   | 'RetryBlock'
   | 'AtomLiteral'
-  | 'StatusProbe';
+  | 'StatusProbe'
+  | 'Declaration';

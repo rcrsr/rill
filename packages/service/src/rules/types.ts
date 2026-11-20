@@ -29,7 +29,8 @@ export type RuleState = 'on' | 'off' | 'warn';
 /**
  * Fix suggestion for a diagnostic.
  * Provides automated fix information that can be applied to source code.
- * Only NAMING_SNAKE_CASE and UNNECESSARY_ASSERTION ever emit a non-null fix.
+ * Only NAMING_SNAKE_CASE, UNNECESSARY_ASSERTION and DECLARED_TYPE_PROBE ever
+ * emit a non-null fix.
  */
 export interface DiagnosticFix {
   /** Human-readable description of what the fix does. */

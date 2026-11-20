@@ -31,6 +31,8 @@ type CompoundToken = {
   keyword: string;
   bracket: string;
   tokenType: TokenType;
+  /** Number of source characters the keyword, any spacing and the opener cover. */
+  length: number;
 };
 
 /**
@@ -66,9 +68,11 @@ const COMPOUND_KEYWORD_MAP: Record<
 
 /**
  * Attempts to recognize a compound token at the given position in source.
- * Checks whether the character sequence starting at `position` is a collection
- * keyword immediately (zero whitespace) followed by its bracket character.
- * Returns null when the condition is not met.
+ * Checks whether the character sequence starting at `position` is a keyword
+ * immediately followed by its opener character. The `[` collection keywords
+ * (list, dict, tuple, ordered) also accept spaces or tabs before the `[` on
+ * the same line; a newline or comment stops the fold. `<` and `{` openers
+ * require adjacency. Returns null when the condition is not met.
  *
  * This function is informational: the caller must consume the characters.
  */
@@ -81,9 +85,12 @@ function tokenizeCompoundKeyword(
   )) {
     const end = position + keyword.length;
     if (source.slice(position, end) === keyword) {
-      // The character immediately after the keyword must be the bracket (no whitespace).
-      if (source[end] === bracket) {
-        return { keyword, bracket, tokenType };
+      let opener = end;
+      if (bracket === '[') {
+        while (source[opener] === ' ' || source[opener] === '\t') opener++;
+      }
+      if (source[opener] === bracket) {
+        return { keyword, bracket, tokenType, length: opener + 1 - position };
       }
     }
   }
@@ -430,9 +437,8 @@ export function readIdentifier(state: LexerState): Token {
   if (!suppressCompound) {
     const compound = tokenizeCompoundKeyword(state.source, state.pos);
     if (compound !== null) {
-      // Consume keyword + bracket character (keyword.length + 1)
-      const totalLen = compound.keyword.length + 1;
-      for (let i = 0; i < totalLen; i++) advance(state);
+      // Consume keyword, any folded spacing, and the opener
+      for (let i = 0; i < compound.length; i++) advance(state);
       const value = compound.keyword + compound.bracket;
       return makeToken(
         compound.tokenType,

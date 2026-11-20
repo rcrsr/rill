@@ -12,6 +12,7 @@ import { traverseForRules } from './traversal.js';
 import type { RuleContext } from './types.js';
 
 const GUARDED_CODES = [
+  'ANY_CAPTURE_LOCK',
   'ATOM_CASE_MISMATCH',
   'ATOM_DISCARDED',
   'ATOM_NOT_ERROR_CODE',
@@ -22,6 +23,7 @@ const GUARDED_CODES = [
   'COLLECTION_ARITY',
   'COMPLEX_CONDITION',
   'CONDITION_TYPE',
+  'DECLARED_TYPE_PROBE',
   'DICT_KEY_SPELLING',
   'DISPATCH_FN_ENTRY',
   'DISPATCH_MISSING_MEMBER',

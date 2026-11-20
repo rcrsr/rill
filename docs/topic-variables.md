@@ -166,6 +166,49 @@ fn(s: string) { $s } => $f
 
 An empty `list[] => $x` locks the unspecified form and admits any list. Host variables supplied through `variables` lock the same way; see [Host Integration](integration-host.md) for the host options.
 
+### Declared Literals
+
+A written type followed by a literal on the same line declares the literal's type. A declared empty literal locks the variable to that type, so a later capture of another element type halts:
+
+```rill
+list(number)[] => $x
+list["a"] => $x
+# Error: RILL-R001
+```
+
+A literal that fails its declared type halts `#TYPE_MISMATCH`:
+
+```rill
+guard { list(number)["a"] } => $r
+$r.!code
+# Result: #TYPE_MISMATCH
+```
+
+A space between `list` and `[` reads the same as the adjacent form:
+
+```rill
+list [1, 2] == list[1, 2]
+# Result: true
+```
+
+A newline ends the type, so these are two statements:
+
+```rill
+list(number)
+[1, 2]
+# Result: list[1, 2]
+```
+
+An `:any` capture locks to the first value's type:
+
+```rill
+1 => $x:any
+"a" => $x
+# Error: RILL-R001
+```
+
+The language service reports this lock as the `ANY_CAPTURE_LOCK` checker error.
+
 ### Explicit Type Annotations
 
 Declare type explicitly with `:type`:

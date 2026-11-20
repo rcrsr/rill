@@ -549,30 +549,19 @@ function parsePrimaryImpl(this: Parser): PrimaryNode {
 
   // fn literal or fn type value: fn(params):outer { body }
   if (isFnStart(this.state)) {
-    return this.parseFnForm();
+    const fnForm = this.parseFnForm();
+    return fnForm.type === 'FnType'
+      ? this.parseDeclarationTail(fnForm)
+      : fnForm;
   }
 
-  // Whitespace adjacency error: collection keyword followed by bracket with whitespace (RILL-P007)
-  // e.g. `list [` or `ordered [` — the lexer only emits compound tokens (LIST_LBRACKET etc.)
-  // when there is NO whitespace. If whitespace separates them, we get IDENTIFIER + LBRACKET/LT.
-  const COMPOUND_KEYWORDS_WITH_BRACKET = ['list', 'dict', 'tuple', 'ordered'];
+  // Whitespace adjacency error: angle-opener keyword followed by `<` with whitespace (RILL-P007).
+  // The lexer folds `list [` style spacing itself; `<` openers require adjacency.
   const COMPOUND_KEYWORDS_WITH_ANGLE = ['destruct', 'slice', 'use'];
   if (check(this.state, TOKEN_TYPES.IDENTIFIER)) {
-    const identValue = current(this.state).value;
-    const nextTokType = peek(this.state, 1).type;
     if (
-      COMPOUND_KEYWORDS_WITH_BRACKET.includes(identValue) &&
-      nextTokType === TOKEN_TYPES.LBRACKET
-    ) {
-      throw new ParseError(
-        ERROR_IDS.RILL_P007,
-        "keyword and bracket must be adjacent; found whitespace before '['",
-        current(this.state).span.start
-      );
-    }
-    if (
-      COMPOUND_KEYWORDS_WITH_ANGLE.includes(identValue) &&
-      nextTokType === TOKEN_TYPES.LT
+      COMPOUND_KEYWORDS_WITH_ANGLE.includes(current(this.state).value) &&
+      peek(this.state, 1).type === TOKEN_TYPES.LT
     ) {
       throw new ParseError(
         ERROR_IDS.RILL_P007,
@@ -658,7 +647,7 @@ function parsePrimaryImpl(this: Parser): PrimaryNode {
   // Type constructor: list(...), dict(...), tuple(...), ordered(...), stream(...)
   if (atTypeConstructor(this.state)) {
     const name = current(this.state).value;
-    return this.parseTypeConstructor(name);
+    return this.parseDeclarationTail(this.parseTypeConstructor(name));
   }
 
   // The removed `closure` type name in expression position
@@ -670,6 +659,11 @@ function parsePrimaryImpl(this: Parser): PrimaryNode {
     throwRemovedClosureType(current(this.state).span.start);
   }
 
+  // A leaf type written with empty parens before a same-line literal:
+  // `string() "a"`.
+  const leafDeclaration = this.parseLeafCallDeclaration();
+  if (leafDeclaration !== null) return leafDeclaration;
+
   // Type name expression: bare type name in expression position (e.g. `number`, `string`)
   // Invalid type names fall through to the host call path.
   const typeKeyword = current(this.state).value;
@@ -680,11 +674,11 @@ function parsePrimaryImpl(this: Parser): PrimaryNode {
   ) {
     if (typeKeyword === 'union') throwBareUnion(current(this.state).span.start);
     const token = advance(this.state);
-    return {
+    return this.parseDeclarationTail({
       type: 'TypeNameExpr',
       typeName: typeKeyword,
       span: token.span,
-    } satisfies TypeNameExprNode;
+    } satisfies TypeNameExprNode);
   }
 
   // Function call with parens
@@ -755,17 +749,7 @@ const primaryDispatchTable: Record<string, (this: Parser) => PrimaryNode> = {
   [TOKEN_TYPES.DICT_LBRACKET]: function (this: Parser): PrimaryNode {
     const start = current(this.state).span.start;
     advance(this.state); // consume DICT_LBRACKET
-    skipNewlines(this.state);
-    if (check(this.state, TOKEN_TYPES.RBRACKET)) {
-      const rbracket = advance(this.state); // consume ]
-      return {
-        type: 'Dict',
-        entries: [],
-        defaultValue: null,
-        span: makeSpan(start, rbracket.span.end),
-      };
-    }
-    return this.parseDict(start);
+    return this.parseKeywordCollectionBody(start);
   },
   [TOKEN_TYPES.LBRACKET]: function (this: Parser): PrimaryNode {
     return this.parseTupleOrDict();

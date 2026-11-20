@@ -509,7 +509,7 @@ Highlighters that mapped the removed tokens must update to the replacement token
 import { ERROR_REGISTRY, getHelpUrl } from '@rcrsr/rill';
 
 const entry = ERROR_REGISTRY.get('RILL-P007');
-console.log(entry?.description);  // "Keyword and bracket not adjacent"
+console.log(entry?.description);  // "Keyword not adjacent to opener, or extra spread"
 console.log(getHelpUrl('RILL-P007', '0.4.1'));  // "https://github.com/rcrsr/rill/blob/v0.4.1/docs/ref-errors.md#rill-p007"
 ```
 

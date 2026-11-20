@@ -126,6 +126,7 @@ describe('non-null-fix rules emit a well-formed DiagnosticFix', () => {
   const NON_NULL_FIX_CODES = new Set([
     'NAMING_SNAKE_CASE',
     'UNNECESSARY_ASSERTION',
+    'DECLARED_TYPE_PROBE',
   ]);
 
   // NAMING_SNAKE_CASE may withhold its fix (fix: null) when a rename cannot be
@@ -133,11 +134,11 @@ describe('non-null-fix rules emit a well-formed DiagnosticFix', () => {
   // inside a nested closure/collection-op body could bind to a different
   // declaration, so the rule keeps the diagnostic and drops the fix rather than
   // rewrite a reference that may not belong to this capture. UNNECESSARY_ASSERTION
-  // has no such ambiguity and always carries a fix. Every fix that IS present, for
-  // either code, must be well-formed.
+  // and DECLARED_TYPE_PROBE have no such ambiguity and always carry a fix. Every
+  // fix that IS present, for any of the three codes, must be well-formed.
   const WITHHOLDABLE_FIX_CODES = new Set(['NAMING_SNAKE_CASE']);
 
-  it('every present NAMING_SNAKE_CASE / UNNECESSARY_ASSERTION fix is well-formed, and withholds only where documented', () => {
+  it('every present NAMING_SNAKE_CASE / UNNECESSARY_ASSERTION / DECLARED_TYPE_PROBE fix is well-formed, and withholds only where documented', () => {
     const golden = loadGolden();
     const fixFirings = golden
       .flatMap((entry) => entry.diagnostics)

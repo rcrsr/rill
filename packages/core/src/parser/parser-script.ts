@@ -387,9 +387,7 @@ Parser.prototype.parseStatement = function (
   }
 
   const statement = parseStatementBody(this, start);
-  if (!endsInWrittenType(statement)) {
-    rejectAtomAfterStatement(this);
-  }
+  rejectAtomAfterStatement(this);
   return statement;
 };
 
@@ -458,23 +456,6 @@ function parseStatementBody(
     expression,
     span: makeSpan(start, expression.span.end),
   };
-}
-
-/**
- * True when the statement's final element is a written type, where an atom
- * may legitimately follow as a typed literal (`atom #wired`).
- */
-function endsInWrittenType(statement: StatementNode): boolean {
-  const chain = statement.expression;
-  if (!isPipeChainNode(chain) || chain.terminator !== null) return false;
-  const last = chain.pipes.at(-1) ?? chain.head;
-  const node =
-    last.type === 'PostfixExpr' &&
-    last.methods.length === 0 &&
-    last.defaultValue === null
-      ? last.primary
-      : last;
-  return node.type === 'TypeNameExpr' || node.type === 'TypeConstructor';
 }
 
 function rejectAtomAfterStatement(parser: Parser): void {

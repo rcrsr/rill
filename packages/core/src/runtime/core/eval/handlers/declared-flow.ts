@@ -45,14 +45,22 @@ import {
 } from './variables.js';
 import { evaluateBody } from './control-flow.js';
 import { resolveSelected } from './code-block.js';
-import { evaluateTypeAssertionCarried } from './types.js';
+import {
+  evaluateDeclarationCarried,
+  evaluateTypeAssertionCarried,
+} from './types.js';
 import { evaluateUseExprCarried } from './use.js';
 import { evaluateStatusProbeCarried } from './recovery.js';
 import { evaluatePassBlock } from './literals.js';
 import { evaluateGroupedExprCarried } from './expressions.js';
 import { evaluateDestructure } from './extraction.js';
 import { projectLocated } from './field-access.js';
-import { evaluatePrimary, evaluatePipeTarget, matchesErrorId } from './core.js';
+import {
+  evaluatePrimary,
+  evaluatePipeTarget,
+  evaluateHeldPipeTarget,
+  matchesErrorId,
+} from './core.js';
 
 // ============================================================
 // POSTFIX
@@ -106,6 +114,9 @@ export function evaluatePrimaryCarried(
 
     case 'UseExpr':
       return evaluateUseExprCarried(s, primary);
+
+    case 'Declaration':
+      return evaluateDeclarationCarried(s, primary);
 
     default:
       return evaluateOwnPrimary(s, primary);
@@ -363,6 +374,7 @@ export function isCarryingPipeTarget(target: PipeTargetNode): boolean {
     case 'PostfixExpr':
     case 'Destructure':
     case 'Destruct':
+    case 'Declaration':
       return true;
     case 'Variable':
       return target.isPipeVar && (target.name === null || target.name === '');
@@ -455,9 +467,39 @@ export async function evaluateCarryingPipeTarget(
       return { value, declared: input.declared };
     }
 
+    case 'Declaration':
+      return evaluateDeclarationPipeTarget(s, target, input);
+
     default:
       return undefined;
   }
+}
+
+/**
+ * A declared literal as a pipe target behaves like `T lit => $d; $i -> $d`:
+ * the literal is evaluated and checked, then dispatched with its declared
+ * type. A string value acts as the bare string target and keeps its
+ * declaration. A `?? default` written after the literal sits on the inner
+ * list or dict.
+ */
+async function evaluateDeclarationPipeTarget(
+  s: EvalState,
+  target: Extract<PipeTargetNode, { type: 'Declaration' }>,
+  input: Carried
+): Promise<Carried> {
+  const held = await evaluateDeclarationCarried(s, target);
+  if (typeof held.value === 'string') return held;
+  const inner = target.value;
+  return evaluateHeldPipeTarget(s, held, input, {
+    node: target,
+    defaultValue:
+      inner.type === 'ListLiteral' || inner.type === 'Dict'
+        ? inner.defaultValue
+        : null,
+    label: 'a declared literal',
+    selected: false,
+    callableName: 'callable',
+  });
 }
 
 // ============================================================

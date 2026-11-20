@@ -581,3 +581,94 @@ describe('entriesVars and entriesBodies', () => {
     expect(facts.entriesBodies.size).toBe(0);
   });
 });
+
+// ============================================================
+// declaredTypes / captureValueTypes through declarations
+// ============================================================
+
+describe('declared values captured once', () => {
+  function typeNames(source: string): ReadonlyMap<string, string | undefined> {
+    const facts = collectFacts(parse(source));
+    const names = new Map<string, string | undefined>();
+    for (const [capture, type] of facts.script.captureValueTypes) {
+      names.set(
+        capture.name,
+        type.kind === 'static' ? type.typeName : type.kind
+      );
+    }
+    return names;
+  }
+
+  it('records a declared type for a name captured once from a declared value', () => {
+    const facts = collectFacts(parse('list(number) list[1, 2] => $xs\n'));
+
+    expect(facts.script.declaredTypes.get('xs')).toMatchObject({
+      kind: 'static',
+      typeName: 'list',
+    });
+  });
+
+  it('records no declared type for the unspecified form', () => {
+    const facts = collectFacts(parse('list list[1, 2] => $xs\n'));
+
+    expect(facts.script.declaredTypes.has('xs')).toBe(false);
+  });
+
+  it('records no declared type for a name captured twice', () => {
+    const facts = collectFacts(
+      parse('list(number) list[1] => $xs\nlist(number) list[2] => $xs\n')
+    );
+
+    expect(facts.script.declaredTypes.has('xs')).toBe(false);
+  });
+
+  it('holds scalar, declared, asserted and conversion types', () => {
+    const names = typeNames(
+      [
+        '1 => $scalar',
+        'list(number) list[1] => $declared',
+        '"a" -> :string => $asserted',
+        '"5" -> number => $converted',
+        'list[1] -> list(number) => $collected',
+        '',
+      ].join('\n')
+    );
+
+    expect(names.get('scalar')).toBe('number');
+    expect(names.get('declared')).toBe('list');
+    expect(names.get('asserted')).toBe('string');
+    expect(names.get('converted')).toBe('number');
+    expect(names.get('collected')).toBe('list');
+  });
+
+  it('records no type for a type value captured at a chain head', () => {
+    const names = typeNames('string => $t\nlist(number) => $t2\n');
+
+    expect(names.has('t')).toBe(false);
+    expect(names.has('t2')).toBe(false);
+  });
+
+  it('excludes an inferred collection type', () => {
+    const names = typeNames('list[1, 2] => $xs\ndict[a: 1] => $d\n');
+
+    expect(names.has('xs')).toBe(false);
+    expect(names.has('d')).toBe(false);
+  });
+
+  it('records no type for a capture fed by a variable pipe step', () => {
+    const names = typeNames('list(number) list[1, 2] => $xs\n1 -> $xs => $r\n');
+
+    expect(names.has('r')).toBe(false);
+  });
+
+  it('records no type for a declared literal used as a pipe target', () => {
+    const facts = collectFacts(parse('0 -> list(number) list[5, 6] => $r2\n'));
+
+    expect(facts.script.declaredTypes.has('r2')).toBe(false);
+    expect(
+      [...facts.script.captureValueTypes.keys()].some(
+        (capture) => capture.name === 'r2'
+      )
+    ).toBe(false);
+  });
+});

@@ -357,6 +357,8 @@ export type {
   ConditionalNode,
   DestructNode,
   DestructPatternNode,
+  DeclarationNode,
+  DeclarationValueNode,
   DestructureNode,
   DictEntryNode,
   DictKeyComputed,

@@ -27,6 +27,7 @@ import type {
   TypeAssertionNode,
   TypeCheckNode,
   TypeConstructorNode,
+  DeclarationNode,
   FnTypeNode,
   RillTypeName,
   SourceLocation,
@@ -38,8 +39,9 @@ import type {
   TypeStructure,
 } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
-import { isAtom, isStructureKind } from '../../types/guards.js';
+import { isAtom, isStructureKind, isTypeValue } from '../../types/guards.js';
 import {
+  structureEquals,
   structureMatches,
   inferStructure,
   formatStructure,
@@ -170,13 +172,15 @@ function isScalarValue(value: RillValue): boolean {
  * Accepts a bare RillTypeName or a full TypeStructure.
  * When expected is a TypeStructure with sub-fields (element, fields, elements),
  * dispatches to structureMatches for deep validation.
+ * An optional hint is appended verbatim to the mismatch message.
  * Exported for use by type assertion evaluation.
  */
 export function assertType(
   s: EvalState,
   value: RillValue,
   expected: RillTypeName | TypeStructure,
-  location?: SourceLocation
+  location?: SourceLocation,
+  hint?: string
 ): RillValue {
   // Structural path: expected is a TypeStructure object
   if (typeof expected !== 'string') {
@@ -194,7 +198,7 @@ export function assertType(
             fn: ':',
           },
           'TYPE_MISMATCH',
-          `Type assertion failed: expected ${expectedStr}, got ${actualStr}`,
+          `Type assertion failed: expected ${expectedStr}, got ${actualStr}${hint ?? ''}`,
           'runtime',
           { expectedType: expectedStr, actualType: actualStr }
         );
@@ -202,16 +206,17 @@ export function assertType(
       return value;
     }
     // Bare structural type (no sub-fields): fall through using type name
-    return assertBareTypeName(s, value, expected.kind, location);
+    return assertBareTypeName(s, value, expected.kind, location, hint);
   }
-  return assertBareTypeName(s, value, expected, location);
+  return assertBareTypeName(s, value, expected, location, hint);
 }
 
 function assertBareTypeName(
   s: EvalState,
   value: RillValue,
   expected: string,
-  location?: SourceLocation
+  location?: SourceLocation,
+  hint?: string
 ): RillValue {
   // Bare type name path
   if (expected === 'any') return value;
@@ -224,7 +229,7 @@ function assertBareTypeName(
         fn: ':',
       },
       'TYPE_MISMATCH',
-      `Type assertion failed: expected ${expected}, got ${actual}`,
+      `Type assertion failed: expected ${expected}, got ${actual}${hint ?? ''}`,
       'runtime',
       { expectedType: expected, actualType: actual }
     );
@@ -254,6 +259,50 @@ export async function assertTypeRefCarried(
   return {
     value,
     declared: declarationOf(resolved.structure) ?? input.declared,
+  };
+}
+
+/** Suffix for a declared atom the written type rejects. */
+const ATOM_COMMENT_HINT = ". Hint: a comment needs a space after '#'";
+
+/**
+ * Evaluate a declaration: the written type, then the literal it describes,
+ * checked with the one type matcher. The declared type travels beside the
+ * value; a type equal to its bare kind (`list`, `list()`, `list(any)`) is the
+ * unspecified form and declares nothing.
+ */
+export async function evaluateDeclarationCarried(
+  s: EvalState,
+  node: DeclarationNode
+): Promise<Carried> {
+  const location = node.span.start;
+  const written = await evaluatePrimary(s, node.typeExpr);
+  if (!isTypeValue(written)) {
+    return throwTypeHalt(
+      { location, sourceId: s.ctx.sourceId, fn: 'evaluateDeclarationCarried' },
+      'INVALID_INPUT',
+      'Declaration requires a type',
+      'runtime',
+      undefined,
+      'host'
+    );
+  }
+  const structure = written.structure;
+  const value = await evaluatePrimary(s, node.value);
+  assertType(
+    s,
+    value,
+    structure,
+    location,
+    isAtom(value) ? ATOM_COMMENT_HINT : undefined
+  );
+  const unspecified =
+    structure.kind !== 'union' &&
+    structure.kind !== 'literal' &&
+    structureEquals(structure, { kind: structure.kind });
+  return {
+    value,
+    declared: unspecified ? undefined : declarationOf(structure),
   };
 }
 

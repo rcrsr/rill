@@ -450,6 +450,9 @@ function getChildren(node: ASTNode): ASTNode[] {
     case 'TimeoutBlock':
       return [node.options, node.body];
 
+    case 'Declaration':
+      return [node.typeExpr, node.value];
+
     case 'PartialExpression':
       // Partial expression node: only the typed children recognized during
       // recovery are visited; the surrounding gap is opaque.
