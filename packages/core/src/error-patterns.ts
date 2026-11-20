@@ -54,7 +54,7 @@ export const ERROR_HANDLING_PATTERNS: readonly ErrorHandlingPattern[] = [
     examples: [
       {
         description: 'Check variable existence before use',
-        code: '[apiKey: "secret123"] => $config\n$config.?apiKey ? $config.apiKey ! "default-key"',
+        code: '[apiKey: "secret123"] => $secrets\n$secrets.?apiKey ? $secrets.apiKey ! "default-key"',
       },
       {
         description: 'Check type before method call',
@@ -96,7 +96,7 @@ export const ERROR_HANDLING_PATTERNS: readonly ErrorHandlingPattern[] = [
       },
       {
         description: 'Check type before calling method',
-        code: '[1, 2, 3] => $items\n$items :? list ? ($items -> .len) ! 0',
+        code: '[1, 2, 3] => $numbers\n$numbers :? list ? ($numbers -> .len) ! 0',
       },
       {
         description: 'Convert with validation',

@@ -1115,7 +1115,7 @@ describe('filter integration: callables returned at call time', () => {
     await expectHalt(
       () =>
         execute(
-          parse('use<ext:kb> => $kb\ndict[p: $kb.purge] => $d\n$d.p()'),
+          parse('use<ext:kb> => $kb\ndict[p: $kb.purge] => $d2\n$d2.p()'),
           ctx
         ),
       { code: 'RILL_R088' }
@@ -1123,7 +1123,7 @@ describe('filter integration: callables returned at call time', () => {
     await expectHalt(
       () =>
         execute(
-          parse('use<ext:kb> => $kb\ndict[...$kb] => $d\n$d.purge()'),
+          parse('use<ext:kb> => $kb\ndict[...$kb] => $d3\n$d3.purge()'),
           ctx
         ),
       { code: 'RILL_R088' }

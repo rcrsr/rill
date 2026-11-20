@@ -21,7 +21,7 @@ Variables are declared via capture (`=>`), not assignment:
 ```rill
 "hello" => $greeting
 42 => $count
-[1, 2, 3] => $items
+[1, 2, 3] => $numbers
 ```
 
 ### Capture and Continue
@@ -130,6 +130,16 @@ $x => $y                      # $y locks to union(number, string)
 $y
 # Result: "a"
 ```
+
+The lock is the asserted or declared type the value carries, else its full inferred type, element and field types included. `list[1]` locks to `list(number)`, so a list of strings halts:
+
+```rill
+list[1] => $x
+list["a"] => $x
+# Error: RILL-R001
+```
+
+An empty `list[] => $x` locks the unspecified form and admits any list. Host variables supplied through `variables` lock the same way; see [Host Integration](integration-host.md) for the host options.
 
 ### Explicit Type Annotations
 

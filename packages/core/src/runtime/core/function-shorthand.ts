@@ -7,19 +7,18 @@
  * Import constraints:
  * - Types come from ./callable.js as `import type`, which erases at compile
  *   time. callable.ts imports this file, so a value import would form a cycle.
- * - Signature parsing goes through the signature-parser.ts bridge.
+ * - Signature parsing goes through the signature-registration.ts, which reads it through
+ *   the signature-parser.ts bridge.
  */
 
 import { RuntimeError } from '../../types.js';
 import { ERROR_IDS } from '../../error-registry.js';
-// oxlint-disable-next-line import/no-cycle -- signature-parser reaches callable.ts through a type-only import that erases at compile time
-import { parseSignatureRegistration } from '../../signature-parser.js';
 import { setDictField } from './types/dict-keys.js';
-import type { RillValue } from './types/structures.js';
+import type { RillValue, TypeStructure } from './types/structures.js';
 // oxlint-disable-next-line import/no-cycle -- values.ts and callable.ts already import each other
 import { anyTypeValue, structureToTypeValue } from './values.js';
 // oxlint-disable-next-line import/no-cycle -- type-only import that erases at compile time
-import type { CallableFn, RillFunction } from './callable.js';
+import type { CallableFn, RillFunction, RillParam } from './callable.js';
 
 /**
  * Host function declared with a signature string instead of params and
@@ -32,6 +31,32 @@ export interface RillFunctionShorthand {
   readonly description?: string | undefined;
   readonly params?: never;
   readonly returnType?: never;
+}
+
+/** Result of reading a signature string at registration time. */
+export interface ParsedSignature {
+  readonly params: RillParam[];
+  readonly returnType: TypeStructure | undefined;
+  readonly description: string | undefined;
+  readonly annotations: Record<string, RillValue>;
+}
+
+/** Reads a signature string into params, return type, and annotations. */
+export type SignatureReader = (
+  signature: string,
+  name: string
+) => ParsedSignature;
+
+let signatureReader: SignatureReader | undefined;
+
+/**
+ * Register the function that reads signature strings. signature-registration.ts
+ * calls this when it loads.
+ *
+ * @internal
+ */
+export function registerSignatureReader(reader: SignatureReader): void {
+  signatureReader = reader;
 }
 
 /** A host function in either the explicit or the signature shorthand form. */
@@ -63,7 +88,7 @@ function signatureFault(name: string, detail: string): RuntimeError {
  * Normalize a host function definition to the explicit RillFunction form.
  *
  * Explicit-form definitions are returned unchanged (same object). The
- * shorthand form is parsed with parseSignatureRegistration.
+ * shorthand form is read by the registered signature reader.
  *
  * @throws {RuntimeError} RILL-R091 when the shorthand is malformed, mixes
  * forms, has a non-object annotations field, or declares an annotation key
@@ -99,9 +124,12 @@ export function normalizeFunctionDefinition(
     throw signatureFault(name, 'annotations must be an object');
   }
 
+  if (signatureReader === undefined) {
+    throw signatureFault(name, 'signature support is not loaded');
+  }
   let parsed;
   try {
-    parsed = parseSignatureRegistration(def.signature, name);
+    parsed = signatureReader(def.signature, name);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const wrapped = registrationFault(message);

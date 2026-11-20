@@ -35,6 +35,8 @@ Conditions must be boolean. No coercion. Negation also requires boolean.
 
 The lock is the declared type the value carries, else its own type: `1 => $x:union(number, string)` then `"a" => $x` is OK. `1 => $x:any` locks as number.
 
+Without a declaration the lock is the full inferred type: `list[1] => $x` then `list["a"] => $x` halts RILL-R001. Annotate the wider type first: `list[1] => $x:list(union(number, string))`.
+
 ### 5. No variable shadowing
 
 Child scopes can READ parent variables but cannot WRITE or redeclare. Loop bodies cannot mutate outer state.

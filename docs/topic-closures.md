@@ -855,14 +855,14 @@ $factory()(5)
 ### Method Access After Bracket (Requires Grouping)
 
 ```rill
-list["hello", "world"] => $list
-($list[0]).upper
+list["hello", "world"] => $words
+($words[0]).upper
 # Result: "HELLO"
 ```
 
 ```rill
-list["hello", "world"] => $list
-$list[0] -> .upper
+list["hello", "world"] => $words
+$words[0] -> .upper
 # Result: "HELLO"
 ```
 

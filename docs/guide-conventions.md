@@ -284,9 +284,9 @@ Selecting a function from a dict returns it uncalled. Call it with parentheses:
 [
   items: [1, 2, 3],
   count: fn() { 3 }
-] => $data
+] => $record
 
-$data.count()    # 3
+$record.count()    # 3
 ```
 
 Parameterized functions work as methods:
@@ -412,8 +412,8 @@ Variables lock to their first type. Reassigning suggests misuse:
 fn { $ + 1 } => $fn    # $ is the first argument, easy to misread
 
 # clear: explicit parameter
-fn(x) { $x + 1 } => $fn
-$fn(5)
+fn(x) { $x + 1 } => $fn_clear
+$fn_clear(5)
 ```
 
 ### Avoid break in parallel operators

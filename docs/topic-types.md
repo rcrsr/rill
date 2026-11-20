@@ -199,8 +199,8 @@ list["a"] -> .at(0.5)  # Error: #INVALID_INPUT
 Use `??` for safe access with default:
 
 ```rill
-["a"] => $list
-$list[5] ?? "default"  # "default"
+["a"] => $letters
+$letters[5] ?? "default"  # "default"
 ```
 
 ```rill

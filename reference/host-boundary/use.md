@@ -3,7 +3,7 @@ id: use
 title: use
 status: normative
 since: 0.24.0
-issues: [618]
+issues: []
 grammar: [use-expr, use-id]
 errors: [RILL-P007, RILL-P022, RILL-R002, RILL-R005, RILL-R054, RILL-R055, RILL-R056, RILL-R058, TYPE_MISMATCH]
 depends: [pipe, scope]
@@ -81,9 +81,11 @@ r[use.resolver-failure] A failing resolver halts
 A resolver that fails, returns a malformed result, or returns a value that is not a rill value
 MUST halt with RILL-R056. A source module that does not parse MUST halt with RILL-R056.
 
-r[use.type] A type after use asserts the result {pending #618}
+r[use.type] A type after use asserts the result
 `use<id>:T` MUST assert the result against `T` as `-> :T` does. A mismatch MUST halt with
-`#TYPE_MISMATCH`, and the result MUST carry `T`.
+`#TYPE_MISMATCH`, and the result MUST carry `T`. In `v -> use<id>:T`, a host-resolved value MUST be
+asserted before the pipe acts on it, and a source module's result MUST be asserted as the pipe's
+result.
 
 r[use.module-halt] A halt inside a module is not caught at the use site
 A halt raised while a source module runs MUST pass through `use<...>` and every `guard` around
@@ -105,7 +107,7 @@ included.
 | The resolver fails, returns a non-rill value, or a source module does not parse | RILL-R056 | Yes |
 | A source module reads `$` with nothing piped | RILL-R005 | No |
 | A value is piped into a host-resolved value of no target kind | RILL-R002 | Yes |
-| The result does not have the type after `use<...>` {pending #618} | `#TYPE_MISMATCH` | Yes |
+| The result does not have the type after `use<...>` | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 
@@ -117,6 +119,8 @@ $app.search("rill")
 ```
 
 ## Notes
+
+On 0.23.0 a type after `use<...>` was parsed and never checked.
 
 On 0.23.0 a non-callable resolved value is returned unchanged, and a callable source-module
 result was called with the piped value.

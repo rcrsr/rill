@@ -3,7 +3,7 @@ id: type-lock
 title: Type-locked variables
 status: normative
 since: 0.24.0
-issues: [598, 628]
+issues: [628]
 grammar: []
 errors: [RILL-R001]
 depends: [type-value, structural-typing, any, union, assertion, carried-type, declaration, inference]
@@ -19,22 +19,22 @@ A variable locks to a type on its first capture, and a later capture of a value 
 r[type-lock.first] The first capture locks the variable
 The first capture into a name within a scope MUST lock the variable. No annotation is required.
 
-r[type-lock.narrowest] A variable locks to the narrowest type its first value has {pending #598}
+r[type-lock.narrowest] A variable locks to the narrowest type its first value has
 The first capture MUST lock the variable to the carried asserted type of the value if it has one, otherwise
 its declared type, otherwise its full inferred type. A lock MUST NOT reduce to the kind alone.
 
-r[type-lock.list] A list locks to its element type {pending #598}
+r[type-lock.list] A list locks to its element type
 `list[1] => $x` MUST lock `$x` to `list(number)`, so `list["a"] => $x` MUST halt with RILL-R001.
 
-r[type-lock.dict] A dict locks to its field types {pending #598}
+r[type-lock.dict] A dict locks to its field types
 `dict[a: 1] => $x` MUST lock `$x` to `dict(a: number)`, so `dict[a: "x"] => $x` MUST halt with
 RILL-R001.
 
-r[type-lock.tuple] A tuple locks to its position types {pending #598}
+r[type-lock.tuple] A tuple locks to its position types
 `tuple[1] => $x` MUST lock `$x` to `tuple(number)`, so `tuple["a"] => $x` MUST halt with
 RILL-R001.
 
-r[type-lock.empty] An empty collection locks its unspecified form {pending #598}
+r[type-lock.empty] An empty collection locks its unspecified form
 An empty collection infers its unspecified form. `list[] => $x` MUST lock `$x` to `list` and
 admit any list.
 
@@ -83,19 +83,19 @@ $x
 # Result: 2
 ```
 
-```rill pending=598
+```rill
 # Error: RILL-R001, $x is locked as list(number)
 list[1] => $x
 list["a"] => $x
 ```
 
-```rill pending=598
+```rill
 # Error: RILL-R001, $x is locked as dict(a: number)
 dict[a: 1] => $x
 dict[a: "x"] => $x
 ```
 
-```rill pending=598
+```rill
 # Error: RILL-R001, $x is locked as tuple(number)
 tuple[1] => $x
 tuple["a"] => $x
@@ -129,6 +129,6 @@ $x
 
 ## Notes
 
-Today the runtime locks only the kind of a collection, so `list[1] => $x` then `list["a"] => $x` succeeds. #598 builds the narrowest-type lock.
+On 0.23.0 a plain capture locked only the kind of a collection, so `list[1] => $x` then `list["a"] => $x` succeeded.
 
 A typed capture that fails its own assertion halts as `capture.mismatch` states.

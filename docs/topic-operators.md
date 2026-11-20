@@ -585,17 +585,17 @@ See [Types](topic-types.md) for dict `.keys` and `.entries` documentation.
 Access list elements (0-based, negative from end):
 
 ```rill
-["a", "b", "c"] => $list
-$list[0]                     # "a"
-$list[-1]                    # "c"
-$list[1]                     # "b"
+["a", "b", "c"] => $letters
+$letters[0]                     # "a"
+$letters[-1]                    # "c"
+$letters[1]                     # "b"
 ```
 
 The index must be an integer. An out-of-range index halts with `RILL-R009` and a non-integer index halts with `#INVALID_INPUT`; both are catchable, and `.at(n) ?? default` supplies a default.
 
 ```rill
-["a", "b", "c"] => $list
-$list -> .at(5) ?? "none"
+["a", "b", "c"] => $letters
+$letters -> .at(5) ?? "none"
 # Result: "none"
 ```
 
@@ -614,8 +614,8 @@ $data.$key                       # "alice"
 Use an expression as key. A numeric key indexes a list under the same rules as `[n]`. A dict key must be a string; see [Types](topic-types.md) for the rule.
 
 ```rill
-["a", "b", "c"] => $list
-$list[0 + 1]
+["a", "b", "c"] => $letters
+$letters[0 + 1]
 # Result: "b"
 ```
 
@@ -632,8 +632,8 @@ $user.?["name"]&string
 A selector of the wrong type halts with the error the read raises, and `??` does not recover it. A non-string selector on a dict halts `#TYPE_MISMATCH`, and `list[1, 2].?["a"]`, `tuple[1].?[true]`, `ordered[a: 1].?[list[1]]`, and `"s".?["len"]` halt with the error the bracket read raises. See [Types](topic-types.md) for the key rule.
 
 ```rill
-list["a", "b"] => $list
-$list.?[5]
+list["a", "b"] => $letters
+$letters.?[5]
 # Result: false
 ```
 
@@ -817,24 +817,24 @@ The `&type` position accepts parameterized types and union types.
 **Parameterized type:**
 
 ```rill
-[items: [1, 2, 3]] => $data
-$data.?items&list(number)
+[items: [1, 2, 3]] => $items_data
+$items_data.?items&list(number)
 # Result: true
 ```
 
 **Dict structural type:**
 
 ```rill
-[cfg: [key: "x"]] => $data
-$data.?cfg&dict(key: string)
+[cfg: [key: "x"]] => $cfg_data
+$cfg_data.?cfg&dict(key: string)
 # Result: true
 ```
 
 **Union type:**
 
 ```rill
-[score: 42] => $data
-$data.?score&union(string, number)
+[score: 42] => $score_data
+$score_data.?score&union(string, number)
 # Result: true
 ```
 

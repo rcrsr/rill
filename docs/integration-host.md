@@ -34,7 +34,7 @@ The `createRuntimeContext()` function accepts these options:
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `variables` | `Record<string, RillValue>` | Initial variables accessible as `$name` |
+| `variables` | `Record<string, RillValue>` | Initial variables accessible as `$name`; each locks to its full inferred type, so a later capture of a different shape halts |
 | `functions` | `Record<string, RillFunctionDefinition>` | Custom functions callable as `name()` |
 | `callbacks` | `Partial<RuntimeCallbacks>` | I/O callbacks (e.g., `onLog`) |
 | `observability` | `ObservabilityCallbacks` | Execution monitoring hooks |

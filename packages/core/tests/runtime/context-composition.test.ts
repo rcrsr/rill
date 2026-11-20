@@ -23,6 +23,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { createRuntimeContext, createChildContext } from '@rcrsr/rill';
+import { run, runWithContext } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('RuntimeContext composition', () => {
   describe('AC-1 / AC-11: flat field access and destructuring', () => {
@@ -65,6 +67,44 @@ describe('RuntimeContext composition', () => {
       const parent = createRuntimeContext({});
       const child = createChildContext(parent);
       expect(child.variableTypes).not.toBe(parent.variableTypes);
+    });
+  });
+
+  describe('declaredLocks scoping', () => {
+    it('gives a child context a fresh declaredLocks set', () => {
+      const parent = createRuntimeContext({});
+      const child = createChildContext(parent);
+      expect(child.declaredLocks).not.toBe(parent.declaredLocks);
+    });
+
+    it('shares declaredLocks when the child shares variableTypes', () => {
+      const parent = createRuntimeContext({});
+      const child = createChildContext(parent, {
+        variables: parent.variables,
+        variableTypes: parent.variableTypes,
+        declaredLocks: parent.declaredLocks,
+      });
+      expect(child.declaredLocks).toBe(parent.declaredLocks);
+    });
+
+    it('shares declaredLocks between a block and its statements', async () => {
+      // $a carries its annotation to $b only if the next statement sees $a
+      // in the shared declaredLocks set; $b then locks to list(number).
+      await expectHalt(
+        () => run('{ list[] => $a:list(number)\n$a => $b\nlist["x"] => $b }'),
+        { code: 'RILL_R001', messagePattern: /locked as list\(number\)/ }
+      );
+    });
+
+    it('records an annotated capture as declared', async () => {
+      const { context } = await runWithContext('list[1] => $x:list(number)');
+      expect(context.declaredLocks.has('x')).toBe(true);
+    });
+
+    it('does not record an inferred capture as declared', async () => {
+      const { context } = await runWithContext('list[1] => $x');
+      expect(context.variableTypes.has('x')).toBe(true);
+      expect(context.declaredLocks.has('x')).toBe(false);
     });
   });
 

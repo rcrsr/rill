@@ -10,6 +10,7 @@
  *
  * Interface requirements:
  * - evaluateUseExpr(node) -> Promise<RillValue>
+ * - evaluateUseExprCarried(node) -> Promise<Carried>
  *
  * Error Contracts:
  * - RILL-R054: Scheme not registered in resolvers
@@ -31,7 +32,8 @@ import {
   throwFatalHostHalt,
 } from '../../types/halt.js';
 import type { TypeHaltSite } from '../../types/halt.js';
-import type { RillValue } from '../../types/structures.js';
+import type { RillValue, TypeStructure } from '../../types/structures.js';
+import type { Carried } from '../../types/declared.js';
 import { createChildContext } from '../../context.js';
 import { execute } from '../../execute.js';
 import type { EvalState } from '../state.js';
@@ -39,6 +41,7 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getNodeLocation } from '../shared.js';
 import { evaluateExpression } from './core.js';
 import { evaluateVariableAsync } from './variables.js';
+import { assertTypeRefCarried } from './types.js';
 import { validateHostResult } from '../../callable.js';
 import { isObjectRecord } from '../../types/guards.js';
 import { ControlSignal } from '../../signals.js';
@@ -48,7 +51,12 @@ import { brandExtensionValue } from '../../policy/identity.js';
 export type UseResolution = {
   readonly value: RillValue;
   readonly kind: 'value' | 'source';
+  /** The written `:T`, or undefined when none was written or it is `any`. */
+  readonly declared: TypeStructure | undefined;
 };
+
+/** A resolver result before any written type is asserted. */
+type RawUseResolution = Omit<UseResolution, 'declared'>;
 
 /**
  * Evaluate a use<> expression.
@@ -64,14 +72,45 @@ export async function evaluateUseExpr(
 }
 
 /**
+ * Evaluate a use<> expression and report the declared type it carries: the
+ * written `:T`, so a capture locks to it.
+ */
+export async function evaluateUseExprCarried(
+  s: EvalState,
+  node: UseExprNode
+): Promise<Carried> {
+  const resolved = await resolveUseExpr(s, node);
+  return { value: resolved.value, declared: resolved.declared };
+}
+
+/**
  * Resolve a use<> expression and report which kind of resolver result
  * produced the value, so a pipe target can dispatch host values by kind
- * and leave source-module results untouched.
+ * and leave source-module results untouched. A written `:T` is asserted once
+ * the resolution has finished and the in-flight mark is cleared, so a
+ * mismatch halts at the use site, catchable, and never inside the module.
  */
 export async function resolveUseExpr(
   s: EvalState,
   node: UseExprNode
 ): Promise<UseResolution> {
+  const raw = await resolveUseRaw(s, node);
+  if (node.typeRef === null) {
+    return { ...raw, declared: undefined };
+  }
+  const asserted = await assertTypeRefCarried(
+    s,
+    node.typeRef,
+    node.span.start,
+    { value: raw.value, declared: undefined }
+  );
+  return { value: asserted.value, kind: raw.kind, declared: asserted.declared };
+}
+
+async function resolveUseRaw(
+  s: EvalState,
+  node: UseExprNode
+): Promise<RawUseResolution> {
   let scheme: string;
   let resource: string;
 

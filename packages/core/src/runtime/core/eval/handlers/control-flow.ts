@@ -389,6 +389,7 @@ async function evaluateBlockBody(
     const stmtCtx = createChildContext(blockCtx, {
       variables: blockCtx.variables,
       variableTypes: blockCtx.variableTypes,
+      declaredLocks: blockCtx.declaredLocks,
     });
     stmtCtx.pipeValue = parentPipeValue; // Always parent's $, not previous sibling's
 

@@ -217,7 +217,7 @@ Under a declared union, `.^type` reports the declaration and `.^effective` the o
 Dispatch on `.^effective.name`, not `.^type.name`. `any` declares nothing:
 `1 => $x:any` locks as number.
 
-A declaration carries through `$`, plain and inline captures, grouped `( )`, `pass`, destructure, function params, iteration over a declared `list(E)`, and every element or field read on a declared collection: `[i]`, `.name`, `.$k`, and pipe selection `"a" -> $d`. A capture locks to the carried declaration.
+A declaration carries through `$`, plain and inline captures, grouped `( )`, `pass`, destructure, function params, iteration over a declared `list(E)`, and every element or field read on a declared collection: `[i]`, `.name`, `.$k`, and pipe selection `"a" -> $d`. A capture locks to the carried declaration, else the full inferred type (`list[1]` locks `list(number)`).
 Computed results (operators, methods like `.head`, calls) take their own type.
 A bare `list`, `list(any)`, or `union(list(number), string)` projects no element type. A bare kind such as `:list` makes `.^type` report `list` and `.^effective` report `list(number)`.
 Host boundary: `toNative` reports the own type.

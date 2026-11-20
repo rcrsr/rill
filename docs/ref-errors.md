@@ -2223,9 +2223,9 @@ $r.! ? "not permitted" ! $r
 
 **Description:** Invalid host function signature
 
-**Cause:** A host function definition carries a signature that cannot be registered. The signature string fails to lex, parse, or convert to a type structure; the definition supplies signature together with params or returnType; the signature is not a string; the description is not a string; the annotations field is not an object; or one annotation key is declared by more than one source, such as the signature and the annotations field.
+**Cause:** A host function definition carries a signature that cannot be registered. The signature string fails to lex, parse, or convert to a type structure (a `$name` type reference, a default or annotation value that is not a constant literal, and an interpolated string are all rejected); the definition supplies signature together with params or returnType; the signature is not a string; the description is not a string; the annotations field is not an object; or one annotation key is declared by more than one source, such as the signature and the annotations field.
 
-**Resolution:** Fix the signature string so it reads fn(param: type, ...):return_type with parentheses and named params (an unnamed param is rejected), supply either signature or params and returnType but not both, pass strings for signature and description, pass an object for annotations, and declare each annotation key in one place only.
+**Resolution:** Fix the signature string so it reads fn(param: type, ...):return_type with parentheses and named params (an unnamed param is rejected), supply either signature or params and returnType but not both, write defaults and annotation values as constant literals, pass strings for signature and description, pass an object for annotations, and declare each annotation key in one place only.
 
 **Example:**
 
@@ -2325,8 +2325,8 @@ Prevent runtime errors with existence and type checks:
 
 ```rill
 # Check variable existence before use
-[apiKey: "secret123"] => $config
-$config.?apiKey ? $config.apiKey ! "default-key"
+[apiKey: "secret123"] => $secrets
+$secrets.?apiKey ? $secrets.apiKey ! "default-key"
 
 # Check type before method call
 "test" => $value
@@ -2365,8 +2365,8 @@ Explicitly verify and convert types:
 $input:string -> .trim
 
 # Check type before calling method
-[1, 2, 3] => $items
-$items :? list ? ($items -> .len) ! 0
+[1, 2, 3] => $numbers
+$numbers :? list ? ($numbers -> .len) ! 0
 
 # Convert with validation
 "42" => $value

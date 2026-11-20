@@ -12,11 +12,14 @@ import {
   anyTypeValue,
   createTestContext,
   execute,
+  isCallable,
   ExtensionBindingError,
   parse,
+  structureToTypeValue,
   toCallable,
   type RillFunction,
   type RillValue,
+  type TypeStructure,
 } from '@rcrsr/rill';
 
 async function execInContext(
@@ -127,4 +130,85 @@ describe('createTestContext: eager-parse safety net', () => {
     );
     expect(result).toBe('abc-123');
   });
+});
+
+describe('createTestContext: generated bindings round-trip', () => {
+  const param = (
+    name: string,
+    type: TypeStructure,
+    defaultValue?: RillValue
+  ): RillFunction['params'][number] => ({
+    name,
+    type,
+    defaultValue,
+    annotations: {},
+  });
+
+  const fixtures: Record<string, RillFunction> = {
+    typed: {
+      params: [param('text', { kind: 'string' })],
+      fn: () => 'x',
+      returnType: structureToTypeValue({ kind: 'string' }),
+    },
+    defaulted: {
+      params: [param('count', { kind: 'number' }, 3)],
+      fn: () => 1,
+      returnType: structureToTypeValue({ kind: 'number' }),
+    },
+    untyped: {
+      params: [],
+      fn: () => null,
+      returnType: anyTypeValue,
+    },
+    dictParam: {
+      params: [
+        param('options', {
+          kind: 'dict',
+          fields: { max: { type: { kind: 'number' }, defaultValue: 0 } },
+        }),
+      ],
+      fn: () => 'x',
+      returnType: structureToTypeValue({
+        kind: 'dict',
+        fields: { content: { type: { kind: 'string' } } },
+      }),
+    },
+    collectionParams: {
+      params: [
+        param('items', { kind: 'list', element: { kind: 'number' } }),
+        param('mode', {
+          kind: 'union',
+          members: [{ kind: 'string' }, { kind: 'number' }],
+        }),
+      ],
+      fn: () => 'x',
+      returnType: structureToTypeValue({ kind: 'bool' }),
+    },
+    fnParam: {
+      params: [
+        param('cb', {
+          kind: 'fn',
+          params: [{ name: 'x', type: { kind: 'number' } }],
+          ret: { kind: 'number' },
+        }),
+      ],
+      fn: () => null,
+      returnType: anyTypeValue,
+    },
+  };
+
+  for (const [name, def] of Object.entries(fixtures)) {
+    it(`runs the generated binding for the ${name} callable without a halt`, async () => {
+      const ctx = createTestContext({
+        myext: { value: { run: toCallable(def) } },
+      });
+
+      const result = await execInContext(
+        'use<module:ext> => $m\n$m.myext.run',
+        ctx
+      );
+
+      expect(isCallable(result)).toBe(true);
+    });
+  }
 });

@@ -765,7 +765,7 @@ See [Operators](topic-operators.md) for union types in destructure and existence
 
 ## Type-Locked Variables
 
-Variables lock type on first assignment. The lock is the declared type the value carries, or the value's own type when it carries none. An annotation declares a type explicitly:
+Variables lock type on first assignment. The lock is the declared type the value carries, or its full inferred type, element and field types included (see [Type-Locked Variables](topic-variables.md)). An annotation declares a type explicitly:
 
 ```rill
 "hello" => $name              # implicit: locked as string
@@ -800,7 +800,7 @@ $y
 Type annotations validate on assignment and prevent accidental type changes:
 
 ```rill
-fn(x) { $x } => $fn                  # locked as fn
+fn(x) { $x } => $fn                  # locked as its full fn type
 ```
 
 ```text

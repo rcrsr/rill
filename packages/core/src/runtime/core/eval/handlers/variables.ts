@@ -44,8 +44,12 @@ import { RuntimeError, isPipeChainNode } from '../../../../types.js';
 import type { TypeStructure, RillValue } from '../../types/structures.js';
 import type { Carried } from '../../types/declared.js';
 import { declarationOf, pipeDeclaredOf } from '../../types/declared.js';
-import { inferType, inferTypeName } from '../../types/registrations.js';
-import { formatStructure, structureMatches } from '../../types/operations.js';
+import { inferType } from '../../types/registrations.js';
+import {
+  formatStructure,
+  inferLockType,
+  structureMatches,
+} from '../../types/operations.js';
 import {
   getVariable,
   hasVariable,
@@ -74,7 +78,7 @@ import {
   evaluateAnnotationAccess,
 } from './closures.js';
 import type { FieldKey } from './field-access.js';
-import { resolveTypeRef, assertType } from './types.js';
+import { resolveTypeRef, assertTypeRefCarried } from './types.js';
 import {
   evaluateFieldAccessVariable,
   bracketKey,
@@ -179,8 +183,13 @@ export function setVariable(
     // The declared type is the lock: explicit annotation first, then the
     // type carried with the value, then the inferred kind name. A later
     // capture never changes it.
-    const lockType = explicit ?? carried ?? inferTypeName(value);
+    // With none of those, the lock is the value's inferred structure; a
+    // kind outside the closed type-name set keeps the kind-name fallback.
+    // Only a written or carried type counts as a declaration.
+    const declaredLock = explicit ?? declarationOf(carried);
+    const lockType = declaredLock ?? inferLockType(value);
     s.ctx.variableTypes.set(name, lockType);
+    if (declaredLock !== undefined) s.ctx.declaredLocks.add(name);
   }
 }
 
@@ -746,21 +755,19 @@ async function evaluateCapture(
   declared?: TypeStructure
 ): Promise<RillValue> {
   if (node.typeRef !== null) {
-    // Resolve TypeRef and validate against the declared type
-    const resolved = await resolveTypeRef(
+    const asserted = await assertTypeRefCarried(
       s,
       node.typeRef,
-      (name: string) => getVariable(s.ctx, name),
-      node.span.start
+      node.span.start,
+      { value: input, declared }
     );
-    assertType(s, input, resolved.structure, node.span.start);
     setVariable(
       s,
       node.name,
       input,
-      resolved.structure,
+      undefined,
       node.span.start,
-      declared
+      asserted.declared
     );
   } else {
     setVariable(s, node.name, input, undefined, node.span.start, declared);

@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Capture Type Assertions
  * Tests for type-asserted variable capture ($var:type)
@@ -6,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 import { run, runWithContext } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Capture Type Assertions', () => {
@@ -254,5 +256,101 @@ $s`);
         await run('string => $t\n"hello" => $x:$t\nnumber => $t\n$x')
       ).toBe('hello');
     });
+  });
+
+  describe('Inferred structure lock', () => {
+    rule('type-lock.list', 'type-lock.narrowest').it(
+      'locks a list to its element type',
+      async () => {
+        await expectHalt(() => run('list[1] => $x\nlist["a"] => $x'), {
+          code: 'RILL_R001',
+          messagePattern: /locked as list\(number\)/,
+        });
+      }
+    );
+
+    rule('type-lock.dict', 'type-lock.narrowest').it(
+      'locks a dict to its field types',
+      async () => {
+        await expectHalt(() => run('dict[a: 1] => $x\ndict[a: "x"] => $x'), {
+          code: 'RILL_R001',
+          messagePattern: /locked as dict\(a: number\)/,
+        });
+      }
+    );
+
+    rule('type-lock.tuple', 'type-lock.narrowest').it(
+      'locks a tuple to its position types',
+      async () => {
+        await expectHalt(() => run('tuple[1] => $x\ntuple["a"] => $x'), {
+          code: 'RILL_R001',
+          messagePattern: /locked as tuple\(number\)/,
+        });
+      }
+    );
+
+    rule('type-lock.empty').it(
+      'admits any list after an empty list capture',
+      async () => {
+        expect(await run('list[] => $x\nlist["a"] => $x\n$x')).toEqual(['a']);
+      }
+    );
+
+    rule('type-lock.narrowest').it(
+      'keeps a mixed list usable but not comparable to a mismatched element',
+      async () => {
+        await expectHalt(
+          () => run('list[1, "a"] => $l\n$l -> seq({ $ == "a" })'),
+          { code: 'TYPE_MISMATCH' }
+        );
+      }
+    );
+
+    rule('type-lock.narrowest').it(
+      'carries the inferred structure as the captured type',
+      async () => {
+        expect(await run('list[1] => $x\n($x.^type == list[1].^type)')).toBe(
+          true
+        );
+        // A kind-only lock would type this list as plain list.
+        expect(await run('list[1, 2] => $x\n($x.^type == list[3].^type)')).toBe(
+          true
+        );
+      }
+    );
+
+    rule('type-lock.narrowest').it(
+      'halts when a function is recaptured with a different signature',
+      async () => {
+        await expectHalt(
+          () =>
+            run(
+              'fn(a: number):number { $a } => $f\nfn(a: string):string { $a } => $f'
+            ),
+          {
+            code: 'RILL_R001',
+            messagePattern: /locked as fn\(a: number\)/,
+          }
+        );
+      }
+    );
+
+    rule('type-lock.any').it(
+      'locks an any annotation to the inferred structure',
+      async () => {
+        await expectHalt(() => run('list[1] => $x:any\nlist["a"] => $x'), {
+          code: 'RILL_R001',
+        });
+      }
+    );
+
+    rule('type-lock.annotation-after').it(
+      'halts a later annotation that disagrees with the lock',
+      async () => {
+        await expectHalt(() => run('1 => $x\n"a" => $x:string'), {
+          code: 'RILL_R001',
+        });
+      }
+    );
   });
 });

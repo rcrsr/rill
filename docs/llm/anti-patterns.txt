@@ -160,6 +160,15 @@ A block written as a dict value or list element is held uncalled. Reads that sel
     Right: $items -> fold(0, { $@ + $.price })          # 0 + p1 + p2 + ...
     Right: $items -> acc(0, { $@ + $.price })           # list of running totals
 
+## Collection locks
+
+A variable locks to the full type of its first value, element types included.
+
+    Wrong: list[1] => $x
+           list["a"] => $x                  # halts RILL-R001: locked as list(number)
+    Right: list[1] => $x:list(union(number, string))
+           list["a"] => $x                  # list["a"]
+
 ## Try/catch
 
     Wrong: try { fetch(url) } catch (e) { fallback }

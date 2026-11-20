@@ -6,8 +6,8 @@
  * a declaration survives only through the constructs that carry one and every
  * other construct reports its own type (no declaration).
  *
- * Carrying primaries: variable reads, type assertions, grouped expressions
- * and `.!code` probes. Carrying steps: bracket access on a declared
+ * Carrying primaries: variable reads, type assertions, grouped expressions,
+ * `.!code` probes and `use<id>:T` expressions. Carrying steps: bracket access on a declared
  * collection and own-field reads. Carrying pipe targets: type assertions,
  * pass blocks, own-field method reads, grouped expressions, `$.field` reads,
  * the synthetic `$` postfix, and destructures. Element projection comes from
@@ -46,6 +46,7 @@ import {
 import { evaluateBody } from './control-flow.js';
 import { resolveSelected } from './code-block.js';
 import { evaluateTypeAssertionCarried } from './types.js';
+import { evaluateUseExprCarried } from './use.js';
 import { evaluateStatusProbeCarried } from './recovery.js';
 import { evaluatePassBlock } from './literals.js';
 import { evaluateGroupedExprCarried } from './expressions.js';
@@ -81,7 +82,7 @@ function isRecoverableMissing(error: unknown): boolean {
 
 /**
  * Evaluate a primary and report its declared type. Variable reads, type
- * assertions, grouped expressions and status probes carry a declaration; every
+ * assertions, grouped expressions, status probes and use<> expressions carry a declaration; every
  * other primary takes its own type.
  */
 export function evaluatePrimaryCarried(
@@ -102,6 +103,9 @@ export function evaluatePrimaryCarried(
 
     case 'TypeAssertion':
       return evaluatePostfixAssertionCarried(s, primary);
+
+    case 'UseExpr':
+      return evaluateUseExprCarried(s, primary);
 
     default:
       return evaluateOwnPrimary(s, primary);

@@ -28,9 +28,12 @@ import {
   isVector,
   getStreamTypeSidecar,
 } from './guards.js';
-import { throwTypeHalt } from './halt.js';
+import { RuntimeHaltSignal, throwTypeHalt } from './halt.js';
+import { isRillTypeName } from '../../../value-types.js';
+import type { RillTypeName } from '../../../value-types.js';
 import {
   inferType as registryInferType,
+  inferTypeName,
   formatValue as registryFormatValue,
   deepEquals as registryDeepEquals,
 } from './registrations.js';
@@ -975,6 +978,22 @@ export function inferStructure(value: RillValue): TypeStructure {
     undefined,
     'host'
   );
+}
+
+/**
+ * Type a variable locks to on first capture when nothing was declared: the
+ * value's inferred structure. A value outside the closed type-name set, or
+ * one holding a callable with no return type (so it has no structure), locks
+ * to its kind name instead.
+ */
+export function inferLockType(value: RillValue): TypeStructure | RillTypeName {
+  if (!isRillTypeName(registryInferType(value))) return inferTypeName(value);
+  try {
+    return inferStructure(value);
+  } catch (err) {
+    if (err instanceof RuntimeHaltSignal) return inferTypeName(value);
+    throw err;
+  }
 }
 
 // ============================================================

@@ -33,7 +33,7 @@ import {
 
 import { run } from '../helpers/runtime.js';
 import { expectRuntimeError } from '../helpers/halt.js';
-import { parseSignatureRegistration } from '../../src/signature-parser.js';
+import { parseSignatureRegistration } from '../../src/runtime/core/signature-registration.js';
 
 describe('Rill Runtime: Signature Registration', () => {
   describe('AC-17: Structured RillParam[] registers and validates on every call', () => {
@@ -627,11 +627,15 @@ describe('Rill Runtime: Signature Registration', () => {
       );
     });
 
-    it('rejects annotation values that are not string literals', () => {
+    it('rejects an annotation value that is not a constant literal', () => {
       expectInvalid(
-        '^(x: 1) fn(a)',
-        'annotation values must be string literals'
+        '^(x: "a{1}") fn(a)',
+        'string interpolation is not allowed'
       );
+    });
+
+    it('rejects an annotation spread', () => {
+      expectInvalid('^(...$o) fn(a)', 'an annotation spread is not allowed');
     });
 
     it('rejects an annotation key without a colon', () => {
@@ -679,13 +683,13 @@ describe('Rill Runtime: Signature Registration', () => {
     it('rejects a list with a named argument', () => {
       expect(() =>
         parseSignatureRegistration('fn(a: list(x: string))', 'fn')
-      ).toThrow(`${prefix}list requires exactly one positional type argument`);
+      ).toThrow(`${prefix}list() requires exactly 1 type argument`);
     });
 
     it('rejects a list with multiple arguments', () => {
       expect(() =>
         parseSignatureRegistration('fn(a: list(string, number))', 'fn')
-      ).toThrow(`${prefix}list requires exactly one positional type argument`);
+      ).toThrow(`${prefix}list() requires exactly 1 type argument`);
     });
 
     it('parses a dict with named fields and a list return type', () => {
@@ -703,32 +707,24 @@ describe('Rill Runtime: Signature Registration', () => {
       });
     });
 
-    it('rejects a dict with a positional argument', () => {
-      expect(() =>
-        parseSignatureRegistration('fn(a: dict(string))', 'fn')
-      ).toThrow(
-        `${prefix}dict type arguments must be named (e.g. dict(key: string))`
-      );
+    it('parses a dict with one positional argument as a uniform dict', () => {
+      const parsed = parseSignatureRegistration('fn(a: dict(string))', 'fn');
+      expect(parsed.params[0]?.type).toEqual({
+        kind: 'dict',
+        valueType: { kind: 'string' },
+      });
     });
 
-    it('parses a tuple mixing named and positional elements', () => {
-      const parsed = parseSignatureRegistration(
-        'fn(a: tuple(a: string, number))',
-        'fn'
-      );
-      expect(parsed.params[0]?.type).toEqual({
-        kind: 'tuple',
-        elements: [
-          { name: 'a', type: { kind: 'string' } },
-          { type: { kind: 'number' } },
-        ],
-      });
+    it('rejects a tuple with a named element', () => {
+      expect(() =>
+        parseSignatureRegistration('fn(a: tuple(a: string, number))', 'fn')
+      ).toThrow(`${prefix}tuple() requires positional arguments at 1:4`);
     });
 
     it('rejects type arguments on a non-parameterizable type', () => {
       expect(() =>
         parseSignatureRegistration('fn(a: string(number))', 'fn')
-      ).toThrow(`${prefix}type 'string' does not accept type arguments`);
+      ).toThrow(`${prefix}string does not accept type arguments`);
     });
   });
 
