@@ -44,9 +44,11 @@ In a tuple type, every position after a defaulted position MUST also carry a def
 Otherwise constructing the type MUST halt with `#INVALID_INPUT`.
 
 r[defaults.element] An element type carries no default
-A default on the element type of a list, as in `list(number = 1)`, or on the value type of a
-uniform dict or ordered, as in `dict(number = 1)`, MUST halt with `#INVALID_INPUT` when the type is
-constructed. No element is ever omitted, so the default could never fill one.
+A default on the element type of a list, as in `list(number = 1)`, on the value type of a
+uniform dict or ordered, as in `dict(number = 1)`, or on the chunk or return type of a stream, as in
+`stream(number = 1)` or `stream(number, string = "x")`, MUST halt with `#INVALID_INPUT` when the
+type is constructed. No element, chunk, or return value is ever omitted, so the default could never
+fill one.
 
 r[defaults.type-match] A default has the type of its field
 A default whose value does not match its field type MUST halt with `#TYPE_MISMATCH` when the type is
@@ -105,7 +107,7 @@ Two types that differ only by a present or absent default MUST compare unequal.
 | An operator follows a literal default in a type argument list | RILL-P014 | No |
 | A default does not match its field type | `#TYPE_MISMATCH` | Yes |
 | A tuple default is followed by a position without one | `#INVALID_INPUT` | Yes |
-| A list element type or uniform value type carries a default | `#INVALID_INPUT` | Yes |
+| A list element type, uniform value type, or stream chunk or return type carries a default | `#INVALID_INPUT` | Yes |
 | A conversion omits a field or position with no default | RILL-R044 | Yes |
 | A call omits an argument for a parameter with no default | RILL-R044 | No |
 

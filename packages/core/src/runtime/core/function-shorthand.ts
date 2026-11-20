@@ -7,8 +7,9 @@
  * Import constraints:
  * - Types come from ./callable.js as `import type`, which erases at compile
  *   time. callable.ts imports this file, so a value import would form a cycle.
- * - Signature parsing goes through the signature-registration.ts, which reads it through
- *   the signature-parser.ts bridge.
+ * - Signature strings are read by a reader that signature-registration.ts
+ *   registers through registerSignatureReader. This file imports neither that
+ *   module nor the parser bridge, so no import cycle forms.
  */
 
 import { RuntimeError } from '../../types.js';
@@ -89,6 +90,11 @@ function signatureFault(name: string, detail: string): RuntimeError {
  *
  * Explicit-form definitions are returned unchanged (same object). The
  * shorthand form is read by the registered signature reader.
+ *
+ * Invariant: signature-registration.ts registers that reader as a side effect
+ * of being imported, and `src/index.ts` imports it for that purpose. A
+ * shorthand definition normalized before that import halts RILL-R091
+ * ("signature support is not loaded"); every public entry point loads it.
  *
  * @throws {RuntimeError} RILL-R091 when the shorthand is malformed, mixes
  * forms, has a non-object annotations field, or declares an annotation key

@@ -1001,6 +1001,26 @@ describe('Rill Language: Structural Type Default Values', () => {
       }
     );
 
+    rule('defaults.element').it(
+      'halts #INVALID_INPUT on a stream chunk type default',
+      async () => {
+        await expectHalt(() => run('number -> :stream(number = 1)'), {
+          code: 'INVALID_INPUT',
+          messagePattern: /stream chunk type cannot carry a default/,
+        });
+      }
+    );
+
+    rule('defaults.element').it(
+      'halts #INVALID_INPUT on a stream return type default',
+      async () => {
+        await expectHalt(() => run('number -> :stream(number, string = "x")'), {
+          code: 'INVALID_INPUT',
+          messagePattern: /stream return type cannot carry a default/,
+        });
+      }
+    );
+
     rule('defaults.element').it('is caught by guard', async () => {
       const result = await run(
         'guard { list[1] -> :list(number = 1) } => $r\n$r.!code == #INVALID_INPUT'

@@ -4,7 +4,7 @@
  * Handles variable access, mutation, and capture operations:
  * - Variable lookup with scope chain traversal
  * - Variable assignment with type checking
- * - Capture syntax (:> $name)
+ * - Capture syntax (=> $name)
  *
  * LIMITATIONS:
  * - Property access chains ($data.field[0]) require access.ts
@@ -744,7 +744,7 @@ export async function evaluateVariableCarried(
 }
 
 /**
- * Evaluate capture: :> $name
+ * Evaluate capture: => $name
  * Handles capture syntax which assigns the piped value to a variable.
  * Calls setVariable for type checking and fires observability callback.
  */

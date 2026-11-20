@@ -97,6 +97,17 @@ In rill, `{ ... }` is a block (function body, loop body, etc.), not a dict liter
     Wrong: "5" -> union(number, bool)      # halts RILL-R036: not a member
     Right: "5" -> number
 
+## Element defaults
+
+    Wrong: list[1] -> list(number = 1)         # halts #INVALID_INPUT: an element type carries no default
+    Right: list[1] -> list(number)
+
+    Wrong: dict[a: 1] -> dict(number = 0)      # halts #INVALID_INPUT: same for a uniform value type
+    Right: dict[a: 1] -> dict(a: number = 0)   # a named field may carry a default
+
+    Wrong: stream(string, number = 1)          # halts #INVALID_INPUT: stream types carry no default
+    Right: stream(string, number)
+
 ## Loops
 
     Wrong: for item in list { ... }

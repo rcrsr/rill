@@ -74,6 +74,20 @@ tuple["x"] -> tuple(string, number = 0)
 # Result: tuple["x", 0]
 ```
 
+A list element type, a uniform dict or ordered value type, and a stream chunk or return type carry no default. No element is ever omitted, so a default would never fill anything. The type halts `#INVALID_INPUT` when it is built.
+
+```rill
+list[1] -> list(number = 1)
+# Error: list element type cannot carry a default
+```
+
+```rill
+stream(number = 1)
+# Error: stream chunk type cannot carry a default
+```
+
+Write `list(number)`. Defaults belong on named fields, trailing tuple positions, and function parameters.
+
 Tuple defaults are restricted to trailing positions. You cannot place a defaulted field before a required field in a tuple constructor.
 
 The `:` assertion operator only checks and never converts. `-> T` converts every field, element, and position, and fills missing defaults.

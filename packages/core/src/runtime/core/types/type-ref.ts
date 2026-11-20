@@ -54,10 +54,8 @@ export type TypeRefRequest =
   | { readonly kind: 'literal'; readonly node: LiteralNode }
   | { readonly kind: 'annotations'; readonly args: readonly AnnotationArg[] };
 
-/** A failure the conversion reports to its driver. */
-export interface TypeRefFault {
-  /** An error atom (`R002`) or a core type-halt code (`INVALID_INPUT`). */
-  readonly code: string;
+/** The fields every failure carries. */
+interface TypeRefFaultBase {
   /** Name of the construct that failed (`list`, `union`, a type name). */
   readonly fn: string;
   readonly message: string;
@@ -65,6 +63,22 @@ export interface TypeRefFault {
   readonly raw?: Record<string, unknown> | undefined;
   readonly catchable: boolean;
 }
+
+/** A registered error atom, such as `RILL_R002`. */
+type ErrorAtomCode = (typeof ERROR_ATOMS)[keyof typeof ERROR_ATOMS];
+
+/**
+ * A failure the conversion reports to its driver: either a core type halt
+ * (`#INVALID_INPUT`, `#TYPE_MISMATCH`) or a registered error atom.
+ */
+export type TypeRefFault = TypeRefFaultBase &
+  (
+    | {
+        readonly type: 'halt';
+        readonly code: 'INVALID_INPUT' | 'TYPE_MISMATCH';
+      }
+    | { readonly type: 'atom'; readonly atom: ErrorAtomCode }
+  );
 
 /** What the driver supplies around one conversion. */
 export interface TypeRefEnv {
@@ -97,16 +111,6 @@ export const LEAF_TYPES: ReadonlySet<string> = Object.freeze(
 
 type CollectionTypeName = 'list' | 'dict' | 'tuple' | 'ordered';
 
-const TYPE_HALT_CODES: ReadonlySet<string> = new Set([
-  'INVALID_INPUT',
-  'TYPE_MISMATCH',
-]);
-
-/** True when a fault code is a core type-halt code, not an error atom. */
-export function isTypeHaltCode(code: string): boolean {
-  return TYPE_HALT_CODES.has(code);
-}
-
 function isCollectionTypeName(name: string): name is CollectionTypeName {
   return (
     name === 'list' || name === 'dict' || name === 'tuple' || name === 'ordered'
@@ -138,6 +142,7 @@ function invalidInput(
   location: SourceLocation | undefined
 ): never {
   return env.fail({
+    type: 'halt',
     code: 'INVALID_INPUT',
     fn,
     message,
@@ -158,6 +163,7 @@ function requireDefaultMatch(
   const mismatch = defaultMismatch(value, type);
   if (mismatch === null) return;
   env.fail({
+    type: 'halt',
     code: 'TYPE_MISMATCH',
     fn,
     message: defaultMismatchMessage(subject, mismatch),
@@ -182,7 +188,8 @@ function* evaluateFieldAnnotations(
   const record = yield { kind: 'annotations', args };
   if (!isDict(record)) {
     return env.fail({
-      code: ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      type: 'atom',
+      atom: ERROR_ATOMS[ERROR_IDS.RILL_R002],
       fn: 'annotations',
       message: 'Annotations evaluated to a non-dict value',
       location,
@@ -227,7 +234,8 @@ function* completeField(
  * Fault contracts:
  * - list != 1 arg, dict/ordered with 2+ positional, mixed positional and
  *   named, tuple with a named arg, tuple non-trailing default, a default on
- *   a list element or uniform dict/ordered value type: INVALID_INPUT
+ *   a list element, uniform dict/ordered value type, or stream chunk or
+ *   return type: INVALID_INPUT
  * - default that does not match its type: TYPE_MISMATCH
  * - reserved brand key: RILL-R002
  */
@@ -277,7 +285,8 @@ function* buildCollectionType(
     for (const { name: argName } of fnParams ? [] : named) {
       if (isReservedBrandKey(argName)) {
         env.fail({
-          code: ERROR_ATOMS[ERROR_IDS.RILL_R002],
+          type: 'atom',
+          atom: ERROR_ATOMS[ERROR_IDS.RILL_R002],
           fn: name,
           message: `Cannot use reserved brand key '${argName}' as ${name} field name`,
           location,
@@ -434,7 +443,8 @@ function* convertUnionLiteral(
     return { kind: 'literal', value };
   }
   return env.fail({
-    code: ERROR_ATOMS[ERROR_IDS.RILL_R002],
+    type: 'atom',
+    atom: ERROR_ATOMS[ERROR_IDS.RILL_R002],
     fn: 'union',
     message: 'Union literal member evaluated to a non-scalar value',
     catchable: false,
@@ -562,6 +572,22 @@ export function* convertTypeRef(
         ret?: TypeStructure;
       } = { kind: 'stream' };
       const [chunkArg, retArg] = args;
+      if (chunkArg?.defaultValue !== undefined) {
+        return invalidInput(
+          env,
+          'stream',
+          'stream chunk type cannot carry a default',
+          at
+        );
+      }
+      if (retArg?.defaultValue !== undefined) {
+        return invalidInput(
+          env,
+          'stream',
+          'stream return type cannot carry a default',
+          at
+        );
+      }
       if (chunkArg !== undefined) {
         streamStructure.chunk = (yield* convertTypeRef(
           chunkArg.value,
@@ -600,7 +626,8 @@ export function* convertTypeRef(
   // the parser produced a tree the conversion cannot interpret.
   if (ref.kind === 'literal') {
     return env.fail({
-      code: ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      type: 'atom',
+      atom: ERROR_ATOMS[ERROR_IDS.RILL_R002],
       fn: 'resolveTypeRef',
       message: 'Literal type reference outside a union',
       catchable: false,
@@ -626,7 +653,8 @@ export function* convertTypeRef(
   const result = env.variable(ref.varName, at);
   if (result === undefined) {
     return env.fail({
-      code: ERROR_ATOMS[ERROR_IDS.RILL_R005],
+      type: 'atom',
+      atom: ERROR_ATOMS[ERROR_IDS.RILL_R005],
       fn: 'resolveTypeRef',
       message: `Variable $${ref.varName} is not defined`,
       catchable: true,
@@ -635,6 +663,7 @@ export function* convertTypeRef(
   if (isTypeValue(result)) return result;
 
   return env.fail({
+    type: 'halt',
     code: 'TYPE_MISMATCH',
     fn: 'resolveTypeRef',
     message: `Variable $${ref.varName} is not a valid type reference (got ${inferType(result)})`,

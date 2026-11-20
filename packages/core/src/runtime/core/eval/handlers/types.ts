@@ -52,7 +52,6 @@ import {
 } from '../../types/halt.js';
 import {
   convertTypeRef,
-  isTypeHaltCode,
   type TypeRefEnv,
   type TypeRefFault,
 } from '../../types/type-ref.js';
@@ -70,12 +69,12 @@ function throwTypeRefFault(s: EvalState, fault: TypeRefFault): never {
     sourceId: s.ctx.sourceId,
     fn: fault.fn,
   };
-  if (isTypeHaltCode(fault.code)) {
+  if (fault.type === 'halt') {
     return throwTypeHalt(site, fault.code, fault.message, 'runtime', fault.raw);
   }
   return fault.catchable
-    ? throwCatchableHostHalt(site, fault.code, fault.message)
-    : throwFatalHostHalt(site, fault.code, fault.message);
+    ? throwCatchableHostHalt(site, fault.atom, fault.message)
+    : throwFatalHostHalt(site, fault.atom, fault.message);
 }
 
 /**
@@ -100,17 +99,31 @@ export async function resolveTypeRef(
     variable: (name) => getVariableFn(name),
     fail: (fault) => throwTypeRefFault(s, fault),
   };
-  const step = convertTypeRef(typeRef, env, location);
-  let next = step.next();
-  while (next.done !== true) {
-    const request = next.value;
-    const answer =
-      request.kind === 'literal'
-        ? await evaluatePrimary(s, request.node)
-        : await evaluateAnnotations(s, [...request.args]);
-    next = step.next(answer);
+  try {
+    const step = convertTypeRef(typeRef, env, location);
+    let next = step.next();
+    while (next.done !== true) {
+      const request = next.value;
+      const answer =
+        request.kind === 'literal'
+          ? await evaluatePrimary(s, request.node)
+          : await evaluateAnnotations(s, [...request.args]);
+      next = step.next(answer);
+    }
+    return next.value;
+  } catch (e) {
+    // A type nested deeper than the JS stack allows overflows the recursive
+    // conversion; report it as a catchable halt, not a raw RangeError.
+    if (e instanceof RangeError && /call stack/i.test(e.message)) {
+      return throwTypeHalt(
+        { location, sourceId: s.ctx.sourceId, fn: 'resolveTypeRef' },
+        'INVALID_INPUT',
+        'stack depth exceeded while resolving type',
+        'runtime'
+      );
+    }
+    throw e;
   }
-  return next.value;
 }
 
 /**
@@ -281,12 +294,10 @@ export async function evaluateTypeCheck(
 /**
  * Evaluate a type constructor node into a RillTypeValue.
  *
- * Handles list(T), dict(...), tuple(...), ordered(...).
- * Delegates to buildCollectionType with evaluateTypeConstructor-specific
- * resolution strategy (resolves TypeRef via resolveTypeRef, evaluates
- * defaults via evaluatePrimary).
- *
- * Error contracts delegated to buildCollectionType.
+ * Handles `union(...)` members, then hands every other constructor
+ * (`list`, `dict`, `tuple`, `ordered`, `stream`) to `resolveTypeRef`, which
+ * drives the shared `convertTypeRef` conversion: default literals are
+ * evaluated with evaluatePrimary and faults surface as halts.
  */
 export async function evaluateTypeConstructor(
   s: EvalState,

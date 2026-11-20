@@ -751,6 +751,22 @@ export function createRuntimeContext(
 }
 
 /**
+ * `variableTypes` and `declaredLocks` describe one scope's type locks, so a
+ * caller overrides both or neither: sharing one map with a fresh set of the
+ * other would let a lock and its declaration disagree.
+ */
+type ChildTypeLockOverrides =
+  | { variableTypes?: undefined; declaredLocks?: undefined }
+  | {
+      variableTypes: Map<
+        string,
+        | import('../../types.js').RillTypeName
+        | import('./types/structures.js').TypeStructure
+      >;
+      declaredLocks: Set<string>;
+    };
+
+/**
  * Create a child context for block scoping.
  * Child inherits parent's functions, methods, callbacks, etc.
  * but has its own variables map. Variable lookups walk the parent chain.
@@ -772,13 +788,6 @@ export function createChildContext(
      * reassignment rather than an outer-scope write.
      */
     variables?: Map<string, RillValue>;
-    variableTypes?: Map<
-      string,
-      | import('../../types.js').RillTypeName
-      | import('./types/structures.js').TypeStructure
-    >;
-    /** Share the parent's declaredLocks whenever variableTypes is shared. */
-    declaredLocks?: Set<string>;
     /**
      * Give the child its own call-depth cell seeded from the parent's
      * current value instead of sharing the parent's cell. Used for
@@ -788,7 +797,7 @@ export function createChildContext(
      * always shared and never forked.
      */
     forkCallDepth?: boolean;
-  }
+  } & ChildTypeLockOverrides
 ): RuntimeContext {
   const child: RuntimeContext = {
     parent,

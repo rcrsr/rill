@@ -241,6 +241,6 @@ Slice (`slice<start:stop:step>`):
 
 `use<>` returns the resolved value (dict, function, or any rill type). Hosts register resolvers; scripts cannot. A `guard` around `use<>` catches resolution failures only; halts inside the module propagate.
 
-`v -> use<...>` on a host-resolved value calls a callable, selects from a dict or list, or converts through a type; any other value halts `RILL-R002`. A source module's result, even a function, is returned as-is. `use<id>:T` asserts the result as `-> :T` does: a mismatch halts `#TYPE_MISMATCH`, which `guard` catches, and `fn(...)` matches exactly.
+`v -> use<...>` on a host-resolved value calls a callable, selects from a dict or list, or converts through a type; any other value halts `RILL-R002`. A source module's result, even a function, is returned as-is. `use<id>:T` asserts the result as `-> :T` does: a mismatch halts `#TYPE_MISMATCH`, which `guard` catches, and `fn(...)` matches exactly. The result carries `T`, so `use<ext:app>:dict => $r` then `$r.^type` is `dict`. In `v -> use<id>:T` the resolved value is asserted before the pipe acts on it.
 
 See `control-flow` for iterators and lazy sequences.

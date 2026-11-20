@@ -577,6 +577,26 @@ describe('host function signature shorthand', () => {
       expect(err.message).toMatch(/dict value type cannot carry a default/);
     });
 
+    it('rejects a default on the stream chunk type with RILL-R091', () => {
+      const err = registrationError('fn(s: stream(number = 1)):string');
+      expect(err.errorId).toBe('RILL-R091');
+      expect(err.message).toMatch(/stream chunk type cannot carry a default/);
+    });
+
+    it('rejects a default on the stream return type with RILL-R091', () => {
+      const err = registrationError('fn(s: stream(number, string = "x")):bool');
+      expect(err.errorId).toBe('RILL-R091');
+      expect(err.message).toMatch(/stream return type cannot carry a default/);
+    });
+
+    it('keeps a non-string function-level annotation value', () => {
+      const callable = toCallable({
+        signature: '^(retries: 3) fn(url: string):string',
+        fn,
+      });
+      expect(callable.annotations).toEqual({ retries: 3 });
+    });
+
     it('rejects a non-trailing tuple default with RILL-R091', () => {
       const err = registrationError('fn(d: tuple(number = 1, string))');
       expect(err.errorId).toBe('RILL-R091');

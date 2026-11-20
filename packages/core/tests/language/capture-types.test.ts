@@ -269,6 +269,24 @@ $s`);
       }
     );
 
+    rule('type-lock.list', 'type-lock.same').it(
+      'admits a list of the locked element type on a later capture',
+      async () => {
+        expect(await run('list[1] => $x\nlist[1, 2] => $x\n$x')).toEqual([
+          1, 2,
+        ]);
+      }
+    );
+
+    rule('type-lock.annotation', 'type-lock.same').it(
+      'admits a later capture of any union member',
+      async () => {
+        expect(await run('"a" => $x:union(string, number)\n1 => $x\n$x')).toBe(
+          1
+        );
+      }
+    );
+
     rule('type-lock.dict', 'type-lock.narrowest').it(
       'locks a dict to its field types',
       async () => {
