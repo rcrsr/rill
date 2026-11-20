@@ -200,6 +200,15 @@ A written type before a literal on the same line declares that literal. A newlin
     Right: list(union(number, string))[] => $x
            list["a"] => $x
 
+    Wrong: $l -> list(number)[0]             # a declared list target, not convert-then-index; halts RILL-R009
+    Right: ($l -> list(number))[0]           # convert, then index
+
+    Wrong: $l:list [0]                       # RILL-P001: a type after : takes no value
+    Right: ($l:list)[0]                      # assert, then index
+
+    Wrong: "b" -> string "x"                 # RILL-P031: a string target must read $
+    Right: "b" -> string "x {$}"
+
 ## Declared types
 
     Wrong: union(string, number) 42 => $x

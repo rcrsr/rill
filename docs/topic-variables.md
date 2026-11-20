@@ -199,16 +199,6 @@ list(number)
 # Result: list[1, 2]
 ```
 
-An `:any` capture locks to the first value's type:
-
-```rill
-1 => $x:any
-"a" => $x
-# Error: RILL-R001
-```
-
-The language service reports this lock as the `ANY_CAPTURE_LOCK` checker error.
-
 ### Explicit Type Annotations
 
 Declare type explicitly with `:type`:
@@ -235,6 +225,8 @@ $x.^type.signature
 1 => $x:any
 "a" => $x
 ```
+
+The language service reports this lock as the `ANY_CAPTURE_LOCK` checker error.
 
 Union types, written `union(...)`, are valid in capture annotations. The runtime accepts any value that satisfies at least one union member:
 

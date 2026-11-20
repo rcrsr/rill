@@ -27,6 +27,19 @@ describe('SPACING_DECLARATION', () => {
     });
   });
 
+  it.each([
+    ['list[ list [1] ]\n', [10]],
+    ['list [ list [1] ]\n', [4, 11]],
+    ['list [[1], [2]]\n', [4]],
+    ['tuple [ [1] ]\n', [5]],
+  ])(
+    'reports one diagnostic per spaced keyword, at its own gap: %s',
+    (source, offsets) => {
+      const result = check(source);
+      expect(result.map((d) => d.fix?.range.start.offset)).toEqual(offsets);
+    }
+  );
+
   it('fires on a space between a written type and its bracket', () => {
     const result = check('list(number) [1, 2]\n');
     expect(result).toHaveLength(1);

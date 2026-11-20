@@ -80,42 +80,81 @@ function openerOffset(node: ASTNode, source: string): number {
 /** Keyword, then same-line spaces or tabs, ending right before the opener. */
 const KEYWORD_BEFORE_OPENER = /(?<![\w$.])(list|dict|tuple|ordered)([ \t]+)$/;
 
+/**
+ * Candidate openers for a keyword literal whose span starts after its opener.
+ * When the first element is itself a bracket, the span start sits on that
+ * element's `[`, so the literal's own opener is the `[` before the start.
+ */
+function candidateOpeners(node: ASTNode, source: string): number[] {
+  const start = node.span.start.offset;
+  const found: number[] = [];
+  if (source.charAt(start) === '[') found.push(start);
+  let i = start - 1;
+  while (i >= 0 && /[ \t]/.test(source.charAt(i))) i--;
+  if (i >= 0 && source.charAt(i) === '[') found.push(i);
+  else {
+    const last = source.lastIndexOf('[', start);
+    if (last >= 0 && !found.includes(last)) found.push(last);
+  }
+  return found;
+}
+
+/** Gap offsets already reported in one run, so a gap is reported once. */
+const reportedGaps = new WeakMap<RuleContext, Set<number>>();
+
 function checkKeywordLiteral(
   node: ASTNode,
   context: RuleContext
 ): Diagnostic[] {
   const startOffset = node.span.start.offset;
-  let keyword: string;
-  let gapStart: number;
-  let gapEnd: number;
-  const atStart = SPACED_KEYWORD.exec(
-    context.source.slice(startOffset, startOffset + 64)
-  );
-  if (atStart !== null) {
-    keyword = atStart[1] ?? '';
-    gapStart = startOffset + keyword.length;
-    gapEnd = gapStart + (atStart[2] ?? '').length;
-  } else {
-    const opener = openerOffset(node, context.source);
-    if (opener < 0) return [];
-    const before = KEYWORD_BEFORE_OPENER.exec(
-      context.source.slice(Math.max(0, opener - 64), opener)
+  const gaps: { keyword: string; gapStart: number; gapEnd: number }[] = [];
+  if (node.type === 'Dict') {
+    const atStart = SPACED_KEYWORD.exec(
+      context.source.slice(startOffset, startOffset + 64)
     );
-    if (before === null) return [];
-    keyword = before[1] ?? '';
-    gapEnd = opener;
-    gapStart = opener - (before[2] ?? '').length;
+    if (atStart !== null) {
+      const keyword = atStart[1] ?? '';
+      const gapStart = startOffset + keyword.length;
+      gaps.push({
+        keyword,
+        gapStart,
+        gapEnd: gapStart + (atStart[2] ?? '').length,
+      });
+    }
+  } else {
+    for (const opener of candidateOpeners(node, context.source)) {
+      const before = KEYWORD_BEFORE_OPENER.exec(
+        context.source.slice(Math.max(0, opener - 64), opener)
+      );
+      if (before === null) continue;
+      gaps.push({
+        keyword: before[1] ?? '',
+        gapStart: opener - (before[2] ?? '').length,
+        gapEnd: opener,
+      });
+    }
   }
-  return [
-    diagnostic(
-      node,
-      context,
-      gapStart,
-      gapEnd,
-      '',
-      `No space between '${keyword}' and '[': write '${keyword}[...]'`
-    ),
-  ];
+  let seen = reportedGaps.get(context);
+  if (seen === undefined) {
+    seen = new Set<number>();
+    reportedGaps.set(context, seen);
+  }
+  const out: Diagnostic[] = [];
+  for (const { keyword, gapStart, gapEnd } of gaps) {
+    if (seen.has(gapStart)) continue;
+    seen.add(gapStart);
+    out.push(
+      diagnostic(
+        node,
+        context,
+        gapStart,
+        gapEnd,
+        '',
+        `No space between '${keyword}' and '[': write '${keyword}[...]'`
+      )
+    );
+  }
+  return out;
 }
 
 function checkDeclaration(

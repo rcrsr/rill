@@ -1076,7 +1076,6 @@ export type DeclarationValueNode =
   | AtomLiteralNode
   | ListLiteralNode
   | DictNode
-  | DictLiteralNode
   | TupleLiteralNode
   | OrderedLiteralNode;
 

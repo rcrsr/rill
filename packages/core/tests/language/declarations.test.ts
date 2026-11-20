@@ -100,7 +100,7 @@ describe('Rill Language: declarations', () => {
     rule('declaration.spacing').it(
       'accepts a spaced list as a multi-key dict key',
       async () => {
-        expect(await run('dict[list ["a", "b"]: 1]')).toBeDefined();
+        expect(await run('dict[list ["a", "b"]: 1]')).toEqual({ a: 1, b: 1 });
       }
     );
 
@@ -130,12 +130,43 @@ describe('Rill Language: declarations', () => {
       }
     );
 
+    rule('declaration.atom').it(
+      'halts union(#a, #b) #c without the comment hint',
+      async () => {
+        let message = '';
+        try {
+          await run('union(#a, #b) #c');
+        } catch (e) {
+          message = e instanceof Error ? e.message : String(e);
+        }
+        expect(message).not.toBe('');
+        expect(message).not.toContain('a comment needs a space');
+      }
+    );
+
+    rule('declaration.atom').it(
+      'halts list(number) #ids with the comment hint',
+      async () => {
+        await expectHalt(() => run('list(number) #ids'), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: "a comment needs a space after '#'",
+        });
+      }
+    );
+
     rule('declaration.atom').it('runs atom #wired', async () => {
-      await expect(run('atom #wired')).resolves.toBeDefined();
+      const atom = await run('atom #wired');
+      expect(atom).toMatchObject({ atom: { name: 'wired' } });
+      expect(await run('atom #wired -> .^type.signature')).toBe('atom');
     });
 
     rule('declaration.atom').it('runs union(#a, #b) #a', async () => {
-      await expect(run('union(#a, #b) #a')).resolves.toBeDefined();
+      expect(await run('union(#a, #b) #a')).toMatchObject({
+        atom: { name: 'a' },
+      });
+      expect(await run('union(#a, #b) #a -> .^type.signature')).toBe(
+        'union(#a, #b)'
+      );
     });
   });
 
@@ -241,6 +272,20 @@ describe('Rill Language: declarations', () => {
       'treats a declared string target as the bare string target',
       async () => {
         expect(await run('5 -> string "v{$}"')).toBe('v5');
+      }
+    );
+
+    rule('declaration.pipe-target').it(
+      'rejects a declared atom target over an atom union without the comment hint',
+      () => {
+        let message = '';
+        try {
+          parse('1 -> union(#a, #b) #c');
+        } catch (e) {
+          message = e instanceof ParseError ? e.message : '';
+        }
+        expect(message).toContain('declared AtomLiteral value');
+        expect(message).not.toContain('a comment needs a space');
       }
     );
 

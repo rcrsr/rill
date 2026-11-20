@@ -753,6 +753,7 @@ pipe-target   = host-call       (* $ -> greet("world") — call with explicit ar
               | timeout-block      (* $ -> timeout<total: duration("5s")> { body } *)
               | "pass" , block     (* $ -> pass { body } — bare pass without a block halts RILL-P004 *)
               | existence-check    (* $x -> .?field — presence probe on $ *)
+              | declaration        (* $ -> list(T)[...] — only list, dict and string values are legal; number, bool, atom, tuple and ordered values halt RILL-P001 *)
               | string             (* $ -> "hello {$}" — template with interpolation *)
               | list               (* $ -> list[1, 2] or $ -> [1, 2], optional ?? default *)
               | dict               (* $ -> dict[a: 1] or $ -> [a: 1], optional ?? default *)

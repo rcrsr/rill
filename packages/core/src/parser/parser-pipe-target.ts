@@ -24,6 +24,7 @@ import type {
   FnTypeNode,
   TypeConstructorNode,
   TypeNameExprNode,
+  TypeRef,
   VariableNode,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
@@ -654,6 +655,35 @@ function parseUncheckedPipeTarget(this: Parser): PipeTargetNode {
   );
 }
 
+/** True when a written type is, or has a union member that is, an atom type. */
+function writesAtomType(
+  typeExpr: DeclarationNode['typeExpr'] | TypeRef
+): boolean {
+  if ('kind' in typeExpr) {
+    switch (typeExpr.kind) {
+      case 'literal':
+        return typeExpr.value.type === 'AtomLiteral';
+      case 'union':
+        return typeExpr.members.some(writesAtomType);
+      case 'static':
+        return typeExpr.typeName === 'atom';
+      default:
+        return false;
+    }
+  }
+  switch (typeExpr.type) {
+    case 'TypeNameExpr':
+      return typeExpr.typeName === 'atom';
+    case 'TypeConstructor':
+      return (
+        typeExpr.constructorName === 'union' &&
+        typeExpr.args.some((arg) => writesAtomType(arg.value))
+      );
+    default:
+      return false;
+  }
+}
+
 /**
  * Rejects pipe targets that ignore the piped value: a block or string that
  * never reads it, and a list or dict literal that reads `$` at its top level
@@ -712,7 +742,7 @@ function checkPipeTarget(target: PipeTargetNode): PipeTargetNode {
         value.type !== 'StringLiteral'
       ) {
         const hint =
-          value.type === 'AtomLiteral'
+          value.type === 'AtomLiteral' && !writesAtomType(target.typeExpr)
             ? ". Hint: a comment needs a space after '#'"
             : '';
         throw new ParseError(

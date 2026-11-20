@@ -81,6 +81,9 @@ function parseDeclarationValue(
     case 'OrderedLiteral':
       return literal;
     default:
+      // parseLiteral is typed wider than the literal forms a declaration
+      // takes; its dict-literal result is unreachable after a bracketless
+      // value, so this branch only narrows the type.
       throw new ParseError(
         ERROR_IDS.RILL_P001,
         `Unexpected ${literal.type} after a written type`,

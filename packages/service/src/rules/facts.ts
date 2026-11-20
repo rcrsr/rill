@@ -62,14 +62,10 @@ import { opensScope } from '../opens-scope.js';
 import { traverseForRules } from './traversal.js';
 import { getCollectionOpBody, isCollectionOpCall } from './collection-ops.js';
 import { bareBlockHead, chainlessVariableName } from './helpers.js';
-import {
-  declarationTypeRef,
-  isAnyType,
-  isEntriesRead,
-  scalarKindType,
-} from './static-type.js';
+import { isAnyType, isEntriesRead, scalarKindType } from './static-type.js';
 import {
   blockYieldsNonFunction,
+  declarationTypeRef,
   isMixedCompoundList,
   isMixedValueDict,
   scalarLiteralKind,

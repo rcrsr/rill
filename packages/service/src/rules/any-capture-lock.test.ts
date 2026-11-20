@@ -38,6 +38,15 @@ describe('ANY_CAPTURE_LOCK stays silent', () => {
       'union-declared first value that admits the second',
       '1 => $u:union(number, string)\n$u => $x:any\n"a" => $x\n',
     ],
+    ['source declared any', 'fn(v: any) { 1 => $x:any\n$v => $x }\n'],
+    [
+      'lock captured in another closure',
+      'fn { 1 => $x:any } => $f\n"a" => $x\n"b" => $x\n',
+    ],
+    [
+      'literal-union value admits a member',
+      'union("a", "b") "a" => $x:any\n"b" => $x\n',
+    ],
     ['sibling scopes', 'fn { 1 => $x:any } => $f\nfn { "a" => $x } => $g\n'],
   ];
   it.each(cases)('stays silent for %s', (_name, source) => {

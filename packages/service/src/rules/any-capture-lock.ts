@@ -13,9 +13,27 @@ import { registeredRules } from './rules-registry.js';
 import { isVariableInParentScope } from './scope-helpers.js';
 import { flattenMembers, isAnyType } from './static-type.js';
 
-/** Comparison key for a type: the type name for a static type, else its text. */
+/**
+ * Comparison key for a type: the type name for a static type, the base kind
+ * for a literal member (so `"a"` and `string` agree), else its text.
+ */
 function kindKey(type: TypeRef): string {
-  return type.kind === 'static' ? type.typeName : formatTypeRef(type);
+  if (type.kind === 'static') return type.typeName;
+  if (type.kind === 'literal') {
+    switch (type.value.type) {
+      case 'StringLiteral':
+        return 'string';
+      case 'AtomLiteral':
+        return 'atom';
+      case 'NumberLiteral':
+        return 'number';
+      case 'BoolLiteral':
+        return 'bool';
+      default:
+        break;
+    }
+  }
+  return formatTypeRef(type);
 }
 
 export const anyCaptureLock: Rule = {
@@ -29,8 +47,13 @@ export const anyCaptureLock: Rule = {
     const varName = node.name;
     if (context.variables.get(varName) === undefined) return [];
 
+    // The capture that locked the variable in the current scope, not merely
+    // the first capture of that name anywhere in the script.
+    const lockOffset = context.variables.get(varName)?.offset;
     const first = context.facts.script.captureLog.find(
-      (entry) => entry.node.name === varName
+      (entry) =>
+        entry.node.name === varName &&
+        entry.node.span.start.offset === lockOffset
     )?.node;
     if (first === undefined || first === node) return [];
     if (first.typeRef === null || !isAnyType(first.typeRef)) return [];
@@ -46,6 +69,12 @@ export const anyCaptureLock: Rule = {
     const firstType = captureValueTypes.get(first);
     const secondType = captureValueTypes.get(node);
     if (firstType === undefined || secondType === undefined) return [];
+
+    if (
+      [firstType, secondType].some((t) => flattenMembers(t).some(isAnyType))
+    ) {
+      return [];
+    }
 
     const admitted = new Set(flattenMembers(firstType).map(kindKey));
     const second = flattenMembers(secondType);

@@ -265,6 +265,16 @@ export async function assertTypeRefCarried(
 /** Suffix for a declared atom the written type rejects. */
 const ATOM_COMMENT_HINT = ". Hint: a comment needs a space after '#'";
 
+/** True when a written type is, or has a union member that is, an atom type. */
+function admitsAtom(structure: TypeStructure): boolean {
+  if (structure.kind === 'atom') return true;
+  if (isStructureKind(structure, 'literal')) return isAtom(structure.value);
+  if (isStructureKind(structure, 'union')) {
+    return structure.members.some(admitsAtom);
+  }
+  return false;
+}
+
 /**
  * Evaluate a declaration: the written type, then the literal it describes,
  * checked with the one type matcher. The declared type travels beside the
@@ -277,6 +287,7 @@ export async function evaluateDeclarationCarried(
 ): Promise<Carried> {
   const location = node.span.start;
   const written = await evaluatePrimary(s, node.typeExpr);
+  // Defensive: a parsed declaration always writes a type expression.
   if (!isTypeValue(written)) {
     return throwTypeHalt(
       { location, sourceId: s.ctx.sourceId, fn: 'evaluateDeclarationCarried' },
@@ -294,7 +305,7 @@ export async function evaluateDeclarationCarried(
     value,
     structure,
     location,
-    isAtom(value) ? ATOM_COMMENT_HINT : undefined
+    isAtom(value) && !admitsAtom(structure) ? ATOM_COMMENT_HINT : undefined
   );
   const unspecified =
     structure.kind !== 'union' &&

@@ -14,8 +14,6 @@ import {
   unwrapBareLiteral,
 } from './literal-shape.js';
 
-export { declarationTypeRef };
-
 const STATIC_STRING: TypeRef = { kind: 'static', typeName: 'string' };
 
 /** The kind-only static type of a scalar literal kind name, or null. */
