@@ -79,6 +79,8 @@ export type {
   RillParam,
   ScriptCallable,
 } from './runtime/core/callable.js';
+// Registers the signature reader that host function shorthand relies on.
+import './runtime/core/signature-registration.js';
 export type {
   RillFunctionDefinition,
   RillFunctionShorthand,

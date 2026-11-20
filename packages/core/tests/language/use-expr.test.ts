@@ -85,60 +85,13 @@ describe('Rill Language: use<> Expressions', () => {
       });
     });
 
-    describe('Static form — closure type annotation', () => {
-      it('AC-1: use<host:fn>:fn(x: string) parses without error', async () => {
-        // The annotation has no runtime effect — just verify parse succeeds
-        const result = await run('use<host:fn>:fn(x: string)', {
-          resolvers: { host: valueResolver('hello') },
-        });
-        expect(result).toBe('hello');
-      });
-
-      it('AC-1: use<host:fn>:fn(x: string) parse-only succeeds via parse()', () => {
-        // parse() throws ParseError on failure — verify no RILL-P001
+    describe('Static form — type assertion', () => {
+      it('parses a fn type after use<> without error', () => {
         expect(() => parse('use<host:fn>:fn(x: string)')).not.toThrow();
-      });
-
-      it('AC-1: multi-param annotation use<ext:llm.openai.message>:fn(text: string, options: dict) parses', () => {
-        // Reproduces the user-reported failing case
         expect(() =>
           parse('use<ext:llm.openai.message>:fn(text: string, options: dict)')
         ).not.toThrow();
-      });
-
-      it('AC-1: annotation does not affect resolved value', async () => {
-        const result = await run('use<host:fn>:fn(x: string, y: number)', {
-          resolvers: { host: valueResolver(42) },
-        });
-        expect(result).toBe(42);
-      });
-
-      it('AC-1: missing comma between closure annotation params throws ParseError', () => {
-        expect(() => parse('use<host:fn>:fn(x: string y: number)')).toThrow(
-          "Expected ',' or ')' in fn parameter list"
-        );
-      });
-
-      it('AC-1: use<host:fn>:string type annotation still works (no regression)', () => {
-        // Existing :TypeName form must still parse correctly
         expect(() => parse('use<host:fn>:string')).not.toThrow();
-      });
-
-      it('AC-1: use<host:fn>:|| :string parses return type without runtime effect', async () => {
-        const result = await run('use<host:fn>:fn():string', {
-          resolvers: { host: valueResolver('hello') },
-        });
-        expect(result).toBe('hello');
-      });
-
-      it('AC-1: use<host:fn>:fn(params):returnType parses return type without runtime effect', async () => {
-        const result = await run('use<host:fn>:fn(x: string):number', {
-          resolvers: { host: valueResolver(42) },
-        });
-        expect(result).toBe(42);
-      });
-
-      it('AC-1: closure annotation with dict field defaults and return type parses correctly', () => {
         expect(() =>
           parse(
             'use<ext:fn>:fn(text: string, options: dict(max_tokens: number = 0, system: string = "")):dict(content: string)'
@@ -146,14 +99,196 @@ describe('Rill Language: use<> Expressions', () => {
         ).not.toThrow();
       });
 
-      it('AC-1: :returnType after :fn(params) is not applied as type assertion on closure value', async () => {
-        // The resolved value is a dict; the closure annotation return type must not
-        // incorrectly assert the closure-as-value against dict(...).
-        const result = await run(
-          'use<host:fn>:fn(text: string):dict(content: string)',
-          { resolvers: { host: valueResolver({ content: 'hello' }) } }
+      it('throws ParseError for a missing comma between fn type params', () => {
+        expect(() => parse('use<host:fn>:fn(x: string y: number)')).toThrow(
+          "Expected ',' or ')' in fn parameter list"
         );
-        expect(result).toEqual({ content: 'hello' });
+      });
+
+      rule('use.type').it(
+        'returns a host value that matches the type',
+        async () => {
+          const result = await run('use<host:v>:number', {
+            resolvers: { host: valueResolver(42) },
+          });
+          expect(result).toBe(42);
+        }
+      );
+
+      rule('use.type').it(
+        'halts with #TYPE_MISMATCH when a host value does not match the type',
+        async () => {
+          await expectHalt(
+            () =>
+              run('use<host:v>:number', {
+                resolvers: { host: valueResolver('x') },
+              }),
+            {
+              code: 'TYPE_MISMATCH',
+              messagePattern: /expected number, got string/,
+            }
+          );
+        }
+      );
+
+      rule('use.type').it(
+        'lets guard catch the mismatch as #TYPE_MISMATCH',
+        async () => {
+          const result = await run(
+            'guard { use<host:v>:number } => $r\n$r.!code == #TYPE_MISMATCH',
+            { resolvers: { host: valueResolver('x') } }
+          );
+          expect(result).toBe(true);
+        }
+      );
+
+      rule('use.type').it(
+        'returns a source module result that matches the type',
+        async () => {
+          const result = await run('use<m:x>:number', {
+            resolvers: { m: sourceResolver('42') },
+            parseSource,
+          });
+          expect(result).toBe(42);
+        }
+      );
+
+      rule('use.type').it(
+        'halts with #TYPE_MISMATCH when a source module result does not match the type',
+        async () => {
+          await expectHalt(
+            () =>
+              run('use<m:x>:string', {
+                resolvers: { m: sourceResolver('42') },
+                parseSource,
+              }),
+            { code: 'TYPE_MISMATCH' }
+          );
+        }
+      );
+
+      rule('use.type').it(
+        'locks a capture to the written type so a later value of that type passes',
+        async () => {
+          const result = await run(
+            'use<h:v>:union(number, string) => $v\n"a" => $v\n$v',
+            { resolvers: { h: valueResolver(1) } }
+          );
+          expect(result).toBe('a');
+        }
+      );
+
+      rule('use.type').it(
+        'halts a later capture that falls outside the written type',
+        async () => {
+          await expectHalt(
+            () =>
+              run('use<h:v>:union(number, string) => $v\ntrue => $v', {
+                resolvers: { h: valueResolver(1) },
+              }),
+            { code: 'RILL_R001', hostErrorId: 'RILL-R001' }
+          );
+        }
+      );
+
+      rule('use.type').it(
+        'reports the written type through .^type',
+        async () => {
+          const result = await run(
+            'use<h:v>:union(number, string) => $v\n$v.^type == union(number, string)',
+            { resolvers: { h: valueResolver(1) } }
+          );
+          expect(result).toBe(true);
+        }
+      );
+
+      describe('fn types', () => {
+        const stringParam = {
+          name: 'text',
+          type: { kind: 'string' } as const,
+          defaultValue: undefined as string | undefined,
+          annotations: {},
+        };
+        const echo = (params: (typeof stringParam)[]) =>
+          toCallable({
+            params,
+            returnType: structureToTypeValue({ kind: 'string' }),
+            fn: (args) => `got:${String(args['text'] ?? 'none')}`,
+          });
+
+        rule('use.type').it(
+          'asserts the fn type before calling a host callable as a pipe target',
+          async () => {
+            const result = await run(
+              '"x" -> use<h:f>:fn(text: string):string',
+              {
+                resolvers: { h: valueResolver(echo([stringParam])) },
+              }
+            );
+            expect(result).toBe('got:x');
+          }
+        );
+
+        rule('use.type').it(
+          'halts without calling when a param name differs from the fn type',
+          async () => {
+            let called = false;
+            const fn = toCallable({
+              params: [stringParam],
+              returnType: structureToTypeValue({ kind: 'string' }),
+              fn: () => {
+                called = true;
+                return 'x';
+              },
+            });
+            await expectHalt(
+              () =>
+                run('"x" -> use<h:f>:fn(other: string):string', {
+                  resolvers: { h: valueResolver(fn) },
+                }),
+              { code: 'TYPE_MISMATCH' }
+            );
+            expect(called).toBe(false);
+          }
+        );
+
+        rule('use.type').it(
+          'halts when the callable has a defaulted param the fn type omits',
+          async () => {
+            const defaulted = { ...stringParam, defaultValue: 'd' };
+            await expectHalt(
+              () =>
+                run('use<h:f>:fn(text: string):string', {
+                  resolvers: { h: valueResolver(echo([defaulted])) },
+                }),
+              { code: 'TYPE_MISMATCH' }
+            );
+          }
+        );
+
+        rule('use.type').it(
+          'accepts any callable under a bare fn type',
+          async () => {
+            const fn = echo([stringParam]);
+            const result = await run('use<h:f>:fn', {
+              resolvers: { h: valueResolver(fn) },
+            });
+            expect(result).toBe(fn);
+          }
+        );
+
+        rule('use.type').it(
+          'halts when a dict value is asserted against a fn type',
+          async () => {
+            await expectHalt(
+              () =>
+                run('use<host:fn>:fn(text: string):dict(content: string)', {
+                  resolvers: { host: valueResolver({ content: 'hello' }) },
+                }),
+              { code: 'TYPE_MISMATCH' }
+            );
+          }
+        );
       });
     });
 

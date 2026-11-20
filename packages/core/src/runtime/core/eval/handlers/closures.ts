@@ -699,6 +699,7 @@ export function createCallableContext(
     parent: defScope,
     variables: new Map(),
     variableTypes: new Map(),
+    declaredLocks: new Set(),
     pipeValue: hasExplicitParams ? null : s.ctx.pipeValue,
     pipeDeclared: hasExplicitParams ? undefined : s.ctx.pipeDeclared,
     sourceId: defScope.sourceId ?? s.ctx.sourceId,
@@ -720,7 +721,7 @@ export function createCallableContext(
  * param's declaration is its parameter type unless that is `any` or absent,
  * else the argument's carried type. Named params lock in `variableTypes`; the
  * `$` param sets the pipe slot. Params with no declaration are left alone, so
- * they keep locking to the inferred kind on first capture.
+ * they keep locking to the inferred structure on first capture.
  */
 export function bindParamDeclarations(
   callableCtx: RuntimeContext,
@@ -741,6 +742,7 @@ export function bindParamDeclarations(
       }
     } else if (callableCtx.variables.has(param.name)) {
       callableCtx.variableTypes.set(param.name, declared);
+      callableCtx.declaredLocks.add(param.name);
     }
   }
 }

@@ -45,6 +45,10 @@ Conditions must be boolean. No coercion. Negation also requires boolean.
 
 The lock is the declared type the value carries, else its own type: `1 => $x:union(number, string)` then `"a" => $x` is OK. `1 => $x:any` locks as number.
 
+Without a declaration the lock is the full inferred type: `list[1] => $x` then `list["a"] => $x` halts RILL-R001. Annotate the wider type first: `list[1] => $x:list(union(number, string))`.
+
+A dict lock is exact (`dict[a: 1] => $x` rejects `dict[a: 1, b: 2]`), a tuple lock is positional (`tuple[1] => $x` rejects `tuple[1, 2]`), and a function locks to its full signature (`fn(n: number) { $n } => $f` rejects `fn(s: string) { $s }`), each halting RILL-R001.
+
 ### 5. No variable shadowing
 
 Child scopes can READ parent variables but cannot WRITE or redeclare. Loop bodies cannot mutate outer state.
@@ -290,6 +294,17 @@ In rill, `{ ... }` is a block (function body, loop body, etc.), not a dict liter
     Wrong: "5" -> union(number, bool)      # halts RILL-R036: not a member
     Right: "5" -> number
 
+## Element defaults
+
+    Wrong: list[1] -> list(number = 1)         # halts #INVALID_INPUT: an element type carries no default
+    Right: list[1] -> list(number)
+
+    Wrong: dict[a: 1] -> dict(number = 0)      # halts #INVALID_INPUT: same for a uniform value type
+    Right: dict[a: 1] -> dict(a: number = 0)   # a named field may carry a default
+
+    Wrong: stream(string, number = 1)          # halts #INVALID_INPUT: stream types carry no default
+    Right: stream(string, number)
+
 ## Loops
 
     Wrong: for item in list { ... }
@@ -352,6 +367,15 @@ A block written as a dict value or list element is held uncalled. Reads that sel
 
     Right: $items -> fold(0, { $@ + $.price })          # 0 + p1 + p2 + ...
     Right: $items -> acc(0, { $@ + $.price })           # list of running totals
+
+## Collection locks
+
+A variable locks to the full type of its first value, element types included.
+
+    Wrong: list[1] => $x
+           list["a"] => $x                  # halts RILL-R001: locked as list(number)
+    Right: list[1] => $x:list(union(number, string))
+           list["a"] => $x                  # list["a"]
 
 ## Try/catch
 
@@ -1105,6 +1129,8 @@ To validate a shape write `-> :dict(a: string)`, never `-> dict(a: string)`. To 
 
     dict[b: "b"] -> dict(b: string, a: string = "a")   # dict[a: "a", b: "b"]
 
+A list element type, a uniform dict or ordered value type, and a stream chunk or return type carry no default. `list(number = 1)`, `dict(number = 1)`, `ordered(number = 1)`, and `stream(number = 1)` halt #INVALID_INPUT when built. A host signature string fails RILL-R091.
+
 Only `-> type` conversion fills defaults. `:` assertion does NOT hydrate defaults. Nested fields recurse.
 A union first drops members a wider member accepts, unless the dropped member keeps a default. Among survivors the narrowest matching member fills a parameter's defaults whatever the order. A pipe into a union fills nothing unless the union reduces to one member.
 
@@ -1157,7 +1183,7 @@ Under a declared union, `.^type` reports the declaration and `.^effective` the o
 Dispatch on `.^effective.name`, not `.^type.name`. `any` declares nothing:
 `1 => $x:any` locks as number.
 
-A declaration carries through `$`, plain and inline captures, grouped `( )`, `pass`, destructure, function params, iteration over a declared `list(E)`, and every element or field read on a declared collection: `[i]`, `.name`, `.$k`, and pipe selection `"a" -> $d`. A capture locks to the carried declaration.
+A declaration carries through `$`, plain and inline captures, grouped `( )`, `pass`, destructure, function params, iteration over a declared `list(E)`, and every element or field read on a declared collection: `[i]`, `.name`, `.$k`, and pipe selection `"a" -> $d`. A capture locks to the carried declaration, else the full inferred type (`list[1]` locks `list(number)`).
 Computed results (operators, methods like `.head`, calls) take their own type.
 A bare `list`, `list(any)`, or `union(list(number), string)` projects no element type. A bare kind such as `:list` makes `.^type` report `list` and `.^effective` report `list(number)`.
 Host boundary: `toNative` reports the own type.
@@ -1413,7 +1439,7 @@ Slice (`slice<start:stop:step>`):
 
 `use<>` returns the resolved value (dict, function, or any rill type). Hosts register resolvers; scripts cannot. A `guard` around `use<>` catches resolution failures only; halts inside the module propagate.
 
-`v -> use<...>` on a host-resolved value calls a callable, selects from a dict or list, or converts through a type; any other value halts `RILL-R002`. A source module's result, even a function, is returned as-is.
+`v -> use<...>` on a host-resolved value calls a callable, selects from a dict or list, or converts through a type; any other value halts `RILL-R002`. A source module's result, even a function, is returned as-is. `use<id>:T` asserts the result as `-> :T` does: a mismatch halts `#TYPE_MISMATCH`, which `guard` catches, and `fn(...)` matches exactly. The result carries `T`, so `use<ext:app>:dict => $r` then `$r.^type` is `dict`. In `v -> use<id>:T` the resolved value is asserted before the pipe acts on it.
 
 See `control-flow` for iterators and lazy sequences.
 

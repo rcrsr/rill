@@ -862,24 +862,23 @@ const greet: RillFunctionShorthand = {
 | Named dict type | `dict(k: string)`, `dict("a b": string)` |
 | Tuple type | `tuple(number, string)`; `tuple(number)` is exactly one position |
 | Function type | `cb: fn(string):bool`, `cb: fn(x: number):string`, bare `fn` |
+| Stream type | `stream(number):string`, `stream(number)` |
+| Ordered type | `ordered(a: number)` |
 | Literal defaults | `n: number = -3`, `s: string = "x"`, `b: bool = true` |
+| Atom default | `k: atom = #A` |
+| Compound defaults | `list[1, 2]`, `dict[a: 1]`, `tuple[1, "x"]`, `ordered[a: 1]` |
 | Field defaults | `d: dict(a: number, b: number = 0)`, `t: tuple(string, number = 0)` |
 | Parameter annotations | `^(description: "text") name: string` |
+| Annotation values | `^(retries: 3) fn(url: string):string`, any literal a script accepts |
 | Function annotations | `^(category: "io") fn(a: string)` before the signature |
 
 A parameter typed with a named dict type rejects a dict that has extra fields with `RILL-R001`; see [Extra and Missing Dict Fields](topic-type-system.md#extra-and-missing-dict-fields).
 
 An outer type on `list`, `dict`, or `tuple`, such as `list(number):string`, fails with `RILL-R091` and the message `list takes no outer type`. In script, the same text halts `RILL-P006`.
 
-Annotation values in a signature are string-valued. `fn()` declares no parameters.
+A default or annotation value is any literal a script accepts; one that interpolates or reads a `$` variable fails registration with `RILL-R091`. `fn()` declares no parameters.
 
-Use the explicit form for these declarations:
-
-| Declaration | Reason |
-|-------------|--------|
-| Stream and ordered types with arguments | Not yet accepted in a signature string |
-| Atom, dict, list, tuple, or ordered defaults | Not yet accepted in a signature string; defaults are limited to string, number, and bool literals |
-| `skipReceiverValidation` | The shorthand has no such field |
+`skipReceiverValidation` has no shorthand field; use the explicit `params` form for it.
 
 Registration throws `RuntimeError` with `RILL-R091` in these cases:
 
@@ -893,11 +892,13 @@ Registration throws `RuntimeError` with `RILL-R091` in these cases:
 | One annotation key declared by more than one source (signature, `annotations`, `description`) | `Invalid signature for function '{name}': annotation '{key}' is declared more than once` |
 | Dict-field or tuple-element default does not match its type | `Invalid signature for function '{name}': Default value for field 'b' must be number, got string at {line}:{col}`; a tuple element reads `tuple element` instead of `field 'b'` |
 | Tuple default is not trailing | `Invalid signature for function '{name}': tuple() default values must be trailing: element at position {n} has no default but a preceding element does at {line}:{col}` |
-| Dict-field or tuple-element default is not a literal | `Invalid signature for function '{name}': field 'b' default must be a string, number, or bool literal at {line}:{col}`; a tuple element reads `tuple element default must be ...` |
-| Union is empty, lists a member twice, or has a compound literal member | `Invalid signature for function '{name}': union requires at least one member at {line}:{col}`; a repeat reads `union lists string more than once`; a compound literal reads `unsupported union member 'list[' (a member is a type or a string, number, bool, or atom literal)` |
-| `list(...)` element type carries a default | `Invalid signature for function '{name}': list element type cannot carry a default value at {line}:{col}` |
+| Default or annotation value interpolates or reads a variable | `Invalid signature for function '{name}': string interpolation is not allowed here; a signature holds constant literals only at {line}:{col}`; a `$` default reads `Expected literal, got: $ at {line}:{col}`, and a `$` annotation value reads `a Variable expression is not allowed here; a signature holds constant literals only at {line}:{col}` |
+| Union is empty, lists a member twice, or has a compound literal member | `Invalid signature for function '{name}': union requires at least one member at {line}:{col}`; a repeat reads `union lists string more than once`; a compound literal reads `union member must be a type or a string, number, bool, or atom literal at {line}:{col}` |
+| Element or value type carries a default: list element, uniform dict or ordered value, stream chunk or return | `Invalid signature for function '{name}': list element type cannot carry a default at {line}:{col}`; a dict or ordered value reads `dict value type cannot carry a default` or `ordered value type cannot carry a default`; a stream reads `stream chunk type cannot carry a default` or `stream return type cannot carry a default` |
+| Tuple element is named | `Invalid signature for function '{name}': tuple() requires positional arguments at {line}:{col}`, as in `tuple(a: number)` |
+| Parameter default does not match its type | `Invalid signature for function '{name}': Default value for parameter 'n' must be number, got string at {line}:{col}` |
 
-`{name}` is the key in `functions`. `toCallable` has no key, so it reports `<anonymous>`. A parameter default that does not match its declared type keeps `RILL-R077`.
+`{name}` is the key in `functions`. `toCallable` has no key, so it reports `<anonymous>`.
 
 ---
 

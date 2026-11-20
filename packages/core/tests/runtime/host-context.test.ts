@@ -10,6 +10,7 @@
 import { anyTypeValue, createRuntimeContext } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
+import { expectHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: hostContext', () => {
@@ -181,5 +182,20 @@ true ? ("b" -> capture)`;
       expect(refs[0]).toBe(refs[1]); // Same object reference
       expect(refs[0]).toBe(sharedContext); // Same as original object
     });
+  });
+});
+
+// Reference rules: variable.host, type-lock.narrowest
+describe('Rill Runtime: host variable type lock', () => {
+  it('locks a host variable to its inferred structure', async () => {
+    await expectHalt(
+      () => run('list["a"] => $xs', { variables: { xs: [1] } }),
+      { code: 'RILL_R001', messagePattern: /locked as list\(number\)/ }
+    );
+  });
+
+  it('does not treat a host variable lock as a declaration', () => {
+    const ctx = createRuntimeContext({ variables: { xs: [1] } });
+    expect(ctx.declaredLocks.has('xs')).toBe(false);
   });
 });

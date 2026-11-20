@@ -13,8 +13,9 @@ import {
 import { getBuiltinFunctionCache } from './builtin-registry.js';
 import { markInternalFn } from './activity.js';
 import { BUILT_IN_TYPES } from './types/registrations.js';
+import { LEAF_TYPES } from './types/type-ref.js';
 import type { TypeDefinition } from './types/registrations.js';
-import { formatStructure } from './types/operations.js';
+import { formatStructure, inferLockType } from './types/operations.js';
 import type {
   RuntimeCallbacks,
   RuntimeContext,
@@ -483,7 +484,10 @@ export function createRuntimeContext(
       const boundValue = bindDictCallables(value);
       variables.set(name, boundValue);
       const inferred = inferType(boundValue);
-      variableTypes.set(name, isRillTypeName(inferred) ? inferred : 'any');
+      variableTypes.set(
+        name,
+        isRillTypeName(inferred) ? inferLockType(boundValue) : 'any'
+      );
     }
   }
 
@@ -604,16 +608,6 @@ export function createRuntimeContext(
     }
   }
 
-  // Derive leafTypes from registrations where isLeaf === true, plus 'any'
-  // which has no registration but rejects type arguments.
-  const leafTypes: ReadonlySet<string> = Object.freeze(
-    new Set([
-      ...BUILT_IN_TYPES.filter((r) => r.isLeaf).map((r) => r.name),
-      'any',
-      'error_code',
-    ])
-  );
-
   // Derive method dicts from registration.methods (absorbs buildTypeMethodDicts
   // logic). Rejects a duplicate method on the same type.
   const methodRegistry = new Map<string, Set<string>>();
@@ -686,6 +680,7 @@ export function createRuntimeContext(
     parent: undefined,
     variables,
     variableTypes,
+    declaredLocks: new Set<string>(),
     getVariable(name: string): RillValue | undefined {
       if (this.variables.has(name)) return this.variables.get(name);
       if (this.parent !== undefined) return this.parent.getVariable(name);
@@ -698,7 +693,7 @@ export function createRuntimeContext(
     },
     functions,
     typeMethodDicts,
-    leafTypes,
+    leafTypes: LEAF_TYPES,
     unvalidatedMethodReceivers,
     callbacks: mergedCallbacks,
     observability: options.observability ?? {},
@@ -756,6 +751,22 @@ export function createRuntimeContext(
 }
 
 /**
+ * `variableTypes` and `declaredLocks` describe one scope's type locks, so a
+ * caller overrides both or neither: sharing one map with a fresh set of the
+ * other would let a lock and its declaration disagree.
+ */
+type ChildTypeLockOverrides =
+  | { variableTypes?: undefined; declaredLocks?: undefined }
+  | {
+      variableTypes: Map<
+        string,
+        | import('../../types.js').RillTypeName
+        | import('./types/structures.js').TypeStructure
+      >;
+      declaredLocks: Set<string>;
+    };
+
+/**
  * Create a child context for block scoping.
  * Child inherits parent's functions, methods, callbacks, etc.
  * but has its own variables map. Variable lookups walk the parent chain.
@@ -777,11 +788,6 @@ export function createChildContext(
      * reassignment rather than an outer-scope write.
      */
     variables?: Map<string, RillValue>;
-    variableTypes?: Map<
-      string,
-      | import('../../types.js').RillTypeName
-      | import('./types/structures.js').TypeStructure
-    >;
     /**
      * Give the child its own call-depth cell seeded from the parent's
      * current value instead of sharing the parent's cell. Used for
@@ -791,7 +797,7 @@ export function createChildContext(
      * always shared and never forked.
      */
     forkCallDepth?: boolean;
-  }
+  } & ChildTypeLockOverrides
 ): RuntimeContext {
   const child: RuntimeContext = {
     parent,
@@ -803,6 +809,7 @@ export function createChildContext(
         | import('../../types.js').RillTypeName
         | import('./types/structures.js').TypeStructure
       >(),
+    declaredLocks: overrides?.declaredLocks ?? new Set<string>(),
     getVariable(name: string): RillValue | undefined {
       if (this.variables.has(name)) return this.variables.get(name);
       if (this.parent !== undefined) return this.parent.getVariable(name);
@@ -904,12 +911,13 @@ export function findVariableScope(
 
 /**
  * Declared type a scope stores for one of its own variables. A kind-name
- * string or `any` means no declaration.
+ * string, `any`, or an inferred lock means no declaration.
  */
 export function scopeVariableDeclared(
   scope: RuntimeContext,
   name: string
 ): TypeStructure | undefined {
+  if (!scope.declaredLocks.has(name)) return undefined;
   return declarationOf(scope.variableTypes.get(name));
 }
 

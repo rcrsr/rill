@@ -28,9 +28,12 @@ import {
   isVector,
   getStreamTypeSidecar,
 } from './guards.js';
-import { throwTypeHalt } from './halt.js';
+import { RuntimeHaltSignal, throwTypeHalt } from './halt.js';
+import { isRillTypeName } from '../../../value-types.js';
+import type { RillTypeName } from '../../../value-types.js';
 import {
   inferType as registryInferType,
+  inferTypeName,
   formatValue as registryFormatValue,
   deepEquals as registryDeepEquals,
 } from './registrations.js';
@@ -975,6 +978,37 @@ export function inferStructure(value: RillValue): TypeStructure {
     undefined,
     'host'
   );
+}
+
+/** Containers whose inference already failed, so a recapture skips the walk. */
+const uninferable = new WeakSet<object>();
+
+/**
+ * Type a variable locks to on first capture when nothing was declared: the
+ * value's inferred structure. A value outside the closed type-name set, or
+ * one holding a callable with no return type (so it has no structure), locks
+ * to its kind name instead.
+ *
+ * A callable with no return type is detected up front. One nested inside a
+ * collection is only found by the inference walk, which halts; that halt is
+ * caught here and remembered per container so the walk is not repeated.
+ */
+export function inferLockType(value: RillValue): TypeStructure | RillTypeName {
+  if (!isRillTypeName(registryInferType(value))) return inferTypeName(value);
+  if (isCallable(value) && value.returnType === undefined) {
+    return inferTypeName(value);
+  }
+  const container = typeof value === 'object' && value !== null;
+  if (container && uninferable.has(value)) return inferTypeName(value);
+  try {
+    return inferStructure(value);
+  } catch (err) {
+    if (err instanceof RuntimeHaltSignal) {
+      if (container) uninferable.add(value);
+      return inferTypeName(value);
+    }
+    throw err;
+  }
 }
 
 // ============================================================

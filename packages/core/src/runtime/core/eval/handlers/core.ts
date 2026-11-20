@@ -639,11 +639,11 @@ export async function evaluatePipeTarget(
     // result is the pipe result and is never invoked.
     const resolved = await resolveUseExpr(s, target);
     if (resolved.kind === 'source') {
-      return { value: resolved.value, declared: undefined };
+      return { value: resolved.value, declared: resolved.declared };
     }
     return evaluateHeldPipeTarget(
       s,
-      { value: resolved.value, declared: undefined },
+      { value: resolved.value, declared: resolved.declared },
       carried,
       {
         node: target,

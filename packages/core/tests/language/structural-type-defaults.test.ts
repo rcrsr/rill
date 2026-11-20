@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Structural Type Default Values
  *
@@ -14,6 +15,7 @@ import { isTuple, parse, ParseError, type RillValue } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 import { isOrdered, orderedEntries } from '../helpers/ordered.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
@@ -965,6 +967,65 @@ describe('Rill Language: Structural Type Default Values', () => {
       expect(() =>
         parse('dict[a: 1] => $x:dict(a: number, b: number = $y)')
       ).toThrow(ParseError);
+    });
+  });
+
+  describe('a default on an element type', () => {
+    rule('defaults.element').it(
+      'halts #INVALID_INPUT on a list element type default',
+      async () => {
+        await expectHalt(() => run('list[1] -> :list(number = 1)'), {
+          code: 'INVALID_INPUT',
+          messagePattern: /list element type cannot carry a default/,
+        });
+      }
+    );
+
+    rule('defaults.element').it(
+      'halts #INVALID_INPUT on a uniform dict value type default',
+      async () => {
+        await expectHalt(() => run('dict[a: 1] -> :dict(number = 1)'), {
+          code: 'INVALID_INPUT',
+          messagePattern: /dict value type cannot carry a default/,
+        });
+      }
+    );
+
+    rule('defaults.element').it(
+      'halts #INVALID_INPUT on a uniform ordered value type default',
+      async () => {
+        await expectHalt(() => run('ordered[a: 1] -> :ordered(number = 1)'), {
+          code: 'INVALID_INPUT',
+          messagePattern: /ordered value type cannot carry a default/,
+        });
+      }
+    );
+
+    rule('defaults.element').it(
+      'halts #INVALID_INPUT on a stream chunk type default',
+      async () => {
+        await expectHalt(() => run('number -> :stream(number = 1)'), {
+          code: 'INVALID_INPUT',
+          messagePattern: /stream chunk type cannot carry a default/,
+        });
+      }
+    );
+
+    rule('defaults.element').it(
+      'halts #INVALID_INPUT on a stream return type default',
+      async () => {
+        await expectHalt(() => run('number -> :stream(number, string = "x")'), {
+          code: 'INVALID_INPUT',
+          messagePattern: /stream return type cannot carry a default/,
+        });
+      }
+    );
+
+    rule('defaults.element').it('is caught by guard', async () => {
+      const result = await run(
+        'guard { list[1] -> :list(number = 1) } => $r\n$r.!code == #INVALID_INPUT'
+      );
+      expect(result).toBe(true);
     });
   });
 });

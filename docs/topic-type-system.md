@@ -74,6 +74,20 @@ tuple["x"] -> tuple(string, number = 0)
 # Result: tuple["x", 0]
 ```
 
+A list element type, a uniform dict or ordered value type, and a stream chunk or return type carry no default. No element is ever omitted, so a default would never fill anything. The type halts `#INVALID_INPUT` when it is built.
+
+```rill
+list[1] -> list(number = 1)
+# Error: list element type cannot carry a default
+```
+
+```rill
+stream(number = 1)
+# Error: stream chunk type cannot carry a default
+```
+
+Write `list(number)`. Defaults belong on named fields, trailing tuple positions, and function parameters.
+
 Tuple defaults are restricted to trailing positions. You cannot place a defaulted field before a required field in a tuple constructor.
 
 The `:` assertion operator only checks and never converts. `-> T` converts every field, element, and position, and fills missing defaults.
@@ -765,7 +779,7 @@ See [Operators](topic-operators.md) for union types in destructure and existence
 
 ## Type-Locked Variables
 
-Variables lock type on first assignment. The lock is the declared type the value carries, or the value's own type when it carries none. An annotation declares a type explicitly:
+Variables lock type on first assignment. The lock is the declared type the value carries, or its full inferred type, element and field types included (see [Type-Locked Variables](topic-variables.md)). An annotation declares a type explicitly:
 
 ```rill
 "hello" => $name              # implicit: locked as string
@@ -800,7 +814,7 @@ $y
 Type annotations validate on assignment and prevent accidental type changes:
 
 ```rill
-fn(x) { $x } => $fn                  # locked as fn
+fn(x) { $x } => $fn                  # locked as its full fn type
 ```
 
 ```text

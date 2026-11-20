@@ -203,6 +203,7 @@ declaration.spellings 509da894c49c list.bare@37dca8616609
 declaration.unspecified 2cd8902c4f13
 declaration.written bd3669fb6801
 defaults.arg-hydrate 54df009dbca2
+defaults.element 1b4d75e182c3
 defaults.equality 59da62824e1e
 defaults.fill 1c3e396558aa assertion.unchanged@d5063326e3a7
 defaults.hydrated-type 7e897e168814
@@ -777,15 +778,15 @@ type-lock.annotation-after d8a2b2e7c903
 type-lock.any 57b391258ade
 type-lock.asserted 3541fc32b0bf
 type-lock.declaration f60f70fda4f5
-type-lock.dict a2b83713f95a
-type-lock.empty 33170b11e0a3
+type-lock.dict 4f3e38dd565c
+type-lock.empty 1e79015af676
 type-lock.first c6130de8b5a7
 type-lock.halt 33dbd80723fe
-type-lock.list 9c262cc52c0c
-type-lock.narrowest 87929303377c
+type-lock.list 775941b05830
+type-lock.narrowest bce029d98ab5
 type-lock.parameter e49f2661643d
 type-lock.same 7628c0470601
-type-lock.tuple c4df7ef9e533
+type-lock.tuple aeb31d743a09
 type-position 07c698e96356 type-value.expression@44692414703b union.position@103f75cebc9d
 type-position.assertion cc44f119eb51
 type-position.capture 5401834c7d92
@@ -834,7 +835,7 @@ use.scheme 413764867770
 use.source 181e9efd02b6
 use.source-dollar 0525ba22f867
 use.static-id 6a1e1b1fbabc
-use.type 5172cfd7fa71
+use.type 2ce99c38a8af
 use.value 36f7a7b25185
 vacancy 65b0e218fce5 carried-type.fallback@9a18ebc2b806 conditional.bool@e166d29a4597
 vacancy.empty 93cdf5149efe

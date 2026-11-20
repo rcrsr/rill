@@ -1,7 +1,7 @@
 import type { RillFunction } from '../../../core/callable.js';
 import type { RillValue } from '../../../core/types/structures.js';
 import { throwFatalHostHalt } from '../../../core/types/halt.js';
-import { parseSignatureRegistration } from '../../../../signature-parser.js';
+import { parseSignatureRegistration } from '../../../core/signature-registration.js';
 import { recordArgDeclared } from '../../../core/types/declared.js';
 import { anyTypeValue, structureToTypeValue } from '../../../core/values.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';

@@ -2478,9 +2478,9 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     messageTemplate:
       "Invalid signature for function '{functionName}': {detail}",
     cause:
-      'A host function definition carries a signature that cannot be registered. The signature string fails to lex, parse, or convert to a type structure; the definition supplies signature together with params or returnType; the signature is not a string; the description is not a string; the annotations field is not an object; or one annotation key is declared by more than one source, such as the signature and the annotations field.',
+      'A host function definition carries a signature that cannot be registered. The signature string fails to lex, parse, or convert to a type structure (a `$name` type reference, a default or annotation value that is not a constant literal, and an interpolated string are all rejected); the definition supplies signature together with params or returnType; the signature is not a string; the description is not a string; the annotations field is not an object; or one annotation key is declared by more than one source, such as the signature and the annotations field.',
     resolution:
-      'Fix the signature string so it reads fn(param: type, ...):return_type with parentheses and named params (an unnamed param is rejected), supply either signature or params and returnType but not both, pass strings for signature and description, pass an object for annotations, and declare each annotation key in one place only.',
+      'Fix the signature string so it reads fn(param: type, ...):return_type with parentheses and named params (an unnamed param is rejected), supply either signature or params and returnType but not both, write defaults and annotation values as constant literals, pass strings for signature and description, pass an object for annotations, and declare each annotation key in one place only.',
     examples: [
       {
         description: 'Signature string with an unclosed parameter list',

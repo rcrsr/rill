@@ -46,7 +46,7 @@ import {
 } from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
-import { parseSignatureRegistration } from '../../src/signature-parser.js';
+import { parseSignatureRegistration } from '../../src/runtime/core/signature-registration.js';
 
 describe('Rill Runtime: Manifest Generation', () => {
   describe('AC-32: generateManifest returns a string', () => {

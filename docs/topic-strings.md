@@ -204,8 +204,8 @@ $email -> .is_match("^[^@]+@[^@]+$") ? process($email) ! { error "Invalid email"
 ### Format Output
 
 ```rill
-[[name: "Alice", value: 100], dict[name: "Bob", value: 42]] => $items
-$items -> seq({
+[[name: "Alice", value: 100], dict[name: "Bob", value: 42]] => $rows
+$rows -> seq({
   $.name -> .pad_end(20) => $name
   $.value -> string -> .pad_start(10) => $val
   "{$name}{$val}"

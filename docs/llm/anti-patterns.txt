@@ -97,6 +97,17 @@ In rill, `{ ... }` is a block (function body, loop body, etc.), not a dict liter
     Wrong: "5" -> union(number, bool)      # halts RILL-R036: not a member
     Right: "5" -> number
 
+## Element defaults
+
+    Wrong: list[1] -> list(number = 1)         # halts #INVALID_INPUT: an element type carries no default
+    Right: list[1] -> list(number)
+
+    Wrong: dict[a: 1] -> dict(number = 0)      # halts #INVALID_INPUT: same for a uniform value type
+    Right: dict[a: 1] -> dict(a: number = 0)   # a named field may carry a default
+
+    Wrong: stream(string, number = 1)          # halts #INVALID_INPUT: stream types carry no default
+    Right: stream(string, number)
+
 ## Loops
 
     Wrong: for item in list { ... }
@@ -159,6 +170,15 @@ A block written as a dict value or list element is held uncalled. Reads that sel
 
     Right: $items -> fold(0, { $@ + $.price })          # 0 + p1 + p2 + ...
     Right: $items -> acc(0, { $@ + $.price })           # list of running totals
+
+## Collection locks
+
+A variable locks to the full type of its first value, element types included.
+
+    Wrong: list[1] => $x
+           list["a"] => $x                  # halts RILL-R001: locked as list(number)
+    Right: list[1] => $x:list(union(number, string))
+           list["a"] => $x                  # list["a"]
 
 ## Try/catch
 

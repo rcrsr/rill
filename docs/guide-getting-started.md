@@ -290,11 +290,11 @@ $fn("Alice", 30)
 Access dict fields and list indices:
 
 ```rill
-[name: "alice", scores: [85, 92, 78]] => $data
+[name: "alice", scores: [85, 92, 78]] => $profile
 
-$data.name           # "alice"
-$data.scores[0]      # 85
-$data.scores[-1]     # 78 (last)
+$profile.name           # "alice"
+$profile.scores[0]      # 85
+$profile.scores[-1]     # 78 (last)
 ```
 
 ### Safe Access

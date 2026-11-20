@@ -147,6 +147,12 @@ export interface ScopeContext {
   /** Variable types - locked after first assignment (local to this scope) */
   readonly variableTypes: Map<string, RillTypeName | TypeStructure>;
   /**
+   * Names in this scope whose `variableTypes` lock came from a written
+   * annotation, a carried type, or a typed parameter. An inferred lock is
+   * not a declaration, so its name is absent.
+   */
+  readonly declaredLocks: Set<string>;
+  /**
    * Walk the parent chain and return the value bound to `name`,
    * or `undefined` if no scope in the chain contains a binding.
    * O(depth) lookup.

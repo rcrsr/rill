@@ -358,8 +358,9 @@ use-expr      = "use" "<" use-id ">" [ ":" , type-ref ] ;
                  Static form (identifier ":" identifier { "." identifier }) is checker-resolvable.
                  Variable form ("$" identifier) and computed form ("(" pipe-chain ")") are runtime-only.
                  Strict mode rejects variable and computed forms.
-                 A fn-type annotation describes the expected callable signature:
-                 use<ext:tool>:fn(input: string, count: number).
+                 A type after use<...> asserts the result at runtime; a mismatch halts
+                 #TYPE_MISMATCH (catchable) and the result carries the type.
+                 Example: use<ext:tool>:fn(input: string, count: number).
                  The removed use<..>:|params| form raises RILL-P012. *)
 
 use-id        = identifier ":" identifier { "." identifier }
@@ -607,7 +608,8 @@ digits        = digit , { digit } ;
 
    Type locking:
    "hello" => $name           -- $name is now type-locked to string
-   5 => $name                 -- ERROR: $name was previously string *)
+   5 => $name                 -- ERROR: $name was previously string
+   list[1] => $xs             -- $xs is locked to list(number); list["a"] => $xs is an ERROR *)
 capture       = "$" , identifier , [ ":" , capture-type ] ;
 capture-type  = type-ref ;  (* all type names and type variables accepted for captures *)
 

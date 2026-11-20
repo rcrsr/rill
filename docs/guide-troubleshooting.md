@@ -104,6 +104,46 @@ Variables lock to the type of their first assignment. Reassigning a different ty
 42 -> string => $x       # OK: still a string
 ```
 
+## Collections lock element types too
+
+A collection locks to its element or field types, not only its kind.
+
+```rill
+list[1] => $x
+list["a"] => $x
+# Error: RILL-R001
+```
+
+**Fix:** Annotate the first capture with the wider type.
+
+```rill
+list[1] => $x:list(union(number, string))
+list["a"] => $x
+# Result: list["a"]
+```
+
+A dict lock is exact, so an extra key halts too. A tuple lock is positional, so a longer tuple halts. A function locks to its full signature, so a function with different parameters halts.
+
+```rill
+dict[a: 1] => $x
+dict[a: 1, b: 2] => $x
+# Error: RILL-R001
+```
+
+```rill
+tuple[1] => $x
+tuple[1, 2] => $x
+# Error: RILL-R001
+```
+
+```rill
+fn(n: number) { $n } => $f
+fn(s: string) { $s } => $f
+# Error: RILL-R001
+```
+
+**Fix:** Annotate the first capture with the wider type, or use a second name.
+
 ## Missing Dict Keys
 
 Accessing a key that does not exist throws an error. rill has no `undefined` or `null`.
@@ -157,14 +197,14 @@ $list[5]
 **Fix:** Supply a default with `??` on the index, or check the length first. `.at(5)` without `??` halts the same way.
 
 ```rill
-["a", "b"] => $list
-$list[5] ?? "default"
+["a", "b"] => $letters
+$letters[5] ?? "default"
 # Result: "default"
 ```
 
 ```rill
-["a", "b"] => $list
-$list -> .len -> .gt(5) ? $list[5] ! "default"
+["a", "b"] => $letters
+$letters -> .len -> .gt(5) ? $letters[5] ! "default"
 # Result: "default"
 ```
 

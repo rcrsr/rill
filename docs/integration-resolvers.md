@@ -85,6 +85,30 @@ Piping into `use<>` treats a host-resolved value as a variable holding it would 
 # Result: "HELLO"  (host:shout resolves to a callable)
 ```
 
+### Asserting the result type
+
+```rill
+guard { use<ext:app>:string } => $r
+$r.!code
+# Result: #TYPE_MISMATCH
+```
+
+`use<id>:T` asserts the resolved value, or a source module's result, as `-> :T` does. A mismatch halts `#TYPE_MISMATCH`, which `guard` catches. The result carries `T`, so `.^type` reports it and a capture locks to it.
+
+```rill
+use<ext:app>:dict => $r
+$r.^type
+# Result: dict
+```
+
+In the pipe-target form `v -> use<id>:T`, the resolved value is asserted before the pipe acts on it, so a wrong type halts before the pipe selects or calls.
+
+```rill
+guard { "k" -> use<ext:app>:string } => $r
+$r.!code
+# Result: #TYPE_MISMATCH
+```
+
 ### moduleResolver
 
 `moduleResolver` maps module identifiers to rill source files on disk.

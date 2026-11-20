@@ -16,7 +16,10 @@ import {
   execute,
   RuntimeError,
   toCallable,
+  structureEquals,
+  isTypeValue,
   structureToTypeValue,
+  type RillFieldDef,
   type RillFunction,
   type RillParam,
   type TypeStructure,
@@ -234,13 +237,15 @@ describe('host function signature shorthand', () => {
       ['a variable as a type', 'fn(a: $t)', '1:4'],
       ['an unterminated string', 'fn(a: string = "oops)', '1:16'],
       ['an error on the second line', 'fn(\n  a: string,\n  b c\n)', '3:5'],
-      ['dict type arguments without names', 'fn(a: dict(string))', '1:4'],
       ['list type with two arguments', 'fn(a: list(string, number))', '1:4'],
       ['a variable inside tuple arguments', 'fn(a: tuple(string, $t))', '1:4'],
-      ['a bad return type', 'fn(a: list(string)):dict(string)', '1:1'],
+      ['a named tuple element', 'fn(a: tuple(x: string))', '1:4'],
+      ['an interpolated default', 'fn(a: string = "x{1}")', '1:19'],
+      ['a variable as a return type', 'fn(a: string):$t', '1:1'],
+      ['a spread annotation', 'fn(^(...$o) a: string)', '1:6'],
+      ['a call as an annotation value', 'fn(^(k: now()) a: string)', '1:9'],
       ['an unsupported default literal', 'fn(a: string = foo)', '1:16'],
       ['a minus without a number', 'fn(a: number = -x)', '1:16'],
-      ['a non-string annotation value', 'fn(^(k: 5) a: string)', '1:6'],
     ] as const;
 
     it.each(invalid)(
@@ -566,6 +571,32 @@ describe('host function signature shorthand', () => {
       expect(err.message).toMatch(/list element type cannot carry a default/);
     });
 
+    it('rejects a default on a uniform dict value type with RILL-R091', () => {
+      const err = registrationError('fn(d: dict(number = 1))');
+      expect(err.errorId).toBe('RILL-R091');
+      expect(err.message).toMatch(/dict value type cannot carry a default/);
+    });
+
+    it('rejects a default on the stream chunk type with RILL-R091', () => {
+      const err = registrationError('fn(s: stream(number = 1)):string');
+      expect(err.errorId).toBe('RILL-R091');
+      expect(err.message).toMatch(/stream chunk type cannot carry a default/);
+    });
+
+    it('rejects a default on the stream return type with RILL-R091', () => {
+      const err = registrationError('fn(s: stream(number, string = "x")):bool');
+      expect(err.errorId).toBe('RILL-R091');
+      expect(err.message).toMatch(/stream return type cannot carry a default/);
+    });
+
+    it('keeps a non-string function-level annotation value', () => {
+      const callable = toCallable({
+        signature: '^(retries: 3) fn(url: string):string',
+        fn,
+      });
+      expect(callable.annotations).toEqual({ retries: 3 });
+    });
+
     it('rejects a non-trailing tuple default with RILL-R091', () => {
       const err = registrationError('fn(d: tuple(number = 1, string))');
       expect(err.errorId).toBe('RILL-R091');
@@ -608,6 +639,78 @@ describe('host function signature shorthand', () => {
     ])('rejects %s with RILL-R091', (_label, signature) => {
       expect(registrationError(signature).errorId).toBe('RILL-R091');
     });
+  });
+
+  describe('types a script fn type accepts', () => {
+    const accepted = [
+      ['a stream return type', 'fn():stream(number):string'],
+      ['an ordered param', 'fn(o: ordered(a: number))'],
+      ['a uniform dict param', 'fn(d: dict(string))'],
+      ['a uniform dict return type', 'fn(a: string):dict(string)'],
+      ['an atom default', 'fn(a: atom = #X)'],
+      ['a list default', 'fn(a: list(number) = list[1, 2])'],
+      ['a dict default', 'fn(a: dict(k: number) = dict[k: 1])'],
+      ['a tuple default', 'fn(a: tuple(number, string) = tuple[1, "x"])'],
+      ['an ordered default', 'fn(a: ordered(k: number) = ordered[k: 1])'],
+      ['non-string annotation values', 'fn(^(n: 1, f: true) a: string)'],
+    ] as const;
+
+    it.each(accepted)('registers %s', (_label, signature) => {
+      expect(() => toCallable({ signature, fn })).not.toThrow();
+    });
+
+    it('keeps annotation values with their own types', () => {
+      const callable = toCallable({
+        signature: 'fn(^(n: 1, f: true) a: string)',
+        fn,
+      });
+      expect(callable.params[0]?.annotations).toEqual({ n: 1, f: true });
+    });
+
+    it('keeps the value of a collection default', () => {
+      const callable = toCallable({
+        signature: 'fn(a: list(number) = list[1, 2])',
+        fn,
+      });
+      expect(callable.params[0]?.defaultValue).toEqual([1, 2]);
+    });
+
+    const parity = [
+      'fn(a: number, b: string = "x"):bool',
+      'fn(a: union(string, number)):string',
+      'fn(a: list(string), b: dict(k: string)):list(number)',
+      'fn(d: dict(string)):dict(number)',
+      'fn(o: ordered(a: number, b: string = "q")):ordered(z: bool)',
+      'fn(t: tuple(number, string = "s")):tuple(bool)',
+      'fn():stream(number):string',
+      'fn(cb: fn(string):bool):list(string)',
+      'fn(u: union("a", "b", 3, #X), a: atom = #X):any',
+      'fn(a: list(number) = list[1, 2], d: dict(k: number) = dict[k: 1]):number',
+    ] as const;
+
+    it.each(parity)(
+      'builds the type the script runtime builds for %s',
+      async (signature) => {
+        const written = await run(signature);
+        const scripted: TypeStructure | undefined = isTypeValue(written)
+          ? written.structure
+          : undefined;
+        const callable = toCallable({ signature, fn });
+        const registered: TypeStructure = {
+          kind: 'fn',
+          params: callable.params.map((p): RillFieldDef => ({
+            name: p.name,
+            type: p.type ?? { kind: 'any' },
+            defaultValue: p.defaultValue,
+          })),
+          ret: callable.returnType.structure,
+        };
+        expect(scripted).toBeDefined();
+        expect(structureEquals(registered, scripted ?? { kind: 'any' })).toBe(
+          true
+        );
+      }
+    );
   });
 
   describe('explicit form is untouched', () => {

@@ -290,8 +290,8 @@ $result.error
 ```
 
 ```rill
-dict["retry": 3] => $config
-$config.?retry
+dict["retry": 3] => $settings
+$settings.?retry
 # Result: true
 ```
 

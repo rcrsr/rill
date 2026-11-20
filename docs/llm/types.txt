@@ -165,6 +165,8 @@ To validate a shape write `-> :dict(a: string)`, never `-> dict(a: string)`. To 
 
     dict[b: "b"] -> dict(b: string, a: string = "a")   # dict[a: "a", b: "b"]
 
+A list element type, a uniform dict or ordered value type, and a stream chunk or return type carry no default. `list(number = 1)`, `dict(number = 1)`, `ordered(number = 1)`, and `stream(number = 1)` halt #INVALID_INPUT when built. A host signature string fails RILL-R091.
+
 Only `-> type` conversion fills defaults. `:` assertion does NOT hydrate defaults. Nested fields recurse.
 A union first drops members a wider member accepts, unless the dropped member keeps a default. Among survivors the narrowest matching member fills a parameter's defaults whatever the order. A pipe into a union fills nothing unless the union reduces to one member.
 
@@ -217,7 +219,7 @@ Under a declared union, `.^type` reports the declaration and `.^effective` the o
 Dispatch on `.^effective.name`, not `.^type.name`. `any` declares nothing:
 `1 => $x:any` locks as number.
 
-A declaration carries through `$`, plain and inline captures, grouped `( )`, `pass`, destructure, function params, iteration over a declared `list(E)`, and every element or field read on a declared collection: `[i]`, `.name`, `.$k`, and pipe selection `"a" -> $d`. A capture locks to the carried declaration.
+A declaration carries through `$`, plain and inline captures, grouped `( )`, `pass`, destructure, function params, iteration over a declared `list(E)`, and every element or field read on a declared collection: `[i]`, `.name`, `.$k`, and pipe selection `"a" -> $d`. A capture locks to the carried declaration, else the full inferred type (`list[1]` locks `list(number)`).
 Computed results (operators, methods like `.head`, calls) take their own type.
 A bare `list`, `list(any)`, or `union(list(number), string)` projects no element type. A bare kind such as `:list` makes `.^type` report `list` and `.^effective` report `list(number)`.
 Host boundary: `toNative` reports the own type.

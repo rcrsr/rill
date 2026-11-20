@@ -21,7 +21,7 @@ Variables are declared via capture (`=>`), not assignment:
 ```rill
 "hello" => $greeting
 42 => $count
-[1, 2, 3] => $items
+[1, 2, 3] => $numbers
 ```
 
 ### Capture and Continue
@@ -130,6 +130,41 @@ $x => $y                      # $y locks to union(number, string)
 $y
 # Result: "a"
 ```
+
+The lock is the asserted or declared type the value carries, else its full inferred type, element and field types included. `list[1]` locks to `list(number)`, so a list of strings halts:
+
+```rill
+list[1] => $x
+list["a"] => $x
+# Error: RILL-R001
+```
+
+A dict lock is exact, a tuple lock is positional, and a function locks to its full `fn(...)` type:
+
+```rill
+dict[a: 1] => $d
+dict[a: 2] => $d
+tuple[1, "a"] => $t
+tuple[2, "b"] => $t
+fn(n: number) { $n } => $f
+fn(n: number) { $n + 1 } => $f
+$f(1)
+# Result: 2
+```
+
+```rill
+dict[a: 1] => $d
+dict[a: 1, b: 2] => $d
+# Error: RILL-R001
+```
+
+```rill
+fn(n: number) { $n } => $f
+fn(s: string) { $s } => $f
+# Error: RILL-R001
+```
+
+An empty `list[] => $x` locks the unspecified form and admits any list. Host variables supplied through `variables` lock the same way; see [Host Integration](integration-host.md) for the host options.
 
 ### Explicit Type Annotations
 

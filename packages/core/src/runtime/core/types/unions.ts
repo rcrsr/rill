@@ -15,7 +15,7 @@ import {
   formatStructure,
   structureEquals,
   structureMatches,
-  // oxlint-disable-next-line import/no-cycle -- operations.ts reaches signature-parser.ts, which imports this file; the edge is used only at call time, never at module init
+  // oxlint-disable-next-line import/no-cycle -- operations.ts imports this file back; the edge is used only at call time, never at module init
 } from './operations.js';
 
 // ============================================================

@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { parse, ParseError } from '@rcrsr/rill';
-import { parseSignatureRegistration } from '../../src/signature-parser.js';
+import { parseSignatureRegistration } from '../../src/runtime/core/signature-registration.js';
 import { run } from '../helpers/runtime.js';
 import { expectHaltMessage } from '../helpers/halt.js';
 
@@ -81,9 +81,7 @@ describe('host signature defaults', () => {
   it('rejects an interpolated string default', () => {
     expect(() =>
       parseSignatureRegistration('fn(x: string = "ab{1}"):string', 'f')
-    ).toThrow(
-      /parameter 'x' default must be a string, number, or bool literal/
-    );
+    ).toThrow(/string interpolation is not allowed here.* at 1:20/);
   });
 
   it('keeps a plain string default', () => {
