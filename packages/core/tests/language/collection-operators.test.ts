@@ -104,7 +104,7 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     it('AC-8: fold with single named-param function halts RILL-R045', async () => {
       // fold passes element and accumulator; a one-param function takes an excess argument.
       await expectRuntimeError(
-        () => run('list[1, 2, 3] -> fold(0, fn(item) { $@ + $item })'),
+        () => run('list[1, 2, 3] -> fold(0, fn(item) { $item })'),
         { code: 'RILL-R045' }
       );
     });
@@ -342,9 +342,9 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       );
     });
 
-    it('AC-20/EC-NOD-3: named param mixed with bare $ raises undefined-variable error', async () => {
+    it('rejects a named param mixed with a bare $ at parse time', async () => {
       await expect(run('list[1] -> fan(fn(x) { $ + 1 })')).rejects.toThrow(
-        expect.objectContaining({ errorId: 'RILL-R005' })
+        expect.objectContaining({ errorId: 'RILL-P029' })
       );
     });
 

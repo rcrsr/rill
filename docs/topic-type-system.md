@@ -257,8 +257,8 @@ A script stream value reports its declared chunk and resolution types:
 
 ```rill
 fn(input: string):stream(string):number {
-  yield $input
-  return 3
+  $input -> yield
+  3 -> return
 } => $producer
 $producer("x") => $s
 list[$s.^type.inner, $s.^type.outer]
@@ -972,7 +972,7 @@ $v -> :?number
 
 ### Dot-Notation Properties on Type Values
 
-Type values expose five properties via dot notation:
+Type values expose six properties via dot notation:
 
 | Property | Return Type | Description |
 |----------|-------------|-------------|
@@ -981,6 +981,7 @@ Type values expose five properties via dot notation:
 | `.inner` | type, collection, or list | What the type holds or takes |
 | `.outer` | type | What a function or stream type yields |
 | `.defaults` | `dict` | Defaults of a dict, ordered, or function type; only fields that have one |
+| `.annotations` | `dict` | Annotations of a dict, ordered, or function type's fields or parameters; only those that have any |
 
 ```rill
 number => $t
@@ -1037,6 +1038,14 @@ union("x", list, #a, 1, true).inner
 string => $t
 tuple[$t.inner ?? any, $t.?name, $t.?inner, $t.missing ?? "x"]
 # Result: tuple[any, true, false, "x"]
+```
+
+`.annotations` lists only the fields or parameters that carry annotations. An unnamed parameter is keyed `"0"`, and a tuple type halts RILL-R003:
+
+```rill
+fn(^(min: 0) x: number, y: string) { $x } => $f
+$f.^type.annotations
+# Result: dict[x: dict[min: 0]]
 ```
 
 ```rill

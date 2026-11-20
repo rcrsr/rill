@@ -16,7 +16,7 @@
 import type { BodyNode, SourceLocation } from '../../../../types.js';
 import type { Carried } from '../../types/declared.js';
 import type { RillValue, TypeStructure } from '../../types/structures.js';
-import { isCallable } from '../../callable.js';
+import { isPropertyCallable } from '../../callable.js';
 import { isOrdered, isTuple } from '../../types/guards.js';
 import type { TypeHaltSite } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
@@ -29,6 +29,7 @@ import { selectByBracketKey } from './variables.js';
 import type { FieldKey } from './field-access.js';
 import {
   bracketKey,
+  computedFieldArgs,
   projectLocated,
   throwBracketMiss,
   locateOrRecover,
@@ -82,7 +83,7 @@ export async function selectElement(
       defaultValue !== null
     );
     if (selected.value !== null || defaultValue === null) {
-      return runSelected(s, selected, key, location);
+      return runSelected(s, collection, selected, key, location);
     }
     return {
       value: await evaluateBodyExpression(s, defaultValue),
@@ -110,6 +111,7 @@ export async function selectElement(
   }
   return runSelected(
     s,
+    collection,
     { value: found.value, declared: projectLocated(declared, found) },
     key,
     location
@@ -118,11 +120,13 @@ export async function selectElement(
 
 /**
  * Run a selected held block with the selector as `$`, and a host
- * property-style function with the selector as its pipe value; keep any other
+ * property-style function with the collection as its `self` and the selector
+ * as its pipe value; keep any other
  * element, a function included, as stored.
  */
 async function runSelected(
   s: EvalState,
+  collection: RillValue,
   selected: Carried,
   key: RillValue,
   location: SourceLocation | undefined
@@ -136,12 +140,17 @@ async function runSelected(
   );
   if (resolved.ran) return { value: resolved.value, declared: undefined };
   const { value } = selected;
-  if (isCallable(value) && value.kind === 'application' && value.isProperty) {
+  if (isPropertyCallable(value)) {
     const savedPipeValue = s.ctx.pipeValue;
     s.ctx.pipeValue = key;
     try {
       return {
-        value: await invokeCallable(s, value, [], location),
+        value: await invokeCallable(
+          s,
+          value,
+          computedFieldArgs(value, collection, []),
+          location
+        ),
         declared: undefined,
       };
     } finally {

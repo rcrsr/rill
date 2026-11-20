@@ -113,6 +113,7 @@ import {
   evaluateGroupedExpr,
   evaluateUnaryExpr,
   evaluateBinaryExpr,
+  evaluateExprHead,
 } from './expressions.js';
 import { evaluateCollectionLiteral, evaluateSlice } from './extraction.js';
 import { applyConversion, convertToType } from './conversion.js';
@@ -166,7 +167,7 @@ export async function evaluateExpression(
   expr: ExpressionNode
 ): Promise<RillValue> {
   guardEvaluableExpression(s, expr);
-  return (await evaluatePipeChainCarried(s, expr)).value;
+  return await evaluatePipeChainValue(s, expr);
 }
 
 /**
@@ -218,7 +219,28 @@ export async function evaluatePipeChain(
   s: EvalState,
   chain: PipeChainNode
 ): Promise<RillValue> {
-  return (await evaluatePipeChainCarried(s, chain)).value;
+  return await evaluatePipeChainValue(s, chain);
+}
+
+/**
+ * Value-only chain evaluation. A chain with no pipes and no terminator
+ * evaluates its head directly; every other chain takes the carried path.
+ * The parent's $ and its declaration slot are restored on every exit.
+ */
+async function evaluatePipeChainValue(
+  s: EvalState,
+  chain: PipeChainNode
+): Promise<RillValue> {
+  if (chain.pipes.length > 0 || chain.terminator) {
+    return (await evaluatePipeChainCarried(s, chain)).value;
+  }
+  const savedPipeValue = s.ctx.pipeValue;
+  const savedPipeDeclared = s.ctx.pipeDeclared;
+  try {
+    return await evaluateExprHead(s, chain.head);
+  } finally {
+    restorePipe(s.ctx, savedPipeValue, savedPipeDeclared);
+  }
 }
 
 /**
@@ -341,6 +363,13 @@ export async function evaluatePostfixExpr(
   s: EvalState,
   expr: PostfixExprNode
 ): Promise<RillValue> {
+  if (
+    expr.methods.length === 0 &&
+    expr.defaultValue === null &&
+    !expr.existenceCheck
+  ) {
+    return evaluatePrimary(s, expr.primary);
+  }
   return (await evaluatePostfixExprCarried(s, expr)).value;
 }
 
@@ -615,7 +644,7 @@ async function invokePipeCallable(
 /** Build a one-element args array whose declaration rides in the sidecar. */
 function argsOf(input: Carried): RillValue[] {
   const args = [input.value];
-  setArgsDeclared(args, [input.declared]);
+  if (input.declared !== undefined) setArgsDeclared(args, [input.declared]);
   return args;
 }
 
@@ -631,7 +660,7 @@ export async function evaluatePipeTarget(
   carried: Carried
 ): Promise<Carried> {
   setPipe(s.ctx, carried.value, carried.declared);
-  if (isCarryingPipeTarget(target)) {
+  if (isCarryingPipeTarget(target, carried)) {
     const carrying = await evaluateCarryingPipeTarget(s, target, carried);
     if (carrying !== undefined) return carrying;
   }

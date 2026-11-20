@@ -53,6 +53,8 @@ The `->` operator pipes a value to the next operation:
 
 The special variable `$` refers to the current piped value. Inside a pipe chain, `$` holds whatever was piped in.
 
+What `->` does depends on its target; [Operators](topic-operators.md) lists each kind.
+
 When you write `.trim` without an explicit receiver, it's syntactic sugar for `$.trim()`. The method is called on the current pipe value. Parentheses can be omitted when a method takes no arguments.
 
 ### Chaining Operations

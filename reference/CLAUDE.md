@@ -81,6 +81,9 @@ An unfiled defect is lost.
   any example fence from ```` ```rill pending=N ```` to ```` ```rill ````.
 - Frontmatter `issues` lists exactly the issues that some pending rule or pending fence in the file
   uses. Lint fails a missing one and warns on a stale one.
+- An inconsistency the owner chooses to collect rather than file goes in the README Known
+  inconsistencies table, grouped under a heading per topic, with the probe evidence in the row.
+  It never becomes a rule or a Notes line until it is decided and filed.
 
 ## Syntax in rule text and examples
 

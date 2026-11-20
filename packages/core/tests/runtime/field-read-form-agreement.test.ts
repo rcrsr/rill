@@ -3,7 +3,7 @@
  *
  * For each receiver and key that passes the form's key validation, `.?k` is
  * true exactly when `.k ?? sentinel` returns something other than the sentinel
- * and exactly when `.k` does not halt. Method sugar (`.len`, `.params`) is
+ * and exactly when `.k` does not halt. Method sugar (`.len`) is
  * literal-only, and a non-string key on a dict halts in every form, including
  * `.?`, with the same type mismatch.
  */
@@ -221,7 +221,10 @@ const ROWS: readonly Row[] = [
     key: '"params"',
     name: 'params',
     read: { halt: 'RILL_R002', message: 'Cannot index fn' },
-    literal: { value: { x: {} } },
+    literal: {
+      halt: 'RILL_R008',
+      message: 'Property .params was removed',
+    },
     exists: false,
   },
   {

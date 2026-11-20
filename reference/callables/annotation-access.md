@@ -49,10 +49,15 @@ r[annotation-access.presence] .?^key tests for an annotation
 r[annotation-access.presence-other] .?^key on a value that cannot carry annotations is false
 `$v.?^key` MUST yield false when `$v` is not a function.
 
+r[annotation-access.no-params] .params on a function halts, naming the replacement
+`$f.params` on a function MUST halt with RILL-R008, with a message naming `.^type.annotations` and
+`.^type.inner`.
+
 ## Interactions
 
 Which annotations a function carries is stated in `annotation.attach`. Parameter annotations
-are read from the function's type (`introspection.annotations`), not with `.^key`. `.^type`
+are read from the function's type (`introspection.annotations`), not with `.^key`.
+`.params` on a function is removed (`annotation-access.no-params`). `.^type`
 and `.^effective` read a value's type (`introspection.type-probe`, `carried-type`).
 
 ## Errors
@@ -61,6 +66,7 @@ and `.^effective` read a value's type (`introspection.type-probe`, `carried-type
 |-----------|-------|-----------|
 | `.^key` names a key the function lacks | RILL-R008 | Yes |
 | `.^key` on a value that is not a function | RILL-R003 | Yes |
+| `.params` on a function | RILL-R008 | Yes |
 
 ## Examples
 
@@ -102,4 +108,5 @@ $f.?^type
 
 ## Notes
 
-On 0.23.0 parameter annotations are read as `$f.params.x.__annotations.key`.
+On 0.23.0 `.params` on a function yields a dict of its parameters, and parameter annotations are
+read as `$f.params.x.__annotations.key`.

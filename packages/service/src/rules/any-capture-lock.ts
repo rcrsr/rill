@@ -5,7 +5,12 @@
  * the capture facts; an unknown type on either capture stays silent.
  */
 
-import { formatTypeRef } from '@rcrsr/rill';
+import {
+  formatStructure,
+  formatTypeRef,
+  inferStructure,
+  structureMatches,
+} from '@rcrsr/rill';
 import type { ASTNode, TypeRef } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
@@ -65,7 +70,26 @@ export const anyCaptureLock: Rule = {
     );
     if (!isInSameOrParentScope) return [];
 
-    const { captureValueTypes } = context.facts.script;
+    const { captureLiteralValues, captureValueTypes } = context.facts.script;
+    const firstValue = captureLiteralValues.get(first);
+    const secondValue = captureLiteralValues.get(node);
+    if (firstValue !== undefined && secondValue !== undefined) {
+      // Both values are static: apply the runtime's own lock check.
+      const locked = inferStructure(firstValue);
+      if (structureMatches(secondValue, locked)) return [];
+      const lockedLabel = formatStructure(locked);
+      const secondLabel = formatStructure(inferStructure(secondValue));
+      return [
+        {
+          code: 'ANY_CAPTURE_LOCK',
+          message: `'$${varName}' was captured with :any at line ${first.span.start.line}, and :any locks to the first value's type (${lockedLabel}). Capturing ${secondLabel} here halts RILL-R001. Annotate the first capture with a union, such as union(${lockedLabel}, ${secondLabel}).`,
+          severity: 'error',
+          location: node.span.start,
+          context: extractContextLine(node.span.start.line, context.source),
+          fix: null,
+        },
+      ];
+    }
     const firstType = captureValueTypes.get(first);
     const secondType = captureValueTypes.get(node);
     if (firstType === undefined || secondType === undefined) return [];

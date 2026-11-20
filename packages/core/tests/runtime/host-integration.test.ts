@@ -1424,13 +1424,9 @@ describe('AC-6: Named-param closure does not modify $', () => {
   });
 });
 
-// This test depends on the `s.ctx.pipeValue !== null` clause in
-// evaluateMethod's injection guard (runtime/core/eval/handlers/closures.ts):
-// dropping that clause pushes a null pipe value into args, making
-// args.length !== 0 and defeating the boundDict receiver fallback in
-// invokeFnCallable, so `self` becomes null instead of the bound dict.
-// See tests/language/closure-semantics.test.ts near AC-13/AC-20 for the
-// companion language-level regression tests on the same guard.
+// This test depends on evaluateMethod not pushing a null pipe value into args:
+// that would make args.length !== 0 and defeat computedFieldArgs, so `self`
+// becomes null instead of the dict the property was selected from.
 describe('AC-8: Method dispatch — bound dict fills first ordered entry', () => {
   it('$person.greet() passes dict as receiver (first param)', async () => {
     const captured: { receiver: RillValue } = { receiver: null };
@@ -1464,7 +1460,7 @@ describe('AC-8: Method dispatch — bound dict fills first ordered entry', () =>
     });
 
     expect(result).toBe('Hello, I am alice');
-    // The bound dict (person) was passed as the receiver argument
+    // The dict (person) the property was selected from was passed as `self`
     expect((captured.receiver as Record<string, RillValue>)['name']).toBe(
       'alice'
     );
@@ -2325,5 +2321,23 @@ describe('Host function return-value validation (non-finite numbers)', () => {
       functions: { getNaN: numberFn(NaN) },
     });
     expect(result).toBe(0);
+  });
+});
+
+describe('Host callables stored in a dict keep their identity', () => {
+  it('a dict literal holding a host callable stores the same callable', async () => {
+    const f = callable(() => 1);
+    const result = (await run('dict[c: $f] => $d\n$d', {
+      variables: { f },
+    })) as Record<string, RillValue>;
+    expect(result['c']).toBe(f);
+  });
+
+  it('a host variable dict holding a callable keeps the same callable', async () => {
+    const f = callable(() => 1);
+    const result = (await run('$d', {
+      variables: { d: { c: f } },
+    })) as Record<string, RillValue>;
+    expect(result['c']).toBe(f);
   });
 });

@@ -88,6 +88,9 @@ In rill, `{ ... }` is a block (function body, loop body, etc.), not a dict liter
 
 ## Conversion versus assertion
 
+    Wrong: "5" => $n:number                # halts #TYPE_MISMATCH: a capture asserts, never converts
+    Right: "5" -> number => $n
+
     Wrong: $data -> dict(name: string)     # converts and fills, does not validate
     Right: $data -> :dict(name: string)    # asserts the shape
 

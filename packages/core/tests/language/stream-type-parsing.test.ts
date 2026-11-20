@@ -52,7 +52,7 @@ describe('Yield Token Lexing', () => {
 
 describe('Yield Parsing in Stream Closures', () => {
   it('parses bare yield as $ -> yield inside stream closure', () => {
-    const ast = parse('fn(x):stream() { yield }');
+    const ast = parse('fn(any):stream() { yield }');
     const stmt = getStatementView(ast);
     const closure = stmt.expression.head.primary;
     expect(closure.type).toBe('Closure');
@@ -152,7 +152,7 @@ describe('Yield as Identifier', () => {
 
 describe('Stream Type Constructor Parsing', () => {
   it('parses stream() with no args', () => {
-    const ast = parse('fn(x):stream() { yield }');
+    const ast = parse('fn(x):stream() { $x -> yield }');
     const closure = getStatementView(ast).expression.head.primary;
     expect(closure.type).toBe('Closure');
 
@@ -164,7 +164,7 @@ describe('Stream Type Constructor Parsing', () => {
   });
 
   it('parses stream(number) with chunk type', () => {
-    const ast = parse('fn(x):stream(number) { yield }');
+    const ast = parse('fn(x):stream(number) { $x -> yield }');
     const closure = getStatementView(ast).expression.head.primary;
     const returnType = closure.returnTypeTarget;
     expect(returnType).toBeDefined();
@@ -178,7 +178,7 @@ describe('Stream Type Constructor Parsing', () => {
   });
 
   it('parses stream(string) with string chunk type', () => {
-    const ast = parse('fn(x):stream(string) { yield }');
+    const ast = parse('fn(x):stream(string) { $x -> yield }');
     const closure = getStatementView(ast).expression.head.primary;
     const returnType = closure.returnTypeTarget;
     expect(returnType!.typeName).toBe('stream');
@@ -190,7 +190,7 @@ describe('Stream Type Constructor Parsing', () => {
   });
 
   it('parses stream(number):string with both chunk and resolution types', () => {
-    const ast = parse('fn(x):stream(number):string { yield }');
+    const ast = parse('fn(x):stream(number):string { $x -> yield }');
     const closure = getStatementView(ast).expression.head.primary;
     const returnType = closure.returnTypeTarget;
     expect(returnType).toBeDefined();
@@ -212,7 +212,7 @@ describe('Stream Type Constructor Parsing', () => {
   });
 
   it('parses stream():number with resolution type and no chunk type', () => {
-    const ast = parse('fn(x):stream():number { yield }');
+    const ast = parse('fn(x):stream():number { $x -> yield }');
     const closure = getStatementView(ast).expression.head.primary;
     const returnType = closure.returnTypeTarget;
     expect(returnType!.typeName).toBe('stream');
@@ -276,7 +276,7 @@ describe('Stream Type in Closure Return Types', () => {
   });
 
   it('parses named param closure with stream return type', () => {
-    const ast = parse('fn(x: string):stream(number):bool { yield }');
+    const ast = parse('fn(x: string):stream(number):bool { $x -> yield }');
     const closure = getStatementView(ast).expression.head.primary;
     expect(closure.type).toBe('Closure');
     expect(closure.params).toHaveLength(1);
@@ -303,7 +303,7 @@ describe('IC-2: Non-regression', () => {
   });
 
   it('return still parses as chain terminator', () => {
-    const ast = parse('fn(x) { return }');
+    const ast = parse('fn(x) { $x -> return }');
     const closure = getStatementView(ast).expression.head.primary;
     expect(closure.body.statements[0]!.expression.terminator!.type).toBe(
       'Return'

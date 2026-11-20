@@ -56,7 +56,7 @@ import {
   findVariableScope,
   scopeVariableDeclared,
 } from '../../context.js';
-import { isCallable } from '../../callable.js';
+import { isCallable, isPropertyCallable } from '../../callable.js';
 import { isVacant, isInvalid, getStatus } from '../../types/status.js';
 import { atomName } from '../../types/atom-registry.js';
 import {
@@ -73,9 +73,9 @@ import { evaluateBody } from './control-flow.js';
 import { resolveSelected } from './code-block.js';
 import { evaluatePipeChain } from './core.js';
 import {
-  evaluateParamsProperty,
   evaluateMethod,
   evaluateAnnotationAccess,
+  invokeCallable,
 } from './closures.js';
 import type { FieldKey } from './field-access.js';
 import { resolveTypeRef, assertTypeRefCarried } from './types.js';
@@ -88,6 +88,8 @@ import {
   readField,
   locateOrRecover,
   throwNonIntegerIndex,
+  computedFieldArgs,
+  isComputedFieldReceiver,
 } from './field-access.js';
 
 /**
@@ -305,6 +307,18 @@ export async function applyBracketIndexCarried(
     receiverDeclared,
     allowMissing
   );
+  if (isComputedFieldReceiver(receiver) && isPropertyCallable(selected.value)) {
+    // A host property function runs, with the receiver as its `self`.
+    return {
+      value: await invokeCallable(
+        s,
+        selected.value,
+        computedFieldArgs(selected.value, receiver, []),
+        location
+      ),
+      declared: undefined,
+    };
+  }
   if (keepHeld) return selected;
   // A held block runs with the enclosing `$`.
   const resolved = await resolveSelected(
@@ -455,6 +469,22 @@ export async function evaluateVariableAsync(
   s: EvalState,
   node: VariableNode
 ): Promise<RillValue> {
+  // A bare read (no access chain, `??` default or `.?` check) needs no
+  // declared type. A miss falls through so the carried path raises the halt.
+  if (
+    node.accessChain.length === 0 &&
+    !node.defaultValue &&
+    !node.existenceCheck
+  ) {
+    if (node.isPipeVar && (node.name === null || node.name === '')) {
+      if (s.ctx.pipeValue !== null) return s.ctx.pipeValue;
+    } else if (node.name !== null && node.name !== '') {
+      const bare = findVariableScope(s.ctx, node.name)?.variables.get(
+        node.name
+      );
+      if (bare !== undefined) return bare;
+    }
+  }
   return (await evaluateVariableCarried(s, node)).value;
 }
 
@@ -602,30 +632,22 @@ export async function evaluateVariableCarried(
     // Must be a FieldAccess
     if (access.kind === 'literal') {
       const field = access.field;
-      // Handle .params property on closures
-      if (field === 'params') {
-        if (isCallable(value)) {
-          value = await evaluateParamsProperty(
-            s,
-            value,
-            getNodeLocation(s, node)
-          );
+      // `.params` on a function was removed; name its replacements. Like a
+      // missing annotation, the halt is recovered by `??` on the right-most step.
+      if (field === 'params' && isCallable(value)) {
+        if (recoverable) {
+          value = null;
         } else {
-          // .params on non-callable: throw or return null based on default value
-          if (recoverable) {
-            value = null;
-          } else {
-            throwCatchableHostHalt(
-              {
-                location: getNodeLocation(s, node),
-                sourceId: s.ctx.sourceId,
-                fn: 'evaluateVariableAsync',
-              },
-              ERROR_ATOMS[ERROR_IDS.RILL_R003],
-              `Cannot access .params on ${inferType(value)}`,
-              { actualType: inferType(value) }
-            );
-          }
+          throwCatchableHostHalt(
+            {
+              location: getNodeLocation(s, node),
+              sourceId: s.ctx.sourceId,
+              fn: 'evaluateVariableAsync',
+            },
+            ERROR_ATOMS[ERROR_IDS.RILL_R008],
+            'Property .params was removed; use .^type.annotations for parameter annotations and .^type.inner for parameter types',
+            { field }
+          );
         }
       } else if (
         s.ctx.typeMethodDicts.get(inferType(value))?.[field] !== undefined

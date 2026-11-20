@@ -298,7 +298,7 @@ describe('Rill Runtime: Type Guards', () => {
   });
 });
 
-describe('Rill Runtime: Dict Closures ($ = this)', () => {
+describe('Rill Runtime: Dict Closures (no self-binding)', () => {
   describe('Function literals in dicts', () => {
     it('rejects a zero-arg fn that reads $ with RILL-P029', () => {
       try {
@@ -327,16 +327,17 @@ describe('Rill Runtime: Dict Closures ($ = this)', () => {
       expect(result).toBe('hello from tools');
     });
 
-    it('parameterized closure can also access $ as dict', async () => {
-      const result = await run(`
+    it('rejects a parameterized closure that reads the dict as $', async () => {
+      await expect(
+        run(`
         dict[
           name: "tools",
           process: fn(x) { "{$.name}: {$x}" }
         ] => $obj
         $obj.process => $fn
         $fn("hello")
-      `);
-      expect(result).toBe('tools: hello');
+      `)
+      ).rejects.toHaveProperty('errorId', 'RILL-P029');
     });
   });
 

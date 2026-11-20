@@ -1,5 +1,7 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 import { describe, expect, it } from 'vitest';
 import {
+  callable,
   createRuntimeContext,
   execute,
   parse,
@@ -9,6 +11,7 @@ import {
 } from '@rcrsr/rill';
 import type {
   PipeChainNode,
+  RillValue,
   PostfixExprNode,
   ResolverResult,
   SchemeResolver,
@@ -18,6 +21,7 @@ import type {
 
 import { run as runWithOptions } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 async function run(code: string) {
   const ctx = createRuntimeContext({});
@@ -570,5 +574,157 @@ describe('implicit $ property access bug', () => {
     it('$l[-1] returns the last element', async () => {
       expect(await run('list[1, 2, 3] => $l\n$l[-1]')).toBe(3);
     });
+  });
+});
+
+/** A host property function that returns the `n` field of its `self`. */
+function selfN() {
+  return callable((args) => {
+    const self = args['self'] as Record<string, RillValue>;
+    return self['n'] ?? -1;
+  }, true);
+}
+
+describe('host property functions take self at the access site', () => {
+  const rp = rule('selection.property');
+
+  rp.it('runs on .name without parens with the dict as self', async () => {
+    expect(
+      await runWithOptions('dict[n: 5, count: $p] => $d\n$d.count', {
+        variables: { p: selfN() },
+      })
+    ).toBe(5);
+  });
+
+  rp.it('runs on .name() with the dict as self', async () => {
+    expect(
+      await runWithOptions('dict[n: 5, count: $p] => $d\n$d.count()', {
+        variables: { p: selfN() },
+      })
+    ).toBe(5);
+  });
+
+  rp.it('runs on .$k with the dict as self', async () => {
+    expect(
+      await runWithOptions(
+        'dict[n: 5, count: $p] => $d\n"count" => $k\n$d.$k',
+        { variables: { p: selfN() } }
+      )
+    ).toBe(5);
+  });
+
+  rp.it('runs on a bracket selection with the dict as self', async () => {
+    expect(
+      await runWithOptions('dict[n: 5, count: $p] => $d\n$d["count"]', {
+        variables: { p: selfN() },
+      })
+    ).toBe(5);
+  });
+
+  rp.it('runs on destructure with the dict as self', async () => {
+    expect(
+      await runWithOptions('dict[n: 5, count: $p] -> destruct<count: $c>\n$c', {
+        variables: { p: selfN() },
+      })
+    ).toBe(5);
+  });
+
+  rp.it('runs on an ordered receiver with the ordered as self', async () => {
+    const getN = callable((args) => {
+      const self = args['self'] as { __rill_ordered?: boolean };
+      return self.__rill_ordered === true ? 7 : -1;
+    }, true);
+    expect(
+      await runWithOptions('ordered[n: 5, count: $p] => $o\n$o.count', {
+        variables: { p: getN },
+      })
+    ).toBe(7);
+  });
+
+  rp.it('runs on dispatch with the dict as self', async () => {
+    expect(
+      await runWithOptions('dict[n: 5, count: $p] => $d\n"count" -> $d', {
+        variables: { p: selfN() },
+      })
+    ).toBe(5);
+  });
+
+  rp.it('passes the innermost dict as self on a nested call', async () => {
+    expect(
+      await runWithOptions(
+        'dict[n: 1, inner: dict[n: 2, count: $p]] => $outer\n$outer.inner.count()',
+        { variables: { p: selfN() } }
+      )
+    ).toBe(2);
+  });
+
+  rp.it(
+    'passes the innermost dict as self on hierarchical dispatch',
+    async () => {
+      expect(
+        await runWithOptions(
+          'dict[n: 1, inner: dict[n: 2, count: $p]] => $outer\nlist["inner", "count"] -> $outer',
+          { variables: { p: selfN() } }
+        )
+      ).toBe(2);
+    }
+  );
+
+  rp.it(
+    'sees the overridden field when the dict is a spread copy',
+    async () => {
+      expect(
+        await runWithOptions(
+          'dict[n: 1, count: $p] => $u\ndict[...$u, n: 9].count',
+          { variables: { p: selfN() } }
+        )
+      ).toBe(9);
+    }
+  );
+
+  rp.it('sees the returned dict when a host function builds it', async () => {
+    const app = {
+      make: callable(() => ({ n: 3, count: selfN() })),
+    };
+    expect(
+      await runWithOptions('$app.make().count()', { variables: { app } })
+    ).toBe(3);
+    expect(
+      await runWithOptions('$app.make() => $m\n"count" -> $m', {
+        variables: { app },
+      })
+    ).toBe(3);
+  });
+
+  rp.it('does not mutate the callable shared by two dicts', async () => {
+    expect(
+      await runWithOptions(
+        'dict[n: 1, c: $p] => $a\ndict[n: 2, c: $p] => $b\n$a.c()',
+        { variables: { p: selfN() } }
+      )
+    ).toBe(1);
+  });
+
+  rp.it('keeps an explicit argument on a property call', async () => {
+    const twice = callable((args) => (args['self'] as number) * 2, true);
+    expect(
+      await runWithOptions('dict[double: $p] => $t\n$t.double(4)', {
+        variables: { p: twice },
+      })
+    ).toBe(8);
+  });
+});
+
+describe('a function read from a dict does not bind $', () => {
+  const rn = rule('invocation.no-self-binding');
+
+  rn.it('calls a stored function with only its own arguments', async () => {
+    expect(await run('dict[f: fn(x) { $x }] => $d\n$d.f(7)')).toBe(7);
+  });
+
+  rn.it('rejects a body that reads $ as the dict', async () => {
+    await expect(
+      run('dict[name: "t", f: fn(x) { $.name }] => $d\n$d.f(7)')
+    ).rejects.toHaveProperty('errorId', 'RILL-P029');
   });
 });

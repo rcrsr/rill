@@ -296,6 +296,14 @@ $fn.^type.defaults
 # Result: dict[b: "hi"]
 ```
 
+Parameter annotations sit under `.annotations`, which lists only the parameters that have any:
+
+```rill
+fn(^(min: 0) x: number, y: string) { $x } => $fn
+$fn.^type.annotations
+# Result: dict[x: dict[min: 0]]
+```
+
 A default does not infer the parameter type. `fn(x = "d")` gives `x` the type `any`; write `fn(x: string = "d")` to constrain it. A function type equals another only when parameter names, types, defaults, and outer type all match, so a function with an extra defaulted parameter does not match a type that omits it.
 
 `.outer` returns the declared return type. An unannotated function returns `any`:
@@ -440,6 +448,16 @@ $d.inc(4)
 ```
 
 `x.name` without parentheses is a selection and does not call.
+
+A function read from a dict does not see the dict as `$`. Pass the dict as an argument:
+
+```rill
+dict[n: 2, twice: fn(d) { $d.n * 2 }] => $d
+$d.twice($d)
+# Result: 4
+```
+
+A function with named parameters cannot read a bare `$`; the parser rejects it with RILL-P029.
 
 ---
 

@@ -140,8 +140,8 @@ const BODY_PAIRS: readonly BodyPair[] = [
   { name: 'use expression', base: 'use<ext:a>', variant: 'use<ext:b>' },
   {
     name: 'pass block',
-    base: 'pass<on_error: #IGNORE> { 1 }',
-    variant: 'pass<on_error: #IGNORE> { 2 }',
+    base: '$x -> pass<on_error: #IGNORE> { 1 }',
+    variant: '$x -> pass<on_error: #IGNORE> { 2 }',
   },
   {
     name: 'nested fn param annotation',

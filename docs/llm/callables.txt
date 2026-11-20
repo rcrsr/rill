@@ -138,6 +138,16 @@ Return type assertion (halts with `#TYPE_MISMATCH` on mismatch):
 
 `.^type.inner` returns an ordered of param names to types for named params, a tuple of types for unnamed params, and `ordered[]` for `fn()`. `.^type.outer` returns the declared return type (`any` if undeclared). `.^type.defaults` lists only the params that have a default. Works on script functions, built-ins, host functions.
 
+`.^type.annotations` returns a dict of param name to its annotations; params without annotations are left out. `.params` halts RILL-R008.
+
+    fn(^(min: 0) x: number, y: string) { $x } => $fn3
+    $fn3.^type.annotations                 # dict[x: dict[min: 0]]
+
+A function stored in a dict does not see the dict as `$`; pass it as an argument.
+
+    dict[n: 2, twice: fn(d) { $d.n * 2 }] => $d
+    $d.twice($d)                           # 4
+
 Description shorthand (bare string in `^(...)` expands to `description: <string>`):
 
     ^("Get weather for city") fn(city: string) { $city } => $weather

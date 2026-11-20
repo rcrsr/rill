@@ -1,3 +1,10 @@
+import {
+  createRuntimeContext,
+  execute,
+  parse,
+  RuntimeError,
+  RuntimeHaltSignal,
+} from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 import { runRules } from './run-rules.js';
 import { anyCaptureLock } from './any-capture-lock.js';
@@ -26,6 +33,83 @@ describe('ANY_CAPTURE_LOCK fires', () => {
     expect(result).toHaveLength(1);
     expect(result[0]?.code).toBe('ANY_CAPTURE_LOCK');
   });
+});
+
+const COLLECTION_FIRES: [string, string][] = [
+  ['list element type', 'list[1] => $x:any\nlist["a"] => $x\n'],
+  ['dict value type', 'dict[a: 1] => $x:any\ndict[a: "x"] => $x\n'],
+  ['tuple element type', 'tuple[1] => $x:any\ntuple["a"] => $x\n'],
+  ['ordered value type', 'ordered[a: 1] => $x:any\nordered[a: "x"] => $x\n'],
+  ['list widened to a mixed list', 'list[1] => $x:any\nlist[1, "a"] => $x\n'],
+];
+
+const COLLECTION_SILENT: [string, string][] = [
+  ['same element type', 'list[1] => $x:any\nlist[2, 3] => $x\n'],
+  [
+    'mixed lists in either order',
+    'list[1, "a"] => $x:any\nlist["a", 1] => $x\n',
+  ],
+  ['empty first list', 'list[] => $x:any\nlist["a"] => $x\n'],
+  ['nested empty list', 'list[list[1]] => $x:any\nlist[list[]] => $x\n'],
+  ['atom element', 'list[#a] => $x:any\nlist["a"] => $x\n'],
+];
+
+describe('ANY_CAPTURE_LOCK on collection literals', () => {
+  it.each(COLLECTION_FIRES)('reports a different %s', (_name, source) => {
+    const result = run(source);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.code).toBe('ANY_CAPTURE_LOCK');
+    expect(result[0]?.location.line).toBe(2);
+  });
+
+  it('names the locked collection type and the halt code', () => {
+    const result = run('list[1] => $x:any\nlist["a"] => $x\n');
+    expect(result[0]?.message).toContain('list(number)');
+    expect(result[0]?.message).toContain('RILL-R001');
+  });
+
+  it.each(COLLECTION_SILENT)('stays silent for %s', (_name, source) => {
+    expect(run(source)).toEqual([]);
+  });
+});
+
+async function haltsWithR001(source: string): Promise<boolean> {
+  try {
+    await execute(parse(source), createRuntimeContext());
+  } catch (error) {
+    if (error instanceof RuntimeError || error instanceof RuntimeHaltSignal) {
+      return error.errorId === 'RILL-R001';
+    }
+    throw error;
+  }
+  return false;
+}
+
+// An atom has no static value, so the rule stays silent even though the
+// runtime halts; every other source agrees with the runtime exactly.
+const RULE_BLIND_SPOTS: ReadonlySet<string> = new Set(['atom element']);
+
+describe('ANY_CAPTURE_LOCK agrees with the runtime', () => {
+  const rows: [string, string, boolean][] = [
+    ...COLLECTION_FIRES.map(([name, source]): [string, string, boolean] => [
+      name,
+      source,
+      true,
+    ]),
+    ...COLLECTION_SILENT.map(([name, source]): [string, string, boolean] => [
+      name,
+      source,
+      false,
+    ]),
+  ];
+  it.each(rows)(
+    'halts RILL-R001 exactly when the rule fires for %s',
+    async (name, source, fires) => {
+      expect(run(source).length > 0).toBe(fires);
+      const halts = await haltsWithR001(source);
+      expect(halts).toBe(fires || RULE_BLIND_SPOTS.has(name));
+    }
+  );
 });
 
 describe('ANY_CAPTURE_LOCK stays silent', () => {

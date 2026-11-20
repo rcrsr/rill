@@ -50,7 +50,8 @@ r[dispatch.block-held] A block held by a tuple or an ordered runs
 Selecting a held block from a tuple or an ordered MUST run it, with `$` bound to the selector.
 
 r[dispatch.fn] A selected function is returned
-A function selected by key or index MUST be returned and MUST NOT be called.
+A function selected by key or index MUST be returned and MUST NOT be called, except a host
+property function, which `selection.property` runs.
 
 r[dispatch.map-block] A block held by a map runs on selection {pending #599}
 A block held by a map entry MUST run with `$` bound to the key.

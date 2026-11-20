@@ -597,9 +597,9 @@ fn(number = 1) { $ }
 
 ### rill-p029
 
-**Description:** fn() body reads '$' or '$@'
+**Description:** fn() or named-param fn body reads '$' or '$@'
 
-**Cause:** A function written fn() declares an empty parameter list, so nothing binds '$' or '$@' in its body.
+**Cause:** A function written fn() or fn(x) declares a parameter list, so nothing binds '$' or '$@' in its body; a named param is read as '$x'.
 
 **Resolution:** Declare the params the body reads, as in 'fn(number) { $ }', or drop the read.
 
@@ -611,6 +611,9 @@ fn() { $ + 1 }
 
 # Empty fn() reading '$@'
 fn() { $@ }
+
+# Named param fn reading '$'
+fn(x) { $ }
 ```
 
 ---

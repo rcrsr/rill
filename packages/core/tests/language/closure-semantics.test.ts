@@ -180,14 +180,14 @@ describe('Rill Runtime: Closure Semantics', () => {
     });
 
     it('explicit param closure does not inherit caller pipeValue', async () => {
-      // Closure with explicit params should NOT see caller's $
-      // Using $c param instead, showing explicit params work but $ doesn't leak
+      // A closure with named params binds no $, so reading one is rejected
+      // where the function is written.
       await expect(
         run(`
         fn(a, b, c) { $c + $ } => $fn
         "caller-pipe-value" -> $fn(2, 3)
       `)
-      ).rejects.toThrow('Undefined variable: $');
+      ).rejects.toHaveProperty('errorId', 'RILL-P029');
     });
   });
 

@@ -887,11 +887,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_P029,
     category: 'parse',
-    description: "fn() body reads '$' or '$@'",
+    description: "fn() or named-param fn body reads '$' or '$@'",
     messageTemplate:
       "fn() declares no params, so its body cannot read '$' or '$@'",
     cause:
-      "A function written fn() declares an empty parameter list, so nothing binds '$' or '$@' in its body.",
+      "A function written fn() or fn(x) declares a parameter list, so nothing binds '$' or '$@' in its body; a named param is read as '$x'.",
     resolution:
       "Declare the params the body reads, as in 'fn(number) { $ }', or drop the read.",
     examples: [
@@ -902,6 +902,10 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: "Empty fn() reading '$@'",
         code: 'fn() { $@ }',
+      },
+      {
+        description: "Named param fn reading '$'",
+        code: 'fn(x) { $ }',
       },
     ],
   },

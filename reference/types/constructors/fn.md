@@ -120,12 +120,18 @@ r[fn.no-self] A fn() body does not read a parameter
 A function written `fn()` whose body reads `$` MUST be rejected where it is written, with
 RILL-P029.
 
+r[fn.no-named-pipe] A function with named parameters does not read a top-level $
+A function literal with named parameters whose body reads a `$` that no inner pipe target or
+block binds MUST be rejected where it is written, with RILL-P029, as `fn.no-self` rejects it for
+`fn()`.
+
 ## Errors
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | A third unnamed parameter, mixed parameters, or an unnamed default | RILL-P028 | No |
 | A `fn()` body reads a parameter | RILL-P029 | No |
+| A named-parameter body reads a top-level `$` | RILL-P029 | No |
 
 ## Examples
 

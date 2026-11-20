@@ -30,8 +30,9 @@ import {
   getDocumentationCoverage,
   type RuntimeContext,
   structureToTypeValue,
+  toCallable,
 } from '@rcrsr/rill';
-import { callableLiteral } from '../helpers/runtime.js';
+import { callableLiteral, run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Function Metadata', () => {
   describe('Return Type Tests', () => {
@@ -895,6 +896,30 @@ describe('Rill Runtime: Function Metadata', () => {
         expect(result.documented).toBe(0);
         expect(result.percentage).toBe(0);
       });
+    });
+  });
+
+  describe('Host parameter annotations in scripts', () => {
+    it('reads a host parameter annotation through .^type.annotations', async () => {
+      const search = toCallable({
+        params: [
+          {
+            name: 'q',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'query' },
+          },
+        ],
+        fn: (args) => args['q']!,
+        returnType: anyTypeValue,
+      });
+
+      const result = await run(
+        '$tools.search.^type.annotations == dict[q: dict[description: "query"]]',
+        { variables: { tools: { search } } }
+      );
+
+      expect(result).toBe(true);
     });
   });
 });

@@ -146,6 +146,43 @@ describe('Rill Language: fn literal', () => {
     );
   });
 
+  describe('named-param fn body', () => {
+    rule('fn.no-named-pipe').it(
+      'rejects a body that reads $ with RILL-P029',
+      () => {
+        expect(parseError('fn(x) { $ }').errorId).toBe('RILL-P029');
+      }
+    );
+
+    rule('fn.no-named-pipe').it(
+      'rejects a body that reads $ beside a named param with RILL-P029',
+      () => {
+        expect(parseError('fn(x) { $x + $ }').errorId).toBe('RILL-P029');
+      }
+    );
+
+    rule('fn.no-named-pipe').it(
+      'accepts a $ bound by an inner pipe target block',
+      () => {
+        expect(() => parse('fn(x) { $x -> { $ } }')).not.toThrow();
+      }
+    );
+
+    rule('fn.no-named-pipe').it(
+      'accepts a $ bound by an inner pipe target expression',
+      () => {
+        expect(() => parse('fn(x) { $x -> ($ + 1) }')).not.toThrow();
+      }
+    );
+
+    rule('fn.no-named-pipe').it(
+      'accepts fn { $ } where $ is the parameter',
+      async () => {
+        expect(await run('fn { $ } => $f\n4 -> $f')).toBe(4);
+      }
+    );
+  });
+
   describe('annotations', () => {
     it('reads an annotation placed before a fn literal', async () => {
       const script = `

@@ -8,11 +8,13 @@
  * fully static literal (variables, calls, spreads, computed keys).
  */
 
+import { createOrdered, createTuple } from '@rcrsr/rill';
 import type {
   ASTNode,
   BlockNode,
   DeclarationNode,
   DictEntryNode,
+  RillValue,
   TypeRef,
 } from '@rcrsr/rill';
 import { staticEntryKey } from './helpers.js';
@@ -220,6 +222,102 @@ export function literalShape(expr: ASTNode): string | null {
       if (node.entries.length === 0) return EMPTY_SHAPE;
       const pairs = entryShapes(node.entries);
       return pairs === null ? null : `ordered{${pairs.join(',')}}`;
+    }
+    default:
+      return null;
+  }
+}
+
+// ============================================================
+// STATIC VALUES
+// ============================================================
+
+/** Dict method names the runtime refuses as dict keys. */
+const RESERVED_METHOD_KEYS: ReadonlySet<string> = new Set([
+  'len',
+  'first',
+  'empty',
+  'eq',
+  'ne',
+  'keys',
+  'values',
+  'entries',
+]);
+
+/** A key the runtime might refuse or store specially: brand-like, `__proto__`, or a method name. */
+function isUnsafeKey(key: string): boolean {
+  return key.startsWith('__') || RESERVED_METHOD_KEYS.has(key);
+}
+
+function staticSequence(elements: readonly ASTNode[]): RillValue[] | null {
+  const values: RillValue[] = [];
+  for (const element of elements) {
+    const value = staticLiteralValue(element);
+    if (value === null) return null;
+    values.push(value);
+  }
+  return values;
+}
+
+function staticEntries(
+  entries: readonly DictEntryNode[]
+): Array<[string, RillValue]> | null {
+  const pairs: Array<[string, RillValue]> = [];
+  const seen = new Set<string>();
+  for (const entry of entries) {
+    const key = staticEntryKey(entry);
+    if (key === null || isUnsafeKey(key) || seen.has(key)) return null;
+    seen.add(key);
+    const value = staticLiteralValue(entry.value);
+    if (value === null) return null;
+    pairs.push([key, value]);
+  }
+  return pairs;
+}
+
+/**
+ * The runtime value of a fully static literal, or null when the expression
+ * is anything else: an atom, an interpolated string, a spread, a computed or
+ * reserved key, a block, closure, variable, call, or typed declaration.
+ * Rules compare the result with the runtime's own structural type relations
+ * instead of inferring types a second time.
+ */
+export function staticLiteralValue(expr: ASTNode): RillValue | null {
+  const node = unwrapBareLiteral(expr);
+  switch (node.type) {
+    case 'NumberLiteral':
+      return node.value;
+    case 'BoolLiteral':
+      return node.value;
+    case 'StringLiteral':
+      return node.parts.every((part) => typeof part === 'string')
+        ? node.parts.join('')
+        : null;
+    case 'UnaryExpr': {
+      if (node.op !== '-') return null;
+      const operand = staticLiteralValue(node.operand);
+      return typeof operand === 'number' ? -operand : null;
+    }
+    case 'ListLiteral': {
+      if (node.defaultValue !== null) return null;
+      return staticSequence(node.elements);
+    }
+    case 'TupleLiteral': {
+      const values = staticSequence(node.elements);
+      return values === null ? null : createTuple(values);
+    }
+    case 'Dict': {
+      if (node.defaultValue !== null) return null;
+      const pairs = staticEntries(node.entries);
+      return pairs === null ? null : Object.fromEntries(pairs);
+    }
+    case 'DictLiteral': {
+      const pairs = staticEntries(node.entries);
+      return pairs === null ? null : Object.fromEntries(pairs);
+    }
+    case 'OrderedLiteral': {
+      const pairs = staticEntries(node.entries);
+      return pairs === null ? null : createOrdered(pairs);
     }
     default:
       return null;

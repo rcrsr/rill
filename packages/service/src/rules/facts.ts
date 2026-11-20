@@ -54,6 +54,7 @@ import type {
   OrderedLiteralNode,
   PipeChainNode,
   PropertyAccess,
+  RillValue,
   SourceSpan,
   TypeRef,
 } from '@rcrsr/rill';
@@ -69,6 +70,7 @@ import {
   isMixedCompoundList,
   isMixedValueDict,
   scalarLiteralKind,
+  staticLiteralValue,
   unwrapBareLiteral,
 } from './literal-shape.js';
 
@@ -179,6 +181,13 @@ export interface ScriptFacts {
    * declared type of a variable. An inferred collection type is never held.
    */
   readonly captureValueTypes: ReadonlyMap<CaptureNode, TypeRef>;
+  /**
+   * The runtime value of each chain-head Capture whose input is a fully
+   * static literal (scalars, lists, tuples, ordered, and dicts of those).
+   * Atoms, interpolated strings, spreads, computed keys, and typed
+   * declarations are absent.
+   */
+  readonly captureLiteralValues: ReadonlyMap<CaptureNode, RillValue>;
   /** Variables captured exactly once from a chain whose value is an `.entries` read. */
   readonly entriesVars: ReadonlySet<string>;
   /** Bodies of collection ops fed by an `.entries` read or an `entriesVars` variable. */
@@ -760,8 +769,13 @@ export function collectFacts(root: ASTNode): AstFacts {
     if (typeRef !== null) declaredTypes.set(capture.name, typeRef);
   }
 
+  const captureLiteralValues = new Map<CaptureNode, RillValue>();
   const captureValueTypes = new Map<CaptureNode, TypeRef>();
   for (const [capture, { input, isChainHead }] of captureInputs) {
+    if (isChainHead) {
+      const literal = staticLiteralValue(input);
+      if (literal !== null) captureLiteralValues.set(capture, literal);
+    }
     const own = capture.typeRef;
     const typeRef =
       own !== null && own.kind !== 'dynamic' && !isAnyType(own)
@@ -787,6 +801,7 @@ export function collectFacts(root: ASTNode): AstFacts {
       literalFieldAccessNames,
       declaredTypes,
       captureValueTypes,
+      captureLiteralValues,
       entriesVars,
       entriesBodies,
     },

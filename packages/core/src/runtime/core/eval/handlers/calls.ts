@@ -11,11 +11,10 @@ import type {
   ExpressionNode,
   SpreadArgNode,
 } from '../../../../types.js';
-import type { RillCallable } from '../../callable.js';
 import {
   isCallable,
   isScriptCallable,
-  isApplicationCallable,
+  isPropertyCallable,
   marshalArgs,
 } from '../../callable.js';
 import { getVariable } from '../../context.js';
@@ -42,7 +41,7 @@ import {
   invokeStream,
 } from './closures.js';
 import { resolveSelected } from './code-block.js';
-import { locateField } from './field-access.js';
+import { computedFieldArgs, locateField } from './field-access.js';
 
 /**
  * Bind the piped value as the first argument of a call written as a pipe
@@ -187,6 +186,9 @@ export async function evaluateClosureCallWithPipe(
   }
 
   const fullPath = ['$' + node.name, ...node.accessChain].join('.');
+  // The collection the last access step selected from; a property callable
+  // takes it as `self`.
+  let container: RillValue | undefined;
   for (const prop of node.accessChain) {
     if (value === null) {
       throwCatchableHostHalt(
@@ -212,6 +214,7 @@ export async function evaluateClosureCallWithPipe(
           `Dict has no field '${prop}'`
         );
       }
+      container = value;
       // A held block runs with the enclosing `$`, then the result is read on.
       value = (
         await resolveSelected(
@@ -254,7 +257,15 @@ export async function evaluateClosureCallWithPipe(
 
   if (argumentsBinder.hasSpread(node.args)) {
     const orderedArgs = await bindOrdered(s, closure, node, pipeInput);
-    return invokeCallable(s, closure, orderedArgs, node.span.start, fullPath);
+    return invokeCallable(
+      s,
+      closure,
+      container === undefined
+        ? orderedArgs
+        : computedFieldArgs(closure, container, orderedArgs),
+      node.span.start,
+      fullPath
+    );
   }
 
   const args = await evaluateArgs(s, node.args);
@@ -266,12 +277,15 @@ export async function evaluateClosureCallWithPipe(
     inPipeTarget,
     isPropertyCallable(closure)
   );
-  return invokeCallable(s, closure, args, node.span.start, fullPath);
-}
-
-/** True for a property-style callable, whose `self` is bound to the dict, not piped. */
-function isPropertyCallable(value: RillCallable): boolean {
-  return isApplicationCallable(value) && value.isProperty;
+  return invokeCallable(
+    s,
+    closure,
+    container === undefined
+      ? args
+      : computedFieldArgs(closure, container, args),
+    node.span.start,
+    fullPath
+  );
 }
 
 /** Evaluate pipe invoke: value -> (args). */

@@ -591,7 +591,7 @@ describe('unnamedParamsRead', () => {
     ['{ pass }', 1],
     ['{ $@ + $ }', 2],
     ['{ $@ }', 2],
-    ['{ 5 -> fn(x) { $ } }', 0],
+    ['{ 5 -> fn { $ } }', 0],
   ] as const)('counts unnamed params read by %s as %i', (source, expected) => {
     expect(unnamedParamsRead(bodyOf(source))).toBe(expected);
   });

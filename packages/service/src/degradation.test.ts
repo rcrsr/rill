@@ -135,4 +135,60 @@ describe('provider degradation', () => {
       expect(results.edits).toHaveLength(1);
     });
   });
+
+  describe('.^effective accepted as .^type', () => {
+    const effectiveSource = '1 => $v:union(number, string)\n$v.^effective\n';
+    const typeSource = '1 => $v:union(number, string)\n$v.^type\n';
+    const keyOffset = (source: string): number => source.indexOf('^') + 1;
+
+    function run(source: string) {
+      return runAllProviders(
+        parseWithRecovery(source),
+        source,
+        keyOffset(source)
+      );
+    }
+
+    it('gives the same hover for both keys', () => {
+      const effective = run(effectiveSource);
+      const declared = run(typeSource);
+
+      expect(effective.hover?.contents).toBe('variable `v`');
+      expect(effective.hover).toEqual(declared.hover);
+      expect(effective.hover?.range).toEqual(declared.hover?.range);
+    });
+
+    it('gives the same completion labels for both keys', () => {
+      const effective = run(effectiveSource).completions.map((c) => c.label);
+      const declared = run(typeSource).completions.map((c) => c.label);
+
+      expect(effective).toEqual(declared);
+    });
+
+    it('reports the declared-type probe for ^type only', () => {
+      const effective = run(effectiveSource).diagnostics.map((d) => d.code);
+      const declared = run(typeSource).diagnostics.map((d) => d.code);
+
+      expect(declared).toContain('DECLARED_TYPE_PROBE');
+      expect(effective).not.toContain('DECLARED_TYPE_PROBE');
+    });
+  });
+
+  describe('reserved annotation key', () => {
+    const source = '^(effective: 1) fn(x) { $x }\n';
+
+    it('is rejected by parseWithRecovery with a reserved-key error', () => {
+      const parsed = parseWithRecovery(source);
+
+      expect(parsed.success).toBe(false);
+      expect(parsed.errors[0]?.errorId).toBe('RILL-P001');
+      expect(parsed.errors[0]?.message).toMatch(/reserved/);
+    });
+
+    it('lets every provider run without throwing', () => {
+      const parsed = parseWithRecovery(source);
+
+      expect(() => runAllProviders(parsed, source, 2)).not.toThrow();
+    });
+  });
 });

@@ -151,8 +151,8 @@ describe('SubtreeFacts.hasExplicitCapture', () => {
     expect(facts.bySubtree.get(outerSeqBody)?.hasExplicitCapture).toBe(true);
   });
 
-  it('is false when the capture sits inside an fn(x) { ... } closure, masked by the closure boundary', () => {
-    const source = 'list[1, 2] -> seq({ (fn(x) { $ => $item }) => $f })\n';
+  it('is false when the capture sits inside an fn { ... } closure, masked by the closure boundary', () => {
+    const source = 'list[1, 2] -> seq({ (fn { $ => $item }) => $f })\n';
     const root = parse(source);
     const facts = collectFacts(root);
 
@@ -653,6 +653,37 @@ describe('declared values captured once', () => {
 
     expect(names.has('xs')).toBe(false);
     expect(names.has('d')).toBe(false);
+  });
+
+  it('records the static value of a chain-head collection literal', () => {
+    const facts = collectFacts(
+      parse(
+        'list[1, 2] => $a\ndict[a: 1] => $b\ntuple[1, "x"] => $c\nordered[a: 1] => $d\n'
+      )
+    );
+    const held = new Map<string, unknown>();
+    for (const [capture, value] of facts.script.captureLiteralValues) {
+      held.set(capture.name, value);
+    }
+
+    expect(held.get('a')).toEqual([1, 2]);
+    expect(held.get('b')).toEqual({ a: 1 });
+    expect(held.get('c')).toMatchObject({ entries: [1, 'x'] });
+    expect(held.get('d')).toMatchObject({ entries: [['a', 1]] });
+  });
+
+  it.each([
+    ['an atom element', 'list[#a] => $v\n'],
+    ['an interpolated string', '"a{1}" => $v\n'],
+    ['a spread', 'list[1] => $s\nlist[...$s] => $v\n'],
+    ['a typed declaration', 'list(number) list[1] => $v\n'],
+  ])('records no static value for %s', (_name, source) => {
+    const facts = collectFacts(parse(source));
+    const names = [...facts.script.captureLiteralValues.keys()].map(
+      (capture) => capture.name
+    );
+
+    expect(names).not.toContain('v');
   });
 
   it('records no type for a capture fed by a variable pipe step', () => {

@@ -407,7 +407,6 @@ describe('Rill Language: use<> Expressions', () => {
                 ],
                 fn: (args: Record<string, RillValue>) =>
                   `invoked:${args['text']}`,
-                boundDict: undefined,
               } as unknown as RillValue,
             }),
           },
