@@ -565,12 +565,16 @@ describe('host function signature shorthand', () => {
       );
     });
 
-    it('accepts a default on the list element type as the script does', () => {
-      const callable = toCallable({ signature: 'fn(d: list(number = 1))', fn });
-      expect(callable.params[0]?.type).toEqual({
-        kind: 'list',
-        element: numT,
-      });
+    it('rejects a default on the list element type with RILL-R091', () => {
+      const err = registrationError('fn(d: list(number = 1))');
+      expect(err.errorId).toBe('RILL-R091');
+      expect(err.message).toMatch(/list element type cannot carry a default/);
+    });
+
+    it('rejects a default on a uniform dict value type with RILL-R091', () => {
+      const err = registrationError('fn(d: dict(number = 1))');
+      expect(err.errorId).toBe('RILL-R091');
+      expect(err.message).toMatch(/dict value type cannot carry a default/);
     });
 
     it('rejects a non-trailing tuple default with RILL-R091', () => {

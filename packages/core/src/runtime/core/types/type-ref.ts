@@ -226,7 +226,8 @@ function* completeField(
  *
  * Fault contracts:
  * - list != 1 arg, dict/ordered with 2+ positional, mixed positional and
- *   named, tuple with a named arg, tuple non-trailing default: INVALID_INPUT
+ *   named, tuple with a named arg, tuple non-trailing default, a default on
+ *   a list element or uniform dict/ordered value type: INVALID_INPUT
  * - default that does not match its type: TYPE_MISMATCH
  * - reserved brand key: RILL-R002
  */
@@ -247,6 +248,14 @@ function* buildCollectionType(
         'list',
         'list() requires exactly 1 type argument',
         location
+      );
+    }
+    if (only.defaultValue !== undefined) {
+      return invalidInput(
+        env,
+        'list',
+        'list element type cannot carry a default',
+        argAt(only) ?? location
       );
     }
     const element = yield* resolveArg(only);
@@ -293,18 +302,15 @@ function* buildCollectionType(
       positional.length === 1 &&
       named.length === 0
     ) {
-      const valueType = yield* resolveArg(soleArg);
       if (soleArg.defaultValue !== undefined) {
-        const defaultVal = yield* evaluateDefault(soleArg.defaultValue);
-        requireDefaultMatch(
+        return invalidInput(
           env,
           name,
-          `${name} element`,
-          defaultVal,
-          valueType,
-          location
+          `${name} value type cannot carry a default`,
+          argAt(soleArg) ?? location
         );
       }
+      const valueType = yield* resolveArg(soleArg);
       return freezeType(name, { kind: name, valueType });
     }
 
