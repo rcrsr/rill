@@ -55,6 +55,7 @@ import {
   copyValue,
   emptyForType,
 } from '../../types/constructors.js';
+import { rejectHeldEntries } from '../../types/held-block.js';
 import { hasCollectionFields } from '../../values.js';
 import type {
   HydrationMissingFieldInfo,
@@ -91,6 +92,7 @@ export function convertToType(
   node: ASTNode
 ): Carried {
   const { structure } = target;
+  rejectConversionSource(s, input, node);
   if (
     isStructureKind(structure, 'dict') ||
     isStructureKind(structure, 'ordered') ||
@@ -107,6 +109,27 @@ export function convertToType(
   const result = applyConversion(s, input, target.typeName, node);
   assertType(s, result, structure, node.span.start);
   return { value: result, declared: undefined };
+}
+
+/**
+ * A collection that holds a code block, at any depth, has no converted form:
+ * the block is never a value. Halts catchable #TYPE_MISMATCH naming the entry.
+ */
+function rejectConversionSource(
+  s: EvalState,
+  input: RillValue,
+  node: ASTNode
+): void {
+  rejectHeldEntries(
+    input,
+    'conversion',
+    {
+      location: getNodeLocation(s, node),
+      sourceId: s.ctx.sourceId,
+      fn: 'convertType',
+    },
+    'deep'
+  );
 }
 
 /** Append the failing part (`element 1`, `field 'a'`) to a halt message. */
@@ -263,6 +286,7 @@ export function applyConversion(
   part?: string
 ): RillValue {
   const sourceType = inferTypeName(input);
+  if (part === undefined) rejectConversionSource(s, input, node);
 
   // Same type = no-op
   if (sourceType === targetType) {

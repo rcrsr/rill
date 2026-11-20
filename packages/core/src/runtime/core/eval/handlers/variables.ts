@@ -66,6 +66,7 @@ import { accessHaltGateFast } from './access.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getNodeLocation } from '../shared.js';
 import { evaluateBody } from './control-flow.js';
+import { resolveSelected } from './code-block.js';
 import { evaluatePipeChain } from './core.js';
 import {
   evaluateParamsProperty,
@@ -255,6 +256,8 @@ export function evaluateVariable(s: EvalState, node: VariableNode): RillValue {
  * calling context exactly (e.g. 'evaluateVariableAsync' for the $var[i]
  * path).
  *
+ * A selected held block runs with the enclosing `$` unless `keepHeld` is set.
+ *
  * `allowMissing` is true only when this is the right-most access of a chain
  * that carries a `??` default. The receiver and the selector have then both
  * evaluated successfully, and a final lookup miss (an out-of-range index, or an
@@ -270,7 +273,8 @@ export async function applyBracketIndexCarried(
   location: SourceLocation | undefined,
   fn: string,
   receiverDeclared: TypeStructure | undefined,
-  allowMissing: boolean
+  allowMissing: boolean,
+  keepHeld = false
 ): Promise<Carried> {
   const site: TypeHaltSite = { location, sourceId: s.ctx.sourceId, fn };
   // Bracket-index expressions are parsed inline while building a live
@@ -285,13 +289,25 @@ export async function applyBracketIndexCarried(
     );
   }
   const indexValue = await evaluatePipeChain(s, indexExpr);
-  return selectByBracketKey(
+  const selected = selectByBracketKey(
     receiver,
     indexValue,
     site,
     receiverDeclared,
     allowMissing
   );
+  if (keepHeld) return selected;
+  // A held block runs with the enclosing `$`.
+  const resolved = await resolveSelected(
+    s,
+    selected.value,
+    s.ctx.pipeValue,
+    pipeDeclaredOf(s.ctx),
+    location
+  );
+  return resolved.ran
+    ? { value: resolved.value, declared: undefined }
+    : selected;
 }
 
 /**
@@ -542,6 +558,13 @@ export async function evaluateVariableCarried(
       declared = undefined;
     }
 
+    // A pipe target leaves a held block at the end of its chain unrun; the
+    // target runs it with the piped value as `$`.
+    const keepHeld =
+      node.isPipeTarget === true &&
+      !node.existenceCheck &&
+      step === node.accessChain.length - 1;
+
     // Check if this is a bracket access
     if ('accessKind' in access) {
       // Bracket access: [expr]. Delegates to the shared applyBracketIndexCarried
@@ -555,7 +578,8 @@ export async function evaluateVariableCarried(
         getNodeLocation(s, node),
         'evaluateVariableAsync',
         declared,
-        recoverable
+        recoverable,
+        keepHeld
       );
       value = element.value;
       declared = element.declared;
@@ -616,6 +640,7 @@ export async function evaluateVariableCarried(
           location: getNodeLocation(s, node),
           fn: 'evaluateVariableAsync',
           receiverDeclared,
+          keepHeld,
         });
         value = read.value;
         declared = read.declared;
@@ -627,7 +652,8 @@ export async function evaluateVariableCarried(
         value,
         node,
         recoverable,
-        receiverDeclared
+        receiverDeclared,
+        keepHeld
       );
       value = read.value;
       declared = read.declared;

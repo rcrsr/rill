@@ -260,7 +260,8 @@ describe('Rill Runtime: Closures', () => {
 
     it('$fn() in for loop receives no loop value', async () => {
       await expectRuntimeError(
-        () => run('fn(x) { $x } => $echo\nlist[1, 2, 3] -> seq({ $echo() })'),
+        () =>
+          run('fn(x) { $x } => $echo\nlist[1, 2, 3] -> seq(fn(n) { $echo() })'),
         { code: 'RILL-R044', messagePattern: /Missing argument for parameter/ }
       );
     });

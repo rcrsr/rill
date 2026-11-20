@@ -10,6 +10,7 @@
  */
 import type {
   ASTNode,
+  BlockNode,
   ClosureParamNode,
   DictEntryNode,
   PropertyAccess,
@@ -416,7 +417,51 @@ export function readsPipeValue(
 
 /** True for a param bound to `$` or `$@`: an unnamed fn param. */
 export function isUnnamedParam(param: ClosureParamNode): boolean {
-  return param.name === '$' || param.name === '@';
+  return isUnnamedParamName(param.name);
+}
+
+/** Binding names of the unnamed fn params: `$` first, `$@` second. */
+export const UNNAMED_PARAM_NAMES = ['$', '@'] as const;
+
+/** True for the binding name of an unnamed fn param (`$` or `$@`). */
+export function isUnnamedParamName(name: string): boolean {
+  return (UNNAMED_PARAM_NAMES as readonly string[]).includes(name);
+}
+
+/** A code block recognized through its wrappers. */
+export interface CodeBlockShape {
+  readonly block: BlockNode;
+}
+
+/**
+ * Recognizes a code block: a bare Block; a method-free PostfixExpr or
+ * PipeChain over one; a TypeAssertion or TypeCheck over such a node; or an
+ * AnnotatedExpr over any of these. Returns undefined for anything else.
+ */
+export function codeBlockShape(node: ASTNode): CodeBlockShape | undefined {
+  switch (node.type) {
+    case 'Block':
+      return { block: node };
+    case 'PostfixExpr':
+      if (
+        node.methods.length > 0 ||
+        node.defaultValue !== null ||
+        (node.existenceCheck !== undefined && node.existenceCheck !== null)
+      ) {
+        return undefined;
+      }
+      return codeBlockShape(node.primary);
+    case 'PipeChain':
+      if (node.pipes.length > 0 || node.terminator !== null) return undefined;
+      return codeBlockShape(node.head);
+    case 'TypeAssertion':
+    case 'TypeCheck':
+      return node.operand === null ? undefined : codeBlockShape(node.operand);
+    case 'AnnotatedExpr':
+      return codeBlockShape(node.expression);
+    default:
+      return undefined;
+  }
 }
 
 /**
@@ -445,23 +490,67 @@ function scanPipeReads(
 ): boolean {
   const matchesPipeVar = target === 'pipe';
   const inheriting = new Set<ASTNode>([root]);
+  // Blocks that never see the enclosing `$`: a whole argument converts to a
+  // function of its own params, and in 'written' mode a collection entry is
+  // a held block, not a top-level read.
+  const boundary = new Set<ASTNode>();
+  const markBoundary = (expr: ASTNode): void => {
+    const shape = codeBlockShape(expr);
+    if (shape !== undefined) boundary.add(shape.block);
+  };
+  // A code block in a value position (head, statement, parentheses, or a
+  // held entry) runs with, or is selected under, the enclosing `$`.
+  const markInheriting = (expr: ASTNode): void => {
+    const shape = codeBlockShape(expr);
+    if (shape !== undefined && !boundary.has(shape.block)) {
+      inheriting.add(shape.block);
+    }
+  };
   const stack: ASTNode[] = [root];
   for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
+    switch (node.type) {
+      case 'HostCall':
+      case 'MethodCall':
+      case 'Invoke':
+      case 'ClosureCall':
+      case 'PipeInvoke':
+        for (const arg of node.args) markBoundary(arg);
+        break;
+      default:
+        break;
+    }
     let children: ASTNode[];
     switch (node.type) {
       case 'Closure':
         continue;
       case 'Block':
-        if (!inheriting.has(node)) continue;
+        if (boundary.has(node) || !inheriting.has(node)) continue;
         children = astChildren(node);
         break;
       case 'Variable':
         if (matchesPipeVar ? node.isPipeVar : node.name === '@') return true;
+        // `.$` and `.?$` select by the piped value.
+        if (matchesPipeVar && selectsByPipeVar(node)) return true;
         children = astChildren(node);
         break;
       case 'PostfixExpr':
         // A leading `.method` has the piped value as its implicit receiver.
         if (matchesPipeVar && node.primary.type === 'MethodCall') return true;
+        markInheriting(node.primary);
+        children = astChildren(node);
+        break;
+      case 'Dict':
+      case 'OrderedLiteral':
+        for (const entry of node.entries) {
+          if (mode === 'written') markBoundary(entry.value);
+        }
+        children = astChildren(node);
+        break;
+      case 'ListLiteral':
+      case 'TupleLiteral':
+        for (const element of node.elements) {
+          if (mode === 'written') markBoundary(element);
+        }
         children = astChildren(node);
         break;
       case 'Pass':
@@ -497,7 +586,15 @@ function scanPipeReads(
         children = astChildren(node);
         break;
       case 'PipeChain':
-        children = [node.head];
+        markInheriting(node.head);
+        // A pipe target rebinds `$` but not `$@`, so an accumulator read
+        // there still reads the enclosing `$@`.
+        if (matchesPipeVar) {
+          children = [node.head];
+        } else {
+          children = astChildren(node);
+          for (const pipe of node.pipes) markInheriting(pipe);
+        }
         break;
       default:
         children = astChildren(node);
@@ -505,6 +602,17 @@ function scanPipeReads(
     for (const child of children) stack.push(child);
   }
   return false;
+}
+
+/** True when a variable's access chain or probe selects by `.$`. */
+function selectsByPipeVar(node: VariableNode): boolean {
+  const isPipeKey = (access: PropertyAccess): boolean =>
+    !('accessKind' in access) &&
+    access.kind === 'variable' &&
+    access.variableName === null;
+  if (node.accessChain.some(isPipeKey)) return true;
+  const finalAccess = node.existenceCheck?.finalAccess ?? null;
+  return finalAccess !== null && isPipeKey(finalAccess);
 }
 
 /**

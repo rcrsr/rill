@@ -44,6 +44,7 @@ import {
   evaluateExistenceCheck,
 } from './variables.js';
 import { evaluateBody } from './control-flow.js';
+import { resolveSelected } from './code-block.js';
 import { evaluateTypeAssertionCarried } from './types.js';
 import { evaluateStatusProbeCarried } from './recovery.js';
 import { evaluatePassBlock } from './literals.js';
@@ -421,7 +422,17 @@ export async function evaluateCarryingPipeTarget(
         (target.name === null || target.name === '') &&
         target.accessChain.length > 0
       ) {
-        return evaluateVariableCarried(s, target);
+        // Access written as a pipe target leaves a held block unrun; it runs
+        // here with the piped value as `$`.
+        const selected = await evaluateVariableCarried(s, target);
+        const ran = await resolveSelected(
+          s,
+          selected.value,
+          input.value,
+          selected.declared,
+          getNodeLocation(s, target)
+        );
+        return ran.ran ? { value: ran.value, declared: undefined } : selected;
       }
       return undefined;
     }

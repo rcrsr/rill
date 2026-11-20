@@ -1,5 +1,5 @@
 /**
- * Prefers `$fn` over `$fn($)` for closure invocation. When a ClosureCall's
+ * Prefers `$fn` over `$fn($)` for function invocation. When a ClosureCall's
  * single argument is a bare $, the pipe form `-> $fn` is preferred.
  */
 

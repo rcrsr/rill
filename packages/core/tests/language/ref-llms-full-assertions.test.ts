@@ -139,7 +139,9 @@ describe('ref-llms-full: Variables Lock to First Type', () => {
 describe('ref-llms-full: No Variable Shadowing', () => {
   it('outer var reassignment from child scope errors', async () => {
     await expect(
-      run('0 => $count\nlist[1, 2, 3] -> seq({ $count + 1 => $count })\n$count')
+      run(
+        '0 => $count\nlist[1, 2, 3] -> seq(fn(n) { $count + 1 => $count })\n$count'
+      )
     ).rejects.toThrow(/Cannot reassign outer variable/);
   });
 
@@ -539,20 +541,20 @@ describe('ref-llms-full: Collection Operators', () => {
 // ============================================================
 
 describe('ref-llms-full: Closures', () => {
-  it('block-closure: { $ + 1 } => $inc', async () => {
-    expect(await run('{ $ + 1 } => $inc\n$inc(5)')).toBe(6);
+  it('block-closure: fn { $ + 1 } => $inc', async () => {
+    expect(await run('fn { $ + 1 } => $inc\n$inc(5)')).toBe(6);
   });
 
   it('block-closure pipe invocation: 5 -> $inc', async () => {
-    expect(await run('{ $ + 1 } => $inc\n5 -> $inc')).toBe(6);
+    expect(await run('fn { $ + 1 } => $inc\n5 -> $inc')).toBe(6);
   });
 
   it('dict value closure', async () => {
-    expect(await run('dict[x: { $ * 2 }] => $d\n$d.x(3)')).toBe(6);
+    expect(await run('dict[x: fn { $ * 2 }] => $d\n$d.x(3)')).toBe(6);
   });
 
   it('type check of closure', async () => {
-    expect(await run('{ "hi" }:?fn')).toBe(true);
+    expect(await run('fn { "hi" }:?fn')).toBe(true);
   });
 
   it('explicit closure: named parameter', async () => {
@@ -600,8 +602,8 @@ describe('ref-llms-full: Closures', () => {
     ).toBe(true);
   });
 
-  it('{ body } is deferred (closure)', async () => {
-    expect(await run('{ $ + 1 } => $fn\n$fn:?fn')).toBe(true);
+  it('fn { body } is deferred (function)', async () => {
+    expect(await run('fn { $ + 1 } => $fn\n$fn:?fn')).toBe(true);
   });
 
   it('( expr ) is eager (immediate eval)', async () => {

@@ -259,7 +259,7 @@ func($a, $b
 # Spread in unsupported position
 $x.method(...$args)  # spread not supported in method calls
 
-# yield outside stream closure
+# yield outside stream function
 fn(x) { yield }  # yield requires :stream() return type
 ```
 
@@ -682,7 +682,7 @@ fn(x: number) { $x * 2 } => $double
 
 **Description:** Operation not valid for its operands or context
 
-**Cause:** An operation received an operand, key, or receiver of the wrong type or shape. Rill does not perform implicit type coercion. Families: an operator applied to incompatible operand types, including division or modulo by zero and logical or negation operators on non-bool values; ordering two durations whose calendar and clock components disagree; a list[...] dispatch with a non-number index, a missing index, or a spread that is not a list or tuple; a non-bool condition in a conditional, while, do-while, or assert; a non-string message in an `error` statement; an index or key of the wrong type, or a receiver that cannot be indexed (for example "Cannot index string" or "Cannot index iterator"); a destructure pattern that does not match the shape of the value; a call or dispatch on a non-callable target, or property access on a non-dict value; a spread of the wrong type in a list, dict, or annotation literal; a collection operator applied to a source that is not a list, tuple, string, dict, ordered, iterator, or stream; and an iterator or stream protocol violation, such as a `.next` that is not a closure or does not return the expected step. The same code is raised when a script uses a reserved brand key (such as `__type` or `__rill_atom`) as a dict or ordered field name or as an annotation key, because such a key would let user data masquerade as a branded runtime value.
+**Cause:** An operation received an operand, key, or receiver of the wrong type or shape. Rill does not perform implicit type coercion. Families: an operator applied to incompatible operand types, including division or modulo by zero and logical or negation operators on non-bool values; ordering two durations whose calendar and clock components disagree; a list[...] dispatch with a non-number index, a missing index, or a spread that is not a list or tuple; a non-bool condition in a conditional, while, do-while, or assert; a non-string message in an `error` statement; an index or key of the wrong type, or a receiver that cannot be indexed (for example "Cannot index string" or "Cannot index iterator"); a destructure pattern that does not match the shape of the value; a call or dispatch on a non-callable target, or property access on a non-dict value; a spread of the wrong type in a list, dict, or annotation literal; a collection operator applied to a source that is not a list, tuple, string, dict, ordered, iterator, or stream; and an iterator or stream protocol violation, such as a `.next` that is not a function or does not return the expected step. The same code is raised when a script uses a reserved brand key (such as `__type` or `__rill_atom`) as a dict or ordered field name or as an annotation key, because such a key would let user data masquerade as a branded runtime value.
 
 **Resolution:** Ensure both operands are compatible types. Convert values explicitly if needed using type-specific methods. Rename any field or annotation key that collides with a reserved brand key.
 
@@ -1378,18 +1378,18 @@ $dict -> ordered  # Ambiguous field order
 
 **Description:** Non-callable chain, start_when, stop_when arg
 
-**Cause:** The chain() built-in received a value that is neither a closure nor a list of closures, or a list element was not a closure. The start_when and stop_when built-ins received a predicate that is not callable. The halt is catchable for chain(), start_when, and stop_when.
+**Cause:** The chain() built-in received a value that is neither a function nor a list of functions, or a list element was not a function. The start_when and stop_when built-ins received a predicate that is not callable. The halt is catchable for chain(), start_when, and stop_when.
 
-**Resolution:** Pass a single closure or a list of closures to chain(), and a closure predicate to start_when and stop_when.
+**Resolution:** Pass a single function or a list of functions to chain(), and a function predicate to start_when and stop_when.
 
 **Example:**
 
 ```text
 # Passing a number to chain()
-5 -> chain(42)  # 42 is not a closure
+5 -> chain(42)  # 42 is not a function
 
-# Passing a non-closure predicate to start_when
-list[1, 2, 3] -> start_when(42)  # 42 is not a closure
+# Passing a non-function predicate to start_when
+list[1, 2, 3] -> start_when(42)  # 42 is not a function
 ```
 
 ---
@@ -1430,16 +1430,16 @@ list[1, 2, 3] -> start_when(42)  # 42 is not a closure
 
 ### rill-r043
 
-**Description:** Non-producing closure body or script
+**Description:** Non-producing function body or script
 
-**Cause:** A closure body or script contains no statements that produce a value.
+**Cause:** A function body or script contains no statements that produce a value.
 
-**Resolution:** Ensure the closure body or script ends with an expression that produces a value.
+**Resolution:** Ensure the function body or script ends with an expression that produces a value.
 
 **Example:**
 
 ```text
-# Empty closure body
+# Empty function body
 fn(x: number) { }  # No value produced
 
 # Script with only comments
@@ -1479,7 +1479,7 @@ tuple["a"] -> tuple(string, number)  # element at position 1 is missing
 **Example:**
 
 ```text
-# Too many arguments to a two-param closure
+# Too many arguments to a two-param function
 fn(x: number, y: number) { $x + $y } => $add
 $add(1, 2, 3)  # 3 args, 2 params
 ```
@@ -1794,12 +1794,12 @@ export:
 
 **Cause:** The value type cannot be represented in JSON. Only strings, numbers, bools, lists, and dicts serialize.
 
-**Resolution:** Convert the value to a serializable type before JSON operations. Extract data from closures or iterators first.
+**Resolution:** Convert the value to a serializable type before JSON operations. Extract data from functions or iterators first.
 
 **Example:**
 
 ```text
-# Closure in JSON context
+# Function in JSON context
 fn(x) { $x + 1 } -> as(string)  # Error: functions not serializable
 ```
 
@@ -1979,7 +1979,7 @@ use<module:unknown>  # Error: unknown module
 
 **Description:** Legacy :> conversion syntax
 
-**Cause:** The parser encountered the legacy ':>type' conversion operator. The '->' pipe operator is now the unified syntax for both closure dispatch and type conversion dispatch.
+**Cause:** The parser encountered the legacy ':>type' conversion operator. The '->' pipe operator is now the unified syntax for both function dispatch and type conversion dispatch.
 
 **Resolution:** Replace ':>type' with '-> type'. The target type keyword follows the pipe directly: '-> :>string' becomes '-> string', '-> :>ordered(...)' becomes '-> ordered(...)'.
 

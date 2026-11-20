@@ -5,7 +5,7 @@ Naming, spacing, line continuations, and idiomatic patterns.
 ## Naming: snake_case
 
     $user_name, $item_list, $is_valid             # variables
-    $double_value, $cleanup_text                  # closures
+    $double_value, $cleanup_text                  # functions
     dict[first_name: "x", last_name: "y"]         # dict keys
 
 ## Spacing rules
@@ -121,4 +121,5 @@ Don't capture just to continue a chain. Use line continuation. Capture only when
 | Form | Semantics | Example |
 |---|---|---|
 | `( expr )` | eager — evaluates immediately | `( 5 + 1 ) => $x` (stores 6) |
-| `{ body }` | deferred — stores a closure | `{ $ + 1 } => $fn` (stores closure) |
+| `fn { body }` | deferred — stores a function | `fn { $ + 1 } => $fn` (stores function) |
+| `{ body }` | runs where written; never a value | `{ 5 } => $x` (stores 5) |

@@ -1123,7 +1123,7 @@ describe('Rill Runtime: Annotations', () => {
 
     it('block-closure annotation + operator-level limit run without error (AC-2, IR-8)', async () => {
       // Block-closure carries ^("loop") annotation; .^description returns "loop"
-      const script = `^("loop") { 1 } => $b\n$b.^description`;
+      const script = `^("loop") fn { 1 } => $b\n$b.^description`;
       expect(await run(script)).toBe('loop');
     });
 
@@ -1137,13 +1137,13 @@ describe('Rill Runtime: Annotations', () => {
   describe('Phase 3 Breaking Changes', () => {
     it('block-closure carries annotation (AC-2)', async () => {
       // ^("...") shorthand sets description annotation on a block-closure (no params)
-      const script = `^("doubles input") { $ * 2 } => $fn\n$fn.^description`;
+      const script = `^("doubles input") fn { $ * 2 } => $fn\n$fn.^description`;
       expect(await run(script)).toBe('doubles input');
     });
 
     it('block-closure carries named annotation (AC-2)', async () => {
       // Named annotation key on a block-closure
-      const script = `^(label: "my fn") { $ + 1 } => $fn\n$fn.^label`;
+      const script = `^(label: "my fn") fn { $ + 1 } => $fn\n$fn.^label`;
       expect(await run(script)).toBe('my fn');
     });
 
@@ -1165,7 +1165,7 @@ describe('Rill Runtime: Annotations', () => {
       // Outer statement annotated; inner block-closure defined in same script is not
       const script = `
         ^(version: 2) fn(x) { $x * 2 } => $fn
-        { $ + 1 } => $inner
+        fn { $ + 1 } => $inner
         $inner.^version
       `;
       await expect(run(script)).rejects.toThrow(
@@ -1249,7 +1249,7 @@ describe('Rill Runtime: Annotations', () => {
 
     it('unannotated block-closure .^description halts RILL-R008', async () => {
       const script = `
-        { $ * 2 } => $fn
+        fn { $ * 2 } => $fn
         $fn.^description
       `;
       await expect(run(script)).rejects.toMatchObject({
@@ -1296,7 +1296,7 @@ describe('Rill Runtime: Annotations', () => {
       // Inner block-closure inside annotated statement scope: .^key errors
       const script = `
         ^(version: 2) fn(x) { $x } => $outer
-        { $ * 3 } => $inner
+        fn { $ * 3 } => $inner
         $inner.^version
       `;
       await expect(run(script)).rejects.toThrow(

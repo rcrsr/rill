@@ -26,7 +26,7 @@ mkdir -p "$CONTENT_DIR"
 # Section definitions: key → "title|description|weight"
 declare -A SECTION_MAP=(
   ["guide"]="Guide|Getting started with rill — tutorials, examples, and conventions|1"
-  ["language"]="Language|rill language topics — types, variables, control flow, operators, closures|2"
+  ["language"]="Language|rill language topics — types, variables, control flow, operators, functions|2"
   ["data"]="Data & Collections|Working with data in rill — collections, iterators, strings, parsing|3"
   ["integration"]="Integration|Embedding rill in applications — host API, extensions, modules, CLI|4"
   ["extensions"]="Bundled Extensions|Pre-built extensions shipped with rill|5"
@@ -129,7 +129,7 @@ Scripting designed for machine-generated code.
 
 {{< cards >}}
   {{< card link="guide" title="Guide" subtitle="Getting started, examples, and conventions" >}}
-  {{< card link="language" title="Language" subtitle="Types, variables, control flow, operators, closures" >}}
+  {{< card link="language" title="Language" subtitle="Types, variables, control flow, operators, functions" >}}
   {{< card link="data" title="Data & Collections" subtitle="Iterators, strings, parsing, collection operators" >}}
   {{< card link="integration" title="Integration" subtitle="Host embedding, modules, CLI" >}}
   {{< card link="extensions" title="Bundled Extensions" subtitle="Pre-built extensions shipped with rill" >}}

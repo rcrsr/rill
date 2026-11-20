@@ -3,7 +3,7 @@ id: fold
 title: fold
 status: normative
 since: 0.24.0
-issues: [626]
+issues: []
 grammar: []
 errors: [RILL-R001, RILL-R044, RILL-R045]
 depends: [iteration]
@@ -38,10 +38,10 @@ r[fold.unnamed] Two unnamed parameters type the element and the accumulator
 A function with two unnamed parameters MUST check the element against the first and the
 accumulator against the second. A mismatch MUST halt with RILL-R001.
 
-r[fold.arity] fold calls its function with the element and the accumulator {pending #626}
+r[fold.arity] fold calls its function with the element and the accumulator
 `fold` MUST call its function with two arguments, the element and then the accumulator, whether
-its parameters are named or unnamed. A function that does not take two arguments MUST halt with
-RILL-R045.
+its parameters are named or unnamed. A function with fewer than two parameters MUST halt with
+RILL-R045, and a function with a third required parameter MUST halt with RILL-R044.
 
 r[fold.seed-required] The seed is required
 `fold` with only a function argument MUST halt with RILL-R044.
@@ -56,7 +56,8 @@ yields every step (`acc.result`).
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | No seed | RILL-R044 | No |
-| The function does not take two arguments {pending #626} | RILL-R045 | No |
+| The function takes fewer than two parameters | RILL-R045 | No |
+| The function requires a third parameter | RILL-R044 | No |
 | An element or accumulator fails its unnamed parameter type | RILL-R001 | No |
 
 ## Examples

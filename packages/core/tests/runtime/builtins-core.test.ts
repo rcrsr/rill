@@ -63,14 +63,14 @@ describe('Rill Runtime: chain built-in missing-argument message', () => {
       const runtimeErr = err as RuntimeError;
       expect(runtimeErr.errorId).toBe('RILL-R040');
       expect(runtimeErr.message).toContain(
-        'chain: second argument must be a closure or list of closures, got number'
+        'chain: second argument must be a function, got number'
       );
     }
   });
 });
 
 describe('Rill Runtime: iterate built-in missing-argument message', () => {
-  it('halts with a missing-parameter error for an absent closure argument', async () => {
+  it('halts with a missing-parameter error for an absent body argument', async () => {
     try {
       await run('iterate(0)');
       expect.fail('Should have thrown');
@@ -78,11 +78,11 @@ describe('Rill Runtime: iterate built-in missing-argument message', () => {
       expect(err).toBeInstanceOf(RuntimeError);
       const runtimeErr = err as RuntimeError;
       expect(runtimeErr.errorId).toBe('RILL-R044');
-      expect(runtimeErr.message).toContain("parameter 'closure'");
+      expect(runtimeErr.message).toContain("parameter 'body'");
     }
   });
 
-  it('still names the actual type when a non-callable value is supplied', async () => {
+  it('still names the actual type when a non-function value is supplied', async () => {
     try {
       await run('iterate(0, 42)');
       expect.fail('Should have thrown');
@@ -91,7 +91,7 @@ describe('Rill Runtime: iterate built-in missing-argument message', () => {
       const runtimeErr = err as RuntimeError;
       expect(runtimeErr.errorId).toBe('RILL-R006');
       expect(runtimeErr.message).toContain(
-        'iterate: closure must be a callable, got number'
+        'iterate: body must be a function, got number'
       );
     }
   });

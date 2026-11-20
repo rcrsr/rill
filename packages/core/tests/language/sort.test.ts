@@ -220,7 +220,7 @@ describe('Rill Language: sort primitive', () => {
       // Host-inject null as the extractor return value to reach sort's INVALID_INPUT check.
       await expectHalt(
         () =>
-          run('$items -> sort({ $nullval })', {
+          run('$items -> sort(fn(x) { $nullval })', {
             variables: { items: [1, 2], nullval: null },
           }),
         { code: 'INVALID_INPUT' }
@@ -238,7 +238,7 @@ describe('Rill Language: sort primitive', () => {
       // The key extractor fires error "inner boom" (RILL-R016).
       // sort must not wrap or swallow the inner halt.
       await expectHalt(
-        () => run('list[1, 2, 3] -> sort({ error "inner boom" })'),
+        () => run('list[1, 2, 3] -> sort(fn(x) { error "inner boom" })'),
         {
           code: 'RILL_R016',
           hostErrorId: 'RILL-R016',

@@ -122,9 +122,9 @@ describe('Rill Language: Error Statement', () => {
     });
 
     it('throws on first iteration in each loop (AC-BOUND-4)', async () => {
-      await expect(run('list[1, 2] -> seq({ error "stop" })')).rejects.toThrow(
-        'stop'
-      );
+      await expect(
+        run('list[1, 2] -> seq(fn(n) { error "stop" })')
+      ).rejects.toThrow('stop');
     });
 
     it('throws from closure when invoked with condition (AC-BOUND-5)', async () => {
@@ -376,7 +376,7 @@ describe('Rill Language: Error Statement', () => {
 
     it('works in nested each loops', async () => {
       const script = `
-        list[1, 2] -> seq({
+        list[1, 2] -> seq(fn(n) {
           list[10, 20] -> seq({
             ($ == 20) ? { error "inner error" }
             $

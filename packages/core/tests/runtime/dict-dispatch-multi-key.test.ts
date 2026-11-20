@@ -39,9 +39,11 @@ describe('Dict dispatch with multi-key entries', () => {
       });
     });
 
-    it('auto-invokes a fn value with the input as $', async () => {
+    it('returns a fn value uncalled', async () => {
       expect(
-        await run('[["1", "2"]: fn(x) { "got {$x}" }] => $d\n"2" -> $d')
+        await run(
+          '[["1", "2"]: fn(x) { "got {$x}" }] => $d\n"2" -> $d => $f\n$f("2")'
+        )
       ).toBe('got 2');
     });
   });

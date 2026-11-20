@@ -15,7 +15,7 @@ describe('Rill Runtime: Closure Semantics', () => {
   describe('Block Produces Closure Type', () => {
     it('AC-1: captured block has closure type', async () => {
       const script = `
-        { "result" } => $a
+        fn { "result" } => $a
         $a.^type
       `;
       const result = (await run(script)) as any;
@@ -26,7 +26,7 @@ describe('Rill Runtime: Closure Semantics', () => {
   describe('Block-Closure Pipe Invocation', () => {
     it('AC-2: piping to block-closure invokes it', async () => {
       const script = `
-        { $ + 1 } => $a
+        fn { $ + 1 } => $a
         5 -> $a
       `;
       expect(await run(script)).toBe(6);
@@ -70,7 +70,7 @@ describe('Rill Runtime: Closure Semantics', () => {
   describe('Direct Call Block-Closure', () => {
     it('AC-7: direct call syntax invokes block-closure', async () => {
       const script = `
-        { $ + 1 } => $a
+        fn { $ + 1 } => $a
         $a(5)
       `;
       expect(await run(script)).toBe(6);
@@ -82,9 +82,12 @@ describe('Rill Runtime: Closure Semantics', () => {
       // Mixed-type list ['closure', 10, 42] not allowed; verify each field separately
       const scriptA = `
         dict[a: { $ * 2 }, b: (5 + 5), c: 42] => $d
-        $d.a.^type
+        $d.^type.signature
       `;
-      expect(((await run(scriptA)) as any).typeName).toBe('fn');
+      // code-block.non-selecting: .^type sees a held entry as fn()
+      expect(await run(scriptA)).toBe(
+        'dict(a: fn():any, b: number, c: number)'
+      );
       const scriptB = `
         dict[a: { $ * 2 }, b: (5 + 5), c: 42] => $d
         $d.b
@@ -118,7 +121,7 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('nested block-closures work correctly', async () => {
       // Note: fn() { } creates zero-param outer closure that returns inner block-closure
       const script = `
-        fn() { { $ + 1 } } => $outer
+        fn() { fn { $ + 1 } } => $outer
         $outer()(5)
       `;
       expect(await run(script)).toBe(6);
@@ -126,7 +129,7 @@ describe('Rill Runtime: Closure Semantics', () => {
 
     it('block-closure with multiple statements', async () => {
       const script = `
-        { $ => $temp \n $temp * 2 } => $doubler
+        fn { $ => $temp \n $temp * 2 } => $doubler
         5 -> $doubler
       `;
       expect(await run(script)).toBe(10);
@@ -135,7 +138,7 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('block-closure captures variables late-bound', async () => {
       const script = `
         10 => $x
-        { $ + $x } => $add
+        fn { $ + $x } => $add
         20 => $x
         5 -> $add
       `;
@@ -162,7 +165,7 @@ describe('Rill Runtime: Closure Semantics', () => {
 
     it('block-closure receives pipe value as $', async () => {
       const script = `
-        { $ + 1 } => $add
+        fn { $ + 1 } => $add
         5 -> $add
       `;
       expect(await run(script)).toBe(6);
@@ -192,7 +195,7 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('AC-14: minimal block produces closure', async () => {
       // Note: Empty blocks { } are disallowed by parser. Use minimal block with empty string.
       const script = `
-        { "" } => $a
+        fn { "" } => $a
         $a.^type
       `;
       const result = (await run(script)) as any;
@@ -202,8 +205,8 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('AC-14 variant: minimal block-closure returns empty string when invoked', async () => {
       // Note: Empty blocks { } are disallowed by parser. Use minimal block with empty string.
       const script = `
-        { "" } => $a
-        5 -> $a
+        fn { "" } => $a
+        $a()
       `;
       expect(await run(script)).toBe('');
     });
@@ -220,22 +223,17 @@ describe('Rill Runtime: Closure Semantics', () => {
       `);
       const a = context.variables.get('a');
       expect(a).toHaveProperty('y');
+      // code-block.non-selecting: .^type sees a held entry as fn()
       expect(
-        ((await run('$result.y.^type', { variables: { result: a! } })) as any)
-          .typeName
-      ).toBe('fn');
+        await run('$result.^type.signature', { variables: { result: a! } })
+      ).toBe('dict(y: fn():any)');
     });
 
     it('AC-16: block-closure in list', async () => {
-      // Verify each element is closure type via host typeName property
-      const t0 = (await run(
-        'list[{ $ + 1 }, { $ + 2 }] => $list\n$list[0].^type'
-      )) as any;
-      const t1 = (await run(
-        'list[{ $ + 1 }, { $ + 2 }] => $list\n$list[1].^type'
-      )) as any;
-      expect(t0.typeName).toBe('fn');
-      expect(t1.typeName).toBe('fn');
+      // code-block.non-selecting: .^type sees each held element as fn()
+      expect(
+        await run('list[{ $ + 1 }, { $ + 2 }] => $list\n$list.^type.signature')
+      ).toBe('list(fn():any)');
     });
 
     it('AC-16 variant: verify both closures execute correctly', async () => {
@@ -247,13 +245,15 @@ describe('Rill Runtime: Closure Semantics', () => {
     });
 
     it('AC-17: dict with all value types', async () => {
-      // Note: fn() { 42 } is property-style (isProperty: true), auto-invokes on access
-      // Verify each field type via host typeName property (mixed-type list not allowed)
+      // dispatch.fn: a no-parens read returns a stored fn uncalled
+      // code-block.non-selecting: .^type sees the held entry as fn()
       const dict = `dict[a: { $ }, b: (1), c: "s", d: fn() { 42 }] => $d\n`;
-      expect(((await run(dict + '$d.a.^type')) as any).typeName).toBe('fn');
+      expect(await run(dict + '$d.^type.signature')).toBe(
+        'dict(a: fn():any, b: number, c: string, d: fn():any)'
+      );
       expect(((await run(dict + '$d.b.^type')) as any).typeName).toBe('number');
       expect(((await run(dict + '$d.c.^type')) as any).typeName).toBe('string');
-      expect(((await run(dict + '$d.d.^type')) as any).typeName).toBe('number');
+      expect(((await run(dict + '$d.d.^type')) as any).typeName).toBe('fn');
     });
 
     it('AC-17 variant: verify closure values execute correctly', async () => {
@@ -264,7 +264,8 @@ describe('Rill Runtime: Closure Semantics', () => {
       expect(await run(scriptB)).toBe(1);
       const scriptC = `dict[a: { $ }, b: (1), c: "s", d: fn() { 42 }] => $d\n$d.c`;
       expect(await run(scriptC)).toBe('s');
-      const scriptD = `dict[a: { $ }, b: (1), c: "s", d: fn() { 42 }] => $d\n$d.d`;
+      // dispatch.fn: parens select then call the stored fn
+      const scriptD = `dict[a: { $ }, b: (1), c: "s", d: fn() { 42 }] => $d\n$d.d()`;
       expect(await run(scriptD)).toBe(42);
     });
 
@@ -280,7 +281,7 @@ describe('Rill Runtime: Closure Semantics', () => {
       await expectRuntimeError(
         () =>
           run(`
-          { $ + 1 } => $a
+          fn { $ + 1 } => $a
           $a()
         `),
         {
@@ -295,7 +296,7 @@ describe('Rill Runtime: Closure Semantics', () => {
       await expectRuntimeError(
         () =>
           run(`
-          { $ + 1 } => $a
+          fn { $ + 1 } => $a
           $a(1, 2)
         `),
         {
@@ -336,16 +337,18 @@ describe('Rill Runtime: Closure Semantics', () => {
     });
 
     it('AC-13: missing implicit $ in dict method call throws RUNTIME_TYPE_ERROR', async () => {
-      // Dict value block-closure also requires implicit $ when called directly
-      await expectRuntimeError(
+      // code-block.access / code-block.unbound: selecting the held block runs it
+      // with the enclosing $, which is unbound here
+      await expectHalt(
         () =>
           run(`
           dict[x: { $ + 1 }] => $d
           $d.x()
         `),
         {
-          code: 'RILL-R044',
-          messagePattern: /Missing argument for parameter '\$'/,
+          code: 'RILL_R005',
+          hostErrorId: 'RILL-R005',
+          messagePattern: /Undefined variable: \$/,
         }
       );
     });
@@ -358,9 +361,10 @@ describe('Rill Runtime: Closure Semantics', () => {
     // its own defaults. Only a call written as the pipe target
     // (`5 -> $app.flag()`) receives the piped value.
 
+    // A stored fn is selected uncalled and then called by the parens (dispatch.fn).
     it('AC-20: dict-member empty-paren call in ternary then-branch receives no pipe value', async () => {
       const script = `
-        dict[flag: { $ + 1 }] => $app
+        dict[flag: fn(x) { $x + 1 }] => $app
         5 -> (true) ? $app.flag() ! 0
       `;
       await expectRuntimeError(() => run(script), {
@@ -369,9 +373,10 @@ describe('Rill Runtime: Closure Semantics', () => {
       });
     });
 
+    // A stored fn is selected uncalled and then called by the parens (dispatch.fn).
     it('AC-21: dict-member empty-paren call in bare ternary else-branch receives no pipe value', async () => {
       const script = `
-        dict[flag: { $ + 1 }] => $app
+        dict[flag: fn(x) { $x + 1 }] => $app
         5 -> (false) ? 0 ! $app.flag()
       `;
       await expectRuntimeError(() => run(script), {
@@ -402,10 +407,10 @@ $d.g(1) }
     it('AC-25: bare dict-member reference (no parens) stays an unapplied callable in pipe context', async () => {
       // Dispatch-table contract from the issue: `$app.flag` without parens
       // is a plain dict lookup, never auto-invoked, even with a pipe value
-      // in scope. Capture it, confirm it is still a closure, then invoke it
-      // explicitly later.
+      // in scope. Capture it, confirm it is still a function, then invoke it
+      // explicitly later. A stored fn is returned uncalled (dispatch.fn).
       const typeScript = `
-        dict[flag: { $ + 1 }] => $app
+        dict[flag: fn(x) { $x + 1 }] => $app
         5 -> { $
 $app.flag } => $captured
         $captured.^type
@@ -414,7 +419,7 @@ $app.flag } => $captured
       expect(typeResult.typeName).toBe('fn');
 
       const invokeScript = `
-        dict[flag: { $ + 1 }] => $app
+        dict[flag: fn(x) { $x + 1 }] => $app
         5 -> { $
 $app.flag } => $captured
         10 -> $captured
@@ -441,43 +446,25 @@ $app.flag } => $captured
     // gate, all 3 cases below silently receive the piped value instead of
     // throwing "Missing argument for parameter 'x'".
 
-    it('AC-27: bare .field on a pipe target does not receive the piped value', async () => {
-      try {
-        await run(`dict[flag: fn(x) { $x }] -> .flag`);
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        expect(err).toHaveProperty(
-          'message',
-          expect.stringMatching(/Missing argument for parameter 'x'/)
-        );
-      }
+    it('AC-27: bare .field on a pipe target returns the fn uncalled', async () => {
+      // A no-parens read never calls a stored fn (dispatch.fn).
+      expect(await run(`dict[flag: fn(x) { $x }] -> .flag`)).toMatchObject({
+        __type: 'callable',
+      });
     });
 
-    it('AC-28: bare .field on a grouped expression does not receive an implicit value', async () => {
-      try {
-        await run(`(dict[flag: fn(x) { $x }]).flag`);
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        expect(err).toHaveProperty(
-          'message',
-          expect.stringMatching(/Missing argument for parameter 'x'/)
-        );
-      }
+    it('AC-28: bare .field on a grouped expression returns the fn uncalled', async () => {
+      // A no-parens read never calls a stored fn (dispatch.fn).
+      expect(await run(`(dict[flag: fn(x) { $x }]).flag`)).toMatchObject({
+        __type: 'callable',
+      });
     });
 
-    it('AC-29: bare .field directly on a dict literal does not receive an implicit value', async () => {
-      try {
-        await run(`dict[flag: fn(x) { $x }].flag`);
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        expect(err).toHaveProperty(
-          'message',
-          expect.stringMatching(/Missing argument for parameter 'x'/)
-        );
-      }
+    it('AC-29: bare .field directly on a dict literal returns the fn uncalled', async () => {
+      // A no-parens read never calls a stored fn (dispatch.fn).
+      expect(await run(`dict[flag: fn(x) { $x }].flag`)).toMatchObject({
+        __type: 'callable',
+      });
     });
 
     it('spreading an empty tuple into a one-untyped-param closure reports the missing parameter, not an undefined variable', async () => {
@@ -516,7 +503,7 @@ $app.flag } => $captured
       // Closure body references undefined variable at call time
       try {
         await run(`
-          { $ + $undefined } => $a
+          fn { $ + $undefined } => $a
           5 -> $a
         `);
         expect.fail('Should have thrown');
@@ -623,7 +610,7 @@ $app.flag } => $captured
     it('one-param closure with explicit empty parens receives no pipe value', async () => {
       // A call with no arguments neither reads nor receives the accumulator.
       const script = `
-        { $ + 10 } => $fn
+        fn { $ + 10 } => $fn
 
         0 -> do {
           $fn()
@@ -675,9 +662,9 @@ $app.flag } => $captured
 
   describe('Closure Type Inference Cascade', () => {
     it('AC-6: list[{$ + 1}, {$ + 2}] infers structural closure match (same shape)', async () => {
-      // Implicit-param closures share identical signature -> structural match
+      // code-block.non-selecting: held list elements are typed fn()
       const result = await run('list[{$ + 1}, {$ + 2}].^type.signature');
-      expect(result).toBe('list(fn(any):any)');
+      expect(result).toBe('list(fn():any)');
     });
 
     it('AC-7: list[fn(a: number, b: string)($a), fn(a: number, b: string)($b)] infers structural closure match', async () => {

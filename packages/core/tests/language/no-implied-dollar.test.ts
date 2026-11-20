@@ -54,13 +54,17 @@ const CALL_FORMS: ReadonlyArray<readonly [string, string]> = [
   ['a method target', '$d -> .m()'],
 ];
 
-/** Each context wraps `{CALL}` in a body that runs while `$` is bound. */
+/**
+ * Each context wraps `{CALL}` in a body that runs while `$` is bound. A
+ * collection body reads `$` (and `$@` for fold) so it takes the arguments the
+ * operator passes (fn.block-reads-pipe, fn.block-reads-acc).
+ */
 const CONTEXTS: ReadonlyArray<readonly [string, string]> = [
-  ['seq body', 'list[1] -> seq({ {CALL} })'],
-  ['fan body', 'list[1] -> fan({ {CALL} })'],
-  ['filter body', 'list[1] -> filter({ {CALL} })'],
-  ['fold body', 'list[1] -> fold(0, { {CALL} })'],
-  ['sort body', 'list[2, 1] -> sort({ {CALL} })'],
+  ['seq body', 'list[1] -> seq({ $\n{CALL} })'],
+  ['fan body', 'list[1] -> fan({ $\n{CALL} })'],
+  ['filter body', 'list[1] -> filter({ $\n{CALL} })'],
+  ['fold body', 'list[1] -> fold(0, { $@\n{CALL} })'],
+  ['sort body', 'list[2, 1] -> sort({ $\n{CALL} })'],
   ['conditional then-branch', '5 -> (true) ? {CALL} ! 0'],
   ['conditional else-branch', '5 -> (false) ? 0 ! {CALL}'],
   ['guard body', '5 -> { $\nguard { {CALL} } }'],

@@ -3,11 +3,11 @@ id: code-block
 title: Code blocks
 status: normative
 since: 0.24.0
-issues: [568, 575]
+issues: []
 grammar: [block]
 errors: [RILL-R005, TYPE_MISMATCH]
 depends: [dispatch, selection, fn, assertion]
-tests: [block-scoping.test.ts, pipe-targets.test.ts, closure-auto-invoke.test.ts, conditionals.test.ts]
+tests: [code-block.test.ts, block-scoping.test.ts, pipe-targets.test.ts, closure-auto-invoke.test.ts, conditionals.test.ts]
 ---
 
 # Code blocks
@@ -33,7 +33,7 @@ statement, alone in parentheses, or an entry of a collection literal.
 
 ## Evaluation
 
-r[code-block.not-value] A code block is never a value {pending #575}
+r[code-block.not-value] A code block is never a value
 A code block MUST NOT be bound by a capture, returned as a result, or passed on by a pipe.
 Each position below runs it or holds it, and nothing else reads it.
 
@@ -45,11 +45,11 @@ r[code-block.pipe-target] A pipe target block runs with the pipe value
 `v -> { body }` MUST run `body` once with `$` bound to `v`, and the chain MUST continue with
 its result.
 
-r[code-block.head] A head block runs where it is written {pending #575}
+r[code-block.head] A head block runs where it is written
 A code block at the head of a chain or as a statement MUST run once, with `$` bound to the
 enclosing `$`. `{ 5 } => $x` MUST bind 5.
 
-r[code-block.parens] A block alone in parentheses runs {pending #575}
+r[code-block.parens] A block alone in parentheses runs
 `({ body })` MUST run `body` as a head block does. Parentheses only group.
 
 r[code-block.no-params] A code block has no parameters
@@ -60,25 +60,35 @@ r[code-block.unbound] Reading an unbound $ halts
 Reading `$` or `$@` in a code block where the enclosing scope binds none MUST halt with
 RILL-R005.
 
-r[code-block.held] A collection entry holds the block uncalled {pending #568}
-A code block written as a dict value, an ordered value, a map value, a list element, or a
-tuple element MUST be held as a code block. It MUST NOT convert to a function.
+r[code-block.held] A collection entry holds the block uncalled
+A code block written as a dict value, an ordered value, a list element, or a tuple element
+MUST be held as a code block. It MUST NOT convert to a function.
 
 r[code-block.dispatch] Dispatch runs a held block with the selector
 `sel -> $c` that selects a held block MUST run it with `$` bound to `sel`, and yield its result.
 
-r[code-block.access] Access runs a held block with the enclosing $ {pending #568}
-`$c.name`, `$c.$k`, and `$c[sel]` that select a held block MUST run it with `$` bound to the
-enclosing `$`, and yield its result.
+r[code-block.access] Access runs a held block with the enclosing $
+`$c.name`, `$c.$k`, `$c[sel]`, `.at(i)`, and a destructure position that select a held block
+MUST run it with `$` bound to the enclosing `$`, and yield its result.
 
-r[code-block.access-target] In a pipe target the enclosing $ is the piped value {pending #568}
+r[code-block.access-target] In a pipe target the enclosing $ is the piped value
 Access written as a pipe target MUST run a held block with `$` bound to the piped value.
 With `dict[n: 2, double: { $.n * 2 }] => $d`, `$d -> $d.double` MUST yield 4.
 
-r[code-block.non-selecting] A read that selects no entry halts on a held block {pending #568}
-Iteration, `.values`, `.entries`, `.first`, spread, equality, interpolation, and host conversion
-that reach a held block MUST halt with `#TYPE_MISMATCH` naming the entry. `.^type` and a type
-lock MUST see a held entry as `fn()`.
+r[code-block.non-selecting] A read that selects no entry halts on a held block
+Iteration, `enumerate`, `.values`, `.entries`, `.first`, `.head`, `.tail`, `.reverse`, `.join`, `.has`,
+`.has_any`, `.has_all`, spread, slicing, `take`, `skip`, `chain`, equality, interpolation,
+conversion, and `log` that reach a held block MUST halt with `#TYPE_MISMATCH` naming the entry.
+`.^type` and a type lock MUST see a held entry as `fn()`.
+
+r[code-block.host] Host conversion reports a held entry as fn()
+Converting a collection that holds a block to a host value MUST report the entry as the
+signature of `fn()` (`fn():any`), and MUST NOT run it.
+
+r[code-block.host-argument] A host function argument halts on a held block
+Calling a host function with an argument that holds a code block at any depth MUST halt with
+`#TYPE_MISMATCH` naming the entry, and MUST NOT call the function. A whole-argument block is a
+function (`fn.block-type`) and a `fn` entry is a value, so both MUST pass.
 
 r[code-block.each-time] A held block runs on every selection
 Each selection of a held block MUST run it again.
@@ -94,19 +104,20 @@ a value, and selecting it returns it uncalled (`dispatch.fn`). A block passed as
 argument is a function, not a code block, and takes the unnamed parameters its body reads
 (`fn.block-type`). An assertion on such a block sets the function's outer (`fn.block-outer`).
 
-r[code-block.assert] An assertion on a code block checks its result {pending #575}
+r[code-block.assert] An assertion on a code block checks its result
 `{ body }:T` MUST run the block where its position runs it, then assert its result against
 `T` as any assertion does (`assertion.pass`, `assertion.mismatch`). A pipe target, a head
 block, a block in parentheses, a construct body, and a selected entry each assert on every run.
 
-r[code-block.check] A check on a code block tests its result {pending #575}
-`{ body }:?T` MUST run the block, then yield whether its result has type `T`.
+r[code-block.check] A check on a code block tests its result
+`{ body }:?T` MUST run the block where its position runs it, then yield whether its result
+has type `T`. A selected held entry checks on every run.
 
-r[code-block.assert-scope] The assertion covers the whole block {pending #575}
+r[code-block.assert-scope] The assertion covers the whole block
 A `:T` or `:?T` after the closing brace MUST apply to the block's result, never to its last
 statement. `$a -> { ... }:number -> .x` MUST assert before `.x` reads the value.
 
-r[code-block.assert-construct] A construct body accepts an assertion {pending #575}
+r[code-block.assert-construct] A construct body accepts an assertion
 `true ? { 5 }:number ! { 6 }` MUST parse, and MUST assert the branch that runs.
 
 ## Errors
@@ -114,8 +125,9 @@ r[code-block.assert-construct] A construct body accepts an assertion {pending #5
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | `$` or `$@` read where none is bound | RILL-R005 | Yes |
-| A code block's result fails its assertion {pending #575} | `#TYPE_MISMATCH` | Yes |
-| A read that selects no entry reaches a held block {pending #568} | `#TYPE_MISMATCH` | Yes |
+| A code block's result fails its assertion | `#TYPE_MISMATCH` | Yes |
+| A read that selects no entry reaches a held block | `#TYPE_MISMATCH` | Yes |
+| A host function argument holds a code block | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 
@@ -143,13 +155,13 @@ list[1, 2] -> fold(0, { 1 -> { $@ + $ } })
 # Result: "got a"
 ```
 
-```rill pending=575
+```rill
 { 5 } => $x
 $x
 # Result: 5
 ```
 
-```rill pending=575
+```rill
 3 -> { $ + 1 }:number -> { $ * 2 }
 # Result: 8
 ```
@@ -160,7 +172,7 @@ $x()
 # Result: 5
 ```
 
-```rill pending=568
+```rill
 7 -> {
   dict[a: { $ + 1 }] => $d
   $d.a

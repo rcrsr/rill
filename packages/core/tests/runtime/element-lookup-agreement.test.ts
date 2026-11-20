@@ -620,26 +620,27 @@ describe('element lookup: literal list dispatch', () => {
 });
 
 describe('element lookup: selected callable', () => {
-  it('passes the key as the argument of a variable dict fn with params', async () => {
-    expect(await run('dict[a: fn(x) { "k{$x}" }] => $d\n"a" -> $d')).toBe('ka');
+  it('returns a variable dict fn with params uncalled', async () => {
+    expect(
+      await run('dict[a: fn(x) { "k{$x}" }] => $d\n"a" -> $d => $f\n$f("a")')
+    ).toBe('ka');
   });
 
-  it('runs a zero-param variable dict fn with the key as $', async () => {
+  it('runs a variable dict held block with the key as $', async () => {
     expect(await run('dict[a: { "k{$}" }] => $d\n"a" -> $d')).toBe('ka');
   });
 
-  it('runs a literal dict fn with the key as $', async () => {
+  it('runs a literal dict held block with the key as $', async () => {
     expect(await run('"a" -> dict[a: { "k{$}" }]')).toBe('ka');
   });
 
-  it('halts for a literal dict fn with user-named params', async () => {
-    await expectHalt(() => run('"a" -> dict[a: fn(x) { "k{$x}" }]'), {
-      code: 'RILL_R002',
-      messagePattern: 'Dispatch does not provide arguments',
-    });
+  it('returns a literal dict fn with user-named params uncalled', async () => {
+    expect(await run('"a" -> dict[a: fn(x) { "k{$x}" }] => $f\n$f("a")')).toBe(
+      'ka'
+    );
   });
 
-  it('invokes the terminal fn of a hierarchical path with the last key', async () => {
+  it('runs the terminal held block of a hierarchical path with the last key', async () => {
     expect(
       await run('dict[a: dict[b: { "k{$}" }]] => $d\nlist["a", "b"] -> $d')
     ).toBe('kb');

@@ -55,7 +55,12 @@ import {
 import { atTypeConstructor } from './parser-shape.js';
 import { ERROR_IDS } from '../error-registry.js';
 import { removedSelectorError } from './parser-variables.js';
-import { isRillTypeName, readsPipeValue } from '../types.js';
+import {
+  codeBlockShape,
+  isRillTypeName,
+  readsPipeValue,
+  type ASTNode,
+} from '../types.js';
 import {
   postfixDispatchTable,
   type PostfixLoopState,
@@ -632,6 +637,17 @@ function parseUncheckedPipeTarget(this: Parser): PipeTargetNode {
  * (the literal is built from the piped value, not given it).
  */
 function checkPipeTarget(target: PipeTargetNode): PipeTargetNode {
+  const shape = codeBlockShape(target);
+  if (shape !== undefined && target.type !== 'Block') {
+    if (!readsPipeValue(shape.block, 'used')) {
+      throw new ParseError(
+        ERROR_IDS.RILL_P031,
+        "Block pipe target does not read the piped value; reference '$' in it",
+        target.span.start
+      );
+    }
+    return target;
+  }
   switch (target.type) {
     case 'Block':
     case 'StringLiteral':
@@ -647,7 +663,16 @@ function checkPipeTarget(target: PipeTargetNode): PipeTargetNode {
     case 'Dict': {
       const elements =
         target.type === 'ListLiteral' ? target.elements : target.entries;
-      if (elements.some((element) => readsPipeValue(element, 'written'))) {
+      // A held block entry binds `$` when selected, so its reads are not
+      // top-level reads of the piped value.
+      const readsAtTop = (element: ASTNode): boolean => {
+        const value = element.type === 'DictEntry' ? element.value : element;
+        return (
+          codeBlockShape(value) === undefined &&
+          readsPipeValue(element, 'written')
+        );
+      };
+      if (elements.some(readsAtTop)) {
         throw new ParseError(
           ERROR_IDS.RILL_P030,
           "Literal pipe target cannot read '$' at its top level; wrap the literal in a block, as in '3 -> { list[$, $] }'",

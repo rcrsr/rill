@@ -5,7 +5,7 @@ status: normative
 since: 0.24.0
 issues: []
 grammar: []
-errors: [RILL-R002, RILL-R010, TYPE_MISMATCH]
+errors: [RILL-R002, RILL-R010, RILL-R044, RILL-R045, TYPE_MISMATCH]
 depends: [scope, pipe, break]
 tests: [collection-operators.test.ts, iterators.test.ts, streams.test.ts]
 ---
@@ -75,6 +75,19 @@ r[iteration.dollar] Each call binds the element to $
 Each call MUST bind the element to `$`. A function with a named first parameter MUST receive
 the element as that argument.
 
+r[iteration.arity] seq, fan, filter, and sort take exact arity
+`seq`, `fan`, `filter`, and `sort` MUST call their function with the element alone. A function
+that takes no argument MUST halt with RILL-R045, and a function that requires a second
+argument MUST halt with RILL-R044. `seq({ 5 })` MUST halt with RILL-R045, and `seq({ $@ })`
+MUST halt with RILL-R044.
+
+r[iteration.arity-single] start_when, stop_when, iterate, and chain take exact arity
+`start_when` and `stop_when` MUST call their function with the element alone, `iterate` with the
+current value alone, and `chain` with the value alone. A function that takes no argument MUST
+halt with RILL-R045, and a function that requires a second argument MUST halt with RILL-R044.
+`start_when({ true })` MUST halt with RILL-R045, and `1 -> chain({ $@ })` MUST halt with
+RILL-R044.
+
 r[iteration.empty] An empty source calls nothing
 An empty source MUST yield the operator's empty result without calling the function.
 
@@ -97,6 +110,10 @@ A map's entries are stated in `map.iteration`.
 | An iterator or stream yields more than 10,000 elements | RILL-R010 | No |
 | An operator's source holds more than 10,000 elements | RILL-R010 | No |
 | The function argument is not callable | `#TYPE_MISMATCH` | Yes |
+| `seq`, `fan`, `filter`, or `sort` calls a function that takes no argument | RILL-R045 | No |
+| `seq`, `fan`, `filter`, or `sort` calls a function that requires a second argument | RILL-R044 | No |
+| `start_when`, `stop_when`, `iterate`, or `chain` calls a function that takes no argument | RILL-R045 | No |
+| `start_when`, `stop_when`, `iterate`, or `chain` calls a function that requires a second argument | RILL-R044 | No |
 
 ## Examples
 

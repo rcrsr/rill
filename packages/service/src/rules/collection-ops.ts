@@ -2,11 +2,14 @@
  * Collection-op recognition helpers.
  * Collection operators (`seq`, `fan`, `fold`, `filter`, `acc`) parse as
  * ordinary HostCall nodes whose `name` is one of the five callable
- * builtins below. The closure argument may parse as either a bare-block
- * form (`seq({ body })`, primary is a BlockNode) or an explicit closure
- * (`seq(fn(x) { body })`, primary is a ClosureNode).
+ * builtins below. The function argument may parse as either a bare-block
+ * form (`seq({ body })`, primary is a BlockNode) or an explicit function
+ * (`seq(fn(x) { body })`, primary is a ClosureNode). `sort`, `start_when`,
+ * `stop_when`, `iterate`, and `chain` also take a function and are covered by
+ * the arity model below.
  */
 
+import { codeBlockShape, unnamedParamsRead } from '@rcrsr/rill';
 import type {
   ASTNode,
   BlockNode,
@@ -95,7 +98,7 @@ export function getBareCallableArg(node: HostCallNode): HostCallNode | null {
   return primary;
 }
 
-/** True for callables that execute the closure in parallel (`fan`, `filter`). */
+/** True for callables that execute the function in parallel (`fan`, `filter`). */
 export function isParallelOp(name: CollectionOpName): boolean {
   return PARALLEL_OPS.has(name);
 }
@@ -112,6 +115,78 @@ export function resolveOpBody(node: HostCallNode): BodyNode | null {
   if (!arg) return null;
   if (arg.type === 'Closure') return arg.body;
   return arg;
+}
+
+// ============================================================
+// ARGUMENT ARITY
+// ============================================================
+
+/** The operators whose function argument has an exact arity. */
+export type ArityOpName =
+  | CollectionOpName
+  | 'sort'
+  | 'start_when'
+  | 'stop_when'
+  | 'iterate'
+  | 'chain';
+
+const OP_ARITY: Readonly<Record<ArityOpName, 1 | 2>> = {
+  seq: 1,
+  fan: 1,
+  filter: 1,
+  sort: 1,
+  start_when: 1,
+  stop_when: 1,
+  iterate: 1,
+  chain: 1,
+  fold: 2,
+  acc: 2,
+};
+
+/** True when the node is a HostCall to an operator with an exact function arity. */
+export function isArityOpCall(
+  node: ASTNode
+): node is HostCallNode & { name: ArityOpName } {
+  return node.type === 'HostCall' && Object.hasOwn(OP_ARITY, node.name);
+}
+
+/** The number of arguments the operator passes its function. */
+export function opArity(name: ArityOpName): 1 | 2 {
+  return OP_ARITY[name];
+}
+
+/** How many arguments a function argument takes: `required` of its `total`. */
+export interface ArgumentArity {
+  readonly total: number;
+  readonly required: number;
+}
+
+/**
+ * The arity of the last argument of an operator call when it is a block or an
+ * fn literal, or null for any other argument (a variable, a call, no argument).
+ * A block counts its params by the unnamed params it reads; an fn literal
+ * counts its declared params.
+ */
+export function functionArgumentArity(
+  node: HostCallNode
+): { readonly arity: ArgumentArity; readonly arg: ASTNode } | null {
+  const arg = node.args.at(-1);
+  if (!arg) return null;
+  const head = unwrapArgPrimary(arg);
+  if (head?.primary.type === 'Closure' && head.methods.length === 0) {
+    const params = head.primary.params;
+    return {
+      arg,
+      arity: {
+        total: params.length,
+        required: params.filter((param) => param.defaultValue === null).length,
+      },
+    };
+  }
+  const shape = codeBlockShape(arg);
+  if (shape === undefined) return null;
+  const read = unnamedParamsRead(shape.block);
+  return { arg, arity: { total: read, required: read } };
 }
 
 // ============================================================

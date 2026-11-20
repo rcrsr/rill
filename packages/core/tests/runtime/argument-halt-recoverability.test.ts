@@ -39,31 +39,31 @@ const CASES: readonly RecoverableCase[] = [
     name: 'seq with a non-fn body',
     source: 'list[1] -> seq(5)',
     code: '#TYPE_MISMATCH',
-    message: 'seq: body must be a closure, got number',
+    message: 'seq: body must be a function, got number',
   },
   {
     name: 'fan with a non-fn body',
     source: 'list[1] -> fan(5)',
     code: '#TYPE_MISMATCH',
-    message: 'fan: body must be a closure, got number',
+    message: 'fan: body must be a function, got number',
   },
   {
     name: 'acc with a non-fn body',
     source: 'list[1] -> acc(0, 5)',
     code: '#TYPE_MISMATCH',
-    message: 'acc: body must be a closure, got number',
+    message: 'acc: body must be a function, got number',
   },
   {
     name: 'fold with a non-fn body',
     source: 'list[1] -> fold(0, 5)',
     code: '#TYPE_MISMATCH',
-    message: 'fold: body must be a closure, got number',
+    message: 'fold: body must be a function, got number',
   },
   {
     name: 'filter with a non-fn body',
     source: 'list[1] -> filter(5)',
     code: '#TYPE_MISMATCH',
-    message: 'filter: body must be a closure, got number',
+    message: 'filter: body must be a function, got number',
   },
   {
     name: 'range with a zero step',
@@ -135,7 +135,7 @@ const CASES: readonly RecoverableCase[] = [
   },
   {
     name: 'filter predicate returning a non-bool',
-    source: 'list[1] -> filter({ 5 })',
+    source: 'list[1] -> filter({ $ })',
     code: '#TYPE_MISMATCH',
     message: 'filter: predicate must return bool, got number',
   },
@@ -375,14 +375,13 @@ const CASES: readonly RecoverableCase[] = [
     name: 'chain with a non-fn list element',
     source: '5 -> chain(list[5])',
     code: '#RILL_R040',
-    message: 'chain: list element must be a closure, got number',
+    message: 'chain: list element must be a function, got number',
   },
   {
     name: 'chain with a non-fn second argument',
     source: '5 -> chain(5)',
     code: '#RILL_R040',
-    message:
-      'chain: second argument must be a closure or list of closures, got number',
+    message: 'chain: second argument must be a function, got number',
   },
 ];
 

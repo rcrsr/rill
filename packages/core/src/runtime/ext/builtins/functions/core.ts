@@ -1,9 +1,6 @@
 import type { RillFunction } from '../../../core/callable.js';
-import {
-  internalCallable,
-  isCallable,
-  isDict,
-} from '../../../core/callable.js';
+import type { TypeHaltSite } from '../../../core/types/halt.js';
+import { internalCallable, isDict } from '../../../core/callable.js';
 import {
   throwTypeHalt,
   throwCatchableHostHalt,
@@ -12,16 +9,20 @@ import {
 import type { RillValue } from '../../../core/types/structures.js';
 import {
   formatValue,
-  inferType,
   serializeValue,
 } from '../../../core/types/registrations.js';
+import { rejectHeldEntries } from '../../../core/types/held-block.js';
 import { anyTypeValue, structureToTypeValue } from '../../../core/values.js';
 import { invokeCallable } from '../../../core/eval/index.js';
 import { createChildContext } from '../../../core/context.js';
 import { setPipe } from '../../../core/types/declared.js';
 import { DEFAULT_MAX_ITERATIONS } from '../../../core/eval/shared.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
-import { makeGenericIterator, requireNonNegativeInteger } from '../shared.js';
+import {
+  makeGenericIterator,
+  requireFunctionArg,
+  requireNonNegativeInteger,
+} from '../shared.js';
 import { orderedDictEntries } from '../../../core/types/dict-keys.js';
 
 /** Core built-in functions: identity, log, json, enumerate, range, repeat, chain, iterate. */
@@ -51,8 +52,14 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       },
     ],
     returnType: anyTypeValue,
-    fn: (args, ctx) => {
+    fn: (args, ctx, location) => {
       const value = args['message'] ?? null;
+      rejectHeldEntries(
+        value,
+        'log',
+        { location, sourceId: ctx.sourceId, fn: 'log' },
+        'deep'
+      );
       ctx.callbacks.onLog(formatValue(value));
       return value;
     },
@@ -111,8 +118,14 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       },
     ],
     returnType: structureToTypeValue({ kind: 'list' }),
-    fn: (args) => {
+    fn: (args, ctx, location) => {
       const input: RillValue = args['items'] ?? null;
+      rejectHeldEntries(
+        input,
+        'enumerate',
+        { location, sourceId: ctx.sourceId, fn: 'enumerate' },
+        'direct'
+      );
       if (Array.isArray(input)) {
         return input.map((value, index) => ({ index, value }));
       }
@@ -223,11 +236,11 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
   },
 
   /**
-   * Pipe a value through one or more closures, left-to-right.
-   * chain(value, closure)        -> closure(value)
+   * Pipe a value through one or more functions, left-to-right.
+   * chain(value, fn)             -> fn(value)
    * chain(value, [f, g, h])     -> h(g(f(value)))
    * chain(value, [])             -> value unchanged
-   * Non-closure/non-list second arg throws RILL-R040.
+   * Non-function/non-list second arg throws RILL-R040.
    */
   chain: {
     params: [
@@ -248,53 +261,49 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
     fn: async (args, ctx, location) => {
       const value: RillValue = args['value'] ?? null;
       const arg: RillValue = args['transform'] ?? null;
-      const argTypeName = inferType(arg);
+
+      const site: TypeHaltSite = {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'chain',
+        preserveHostShape: true,
+      };
 
       if (Array.isArray(arg)) {
-        // List of closures: fold left-to-right
+        rejectHeldEntries(arg, 'chain', site, 'direct');
+        // List of functions: fold left-to-right
         let result = value;
         for (const item of arg) {
-          if (!isCallable(item)) {
-            throwCatchableHostHalt(
-              {
-                location,
-                sourceId: ctx.sourceId,
-                fn: 'chain',
-                preserveHostShape: true,
-              },
-              ERROR_ATOMS[ERROR_IDS.RILL_R040],
-              `chain: list element must be a closure, got ${inferType(item)}`
-            );
-          }
+          requireFunctionArg(
+            item,
+            'chain',
+            'list element',
+            ERROR_ATOMS[ERROR_IDS.RILL_R040],
+            site
+          );
           result = await invokeCallable(item, [result], ctx, location);
         }
         return result;
       }
 
-      if (isCallable(arg)) {
-        // Single closure: invoke with value
-        return invokeCallable(arg, [value], ctx, location);
-      }
-
-      return throwCatchableHostHalt(
-        {
-          location,
-          sourceId: ctx.sourceId,
-          fn: 'chain',
-          preserveHostShape: true,
-        },
+      // Single function: invoke with value
+      requireFunctionArg(
+        arg,
+        'chain',
+        'second argument',
         ERROR_ATOMS[ERROR_IDS.RILL_R040],
-        `chain: second argument must be a closure or list of closures, got ${argTypeName}`
+        site
       );
+      return invokeCallable(arg, [value], ctx, location);
     },
   },
 
   /**
-   * Infinite iterator source: emit seed, then repeatedly apply closure to
+   * Infinite iterator source: emit seed, then repeatedly apply body to
    * produce the next value (which becomes the next seed).
    *
-   * Call form:  iterate(seed, closure)
-   * Pipe form:  $seed -> iterate(closure)   (pipe value supplies the seed)
+   * Call form:  iterate(seed, body)
+   * Pipe form:  $seed -> iterate(body)   (pipe value supplies the seed)
    *
    * The stream is unbounded; bound it externally with take(n), stop_when,
    * or let RILL_R010 enforce the DEFAULT_MAX_ITERATIONS ceiling.
@@ -314,7 +323,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
         annotations: {},
       },
       {
-        name: 'closure',
+        name: 'body',
         type: { kind: 'any' },
         defaultValue: undefined,
         annotations: {},
@@ -323,7 +332,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
     returnType: anyTypeValue,
     fn: (args, ctx, location) => {
       const seed: RillValue = args['seed'] ?? null;
-      const closureArg: RillValue = args['closure'] ?? null;
+      const bodyArg: RillValue = args['body'] ?? null;
 
       const site = {
         location,
@@ -331,20 +340,20 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
         fn: 'iterate',
       };
 
-      if (!isCallable(closureArg)) {
-        throwCatchableHostHalt(
-          site,
-          ERROR_ATOMS[ERROR_IDS.RILL_R006],
-          `iterate: closure must be a callable, got ${inferType(closureArg)}`
-        );
-      }
+      requireFunctionArg(
+        bodyArg,
+        'iterate',
+        'body',
+        ERROR_ATOMS[ERROR_IDS.RILL_R006],
+        site
+      );
 
-      const closure = closureArg;
+      const body = bodyArg;
       let stepCount = 0;
 
-      // Build a chunk lazily: emit `current` now, defer closure invocation
+      // Build a chunk lazily: emit `current` now, defer body invocation
       // until the consumer pulls .next(). This avoids running the step
-      // closure (and its side effects) one element ahead of consumption.
+      // body (and its side effects) one element ahead of consumption.
       const buildChunk = (current: RillValue): RillValue => {
         return {
           value: current,
@@ -361,7 +370,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
             const childCtx = createChildContext(ctx);
             setPipe(childCtx, current, undefined);
             const nextSeed = await invokeCallable(
-              closure,
+              body,
               [current],
               childCtx,
               location

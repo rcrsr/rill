@@ -64,8 +64,8 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
       });
 
       expect(snapshot.map((f) => f.functionName)).toEqual([
-        '<closure>',
-        '<closure>',
+        '<function>',
+        '<function>',
         'probe',
       ]);
     });
@@ -89,10 +89,10 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
       });
 
       expect(snapshot.map((f) => f.functionName)).toEqual([
-        '<closure>',
-        '<closure>',
-        '<closure>',
-        '<closure>',
+        '<function>',
+        '<function>',
+        '<function>',
+        '<function>',
         'probe',
       ]);
     });

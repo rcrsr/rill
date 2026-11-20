@@ -8,7 +8,7 @@
  * fully static literal (variables, calls, spreads, computed keys).
  */
 
-import type { ASTNode, DictEntryNode } from '@rcrsr/rill';
+import type { ASTNode, BlockNode, DictEntryNode } from '@rcrsr/rill';
 import { staticEntryKey } from './helpers.js';
 
 // ============================================================
@@ -213,4 +213,34 @@ export function isMixedValueDict(node: ASTNode): boolean {
     if (shape !== null && shape !== EMPTY_SHAPE) shapes.push(shape);
   }
   return hasTwoDistinct(shapes);
+}
+
+// ============================================================
+// NON-FUNCTION RESULTS
+// ============================================================
+
+/** Node types whose value is never a function, whatever their operands. */
+const NON_FUNCTION_TYPES: ReadonlySet<string> = new Set([
+  'BinaryExpr',
+  'UnaryExpr',
+  'Interpolation',
+  'ListLiteral',
+  'DictLiteral',
+  'Dict',
+  'TupleLiteral',
+  'OrderedLiteral',
+]);
+
+/**
+ * Whether a block's result is provably not a function: its last statement
+ * is a bare scalar literal, arithmetic, logic, comparison, an interpolated
+ * string, or a collection literal. A call, a variable, a member read, or
+ * any piped chain may yield a function, so they are not provable.
+ */
+export function blockYieldsNonFunction(block: BlockNode): boolean {
+  const last = block.statements.at(-1);
+  if (last === undefined) return false;
+  const statement = last.type === 'AnnotatedStatement' ? last.statement : last;
+  const node = unwrapBareLiteral(statement.expression);
+  return literalKind(node) !== null || NON_FUNCTION_TYPES.has(node.type);
 }

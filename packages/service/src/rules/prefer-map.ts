@@ -4,7 +4,7 @@
  * `fan` is semantically clearer for pure transformations: it signals no
  * side effects and may execute in parallel.
  *
- * Detects `seq` calls whose closure body contains no side-effecting
+ * Detects `seq` calls whose function body contains no side-effecting
  * operations (host calls, closure calls).
  */
 

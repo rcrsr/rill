@@ -2,7 +2,7 @@
 
 *Loading reusable rill scripts via `use<scheme:resource>` expressions*
 
-The `use<>` expression resolves a named resource through a host-registered scheme resolver. The result is the last expression of the loaded script. Modules are plain rill values — dicts, closures, or any other type.
+The `use<>` expression resolves a named resource through a host-registered scheme resolver. The result is the last expression of the loaded script. Modules are plain rill values — dicts, functions, or any other type.
 
 ## Syntax
 

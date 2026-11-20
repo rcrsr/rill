@@ -18,6 +18,7 @@ import {
   type FieldComparisonCallbacks,
 } from './operations.js';
 import { RuntimeHaltSignal, throwTypeHalt, type TypeHaltSite } from './halt.js';
+import { rejectHeldEntries } from './held-block.js';
 import { setDictField } from './dict-keys.js';
 import { isAtom, isStructureKind } from './guards.js';
 import { deepEquals, inferType } from './registrations.js';
@@ -223,6 +224,8 @@ export function requireOverlap(
   site: TypeHaltSite,
   op: string
 ): void {
+  rejectHeldEntries(left.value, op, site, 'deep');
+  rejectHeldEntries(right.value, op, site, 'deep');
   const l = carriedStructure(
     left.value,
     left.declared,

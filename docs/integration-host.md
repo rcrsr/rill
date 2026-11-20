@@ -41,7 +41,7 @@ The `createRuntimeContext()` function accepts these options:
 | `timeout` | `number` | Per-call limit in ms for each named function call (host functions and built-ins). Expiry halts with catchable `RILL-R012`. It does not bound total script time |
 | `autoExceptions` | `string[]` | Regex patterns that halt execution |
 | `signal` | `AbortSignal` | Cancellation signal |
-| `maxCallDepth` | `number` | Maximum nested closure-call depth per call chain before a fatal `RILL-R010` halt (default 1000). Also sets the cap on calls in flight across concurrent `fan`/`filter`/`sort` bodies: `maxCallDepth` + 10,000. |
+| `maxCallDepth` | `number` | Maximum nested function-call depth per call chain before a fatal `RILL-R010` halt (default 1000). Also sets the cap on calls in flight across concurrent `fan`/`filter`/`sort` bodies: `maxCallDepth` + 10,000. |
 | `maxCallStackDepth` | `number` | Maximum stored call-stack trace frames (default 100); trims trace history, never halts execution — distinct from `maxCallDepth` above |
 | `requireDescriptions` | `boolean` | Require descriptions for all functions and parameters |
 | `resolvers` | `Record<string, SchemeResolver> \| undefined` | Scheme-to-resolver map for `use<scheme:...>` imports |
@@ -119,7 +119,7 @@ $result ?? -1
 
 ## Value Types
 
-Internal container types host code may encounter in observability callbacks or return values. See [Value Types](integration-resolvers.md#value-types) for `RillOrdered`, `RillTuple`, `RillTypeValue`, and closure introspection (`.^type.inner`, `.^type.outer`).
+Internal container types host code may encounter in observability callbacks or return values. See [Value Types](integration-resolvers.md#value-types) for `RillOrdered`, `RillTuple`, `RillTypeValue`, and function introspection (`.^type.inner`, `.^type.outer`).
 
 ## Value Conversion
 
@@ -306,6 +306,16 @@ functions: {
 
 `ctx.metadata` is `undefined` when the script runs outside the agent harness (e.g., direct `execute()` calls).
 
+## Dispatch Returns Host Functions
+
+```text
+use<host:value> => $v   # dict-shaped host value; its key entry is a host function
+"key" -> $v             # returns the entry; does not call it
+$v.key()                # calls the entry
+```
+
+A dispatch pipe `sel -> $c` selects an entry of a collection. A function entry is returned uncalled, and that includes a host function entry and one reached through `use<host:value>`. Call it explicitly with `$c.name(args)`. See [Dispatch](ref-language.md#dispatch) for the selection rules.
+
 ## Dispatch-Boundary Policy
 
 A script that resolves an extension through `use<scheme:resource>` can call every method on it. `filterResolver` lets the host decide, per method, whether the call is permitted and what happens to its input and output.
@@ -363,7 +373,7 @@ An index in a key is the element's zero-based position in its list or tuple, cou
 
 Matching order, per call:
 
-1. Callable carries no extension identity — pass through. Script closures, built-ins, and functions registered through `functions` are not extension methods and are never policed.
+1. Callable carries no extension identity — pass through. Script functions, built-ins, and functions registered through `functions` are not extension methods and are never policed.
 2. Extension has no rules and no `"*"` — pass through.
 3. Extension is policed but the callable cannot be named as a method (the extension root is itself a callable) — deny.
 4. Exact rule for the method — use it.
@@ -408,7 +418,7 @@ Every callable reachable from a resolved `use<>` value is policed, including tho
 
 When the resolver polices the calling extension, values returned from a branded call inherit that extension, including the output of `out` transforms. A method `open` that returns `dict[purge: <callable>]` therefore yields a `purge` addressable as `"open().purge"`, and it is denied by `"*"` unless a rule allows it. Not every callable is branded:
 
-- Script closures, built-ins, and callables registered through `functions` keep no extension identity.
+- Script functions, built-ins, and callables registered through `functions` keep no extension identity.
 - A stream is skipped whole at call time, and the `value` an iterator yields is skipped, because those elements do not exist until consumed. A callable consumed from a stream is therefore not policed. An iterator's own callable members, such as `next`, are branded.
 
 A callable that already carries a `use<>` identity keeps it, and the first call-time identity wins over later ones. The call-time walk has no member budget, so its cost is paid on every call to a branded callable whose extension the resolver polices. The walk is skipped when `policesExtension(extension)` returns false, and a resolver without that method keeps walking. The hint affects only call-time branding; `use<>` branding and the `RILL-R090` budget are unchanged.
@@ -584,6 +594,10 @@ Two additional behaviors apply during recursive hydration:
 
 If any required child field lacks a `defaultValue`, the type check at Stage 3 catches the missing field and halts with `RILL-R001`.
 
+### Held Blocks in Arguments
+
+A list, dict, tuple, or ordered argument that holds a code block halts `#TYPE_MISMATCH` naming the entry, because a held block has no host representation. Pass a function entry written `fn { ... }`, or select the entry in the script first.
+
 ### Type Mismatch Errors
 
 When argument types don't match, the runtime halts with `RILL-R001`:
@@ -691,13 +705,13 @@ function callable(fn: CallableFn, isProperty?: boolean): ApplicationCallable;
 | Parameter | Description |
 |-----------|-------------|
 | `fn` | The function to wrap. Receives a name-keyed record |
-| `isProperty` | If `true`, auto-invokes when accessed from dict and declares one `self` parameter |
+| `isProperty` | If `true`, runs on access from a dict and declares one `self` parameter |
 
 `callable()` declares `params: []`, or a single `self: any` parameter when `isProperty` is `true`. Use it for zero-argument callables; use `toCallable` when the callable takes arguments.
 
 ### Property-Style Callables
 
-Property-style callables auto-invoke when accessed from a dict, enabling computed properties:
+Property-style callables run on access from a dict, enabling computed properties:
 
 ```typescript
 const ctx = createRuntimeContext({
@@ -705,7 +719,7 @@ const ctx = createRuntimeContext({
     user: {
       firstName: 'John',
       lastName: 'Doe',
-      // Auto-invokes on access, receives bound dict
+      // Runs on access, receives bound dict
       fullName: callable((args) => {
         // Property-style callable: args.self is the bound dict this callable was accessed from
         const dict = args.self as Record<string, RillValue>;
@@ -741,7 +755,7 @@ const ctx = createRuntimeContext({
 
 | Kind | Type | Description |
 |------|------|-------------|
-| `script` | `ScriptCallable` | Closures from rill source code |
+| `script` | `ScriptCallable` | Functions from rill source code |
 | `application` | `ApplicationCallable` | Host-provided callables and rill's built-in functions |
 
 ### Type Guards

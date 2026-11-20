@@ -31,7 +31,7 @@ export function isVariableInParentScope(
     return true;
   }
 
-  // If we're not in a closure, variable can't be outer to us
+  // If we're not in a function, variable can't be outer to us
   if (currentClosureScope === null) {
     return false;
   }

@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Unified Dispatch
  * Tests for list literal dispatch and variable dispatch to dicts and lists
@@ -6,9 +7,220 @@
 import { describe, expect, it } from 'vitest';
 
 import { expectHalt, expectRuntimeError } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Unified Dispatch', () => {
+  describe('Held Blocks In Tuple And Ordered Values', () => {
+    rule('dispatch.block-held').it(
+      'runs a block held by a tuple with $ bound to the index',
+      async () => {
+        const result = await run(`
+          tuple["a", { "got {$}" }] => $t
+          1 -> $t
+        `);
+        expect(result).toBe('got 1');
+      }
+    );
+
+    rule('dispatch.block-held').it(
+      'runs a block held by an ordered with $ bound to the key',
+      async () => {
+        const result = await run(`
+          ordered[a: "x", b: { "got {$}" }] => $o
+          "b" -> $o
+        `);
+        expect(result).toBe('got b');
+      }
+    );
+
+    rule('dispatch.block-held').it(
+      'runs a block held by a list variable with $ bound to the index',
+      async () => {
+        const result = await run(`
+          list["a", { "got {$}" }] => $l
+          1 -> $l
+        `);
+        expect(result).toBe('got 1');
+      }
+    );
+
+    rule('dispatch.block-held').it(
+      'runs a held block on an intermediate path step with the step key as $',
+      async () => {
+        const result = await run(`
+          dict[a: { dict[b: { "got {$}" }] }] => $d
+          list["a", "b"] -> $d
+        `);
+        expect(result).toBe('got b');
+      }
+    );
+
+    rule('dispatch.block-held').it(
+      'binds the step key as $ when an intermediate step runs a held block',
+      async () => {
+        const result = await run(`
+          dict[a: { dict[b: "seen {$}"] }] => $d
+          list["a", "b"] -> $d
+        `);
+        expect(result).toBe('seen a');
+      }
+    );
+
+    rule('dispatch.block-held').it(
+      'asserts the result of a held block on every run',
+      async () => {
+        const table = 'dict[a: { 5 }:number, b: { "x" }:number] => $d\n';
+        expect(await run(`${table}"a" -> $d`)).toBe(5);
+        await expectHalt(() => run(`${table}"b" -> $d`), {
+          code: 'TYPE_MISMATCH',
+        });
+      }
+    );
+  });
+
+  describe('Functions Are Returned Uncalled', () => {
+    rule('dispatch.fn').it(
+      'returns a script function held by a dict variable',
+      async () => {
+        const result = await run(`
+          dict[f: fn(x: number) { $x * 2 }] => $d
+          "f" -> $d
+        `);
+        expect(result).toMatchObject({ __type: 'callable', kind: 'script' });
+      }
+    );
+
+    rule('dispatch.fn').it(
+      'returns a zero-param script function held by a list variable',
+      async () => {
+        const result = await run(`
+          list[fn { 5 }] => $l
+          0 -> $l
+        `);
+        expect(result).toMatchObject({ __type: 'callable', kind: 'script' });
+      }
+    );
+
+    rule('dispatch.fn').it(
+      'returns a function from a dict literal table',
+      async () => {
+        const result = await run('"f" -> dict[f: fn { 5 }]');
+        expect(result).toMatchObject({ __type: 'callable', kind: 'script' });
+      }
+    );
+
+    rule('dispatch.fn').it(
+      'lets the caller call the function it selected',
+      async () => {
+        const result = await run(`
+          dict[f: fn(x: number) { $x * 2 }] => $d
+          "f" -> $d => $f
+          $f(4)
+        `);
+        expect(result).toBe(8);
+      }
+    );
+  });
+
+  describe('A No-Parens Read Never Calls A Stored Function', () => {
+    rule('dispatch.fn').it(
+      'returns a plain function selected by $d -> .f on a variable',
+      async () => {
+        const result = await run(`
+          dict[f: fn { 5 }] => $d
+          $d -> .f
+        `);
+        expect(result).toMatchObject({ __type: 'callable', kind: 'script' });
+      }
+    );
+
+    rule('code-block.access').it(
+      'runs a held block selected by $d -> .f on a variable',
+      async () => {
+        const result = await run(`
+          dict[f: { 5 }] => $d
+          $d -> .f
+        `);
+        expect(result).toBe(5);
+      }
+    );
+
+    rule('dispatch.fn').it(
+      'returns a plain function selected by a pipe-target .name',
+      async () => {
+        const result = await run('dict[f: fn { 5 }] -> .f');
+        expect(result).toMatchObject({ __type: 'callable', kind: 'script' });
+      }
+    );
+
+    rule('dispatch.fn').it(
+      'returns a plain function selected from a dict literal by .name',
+      async () => {
+        const result = await run('dict[f: fn { 5 }].f');
+        expect(result).toMatchObject({ __type: 'callable', kind: 'script' });
+      }
+    );
+
+    rule('dispatch.fn').it(
+      'selects through an intermediate path step then calls the last with parens',
+      async () => {
+        const result = await run(`
+          dict[a: dict[b: fn(x: number) { $x * 2 }]] => $d
+          $d.a.b(4)
+        `);
+        expect(result).toBe(8);
+      }
+    );
+
+    rule('dispatch.fn').it(
+      'does not call a function held by an intermediate step without parens',
+      async () => {
+        const result = await run(`
+          dict[a: dict[b: fn { 5 }]] => $d
+          $d.a.b
+        `);
+        expect(result).toMatchObject({ __type: 'callable', kind: 'script' });
+      }
+    );
+  });
+
+  describe('Intermediate Step Of A Called Path', () => {
+    rule('code-block.access').it(
+      'runs a held block on an intermediate step with the enclosing $ then calls',
+      async () => {
+        const result = await run(`
+          dict[a: { $ -> .empty ? dict[b: fn(x: number) { 0 }] ! dict[b: fn(x: number) { $x * 2 }] }] => $d
+          "z" -> { $ -> .empty ? 0 ! $d.a.b(4) }
+        `);
+        expect(result).toBe(8);
+      }
+    );
+
+    rule('dispatch.fn').it(
+      'halts when an intermediate step is a plain function that is not called',
+      async () => {
+        await expectHalt(
+          () =>
+            run(`
+              dict[a: fn { dict[b: fn(x: number) { $x }] }] => $d
+              $d.a.b(4)
+            `),
+          { code: 'RILL_R003', messagePattern: /not available on callable/ }
+        );
+      }
+    );
+  });
+
+  describe('Probe On A Held Block', () => {
+    rule('code-block.access').it(
+      'does not run a held block when .?name probes it',
+      async () => {
+        expect(await run('dict[a: { error "boom" }] => $d\n$d.?a')).toBe(true);
+      }
+    );
+  });
+
   describe('Dict Variable Dispatch', () => {
     it('returns value for string key piped to dict variable (AC-4)', async () => {
       // AC-4: String key "x" returns value 1 from dict
@@ -43,9 +255,9 @@ describe('Unified Dispatch', () => {
   describe('Closure Auto-Invocation', () => {
     it('auto-invokes closure value in dict dispatch (AC-9)', async () => {
       // AC-9: Closure value is auto-invoked when dispatched
-      // Zero-param closure invoked with args=[], pipeValue="fn", returns "result"
+      // The held block runs with $ bound to the selector, "fn"
       const result = await run(`
-        dict[fn: fn() { "result" }] => $dict
+        dict[fn: { "result" }] => $dict
         "fn" -> $dict
       `);
       expect(result).toBe('result');
@@ -53,9 +265,9 @@ describe('Unified Dispatch', () => {
 
     it('auto-invokes closure value in list dispatch (AC-10)', async () => {
       // AC-10: Closure value is auto-invoked when indexed
-      // Zero-param closure invoked with args=[], pipeValue=0
+      // The held block runs with $ bound to the index, 0
       const result = await run(`
-        list[fn() { "first" }] => $list
+        list[{ "first" }] => $list
         0 -> $list
       `);
       expect(result).toBe('first');
@@ -435,13 +647,12 @@ describe('Unified Dispatch', () => {
       expect(result).toBe(1);
     });
 
-    it('propagates closure body runtime error during dispatch (EC-9)', async () => {
-      // EC-9: Closure body runtime error should propagate with original error code
+    it('propagates closure body runtime error during dispatch', async () => {
       // Zero-param closures receive $ binding and execute their body correctly
       await expectHalt(
         () =>
           run(`
-          list[fn() { $undefined }] => $list
+          list[{ $undefined }] => $list
           0 -> $list
         `),
         {
@@ -452,14 +663,12 @@ describe('Unified Dispatch', () => {
       );
     });
 
-    it('propagates closure body runtime error during dispatch with block-closure (EC-9)', async () => {
-      // EC-9: Closure body runtime error propagates with original error code
-      // Uses block-closure (params.length > 0) which works with current dispatch
+    it('propagates held block runtime error during dict dispatch', async () => {
       await expectHalt(
         () =>
           run(`
-          list[fn(x) { $undefined }] => $list
-          0 -> $list
+          dict[a: { $undefined }] => $d
+          "a" -> $d
         `),
         {
           code: 'RILL_R005',

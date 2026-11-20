@@ -82,7 +82,7 @@ Example:
 | `range(start, end, step?)` | number sequence (iterator) |
 | `repeat(val, count)` | repeat value n times (iterator); count is a non-negative integer |
 | `enumerate(coll)` | lists: `list[dict[index, value]]`; dicts: `list[dict[index, key, value]]` |
-| `chain($fn)` | apply single closure; `chain(val, list[$f, $g])` applies in sequence; a non-closure transform halts with catchable `#RILL_R040` |
+| `chain($fn)` | apply single function; `chain(val, list[$f, $g])` applies in sequence; a non-function transform halts with catchable `#RILL_R040` |
 | `now()` | current datetime |
 | `datetime(...)` | construct datetime (ISO string or named components) |
 | `duration("1h30m")` | construct duration from a printed form |
@@ -103,9 +103,11 @@ atom is not a function. Convert a string to an atom through the pipe: "TIMEOUT" 
     list["a", "b"] -> enumerate -> seq({ "{$.index}: {$.value}" })
     # list["0: a", "1: b"]
 
+`enumerate` on a list or dict that holds a code block halts #TYPE_MISMATCH, as `seq` and `.values` do.
+
 ## chain example
 
-    chain(5, list[{ $ * 2 }, { $ + 1 }])   # 5 -> 10 -> 11
+    chain(5, list[fn { $ * 2 }, fn { $ + 1 }])   # 5 -> 10 -> 11
 
 ## sort
 

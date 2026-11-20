@@ -18,20 +18,20 @@ import { expectHalt } from '../helpers/halt.js';
 describe('sort: key extractor vacancy check', () => {
   describe('list path', () => {
     it('halts with #INVALID_INPUT when the extractor returns an empty string', async () => {
-      await expectHalt(() => run('list[1, 2, 3] -> sort({ "" })'), {
+      await expectHalt(() => run('list[1, 2, 3] -> sort(fn(x) { "" })'), {
         code: 'INVALID_INPUT',
       });
     });
 
     it('halts with #INVALID_INPUT when the extractor returns an empty list', async () => {
-      await expectHalt(() => run('list[1, 2, 3] -> sort({ list[] })'), {
+      await expectHalt(() => run('list[1, 2, 3] -> sort(fn(x) { list[] })'), {
         code: 'INVALID_INPUT',
       });
     });
 
     it('halts with #INVALID_INPUT when the extractor returns an invalid (guard-caught) value', async () => {
       await expectHalt(
-        () => run('list[1, 2, 3] -> sort({ guard { "x":number } })'),
+        () => run('list[1, 2, 3] -> sort(fn(x) { guard { "x":number } })'),
         { code: 'INVALID_INPUT' }
       );
     });
@@ -49,20 +49,23 @@ describe('sort: key extractor vacancy check', () => {
 
   describe('dict/ordered path', () => {
     it('halts with #INVALID_INPUT when the extractor returns an empty string', async () => {
-      await expectHalt(() => run('dict[a: 1, b: 2] -> sort({ "" })'), {
+      await expectHalt(() => run('dict[a: 1, b: 2] -> sort(fn(x) { "" })'), {
         code: 'INVALID_INPUT',
       });
     });
 
     it('halts with #INVALID_INPUT when the extractor returns an empty dict', async () => {
-      await expectHalt(() => run('dict[a: 1, b: 2] -> sort({ dict[] })'), {
-        code: 'INVALID_INPUT',
-      });
+      await expectHalt(
+        () => run('dict[a: 1, b: 2] -> sort(fn(x) { dict[] })'),
+        {
+          code: 'INVALID_INPUT',
+        }
+      );
     });
 
     it('halts with #INVALID_INPUT when the extractor returns an invalid (guard-caught) value', async () => {
       await expectHalt(
-        () => run('dict[a: 1, b: 2] -> sort({ guard { "x":number } })'),
+        () => run('dict[a: 1, b: 2] -> sort(fn(x) { guard { "x":number } })'),
         { code: 'INVALID_INPUT' }
       );
     });

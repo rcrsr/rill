@@ -1725,7 +1725,7 @@ export const HALT_MIGRATION_BASELINE: readonly BaselineEntry[] = [
               offset: 27,
             },
           },
-          functionName: '<closure>',
+          functionName: '<function>',
         },
       ],
     },

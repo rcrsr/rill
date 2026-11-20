@@ -52,19 +52,19 @@ describe('Rill Runtime: Dict Dispatch', () => {
   describe('Closure Auto-Invocation', () => {
     it('auto-invokes closure value with piped key as $', async () => {
       // AC-27: Auto-invoke closure, $ is piped key
-      const result = await run('"x" -> dict[x: fn { $ -> .upper }]');
+      const result = await run('"x" -> dict[x: { $ -> .upper }]');
       expect(result).toBe('X');
     });
 
     it('auto-invokes closure with transform logic', async () => {
-      const result = await run('"hello" -> dict[hello: fn { "{$}!" }]');
+      const result = await run('"hello" -> dict[hello: { "{$}!" }]');
       expect(result).toBe('hello!');
     });
 
     it('auto-invokes closure that accesses dict', async () => {
       const result = await run(`
         dict[name: "test"] => $d
-        "key" -> dict[key: fn() { $d.name }]
+        "key" -> dict[key: { $d.name }]
       `);
       expect(result).toBe('test');
     });
@@ -260,9 +260,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
     });
 
     it('auto-invokes closure in multi-key dispatch', async () => {
-      const result = await run(
-        '"x" -> dict[list["x", "y"]: fn { $ -> .upper }]'
-      );
+      const result = await run('"x" -> dict[list["x", "y"]: { $ -> .upper }]');
       expect(result).toBe('X');
     });
   });

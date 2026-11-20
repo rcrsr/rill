@@ -1,6 +1,6 @@
 # rill callables
 
-Closures, fn literals, late binding, typed functions, reflection, dispatch operators, extraction, spread, modules.
+Code blocks, held entries, functions, block arguments, typed functions, reflection, dispatch operators, extraction, spread, modules.
 
 ## Pipe binding rules
 
@@ -9,7 +9,7 @@ When `->` targets a callable, the runtime decides how to bind the piped value. T
 1. **Explicit `$` (manual placement).** If the immediate argument list contains at least one top-level `$`, every occurrence resolves to the piped value. No auto-prepend.
 2. **Auto-prepend.** If no top-level `$` is found, the piped value is prepended as the first argument.
 
-Closures stop the scan. A `$` inside a closure literal (`{ ... }`) is late-bound when the closure runs per-element. It does NOT count as a top-level `$`. Sub-expressions ARE scanned, so `$` inside `g($)` does count.
+Function boundaries stop the scan. A `$` inside a block argument (`{ ... }`) is read when the function runs per-element. It does NOT count as a top-level `$`. Sub-expressions ARE scanned, so `$` inside `g($)` does count.
 
 **Zero-parameter callables.** When auto-prepend is selected and the callable declares zero parameters, the piped value is an excess argument and the call halts RILL-R045, the same as `$f(3)`.
 
@@ -21,21 +21,57 @@ Closures stop the scan. A `$` inside a closure literal (`{ ... }`) is late-bound
 | `$val -> fn(1, $, 0)` | `fn(1, $val, 0)` | Explicit, middle position |
 | `$val -> fn(1, $, $)` | `fn(1, $val, $val)` | Both `$` resolve to piped value |
 | `$val -> fn(g($))` | `fn(g($val))` | Sub-expr `$` counts |
-| `$list -> filter({ $.active })` | `filter($list, { $.active })` | Closure `$` is late-bound |
+| `$list -> filter({ $.active })` | `filter($list, { $.active })` | Block argument `$` is read per element |
 | `$val -> zero_param_fn` | `zero_param_fn($val)` | Halts RILL-R045 (excess argument) |
 
 A block or string target must read `$`: `5 -> { 3 }` and `5 -> "label"` halt `RILL-P031` at parse time. A list or dict literal target cannot read `$` at its top level: `3 -> list[$, $]` halts `RILL-P030`. A `$` inside a conditional, guard, retry, timeout, or pass body in an argument counts as written, so nothing is prepended. A `$` inside a nested pipe target in an argument, as in `5 -> f(2 -> g($))`, does not count, so the operand is prepended.
 
-This is why `[1,2,3] -> fold(0, { $@ + $ })` works: the list auto-prepends because no top-level `$` appears in `(0, { $@ + $ })`. The `$` inside the closure body is late-bound per element.
+This is why `[1,2,3] -> fold(0, { $@ + $ })` works: the list auto-prepends because no top-level `$` appears in `(0, { $@ + $ })`. The `$` inside the block argument is bound per element.
 
-## Closure forms
+## Code blocks
 
-Block-closures (`{ body }`, implicit `$` parameter):
+A code block is never a value. A braced body is a code block when nothing in front of it makes it a function. It runs where it is written, and a capture binds its result, not the block.
 
-    { $ + 1 } => $inc
-    $inc(5)                            # 6
-    5 -> $inc                          # 6 (pipe invocation)
-    dict[x: { $ * 2 }]                 # dict value is a closure
+    {
+      5
+    } => $x                            # head block runs; $x is 5
+    3 -> { $ + 1 }                     # pipe target runs with $ = 3; 4
+    ({ 5 })                            # alone in parentheses: runs; 5
+    true ? { 5 } ! { 6 }               # construct body runs under its construct
+
+A code block has no parameters. `$` and `$@` inside it resolve lexically. Reading `$` where nothing binds it halts RILL-R005. To store a function, put `fn` in front: `fn { 5 } => $x` binds a function, and `$x()` yields 5.
+
+`{ body }:T` runs the block, then asserts its result against `T`. `{ body }:?T` yields whether the result has type `T`. The suffix covers the whole block, and every block that runs takes the suffix. Loop, guard, retry, pass, and timeout bodies do not.
+
+## Held entries
+
+A block written as a dict value, ordered value, list element, or tuple element is held uncalled. It does not convert to a function.
+
+    "a" -> dict[a: { "got {$}" }]      # "got a"; dispatch runs it with $ = "a"
+    dict[n: 2, double: { $.n * 2 }] => $d
+    $d -> $d.double                    # 4; access in a pipe target runs it with $ = piped value
+    dict[a: fn { $ + 1 }] => $f
+    $f.a(1)                            # 2; fn entries are values and are called with parens
+
+Selection runs a held block each time. Dispatch (`sel -> $c`) binds `$` to the selector. Access (`$c.name`, `$c.$k`, `$c[sel]`, `.at(i)`, a `destruct<>` position) binds `$` to the enclosing `$`. An intermediate dispatch path step that selects a held block runs it with the step key as `$`. `$c.name(args)` selects, which runs the held block, then calls the result. `$c.name` without parens is a selection.
+
+A read that selects no entry halts `#TYPE_MISMATCH` naming the entry when it reaches a held block: iteration, `.values`, `.entries`, `.first`, `.head`, `.tail`, `.reverse`, `.join`, `.has`, spread, `slice<>`, `take`, `skip`, `chain`, equality, interpolation, conversion, and `log`. A host receives a held entry as `fn():any`. `.keys` and `.len` do not read the entries. `.^type` and a type lock see a held entry as `fn()`, so `{ 1 }:number` held in a dict has type `fn()`. `$@` inside a held block is lexical.
+
+An annotation on an argument or an entry attaches to the function or held block. On a head block it is ignored.
+
+## Block arguments
+
+A block that is a whole argument converts to a function. Its unnamed parameters are the ones the body reads: no read gives `fn()`, `$` gives one parameter, `$` and `$@` give two. An assertion after the block sets the function's outer type. A check (`{ $ }:?number`) makes a function that returns `bool`.
+
+    list[1, 2, 3] -> seq({ $ * 2 })           # list[2, 4, 6]
+    list[1, 2, 3] -> fold(0, { $@ + $ })      # 6
+    list[1, 2, 3] -> fold(0, { $ * 2 })       # halts RILL-R045: one read, fold passes two
+    list[1, 2, 3] -> seq({ 5 })               # halts RILL-R045: no read, seq passes one
+    list[1, 2, 3] -> seq({ $@ })              # halts RILL-R044: requires a second argument
+
+Operators take exact arity. `seq`, `fan`, `filter`, and `sort` call with the element alone. `start_when`, `stop_when`, `iterate`, and `chain` call their function with one argument too. `fold` and `acc` call with the element and the accumulator: fewer than two parameters halt RILL-R045, and a third required parameter halts RILL-R044. Write the block so its reads match the operator.
+
+## Function forms
 
 Function literals (`fn(params):outer { body }`, the body is a block on the same line):
 
@@ -48,19 +84,19 @@ Function literals (`fn(params):outer { body }`, the body is a block on the same 
 
 A default does not infer the parameter type: `fn(x = "d")` gives `x` the type `any`. Write `fn(x: string = "d")` to constrain it. Unnamed params bind `$` and `$@` (at most two), never mix with named params, and carry no default (RILL-P028). `fn()` takes no params, so a body that reads `$` or `$@` halts RILL-P029; use `fn { ... }` instead. The old pipe-delimited function literal and pipe-delimited type literal halt RILL-P012 naming the fn form.
 
-`{ body }` is deferred (function). `( expr )` is eager.
+A block in front of nothing runs. `fn` in front stores a function, and `( expr )` is eager.
 
-    { $ + 1 } => $fn                   # closure stored
+    fn { $ + 1 } => $fn                # function stored
     ( 5 + 1 ) => $x                    # 6 stored
 
 ## Late binding
 
-Closures capture scope, not values. Variables resolve at call time.
+Functions capture scope, not values. Variables resolve at call time.
 
 `$` vs named params:
 - Use `$` in inline pipes and loops: `"hello" -> { .upper }`
 - Use named params in stored functions: `fn(x) { $x * 2 } => $double`
-- `$` is undefined when a stored closure is called later. Always use named params for reusable closures.
+- `$` is undefined when a stored function is called later. Always use named params for reusable functions.
 
 ## Typed functions
 
@@ -100,7 +136,7 @@ Return type assertion (halts with `#TYPE_MISMATCH` on mismatch):
     fn(x: number):number { $x * 2 } => $fn2
     $fn2.^type.outer                       # number
 
-`.^type.inner` returns an ordered of param names to types for named params, a tuple of types for unnamed params, and `ordered[]` for `fn()`. `.^type.outer` returns the declared return type (`any` if undeclared). `.^type.defaults` lists only the params that have a default. Works on script closures, built-ins, host functions.
+`.^type.inner` returns an ordered of param names to types for named params, a tuple of types for unnamed params, and `ordered[]` for `fn()`. `.^type.outer` returns the declared return type (`any` if undeclared). `.^type.defaults` lists only the params that have a default. Works on script functions, built-ins, host functions.
 
 Description shorthand (bare string in `^(...)` expands to `description: <string>`):
 

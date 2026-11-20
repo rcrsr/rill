@@ -17,7 +17,7 @@ import { registeredRules } from './rules-registry.js';
 /**
  * Check if a branch body references the bare pipe-variable `$`, reading the
  * precomputed `hasBareDollar` subtree fact rather than re-walking. This
- * fact is scoped to the branch's own body: a `$` nested inside a closure
+ * fact is scoped to the branch's own body: a `$` nested inside a function
  * literal or a collection-op body within the branch refers to that inner
  * scope's own iteration variable, not the piped value being classified
  * here, and is masked out accordingly (see facts.ts).

@@ -53,7 +53,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
       });
 
       expect(capturedStack).toHaveLength(2);
-      expect(capturedStack[0]?.functionName).toBe('<closure>');
+      expect(capturedStack[0]?.functionName).toBe('<function>');
       expect(capturedStack[1]?.functionName).toBe('capture');
     });
 
@@ -265,8 +265,8 @@ describe('Rill Runtime: Call Stack Integration', () => {
       });
 
       expect(capturedStack).toHaveLength(3);
-      expect(capturedStack[0]?.functionName).toBe('<closure>');
-      expect(capturedStack[1]?.functionName).toBe('<closure>');
+      expect(capturedStack[0]?.functionName).toBe('<function>');
+      expect(capturedStack[1]?.functionName).toBe('<function>');
       expect(capturedStack[2]?.functionName).toBe('capture');
     });
   });

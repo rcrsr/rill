@@ -9,7 +9,12 @@ import type {
   ExpressionNode,
   SpreadArgNode,
 } from '../../../../types.js';
-import { RillError, RuntimeError, readsPipeValue } from '../../../../types.js';
+import {
+  RillError,
+  RuntimeError,
+  codeBlockShape,
+  readsPipeValue,
+} from '../../../../types.js';
 import type {
   RillCallable,
   ScriptCallable,
@@ -33,6 +38,7 @@ import { inferType } from '../../types/registrations.js';
 import { isStream } from '../../types/guards.js';
 import { structureMatches, formatStructure } from '../../types/operations.js';
 import { isInternalFn, notifyActivity } from '../../activity.js';
+import { rejectHeldEntries } from '../../types/held-block.js';
 import { ControlSignal, YieldSignal } from '../../signals.js';
 import type { EvalState } from '../state.js';
 import { haltSlowPath } from './access.js';
@@ -78,6 +84,8 @@ import {
 } from '../../types/declared.js';
 import { checkAborted, maybeYield, DEFAULT_MAX_ITERATIONS } from '../shared.js';
 import { evaluateExpression, evaluateExpressionCarried } from './core.js';
+import { evaluateArgument } from './literals.js';
+import { isPipeParam } from '../../types/fn-params.js';
 import { evaluateBodyExpression } from './control-flow.js';
 import { assertType } from './types.js';
 import {
@@ -118,7 +126,11 @@ import {
 export function hasTopLevelDollarInAST(
   args: readonly (ExpressionNode | SpreadArgNode)[]
 ): boolean {
-  return args.some((arg) => readsPipeValue(arg, 'written'));
+  // A whole-argument block converts to a function of its own params, so the
+  // `$` it reads is not the caller's.
+  return args.some(
+    (arg) => codeBlockShape(arg) === undefined && readsPipeValue(arg, 'written')
+  );
 }
 
 /**
@@ -197,11 +209,19 @@ export async function bindOrdered(
   node: { args: (ExpressionNode | SpreadArgNode)[]; span: SourceSpan },
   pipeInput: RillValue | undefined
 ): Promise<(RillValue | undefined)[]> {
+  // A spread expression is a value, not an argument: it never converts.
+  const spreadExprs = new Set<ExpressionNode>();
+  for (const arg of node.args) {
+    if (arg.type === 'SpreadArg') spreadExprs.add(arg.expression);
+  }
   const bound = await argumentsBinder.bind(
     node.args,
     callable,
     pipeInput,
-    (expr) => evaluateExpression(s, expr),
+    async (expr) =>
+      spreadExprs.has(expr)
+        ? evaluateExpression(s, expr)
+        : (await evaluateArgument(s, expr)).value,
     node.span.start,
     s.ctx.sourceId
   );
@@ -223,7 +243,9 @@ export async function evaluateArgs(
     for (const arg of argExprs) {
       const isSpread = arg.type === 'SpreadArg';
       const expr = isSpread ? arg.expression : arg;
-      const carried = await evaluateExpressionCarried(s, expr);
+      const carried = isSpread
+        ? await evaluateExpressionCarried(s, expr)
+        : await evaluateArgument(s, expr);
       const evaluated = carried.value;
       let gated: RillValue;
       if (hasStatusSidecar(evaluated)) {
@@ -545,6 +567,19 @@ async function invokeFnCallable(
     transferArgsDeclared(effectiveArgs, fnArgs);
   }
 
+  // A host function takes values; a collection argument that holds a block
+  // has none to give. Built-ins are internal and gate their own arguments.
+  if (!isInternalFn(callable.fn)) {
+    const site = {
+      location: callLocation,
+      sourceId: s.ctx.sourceId,
+      fn: functionName,
+    };
+    for (const value of Object.values(fnArgs)) {
+      rejectHeldEntries(value, functionName, site, 'deep');
+    }
+  }
+
   let result: RillValue;
   try {
     // Sync host-fn throws and rejected dispatch promises must reach the same
@@ -655,7 +690,8 @@ export function createCallableContext(
   callable: ScriptCallable
 ): RuntimeContext {
   const firstParam = callable.params[0];
-  const hasExplicitParams = firstParam !== undefined && firstParam.name !== '$';
+  const hasExplicitParams =
+    firstParam !== undefined && !isPipeParam(firstParam.name);
 
   const defScope = callable.definingScope;
   const callableCtx: RuntimeContext = {
@@ -699,8 +735,8 @@ export function bindParamDeclarations(
       declarationOf(param.type) ??
       (arg !== undefined ? argDeclaredAt(args, i) : undefined);
     if (declared === undefined) continue;
-    if (param.name === '$') {
-      if (callableCtx.variables.has('$')) {
+    if (isPipeParam(param.name)) {
+      if (callableCtx.variables.has(param.name)) {
         setPipe(callableCtx, callableCtx.pipeValue, declared);
       }
     } else if (callableCtx.variables.has(param.name)) {
@@ -773,6 +809,32 @@ export function invokeScriptCallable(
   return invokeRegularScriptCallable(s, callable, args, callLocation);
 }
 
+/**
+ * Build the halt a script-callable boundary rethrows: `value` with a trace
+ * frame recording the boundary, tagged as extension-originated. The frame
+ * kind is `access`, the kind used where a halt propagates across a non-host
+ * runtime boundary.
+ */
+export function haltWithTraceFrame(
+  halt: RuntimeHaltSignal,
+  value: RillValue,
+  location: SourceLocation | undefined,
+  sourceId: string | undefined,
+  fn: string
+): RuntimeHaltSignal {
+  const enriched = appendTraceFrame(
+    value,
+    createTraceFrame({
+      site: formatCallSite(location, sourceId),
+      kind: TRACE_KINDS.ACCESS,
+      fn,
+    })
+  );
+  const signal = new RuntimeHaltSignal(enriched, halt.catchable);
+  markExtensionThrow(signal);
+  return signal;
+}
+
 async function invokeRegularScriptCallable(
   s: EvalState,
   callable: ScriptCallable,
@@ -792,7 +854,7 @@ async function invokeRegularScriptCallable(
     only.type === undefined
   ) {
     callableCtx.variables.set(only.name, onlyArg);
-    if (only.name === '$') {
+    if (isPipeParam(only.name)) {
       setPipe(callableCtx, onlyArg, undefined);
     }
     bindParamDeclarations(callableCtx, params, args);
@@ -801,10 +863,10 @@ async function invokeRegularScriptCallable(
       functionName: '<anonymous>',
       location: callLocation,
     });
-    const syncsPipe = only?.name === '$';
+    const syncsPipe = only !== undefined && isPipeParam(only.name);
     for (const [name, value] of Object.entries(record)) {
       callableCtx.variables.set(name, value);
-      if (syncsPipe && name === '$') {
+      if (syncsPipe && isPipeParam(name)) {
         setPipe(callableCtx, value, undefined);
       }
     }
@@ -818,8 +880,8 @@ async function invokeRegularScriptCallable(
         fn: 'invokeRegularScriptCallable',
       },
       ERROR_ATOMS[ERROR_IDS.RILL_R043],
-      'Closure body produced no value',
-      { context: 'Closure body' }
+      'Function body produced no value',
+      { context: 'Function body' }
     );
   }
   const savedCtx = s.ctx;
@@ -841,7 +903,8 @@ async function invokeRegularScriptCallable(
     // `protocols/shared.ts`) rather than `host`.
     markExtensionThrow(e);
     if (e instanceof RuntimeHaltSignal) {
-      const enriched = appendTraceFrame(
+      throw haltWithTraceFrame(
+        e,
         fillHostShape(e.value, {
           sourceId: callableCtx.sourceId,
           // sourceText travels with sourceId: filled together or not at all.
@@ -853,15 +916,10 @@ async function invokeRegularScriptCallable(
               ? { sourceText: callableCtx.sourceText }
               : undefined,
         }),
-        createTraceFrame({
-          site: formatCallSite(callLocation, callableCtx.sourceId),
-          kind: TRACE_KINDS.ACCESS,
-          fn: 'invokeRegularScriptCallable',
-        })
+        callLocation,
+        callableCtx.sourceId,
+        'invokeRegularScriptCallable'
       );
-      const newSignal = new RuntimeHaltSignal(enriched, e.catchable);
-      markExtensionThrow(newSignal);
-      throw newSignal;
     }
     // Restore sourceId on RillError instances that escaped without one.
     // RuntimeError throws that bypass the halt builders still need sourceId

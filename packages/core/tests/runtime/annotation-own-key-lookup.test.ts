@@ -29,4 +29,10 @@ describe('annotation own-key lookup', () => {
       );
     }
   );
+
+  it('reads an own annotation key named __proto__ on an argument block', async () => {
+    expect(
+      await run('identity(^(__proto__: "x") { 1 }) => $f\n$f.^__proto__')
+    ).toBe('x');
+  });
 });

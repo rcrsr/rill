@@ -41,6 +41,7 @@ import {
   invokeScriptCallable,
   invokeStream,
 } from './closures.js';
+import { resolveSelected } from './code-block.js';
 import { locateField } from './field-access.js';
 
 /**
@@ -211,7 +212,16 @@ export async function evaluateClosureCallWithPipe(
           `Dict has no field '${prop}'`
         );
       }
-      value = located.value;
+      // A held block runs with the enclosing `$`, then the result is read on.
+      value = (
+        await resolveSelected(
+          s,
+          located.value,
+          pipeInput,
+          undefined,
+          getNodeLocation(s, node)
+        )
+      ).value;
     } else {
       throwCatchableHostHalt(
         {
@@ -278,7 +288,7 @@ export async function evaluatePipeInvoke(
         fn: 'evaluatePipeInvoke',
       },
       ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `Cannot invoke non-closure value (got ${typeof input})`
+      `Cannot invoke non-function value (got ${typeof input})`
     );
   }
 

@@ -11,7 +11,7 @@
  * BC-4:  dict registration has convertTo defined
  * Every registration has protocol.format
  * deepEquals on two iterators returns false (no protocol.eq)
- * serializeValue on closure throws Error with 'closures are not JSON-serializable'
+ * serializeValue on closure throws Error with 'functions are not JSON-serializable'
  * deserializeValue with unrecognized type name raises RILL-R004
  * deserializeValue(null, 'number') raises RILL-R004
  *
@@ -326,7 +326,7 @@ describe('types/registrations', () => {
       const closureValue = callable(() => 'test');
       expect(() => serializeValue(closureValue)).toThrow(RuntimeError);
       expect(() => serializeValue(closureValue)).toThrow(
-        'closures are not JSON-serializable'
+        'functions are not JSON-serializable'
       );
     });
 
@@ -338,7 +338,9 @@ describe('types/registrations', () => {
       } catch (e) {
         expect(e).toBeInstanceOf(RuntimeError);
         expect((e as RuntimeError).errorId).toBe('RILL-R067');
-        expect((e as Error).message).toBe('closures are not JSON-serializable');
+        expect((e as Error).message).toBe(
+          'functions are not JSON-serializable'
+        );
       }
     });
 

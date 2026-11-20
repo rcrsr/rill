@@ -82,10 +82,10 @@ $streams -> fan({ $() })
 
 ### Script Stream Production with `:stream(T):R`
 
-Define a stream closure that emits chunks from a script:
+Define a stream function that emits chunks from a script:
 
 ```text
-# Stream closure: emit processed lines, resolve with line count
+# Stream function: emit processed lines, resolve with line count
 fn(input: string):stream(string):number {
   $input -> .split("\n") -> seq({
     $ -> .trim -> .empty -> !$ ? { $ -> yield }

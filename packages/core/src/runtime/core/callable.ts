@@ -46,6 +46,7 @@ import type {
   RillTypeValue,
   RillValue,
 } from './types/structures.js';
+import { paramDisplayName } from './types/fn-params.js';
 import { formatValue, inferType } from './types/registrations.js';
 import {
   formatStructure,
@@ -137,6 +138,11 @@ export interface ScriptCallable extends CallableBase {
   readonly body: BodyNode;
   /** Reference to the scope where this closure was defined (late binding) */
   readonly definingScope: RuntimeContext;
+  /**
+   * Brand of a held block: a collection entry that holds a code block.
+   * It has no params and runs with the defining scope. Absent on functions.
+   */
+  readonly held?: true | undefined;
 }
 
 /** Application callable - host application-provided functions */
@@ -736,7 +742,7 @@ export function marshalArgs(
         // Stage 2: Missing required parameter
         throw new RuntimeError(
           ERROR_IDS.RILL_R044,
-          `Missing argument for parameter '${param.name}'`,
+          `Missing argument for parameter '${paramDisplayName(param.name)}'`,
           location,
           {
             functionName,
@@ -758,7 +764,7 @@ export function marshalArgs(
         const actualType = inferType(value);
         throw new RuntimeError(
           ERROR_IDS.RILL_R001,
-          `Parameter type mismatch: ${param.name} expects ${expectedType}, got ${actualType}`,
+          `Parameter type mismatch: ${paramDisplayName(param.name)} expects ${expectedType}, got ${actualType}`,
           location,
           {
             functionName,

@@ -16,7 +16,7 @@ Use **snake_case** for all identifiers in rill:
 [1, 2, 3] => $item_list
 true => $is_valid
 
-# closures
+# functions
 fn(x) { $x * 2 } => $double_value
 fn(s) { $s -> .trim } => $cleanup_text
 
@@ -39,9 +39,9 @@ For loop variables, short names are acceptable when scope is small:
 [1, 2, 3] -> seq(fn(x) { $x * 2 })    # fine: small scope
 ```
 
-### Closures
+### Functions
 
-Name closures for their action:
+Name functions for their action:
 
 ```rill
 fn(x) { $x * 2 } => $double            # verb describing transformation
@@ -101,7 +101,7 @@ $result -> .contains("OK") ? {
 # standard block body
 ["hello", "world"] -> fan({ $.upper })
 
-# equivalent closure form
+# equivalent function form
 ["hello", "world"] -> fan(fn(x) { $x.upper() })
 ```
 
@@ -248,7 +248,7 @@ condition
   ! "no"
 ```
 
-## Closures
+## Functions
 
 ### Use braces for complex bodies
 
@@ -263,22 +263,22 @@ fn(n) {
 true
 ```
 
-### Capture loop variable explicitly for deferred closures
+### Capture loop variable explicitly for deferred functions
 
 ```rill
 # good: explicit capture per iteration
 [1, 2, 3] -> seq({
   $ => $item
   fn() { $item }
-}) => $closures
+}) => $functions
 
-# result: closures return [1, 2, 3] when called
+# result: functions return [1, 2, 3] when called
 true
 ```
 
-### Dict closures for computed properties
+### Call functions stored in a dict
 
-Zero-arg closures auto-invoke when accessed:
+Selecting a function from a dict returns it uncalled. Call it with parentheses:
 
 ```rill
 [
@@ -286,23 +286,23 @@ Zero-arg closures auto-invoke when accessed:
   count: fn() { 3 }
 ] => $data
 
-$data.count    # 3 (auto-invokes)
+$data.count()    # 3
 ```
 
-Parameterized closures work as methods:
+Parameterized functions work as methods:
 
 ```rill
 [
   name: "test",
-  greet: fn(x) { "{$.name}: {$x}" }
+  greet: fn(x) { "{$x}!" }
 ] => $obj
 
-$obj.greet("hello")    # "test: hello"
+$obj.greet("hello")    # "hello!"
 ```
 
 ## Type Safety
 
-### Annotate closure parameters for clarity
+### Annotate function parameters for clarity
 
 ```rill
 fn(name: string, count: number) {
@@ -405,7 +405,7 @@ Variables lock to their first type. Reassigning suggests misuse:
 "initial" -> transform() => $result
 ```
 
-### Avoid bare $ in stored closures
+### Avoid bare $ in stored functions
 
 ```rill
 # confusing: what is $?
@@ -588,7 +588,7 @@ $val.^type
 "hello" -> log($) -> .upper
 $val.^type()
 
-# closures: $fn($) -> $fn
+# functions: $fn($) -> $fn
 # good
 fn(x) { $x * 2 } => $double
 5 -> $double

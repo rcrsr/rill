@@ -1065,7 +1065,7 @@ $l.^type == list(number)
 |----------|-------------|
 | [Types](topic-types.md) | Primitives, collections, and value types |
 | [Variables](topic-variables.md) | Declaration, scope, `$` binding |
-| [Closures](topic-closures.md) | Closure semantics and patterns |
+| [Functions and Code Blocks](topic-closures.md) | Function semantics and patterns |
 | [Closure Annotations](topic-closure-annotations.md) | Field annotations on dict, ordered, and tuple types, and their TypeScript access |
 | [Operators](topic-operators.md) | Type assertions and existence checks in operators |
 | [Reference](ref-language.md) | Quick reference tables |

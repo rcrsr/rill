@@ -61,9 +61,10 @@ import type {
 import { opensScope } from '../opens-scope.js';
 import { traverseForRules } from './traversal.js';
 import { getCollectionOpBody, isCollectionOpCall } from './collection-ops.js';
-import { chainlessVariableName } from './helpers.js';
+import { bareBlockHead, chainlessVariableName } from './helpers.js';
 import { isEntriesRead } from './static-type.js';
 import {
+  blockYieldsNonFunction,
   isMixedCompoundList,
   isMixedValueDict,
   unwrapBareLiteral,
@@ -151,6 +152,8 @@ export interface ScriptFacts {
     string,
     DictNode | DictLiteralNode | OrderedLiteralNode
   >;
+  /** Variables captured exactly once from a naked code block whose result is provably not a function, never a closure parameter. */
+  readonly blockCapturedVars: ReadonlySet<string>;
   /** First zero-accessChain ClosureCall per callee name, in source order. */
   readonly firstClosureCall: ReadonlyMap<string, ClosureCallNode>;
   /** First collection-op pipe applied to a bare-variable head, per variable name, in source order. */
@@ -374,6 +377,7 @@ export function collectFacts(root: ASTNode): AstFacts {
     string,
     DictNode | DictLiteralNode | OrderedLiteralNode
   >();
+  const blockCandidates = new Set<string>();
   const firstClosureCall = new Map<string, ClosureCallNode>();
   const firstPipeIteration = new Map<string, ASTNode>();
   let hasDynamicFieldAccess = false;
@@ -512,6 +516,13 @@ export function collectFacts(root: ASTNode): AstFacts {
             literal.type === 'OrderedLiteral'
           ) {
             dictLiteralCandidates.set(onlyPipe.name, literal);
+          }
+        }
+
+        if (node.pipes.length === 1 && onlyPipe?.type === 'Capture') {
+          const block = bareBlockHead(node.head);
+          if (block !== null && blockYieldsNonFunction(block)) {
+            blockCandidates.add(onlyPipe.name);
           }
         }
 
@@ -654,6 +665,8 @@ export function collectFacts(root: ASTNode): AstFacts {
     [...dictLiteralCandidates].filter(([name]) => qualifies(name))
   );
 
+  const blockCapturedVars = new Set([...blockCandidates].filter(qualifies));
+
   const entriesVars = new Set([...entriesCandidates].filter(qualifies));
   for (const [name, body] of entriesBodyCandidates) {
     if (entriesVars.has(name)) entriesBodies.add(body);
@@ -685,6 +698,7 @@ export function collectFacts(root: ASTNode): AstFacts {
       mixedListVars,
       mixedDictVars,
       dictLiteralVars,
+      blockCapturedVars,
       firstClosureCall,
       firstPipeIteration,
       hasDynamicFieldAccess,

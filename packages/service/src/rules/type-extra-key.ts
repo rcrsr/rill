@@ -6,14 +6,14 @@
  *
  * Sites reported, each once at the start of the checking node:
  * - postfix `expr:T` and `expr:?T`
- * - pipe form: a bare `:T` / `:?T`, a typed capture, or an inline closure
+ * - pipe form: a bare `:T` / `:?T`, a typed capture, or an inline function
  *   target whose first parameter is typed. The value is known at the head and
  *   after pass-through steps (a bare assertion or a capture); any other step
  *   makes it unknown.
  * - a typed closure parameter whose dict default carries an unnamed key
  *
  * Silent by design: union members, `list(...)` elements, tuple positions,
- * typed `destruct<>` elements, closure return types, stream chunk and return
+ * typed `destruct<>` elements, function return types, stream chunk and return
  * types, arguments to a named closure call, host data, and `.?field&T`.
  */
 

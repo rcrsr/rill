@@ -12,7 +12,12 @@ import type {
   SourceLocation,
   TypeRef,
 } from '../types.js';
-import { ParseError, TOKEN_TYPES, unnamedParamsRead } from '../types.js';
+import {
+  ParseError,
+  TOKEN_TYPES,
+  UNNAMED_PARAM_NAMES,
+  unnamedParamsRead,
+} from '../types.js';
 import { check, current, makeSpan, peek, previous } from './state.js';
 import { isLiteralStart } from './helpers.js';
 import { parseFnSignature, scriptTypeOpts } from './parser-types.js';
@@ -66,7 +71,7 @@ function validateYieldInClosure(
   if (!isStream) {
     throw new ParseError(
       ERROR_IDS.RILL_P006,
-      "'yield' is only valid inside a stream closure",
+      "'yield' is only valid inside a stream function",
       closureStart
     );
   }
@@ -112,7 +117,7 @@ function inferUnnamedParams(
   fnSpan: ClosureParamNode['span']
 ): ClosureParamNode[] {
   const count = unnamedParamsRead(body);
-  const names = ['$', '@'].slice(0, count);
+  const names = UNNAMED_PARAM_NAMES.slice(0, count);
   return names.map((name) => ({
     type: 'ClosureParam',
     name,

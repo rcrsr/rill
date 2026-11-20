@@ -329,7 +329,7 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
     if (this.closureDepth === 0) {
       throw new ParseError(
         ERROR_IDS.RILL_P006,
-        "'yield' is only valid inside a stream closure",
+        "'yield' is only valid inside a stream function",
         current(this.state).span.start
       );
     }
@@ -480,7 +480,7 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
       if (this.closureDepth === 0) {
         throw new ParseError(
           ERROR_IDS.RILL_P006,
-          "'yield' is only valid inside a stream closure",
+          "'yield' is only valid inside a stream function",
           current(this.state).span.start
         );
       }

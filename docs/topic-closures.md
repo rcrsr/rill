@@ -1,61 +1,128 @@
-# rill Closures
+# rill Functions and Code Blocks
 
-*First-class values that capture their defining scope with late binding and dict integration*
+*Code blocks run where they are written, collection entries hold them, and `fn` makes the function values*
 
-## Expression Delimiters
+## Code Blocks
 
-rill has two expression delimiters with deterministic behavior:
-
-| Delimiter | Semantics | Produces |
-|-----------|-----------|----------|
-| `{ body }` | Deferred (closure creation) | `ScriptCallable` |
-| `( expr )` | Eager (immediate evaluation) | Result value |
-
-**Key distinction:**
-- **Parentheses `( )`** evaluate immediately and return the result
-- **Braces `{ }`** create a closure for later invocation (deferred execution)
-
-### Pipe Target Exception
-
-When `{ }` appears as a pipe target, it creates a closure and **immediately invokes** it:
+A braced body `{ body }` is a code block when nothing in front of it makes it a function. A code block runs where it is written and is never a value.
 
 ```rill
-5 -> { $ + 1 }    # 6 (same observable result as eager evaluation)
+5 -> { $ + 1 }
+# Result: 6
 ```
 
-This is conceptually two steps happening in sequence:
+| Position | Behavior |
+|----------|----------|
+| Pipe target | Runs once with the piped value as `$` |
+| Head of a chain or a statement | Runs once with the enclosing `$` |
+| Alone in parentheses | Runs as a head block does |
+| Construct body (`? !`, `while`, `do`, `guard`, `retry`, `timeout`, `pass`) | Runs as the construct directs |
+| Entry of a collection literal | Held uncalled |
+| Whole argument | Becomes a function |
+
+### Head, Statement, and Paren Blocks
+
+A head block binds its result. `{ 5 } => $x` binds 5, not a function.
+
+```rill
+{
+  5
+} => $x
+$x
+# Result: 5
+```
+
+```rill
+(
+  { 2 * 3 }
+) => $six
+$six
+# Result: 6
+```
+
+A head block reads the enclosing `$`:
+
+```rill
+7 -> {
+  {
+    $ + 1
+  } => $y
+  $y
+}
+# Result: 8
+```
+
+To store a function, put `fn` in front of the block, then call it:
+
+```rill
+fn { 5 } => $f
+$f()
+# Result: 5
+```
+
+### `$` Inside a Code Block
+
+A code block has no parameters. `$` and `$@` resolve lexically to the bindings around it. Reading either where nothing binds it halts RILL-R005.
 
 ```text
-5 -> { $ + 1 }
-     ↓
-Step 1: Create closure with implicit $ parameter
-Step 2: Invoke closure with piped value (5) as argument
-     ↓
-Result: 6
+{
+  $ + 1
+} => $x
+# Error: RILL-R005: undefined variable '$'
 ```
 
-The observable result matches eager evaluation, but the mechanism differs. This matters when understanding error messages or debugging—the closure exists momentarily before invocation.
-
-**Comparison:**
+### Delimiters
 
 | Expression | Mechanism | Result |
 |------------|-----------|--------|
-| `5 -> { $ + 1 }` | Create closure, invoke with 5 | 6 |
-| `5 -> ($ + 1)` | Evaluate expression with $ = 5 | 6 |
-| `{ $ + 1 } => $fn` | Create closure, store it | closure |
-| `($ + 1) => $x` | Error: $ undefined outside pipe | — |
+| `5 -> { $ + 1 }` | Run the block with `$` = 5 | 6 |
+| `5 -> ($ + 1)` | Evaluate with `$` = 5 | 6 |
+| `{ 5 } => $x` | Run the block, bind the result | 5 |
+| `fn { 5 } => $f` | Bind a function | function |
 
-The last row shows the key difference: `( )` requires `$` to already be defined, while `{ }` captures `$` as a parameter for later binding.
+`( )` groups and evaluates. A pipe target block runs at once, with the piped value as `$`.
+
+---
+
+## Block Assertions
+
+`:T` after a block's closing brace asserts the block's result. `:?T` yields whether the result has type `T`. The assertion covers the whole block, so it runs before the next pipe step reads the value.
+
+```rill
+3 -> { $ + 1 }:number -> { $ * 2 }
+# Result: 8
+```
+
+```rill
+3 -> { $ + 1 }:?string
+# Result: false
+```
+
+A conditional branch accepts the assertion and asserts the branch that runs:
+
+```rill
+true ? { 5 }:number ! { 6 }
+# Result: 5
+```
+
+A failed assertion halts with `#TYPE_MISMATCH`:
+
+```text
+3 -> { "text" }:number
+# Error: #TYPE_MISMATCH: Type assertion failed: expected number, got string
+```
+
+A selected held entry asserts on every run, so `dict[a: { 5 }:number]` checks the result each time `a` is selected. The parser reads `:T` and `:?T` after a block on conditional branches, pipe targets, head blocks, parenthesized blocks, and held entries. Loop, `guard`, `retry`, `pass`, and `timeout` bodies do not take it.
 
 ---
 
 ## Function Syntax
 
 ```text
-# Bare block (implicit $ parameter when the body reads $)
-{ body }
+# Bare function literal (unnamed parameters for each of $ and $@ the body reads)
+fn { body }
 
-# Zero-parameter function (no parameters, auto-invokes on dict access)
+# Zero-parameter function (no parameters)
 fn() { body }
 
 # Unnamed parameters (bind $ and $@, at most two)
@@ -78,7 +145,7 @@ fn():stream(T):R { body }           # chunk type T, resolution type R
 
 A function literal is `fn`, an optional parameter list, an optional `:outer` type, and a block on the same line. `fn { body }` takes the unnamed parameters the body reads: none for a body that reads neither `$` nor `$@`, one for `$`, two for `$@`.
 
-The pipe-delimited function literal and the `closure` type name are rejected with RILL-P012, which names the `fn` form.
+The pipe-delimited function literal and the removed `closure` type name are rejected with RILL-P012, which names the `fn` form.
 
 ---
 
@@ -142,25 +209,11 @@ The `list`, `dict`, `tuple`, and `ordered` types accept type arguments for deep 
 # Error: Parameter type mismatch: $ expects list(number), got list
 ```
 
-### Bare Blocks as Pipe Targets
-
-A bare block `{ body }` as a pipe target is a code block: it runs at once with the pipe value as `$`. It has no parameters and is never a function value. These two pipes yield the same result, but only the second pipes into a function:
-
-```rill
-5 -> { $ * 2 }
-# Result: 10
-```
-
-```rill
-5 -> fn(any):any { $ * 2 }
-# Result: 10
-```
-
 ### `$` Binding Rules
 
 | Form | `$` in body | Behavior on violation |
 |------|-------------|----------------------|
-| `{ body }` (bare block) | Piped input, type `any` | N/A: no type check |
+| `fn { body }` (bare literal) | Piped input, type `any` | N/A: no type check |
 | `fn(type) { body }` (unnamed) | Piped input, type-checked | Type mismatch halt |
 | `fn(x: type) { body }` (named) | Hard error | RILL-R005 |
 | `fn() { body }` (zero-param) | Rejected where written | RILL-P029 |
@@ -201,7 +254,9 @@ $f(7)
 
 | Receiver Kind | `.^type.inner` |
 |---|---|
-| Bare block `{ $ * 2 }` | `tuple[any]` |
+| `fn { 5 }` | `ordered[]` |
+| `fn { $ * 2 }` | `tuple[any]` |
+| `fn { $@ + $ }` | `tuple[any, any]` |
 | Unnamed `fn(string) { ... }` | `tuple[string]` |
 | Two unnamed `fn(number, number) { ... }` | `tuple[number, number]` |
 | Named `fn(x: string) { ... }` | `ordered[x: string]` |
@@ -222,7 +277,7 @@ $fn.^type.inner
 ```
 
 ```rill
-{ $ * 2 } => $fn
+fn { $ * 2 } => $fn
 $fn.^type.inner
 # Result: tuple[any]
 ```
@@ -252,122 +307,145 @@ $fn.^type.outer == number
 ```
 
 ```rill
-{ $ } => $fn
+fn { $ } => $fn
 $fn.^type.outer
 # Result: any
 ```
 
 ---
 
-## Block-Closures
+## Blocks as Arguments
 
-Block syntax `{ body }` creates a closure with an implicit `$` parameter. This enables deferred execution and reusable transformations.
+A block that is a whole argument converts to a function. The function takes the unnamed parameters the body reads.
 
-### Basic Block-Closure
-
-```rill
-{ $ + 1 } => $increment
-
-5 -> $increment       # 6
-10 -> $increment      # 11
-$increment(7)         # 8 (direct call also works)
-```
-
-The block `{ $ + 1 }` produces a closure. When invoked, `$` is bound to the argument.
-
-### Block-Closures vs Zero-Param Closures
-
-| Form | Params | `isProperty` | Behavior |
-|------|--------|-------------|----------|
-| `{ body }` (block-closure) | `[{ name: "$" }]` | `false` | Requires argument |
-| `fn() { body }` (zero-param) | `[]` | `true` | Auto-invokes on dict access |
+| Body reads | Function type |
+|------------|---------------|
+| Neither `$` nor `$@` | `fn():any` |
+| `$` only | `fn(any):any` |
+| `$@`, with or without `$` | `fn(any, any):any` |
 
 ```rill
-{ $ * 2 } => $double
-fn() { 42 } => $constant
-
-5 -> $double          # 10 (requires argument)
-$constant()           # 42 (no argument needed)
-
-# In dicts
-[
-  double: { $ * 2 },
-  constant: fn() { 42 }
-] => $obj
-
-$obj.double(5)        # 10 (explicit call required)
-$obj.constant         # 42 (auto-invoked on access)
+[1, 2, 3] -> seq({ $ * 2 })
+# Result: list[2, 4, 6]
 ```
-
-Piping a value into a zero-parameter closure halts RILL-R045; call it with `$constant()`.
-
-### Type Checking
-
-Block-closures check type at runtime:
 
 ```rill
-{ $ + 1 } => $fn
-
-$fn.^type.name == "fn"  # true
-$fn(5)                # 6
-$fn("text")           # Error: RILL-R002 Arithmetic requires number, got string
+[1, 2, 3] -> fold(0, { $@ + $ })
+# Result: 6
 ```
 
-### Multi-Statement Block-Closures
-
-Block-closures can contain multiple statements:
+An assertion on an argument block sets the function's outer, and each call asserts its result:
 
 ```rill
-{
-  ($ * 2) => $doubled
-  "{$}: doubled is {$doubled}"
-} => $describe
-
-5 -> $describe        # "5: doubled is 10"
+[1, 2] -> seq({ $ + 1 }:number)
+# Result: list[2, 3]
 ```
 
-### Collection Operations
-
-Block-closures integrate with collection operators:
+A check on an argument block makes a function that returns `bool`:
 
 ```rill
-[1, 2, 3] -> fan({ $ * 2 })                    # list[2, 4, 6]
-[1, 2, 3] -> filter({ $ > 1 })                 # list[2, 3]
-[1, 2, 3] -> fold(0, { $@ + $ })               # 6 ($@ is accumulator)
+list[1, "a"] -> seq({ $ }:?number)
+# Result: list[true, false]
 ```
 
-### Eager vs Deferred Evaluation
+Operators take exact arity. `seq`, `fan`, `filter`, and `sort` call their function with one argument. `fold` and `acc` call it with the element and the accumulator.
 
-The choice between `( )` and `{ }` determines when code executes:
+```text
+[1, 2] -> seq({ 5 })
+# Error: RILL-R045: function takes no argument
 
-```rill
-# Eager: parentheses evaluate immediately
-5 -> ($ + 1) => $result
-$result                # 6 (number, already computed)
-
-# Deferred: braces create closure
-{ $ + 1 } => $addOne
-$addOne.^type.name == "fn"  # true
-
-# Practical difference
-(5 + 1) => $six        # 6 (immediate)
-{ $ + 1 } => $fn       # closure (deferred)
-
-$six                   # 6
-10 -> $fn              # 11
-
-# Same closure, reused with different inputs
-5 -> $addOne           # 6
-10 -> $addOne          # 11
+[1, 2] -> seq({ $@ })
+# Error: RILL-R044: function requires a second argument
 ```
 
-Use `( )` when you want the result now. Use `{ }` when you want reusable logic.
+`seq`, `fan`, `filter`, `sort`, `start_when`, `stop_when`, `iterate`, and `chain` pass one argument. A `fold` or `acc` function with fewer than two parameters halts RILL-R045, and one with a third required parameter halts RILL-R044. For the operators themselves, see [Collections](topic-collections.md).
+
+A closure annotation on an argument block attaches to the function it becomes. On a head block it is ignored. An annotation on a held entry attaches to the held block. See [Closure Annotations](topic-closure-annotations.md).
 
 ---
 
-## Stream Closures
+## Held Entries
 
-A stream closure emits a sequence of chunks and then resolves with a final value. Declare a stream closure by appending `:stream(T):R` as the return type annotation, where `T` is the chunk type and `R` is the resolution type.
+A code block written as a list element, tuple element, dict value, or ordered value is held uncalled. It does not convert to a function.
+
+Selecting the entry runs the block. Each selection runs it again.
+
+### Dispatch
+
+`sel -> $c` runs a held block with `$` bound to the selector:
+
+```rill
+"a" -> dict[a: { "got {$}" }]
+# Result: "got a"
+```
+
+```rill
+0 -> list[{ $ + 10 }]
+# Result: 10
+```
+
+A path step in a hierarchical dispatch that selects a held block runs it with the step key as `$`:
+
+```rill
+list["a", "x"] -> dict[a: { dict[x: 1] }]
+# Result: 1
+```
+
+### Access
+
+`$c.name`, `$c.$k`, `$c[sel]`, `.at(i)`, and a `destruct<>` position each select one entry, so they run a held block with the enclosing `$`. `$@` inside a held block is lexical, so it reads the enclosing accumulator:
+
+```rill
+5 -> {
+  dict[a: { $ + 1 }] => $d
+  $d.a
+}
+# Result: 6
+```
+
+```rill
+[1, 2, 3] -> fold(0, {
+  dict[a: { $@ + $ }] => $d
+  $d.a
+})
+# Result: 6
+```
+
+Written as a pipe target, access binds the piped value as `$`:
+
+```rill
+dict[n: 2, double: { $.n * 2 }] => $d
+$d -> $d.double
+# Result: 4
+```
+
+### Reads That Do Not Select
+
+A read that does not select one entry halts `#TYPE_MISMATCH` naming the entry when it reaches a held block, so a held block never escapes as a value. These reads are iteration, `.values`, `.entries`, `.first`, `.head`, `.tail`, `.reverse`, `.join`, `.has`, `.has_any`, `.has_all`, spread, `slice<>`, `take`, `skip`, `chain`, equality, interpolation, conversion (`-> list(any)`, `-> string`), and `log`. `enumerate` reads entries too, so a list or dict that holds a block halts `#TYPE_MISMATCH` there. `.keys` and `.len` do not read entries. `.^type` and a type lock see the entry as `fn()`, even for `{ 1 }:number`, and a host receives a returned entry as the signature `fn():any` without running it. Passing a collection that holds a block to a host function halts `#TYPE_MISMATCH` naming the entry.
+
+```rill
+guard { list[{ 5 }] -> seq({ $ }) } => $r
+$r.!code
+# Result: #TYPE_MISMATCH
+```
+
+### Function Entries
+
+A function written with `fn` is a value. Selecting it returns it uncalled; call the result with parentheses. `$c.name(args)` selects the entry, then calls it.
+
+```rill
+dict[inc: fn(n) { $n + 1 }] => $d
+$d.inc(4)
+# Result: 5
+```
+
+`x.name` without parentheses is a selection and does not call.
+
+---
+
+## Stream Functions
+
+A stream function emits a sequence of chunks and then resolves with a final value. Declare a stream function by appending `:stream(T):R` as the return type annotation, where `T` is the chunk type and `R` is the resolution type.
 
 ### Annotation Syntax
 
@@ -379,11 +457,11 @@ fn(string):stream(string):number { body }
 fn():stream() { body }
 ```
 
-The annotation `:stream(T):R` on a closure body changes invocation semantics. Calling the closure returns a stream value, not the body result directly.
+The annotation `:stream(T):R` on a function body changes invocation semantics. Calling the function returns a stream value, not the body result directly.
 
 ### `yield` and `return`
 
-Inside a stream closure body, two keywords control output:
+Inside a stream function body, two keywords control output:
 
 | Keyword | Effect |
 |---------|--------|
@@ -391,7 +469,7 @@ Inside a stream closure body, two keywords control output:
 | `return` | Sets the stream's resolution value and closes the stream |
 
 ```text
-# Stream closure emitting three string chunks and resolving with a count
+# Stream function emitting three string chunks and resolving with a count
 fn():stream(string):number {
   "first" -> yield
   "second" -> yield
@@ -399,16 +477,16 @@ fn():stream(string):number {
   return 3
 } => $producer
 
-$producer() => $s       # calling the closure returns a stream
+$producer() => $s       # calling the function returns a stream
 $s -> seq({ $ })        # ["first", "second", "third"]
 $s()                    # 3 (resolution value)
 ```
 
-`yield` is the inverse of `$@` (the fold accumulator). `$@` consumes values from outside into a closure; `yield` produces values outward from a closure body.
+`yield` is the inverse of `$@` (the fold accumulator). `$@` consumes values from outside into a function; `yield` produces values outward from a function body.
 
 ### `yield` Scoping Rules
 
-`yield` is lexically scoped to the stream closure body. It is valid inside inline blocks and collection operators within that body. It is not valid inside a stored closure defined within the stream body.
+`yield` is lexically scoped to the stream function body. It is valid inside inline blocks and collection operators within that body. It is not valid inside a stored function defined within the stream body.
 
 ```text
 # Valid: yield inside inline collection operator block
@@ -417,16 +495,16 @@ fn():stream(number):number {
   return 3
 }
 
-# Invalid: yield inside a stored closure
+# Invalid: yield inside a stored function
 fn():stream(number):number {
-  { $ -> yield } => $fn   # Error: yield not valid in stored closure
+  fn { $ -> yield } => $fn   # Error: yield not valid in stored function
   $fn(1)
 }
 ```
 
-### Calling a Stream Closure
+### Calling a Stream Function
 
-Calling a stream closure returns a stream value, not the body result. The stream then accepts collection operators and the resolution call.
+Calling a stream function returns a stream value, not the body result. The stream then accepts collection operators and the resolution call.
 
 ```text
 $producer() => $s       # $s is a stream, not the body's return value
@@ -436,13 +514,13 @@ $s()                    # get resolution value after stream closes
 
 ### `yield` as Inverse of `$@`
 
-`$@` pulls a value inward (the fold accumulator). `yield` pushes a value outward (emitting a chunk). This symmetry makes stream closures composable with fold:
+`$@` pulls a value inward (the fold accumulator). `yield` pushes a value outward (emitting a chunk). This symmetry makes stream functions composable with fold:
 
 ```text
 # fold accumulates inward with $@
 [1, 2, 3] -> fold(0, { $@ + $ })    # 6
 
-# stream closure emits outward with yield
+# stream function emits outward with yield
 fn():stream(number):number {
   1 -> yield
   2 -> yield
@@ -455,9 +533,153 @@ For stream type signatures and chunk semantics, see [Types](topic-types.md). For
 
 ---
 
+## Dict-Stored Functions
+
+A function stored in a dict does not receive the dict automatically. Selecting it returns it uncalled. A function that needs its dict declares a parameter for it, and the caller passes the dict.
+
+### Calling Stored Functions
+
+```rill
+dict[
+  name: "toolkit",
+  label: fn() { "toolkit" }
+] => $obj
+
+$obj.label()
+# Result: "toolkit"
+```
+
+### Reading Sibling Fields
+
+Declare a parameter for the dict and pipe the dict in:
+
+```rill
+dict[
+  name: "toolkit",
+  count: 3,
+  summary: fn(d) { "{$d.name}: {$d.count} items" }
+] => $obj
+
+$obj -> $obj.summary
+# Result: "toolkit: 3 items"
+```
+
+```rill
+dict[
+  width: 10,
+  height: 5,
+  area: fn(d) { $d.width * $d.height }
+] => $rect
+
+$rect -> $rect.area
+# Result: 50
+```
+
+### Parameterized Dict Functions
+
+Add further parameters after the dict parameter:
+
+```rill
+dict[
+  name: "tools",
+  greet: fn(d, x) { "{$d.name} says: {$x}" }
+] => $obj
+
+$obj.greet($obj, "hello")
+# Result: "tools says: hello"
+```
+
+### Reusable Functions Across Dicts
+
+One function serves every dict that has the fields it reads:
+
+```rill
+fn(d) { "{$d.name}: {$d.count} items" } => $describer
+
+dict[name: "tools", count: 3, str: $describer] => $obj1
+dict[name: "actions", count: 5, str: $describer] => $obj2
+
+tuple[$obj1 -> $obj1.str, $obj2 -> $obj2.str]
+# Result: tuple["tools: 3 items", "actions: 5 items"]
+```
+
+### Calling Sibling Functions
+
+Pass the dict along to reach sibling functions:
+
+```rill
+dict[
+  double: fn(n) { $n * 2 },
+  quad: fn(d, n) { $d.double($d.double($n)) }
+] => $math
+
+$math.quad($math, 3)
+# Result: 12
+```
+
+---
+
+## List-Stored Functions
+
+Functions in lists keep their defining scope. Select by index, then call:
+
+```rill
+list[
+  fn(x) { $x + 1 },
+  fn(x) { $x * 2 },
+  fn(x) { $x * $x }
+] => $transforms
+
+list[$transforms[0](5), $transforms[1](5), $transforms[2](5)]
+# Result: list[6, 10, 25]
+```
+
+### Chaining List Functions
+
+```rill
+fn(n) { $n + 1 } => $inc
+fn(n) { $n * 2 } => $double
+
+5 -> chain([$inc, $double, $inc])
+# Result: 13
+```
+
+---
+
+## Inline Functions
+
+Functions can appear inline in expressions. A named-parameter function in `fold` receives the element, then the accumulator:
+
+```rill
+[1, 2, 3] -> fan(fn(x) { $x * 2 })
+# Result: list[2, 4, 6]
+```
+
+```rill
+[1, 2, 3] -> filter(fn(x) { $x > 1 })
+# Result: list[2, 3]
+```
+
+```rill
+[1, 2, 3] -> fold(0, fn(x, a) { $a + $x })
+# Result: 6
+```
+
+### Inline with Block Bodies
+
+```rill
+[1, 2, 3] -> fan(fn(x) {
+  ($x * 10) => $scaled
+  "{$x} -> {$scaled}"
+})
+# Result: list["1 -> 10", "2 -> 20", "3 -> 30"]
+```
+
+---
+
 ## Late Binding
 
-Closures resolve captured variables at **call time**, not definition time. This enables recursive patterns and forward references.
+Functions resolve captured variables at **call time**, not definition time. This enables recursive patterns and forward references.
 
 ### Basic Example
 
@@ -468,16 +690,16 @@ fn() { $x + 5 } => $fn
 $fn()    # 25 (sees current $x=20, not $x=10 at definition)
 ```
 
-### Recursive Closures
+### Recursive Functions
 
 ```rill
 fn(n) { ($n < 1) ? 1 ! ($n * $factorial($n - 1)) } => $factorial
 $factorial(5)    # 120
 ```
 
-The closure references `$factorial` before it exists. Late binding resolves `$factorial` when the closure executes.
+The function references `$factorial` before it exists. Late binding resolves `$factorial` when the function executes.
 
-Recursion is bounded. A chain of nested closure calls deeper than `maxCallDepth` (default 1000) halts with `RILL-R010`. Inside `fan`, `filter`, and `sort`, each concurrent body counts depth from the call that started it. Separately, calls in flight at once across all concurrent bodies are capped at `maxCallDepth` + 10,000 (11,000 by default). Recursion that fans out at each level halts there with `Calls in flight exceeded 11000` instead of exhausting host memory. Both halts are fatal. To run a wider body that itself calls closures or host functions, pass `concurrency`.
+Recursion is bounded. A chain of nested function calls deeper than `maxCallDepth` (default 1000) halts with `RILL-R010`. Inside `fan`, `filter`, and `sort`, each concurrent body counts depth from the call that started it. Separately, calls in flight at once across all concurrent bodies are capped at `maxCallDepth` + 10,000 (11,000 by default). Recursion that fans out at each level halts there with `Calls in flight exceeded 11000` instead of exhausting host memory. Both halts are fatal. To run a wider body that itself calls functions or host functions, pass `concurrency`.
 
 ### Mutual Recursion
 
@@ -495,7 +717,7 @@ $even(4)    # true
   fn() { $helper(2) }
 ] => $handlers
 
-fn(n) { $n * 10 } => $helper    # defined after closures
+fn(n) { $n * 10 } => $helper    # defined after the functions
 
 $handlers[0]()    # 10
 $handlers[1]()    # 20
@@ -503,7 +725,7 @@ $handlers[1]()    # 20
 
 ### Variable Mutation Visibility
 
-Closures see the current value of captured variables:
+Functions see the current value of captured variables:
 
 ```rill
 0 => $counter
@@ -517,156 +739,16 @@ fn() { $counter + 1 } => $getPlus1
 
 ---
 
-## Dict-Stored Functions
+## Nested Functions
 
-A function stored in a dict does not receive the dict automatically. A function that needs its dict declares a parameter for it, and the caller pipes the dict in.
-
-### Zero-Arg Functions Auto-Invoke
-
-A `fn()` stored in a dict runs on field access:
-
-```rill
-[
-  name: "toolkit",
-  count: 3,
-  label: fn() { "toolkit" }
-] => $obj
-
-$obj.label
-# Result: "toolkit"
-```
-
-### Reading Sibling Fields
-
-Declare a parameter for the dict and pipe the dict in:
-
-```rill
-[
-  name: "toolkit",
-  count: 3,
-  summary: fn(d) { "{$d.name}: {$d.count} items" }
-] => $obj
-
-$obj -> $obj.summary
-# Result: "toolkit: 3 items"
-```
-
-```rill
-[
-  width: 10,
-  height: 5,
-  area: fn(d) { $d.width * $d.height }
-] => $rect
-
-$rect -> $rect.area
-# Result: 50
-```
-
-### Parameterized Dict Functions
-
-Add further parameters after the dict parameter:
-
-```rill
-[
-  name: "tools",
-  greet: fn(d, x) { "{$d.name} says: {$x}" }
-] => $obj
-
-$obj.greet($obj, "hello")
-# Result: "tools says: hello"
-```
-
-### Reusable Functions Across Dicts
-
-One function serves every dict that has the fields it reads:
-
-```rill
-fn(d) { "{$d.name}: {$d.count} items" } => $describer
-
-[name: "tools", count: 3, str: $describer] => $obj1
-[name: "actions", count: 5, str: $describer] => $obj2
-
-tuple[$obj1 -> $obj1.str, $obj2 -> $obj2.str]
-# Result: tuple["tools: 3 items", "actions: 5 items"]
-```
-
-### Calling Sibling Functions
-
-Pass the dict along to reach sibling functions:
-
-```rill
-[
-  double: fn(n) { $n * 2 },
-  quad: fn(d, n) { $d.double($d.double($n)) }
-] => $math
-
-$math.quad($math, 3)
-# Result: 12
-```
-
----
-
-## List-Stored Closures
-
-Closures in lists maintain their defining scope. Invoke via bracket access:
-
-```rill
-[
-  fn(x) { $x + 1 },
-  fn(x) { $x * 2 },
-  fn(x) { $x * $x }
-] => $transforms
-
-$transforms[0](5)    # 6
-$transforms[1](5)    # 10
-$transforms[2](5)    # 25
-```
-
-### Chaining List Closures
-
-```rill
-fn(n) { $n + 1 } => $inc
-fn(n) { $n * 2 } => $double
-
-5 -> chain([$inc, $double, $inc])    # 13: (5+1)*2+1
-```
-
----
-
-## Inline Closures
-
-Closures can appear inline in expressions:
-
-```rill
-[1, 2, 3] -> fan(fn(x) { $x * 2 })    # list[2, 4, 6]
-
-[1, 2, 3] -> filter(fn(x) { $x > 1 })    # list[2, 3]
-
-[1, 2, 3] -> fold(0, fn(x) { $@ + $x })    # 6
-```
-
-### Inline with Block Bodies
-
-```rill
-[1, 2, 3] -> fan(fn(x) {
-  ($x * 10) => $scaled
-  "{$x} -> {$scaled}"
-})
-# ["1 -> 10", "2 -> 20", "3 -> 30"]
-```
-
----
-
-## Nested Closures
-
-Closures can contain closures. Each captures its defining scope:
+Functions can contain functions. Each captures its defining scope:
 
 ```rill
 fn(n) { fn() { $n } } => $makeGetter
 $makeGetter(42)()    # 42
 ```
 
-### Closure Factory Pattern
+### Function Factory Pattern
 
 ```rill
 fn(multiplier) {
@@ -686,48 +768,50 @@ $tenX(5)      # 50
 1 => $x
 fn() { fn() { $x } } => $outer
 5 => $x
-$outer()()    # 5 (inner closure sees updated $x)
+$outer()()    # 5 (inner function sees updated $x)
 ```
 
 ---
 
 ## Parameter Shadowing
 
-Closure parameters shadow captured variables of the same name:
+Function parameters shadow captured variables of the same name:
 
 ```rill
 100 => $x
 fn(x) { $x * 2 } => $double
-$double(5)    # 10 (parameter $x=5 shadows captured $x=100)
+$double(5)
+# Result: 10
 ```
 
 ---
 
 ## Scope Isolation
 
-### Loop Closures
+### Loop Functions
 
 Each loop iteration creates a new child scope. Capture variables explicitly to preserve per-iteration values:
 
 ```rill
-# Capture $ into named variable for each iteration
 [1, 2, 3] -> seq({
   $ => $item
   fn() { $item }
-}) => $closures
+}) => $fns
 
-[$closures[0](), $closures[1](), $closures[2]()]    # list[1, 2, 3]
+list[$fns[0](), $fns[1](), $fns[2]()]
+# Result: list[1, 2, 3]
 ```
 
-**Note:** `$` (pipeValue) is a context property, not a variable. Use explicit capture for closure access.
+`$` is a context property, not a variable. Capture it into a named variable for a function to read.
 
-### Conditional Branch Closures
+### Conditional Branch Functions
 
 ```rill
 10 => $x
 true ? { fn() { $x } } ! { fn() { 0 } } => $fn
 20 => $x
-$fn()    # 20 (late binding sees updated $x)
+$fn()
+# Result: 20
 ```
 
 ---
@@ -738,52 +822,51 @@ $fn()    # 20 (late binding sees updated $x)
 
 ```rill
 fn(x) { $x + 1 } => $inc
-$inc(5)    # 6
-
-{ $ + 1 } => $inc
-$inc(5)    # 6 (block-closure)
+$inc(5)
+# Result: 6
 ```
 
 ### Pipe Call
 
 ```rill
-fn(x) { $x + 1 } => $inc
-5 -> $inc()    # 6
-
-{ $ + 1 } => $inc
-5 -> $inc      # 6 (block-closure, no parens needed)
+fn { $ + 1 } => $inc
+5 -> $inc
+# Result: 6
 ```
 
-Block-closures work seamlessly with pipe syntax since `$` receives the piped value.
+A function with an unnamed parameter reads the piped value as `$`. A named-parameter function takes the pipe as its first argument with `5 -> $inc()`.
 
 ### Postfix Invocation
 
-Call closures from bracket access or expressions:
+Call functions from index selection or expressions:
 
 ```rill
-[fn(x) { $x * 2 }] => $fns
-$fns[0](5)    # 10
+list[fn(x) { $x * 2 }] => $fns
+$fns[0](5)
+# Result: 10
+```
 
-[{ $ * 2 }] => $fns
-$fns[0](5)    # 10 (block-closure)
-
+```rill
 fn() { fn(n) { $n * 2 } } => $factory
-$factory()(5)    # 10 (chained invocation)
+$factory()(5)
+# Result: 10
 ```
 
 ### Method Access After Bracket (Requires Grouping)
 
 ```rill
-["hello", "world"] => $list
-
-# Use grouping to call method on bracket result
-($list[0]).upper    # "HELLO"
-
-# Or use pipe syntax
-$list[0] -> .upper    # "HELLO"
+list["hello", "world"] => $list
+($list[0]).upper
+# Result: "HELLO"
 ```
 
-Note: `$[0].upper` parses `.upper` as field access on `$list`, not as a method call on the element. This throws an error since lists don't have an `upper` field.
+```rill
+list["hello", "world"] => $list
+$list[0] -> .upper
+# Result: "HELLO"
+```
+
+`$list[0].upper` parses `.upper` as field access on the element, not as a method call.
 
 ---
 
@@ -791,12 +874,12 @@ Note: `$[0].upper` parses `.upper` as field access on `$list`, not as a method c
 
 ### Non-Producing Body (RILL-R043)
 
-A closure body must produce a value. Invoking a closure with an empty body (or a body containing only comments) raises RILL-R043 at invocation time:
+A function body must produce a value. Invoking a function with an empty body (or a body containing only comments) raises RILL-R043 at invocation time:
 
 ```text
 fn(x: number) { } => $fn
 $fn(5)
-# Error: RILL-R043: Closure body produced no value
+# Error: RILL-R043: Function body produced no value
 ```
 
 A script with no statements (only comments) also raises RILL-R043 at execution time:
@@ -805,8 +888,6 @@ A script with no statements (only comments) also raises RILL-R043 at execution t
 # only a comment — no expression produces a value
 # Error: RILL-R043: Script body produced no value
 ```
-
-RILL-R043 replaces the former behavior where an empty script raised RILL-R005 ("Undefined variable") because `$` was never bound.
 
 ### Undefined Variables
 
@@ -819,40 +900,29 @@ $fn()    # Error: Undefined variable: $undefined
 
 ### Invoking Non-Callable
 
-```rill
-[1, 2, 3] => $list
-$[0]()    # Error: Cannot invoke non-callable value (got number)
+```text
+list[1, 2, 3] => $list
+$list[0]()    # Error: Cannot invoke non-callable value (got number)
 ```
 
 ### Type Errors
 
-```rill
+```text
 fn(x: string) { $x } => $fn
 $fn(42)    # Error: Parameter type mismatch: x expects string, got number
 ```
 
 ---
 
-## Implementation Notes
+## Scope Chain and Cost
 
-### Scope Chain
+A function stores a reference to its defining scope. At invocation:
 
-Closures store a reference to their defining scope (`definingScope`). At invocation:
-1. A child context is created with `definingScope` as parent
-2. Parameters are bound in the child context
-3. Variable lookups traverse: local → definingScope → parent chain
+1. A child context is created with the defining scope as parent.
+2. Parameters are bound in the child context.
+3. Variable lookups traverse local, defining scope, then parent chain.
 
-### Memory Considerations
-
-- Closures hold references to their defining scope
-- Scopes form a tree structure (no circular references)
-- Scopes remain live while referenced by closures
-
-### Performance
-
-- Variable lookup traverses the scope chain at each access
-- No caching (ensures mutation visibility)
-- Closure creation is lightweight (stores reference, not copy)
+Scopes form a tree with no circular references, and they stay live while a function references them. Lookup traverses the chain at each access with no caching, which keeps mutation visible.
 
 ---
 
@@ -862,5 +932,5 @@ Closures store a reference to their defining scope (`definingScope`). At invocat
 |----------|-------------|
 | [Closure Annotations](topic-closure-annotations.md) | Parameter metadata, annotations, and reflection |
 | [Reference](ref-language.md) | Language specification |
-| [Collections](topic-collections.md) | `seq`, `fan`, `filter`, `fold`, `acc` with closures |
+| [Collections](topic-collections.md) | `seq`, `fan`, `filter`, `fold`, `acc` with function arguments |
 | [Guide](guide-getting-started.md) | Getting started tutorial |

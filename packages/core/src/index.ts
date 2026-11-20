@@ -457,4 +457,11 @@ export { VALID_TYPE_NAMES } from './constants.js';
 // AST TRAVERSAL
 // ============================================================
 
-export { nodeAtPosition, walkAst } from './ast-walk.js';
+export {
+  codeBlockShape,
+  isUnnamedParamName,
+  nodeAtPosition,
+  unnamedParamsRead,
+  walkAst,
+} from './ast-walk.js';
+export type { CodeBlockShape } from './ast-walk.js';

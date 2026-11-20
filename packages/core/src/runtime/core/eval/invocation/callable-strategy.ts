@@ -161,7 +161,8 @@ export class CallableInvocationStrategy {
     // construction would leave the frame pointing at a stale sourceId.
     const ctx = this.getCtx();
     const frameName =
-      functionName ?? (callable.kind === 'script' ? '<closure>' : '<callable>');
+      functionName ??
+      (callable.kind === 'script' ? '<function>' : '<callable>');
 
     const span: SourceSpan = { start: location, end: location };
     const frame: CallFrame = {

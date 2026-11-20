@@ -399,7 +399,7 @@ $loop(5)`;
       });
 
       it('bare block followed by newline then parenthesized expression stays two statements', async () => {
-        const script = `{ $ * 2 }\n(5)`;
+        const script = `{ 2 * 3 }\n(5)`;
         const ast = parse(script);
         expect(ast.statements.length).toBe(2);
         expect(await run(script)).toBe(5);

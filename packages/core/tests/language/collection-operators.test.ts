@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Collection Operators — new callable syntax
  *
@@ -22,6 +23,7 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import { expectHalt, expectRuntimeError } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
 // Helper: host function returning a RillStream over provided values
@@ -99,11 +101,12 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       expect(await run(script)).toEqual([10, 20]);
     });
 
-    it('AC-8: fold with single named-param closure referencing $@ accumulator', async () => {
-      // Named param fn(item) binds element; $@ binds accumulator from fold context.
-      expect(
-        await run('list[1, 2, 3] -> fold(0, fn(item) { $@ + $item })')
-      ).toBe(6);
+    it('AC-8: fold with single named-param function halts RILL-R045', async () => {
+      // fold passes element and accumulator; a one-param function takes an excess argument.
+      await expectRuntimeError(
+        () => run('list[1, 2, 3] -> fold(0, fn(item) { $@ + $item })'),
+        { code: 'RILL-R045' }
+      );
     });
 
     it('AC-9 (acc): two-type anonymous closure parses and binds in acc', async () => {
@@ -307,21 +310,21 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     it('AC-18/EC-1 (seq): non-callable body halts with catchable #TYPE_MISMATCH', async () => {
       await expectHalt(() => run('list[1] -> seq(42)'), {
         code: 'TYPE_MISMATCH',
-        messagePattern: /seq: body must be a closure/,
+        messagePattern: /seq: body must be a function/,
       });
     });
 
     it('EC-1 (fold): non-callable body halts with catchable #TYPE_MISMATCH', async () => {
       await expectHalt(() => run('list[1] -> fold(0, 42)'), {
         code: 'TYPE_MISMATCH',
-        messagePattern: /fold: body must be a closure/,
+        messagePattern: /fold: body must be a function/,
       });
     });
 
     it('EC-1 (filter): non-callable body halts with catchable #TYPE_MISMATCH', async () => {
       await expectHalt(() => run('list[1] -> filter(42)'), {
         code: 'TYPE_MISMATCH',
-        messagePattern: /filter: body must be a closure/,
+        messagePattern: /filter: body must be a function/,
       });
     });
 
@@ -345,10 +348,9 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       );
     });
 
-    it('AC-21/EC-3: seq body references $@ raises undefined-variable error', async () => {
-      await expectHalt(() => run('list[1, 2] -> seq({ $@ + 1 })'), {
-        code: 'RILL_R005',
-        hostErrorId: 'RILL-R005',
+    it('AC-21/EC-3: seq body references $@ halts with a missing-argument error', async () => {
+      await expectRuntimeError(() => run('list[1, 2] -> seq({ $@ + 1 })'), {
+        code: 'RILL-R044',
       });
     });
 
@@ -507,15 +509,16 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
   // ── Context Isolation ─────────────────────────────────────────────────────
 
   describe('Context Isolation', () => {
-    it('seq nested inside acc reads the outer $@ accumulator', async () => {
-      // seq binds no @ of its own, so $@ in its body resolves lexically to
-      // the enclosing acc accumulator (5 on the first and only iteration).
+    it('seq nested inside acc runs independently of the outer accumulator', async () => {
+      // acc passes element and accumulator to its block; the inner seq
+      // passes only its own element.
       const script = `
         list[1] -> acc(5, {
-          list[10, 20] -> seq({ $@ + $ })
+          $@ + $
+          list[10, 20] -> seq({ $ * 2 })
         })
       `;
-      expect(await run(script)).toEqual([[15, 25]]);
+      expect(await run(script)).toEqual([[20, 40]]);
     });
 
     it('seq nested inside acc can still access $ (the current seq element)', async () => {
@@ -523,6 +526,8 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       // The inner seq should double its own elements independently per outer iteration.
       const script = `
         list[1, 2] -> acc(list[], {
+          $@ -> .len
+          $
           list[10, 20] -> seq({ $ * 2 })
         })
       `;
@@ -1051,9 +1056,11 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     });
 
     it('AC-ERR-8: start_when predicate returning non-bool raises #TYPE_MISMATCH', async () => {
-      await expectHalt(() => run('list[1, 2, 3] -> start_when({ "string" })'), {
-        code: 'TYPE_MISMATCH',
-      });
+      await expectHalt(
+        () =>
+          run('list[1, 2, 3] -> start_when({ $ -> .eq(1) ? "string" ! "no" })'),
+        { code: 'TYPE_MISMATCH' }
+      );
     });
 
     it('AC-ERR-11: start_when(42) with non-callable predicate raises RILL-R040', async () => {
@@ -1071,9 +1078,12 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     });
 
     it('AC-ERR-9: stop_when predicate returning non-bool raises #TYPE_MISMATCH', async () => {
-      await expectHalt(() => run('list[1, 2, 3] -> stop_when({ 42 })'), {
-        code: 'TYPE_MISMATCH',
-      });
+      await expectHalt(
+        () => run('list[1, 2, 3] -> stop_when({ $ -> .eq(1) ? 42 ! 0 })'),
+        {
+          code: 'TYPE_MISMATCH',
+        }
+      );
     });
   });
 
@@ -1170,5 +1180,115 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     // EC-19: "list input to batch with idle_flush raises #INVALID_INPUT".
     // batch accepts list input regardless of idle_flush; this error contract
     // does not apply to the current synchronous implementation.
+  });
+
+  // ── fold and acc call arity ──────────────────────────────────────────────
+
+  describe('fold and acc call arity', () => {
+    for (const op of ['fold', 'acc']) {
+      rule('fold.arity').it(
+        `${op} with a one-param named function halts RILL-R045`,
+        async () => {
+          await expectRuntimeError(
+            () => run(`list[1, 2] -> ${op}(0, fn(x) { $x })`),
+            { code: 'RILL-R045' }
+          );
+        }
+      );
+
+      rule('fold.arity').it(
+        `${op} with a block that reads only $ halts RILL-R045`,
+        async () => {
+          await expectRuntimeError(
+            () => run(`list[1, 2] -> ${op}(0, { $ * 2 })`),
+            { code: 'RILL-R045' }
+          );
+        }
+      );
+
+      rule('fold.arity').it(
+        `${op} with a third required param halts RILL-R044`,
+        async () => {
+          await expectRuntimeError(
+            () => run(`list[1, 2] -> ${op}(0, fn(a, b, c) { $a })`),
+            { code: 'RILL-R044' }
+          );
+        }
+      );
+    }
+
+    rule('fold.arity').it(
+      'fold calls a block reading $ and $@ with both',
+      async () => {
+        expect(await run('list[1, 2, 3] -> fold(0, { $@ + $ })')).toBe(6);
+      }
+    );
+
+    rule('fold.arity').it(
+      'acc calls a block reading $ and $@ with both',
+      async () => {
+        expect(await run('list[1, 2, 3] -> acc(0, { $@ + $ })')).toEqual([
+          1, 3, 6,
+        ]);
+      }
+    );
+  });
+
+  // ── seq, fan, filter, and sort call arity ────────────────────────────────
+
+  describe('seq, fan, filter, and sort call arity', () => {
+    for (const op of ['seq', 'fan', 'filter', 'sort']) {
+      rule('iteration.arity').it(
+        `${op} with a block that reads nothing halts RILL-R045`,
+        async () => {
+          await expectRuntimeError(() => run(`list[1, 2] -> ${op}({ 5 })`), {
+            code: 'RILL-R045',
+          });
+        }
+      );
+
+      rule('iteration.arity').it(
+        `${op} with a block that reads $@ halts RILL-R044`,
+        async () => {
+          await expectRuntimeError(() => run(`list[1, 2] -> ${op}({ $@ })`), {
+            code: 'RILL-R044',
+          });
+        }
+      );
+    }
+
+    for (const [name, src, tail] of [
+      ['start_when', 'list[1, 2] -> start_when', ''],
+      ['stop_when', 'list[1, 2] -> stop_when', ''],
+      ['iterate', '1 -> iterate', ' -> take(2)'],
+      ['chain', '1 -> chain', ''],
+    ]) {
+      rule('iteration.arity-single').it(
+        `${name} with a block that reads nothing halts RILL-R045`,
+        async () => {
+          await expectRuntimeError(() => run(`${src}({ true })${tail}`), {
+            code: 'RILL-R045',
+          });
+        }
+      );
+
+      rule('iteration.arity-single').it(
+        `${name} with a block that reads $@ halts RILL-R044`,
+        async () => {
+          await expectRuntimeError(() => run(`${src}({ $@ })${tail}`), {
+            code: 'RILL-R044',
+          });
+        }
+      );
+    }
+
+    rule('iteration.arity').it(
+      'seq calls a one-param function with the element',
+      async () => {
+        expect(await run('list[1, 2] -> seq(fn(x) { $x * 2 })')).toEqual([
+          2, 4,
+        ]);
+      }
+    );
   });
 });

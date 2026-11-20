@@ -1,7 +1,7 @@
 /**
- * Detects closures created inside sequential collection bodies that may
- * suffer from late binding issues. Closures capture variables by reference,
- * so all closures created in a loop body share the final iteration value
+ * Detects functions created inside sequential collection bodies that may
+ * suffer from late binding issues. Functions capture variables by reference,
+ * so all functions created in a loop body share the final iteration value
  * unless the loop variable is captured explicitly per iteration.
  *
  * Targets the sequential callables `seq` and `acc`. (`fan`/`filter` execute
@@ -48,7 +48,7 @@ export const closureLateBinding: Rule = {
       {
         code: 'CLOSURE_LATE_BINDING',
         message:
-          'Capture loop variable explicitly for deferred closures: $ => $item',
+          'Capture loop variable explicitly for deferred functions: $ => $item',
         severity: 'warning',
         location: opCall.span.start,
         context: extractContextLine(opCall.span.start.line, context.source),

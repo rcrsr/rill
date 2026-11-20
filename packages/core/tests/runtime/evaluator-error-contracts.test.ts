@@ -441,7 +441,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
     it('error propagates through collection operator', async () => {
       try {
-        await run('list[1, 2, 3] -> fan({ $undefined })');
+        await run('list[1, 2, 3] -> fan(fn(x) { $undefined })');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);

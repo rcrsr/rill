@@ -113,6 +113,45 @@ In rill, `{ ... }` is a block (function body, loop body, etc.), not a dict liter
     Wrong: while (x < 10) { x = x + 1 }
     Right: 0 -> while ($ < 10) do { $ + 1 }
 
+## Code blocks are not values
+
+A braced body runs where it is written. To store a function, put `fn` in front.
+
+    Wrong: { $ * 2 } => $f                 # runs now: reads an unbound $ and halts RILL-R005
+    Right: fn { $ * 2 } => $f
+           4 -> $f                         # 8
+
+    Wrong: { 5 } => $f                     # $f is 5, not a function
+           $f()
+    Right: fn { 5 } => $f
+           $f()                            # 5
+
+## Block argument arity
+
+A block argument is typed by what it reads. Operators call with exact arity.
+
+    Wrong: list[1, 2, 3] -> fold(0, { $ * 2 })   # halts RILL-R045: fold passes element and accumulator
+    Right: list[1, 2, 3] -> fold(0, { $@ + $ })  # 6
+
+    Wrong: list[1, 2, 3] -> seq({ 5 })           # halts RILL-R045: the block reads nothing, seq passes one
+    Right: list[1, 2, 3] -> seq({ 5 + $ })       # list[6, 7, 8]
+
+    Wrong: list[1, 2, 3] -> seq({ $@ })          # halts RILL-R044: $@ asks for a second argument
+    Right: list[1, 2, 3] -> seq({ $ })           # list[1, 2, 3]
+
+    Wrong: range(1, 5) -> start_when({ true })   # halts RILL-R045: start_when passes one argument
+    Right: range(1, 5) -> start_when({ $ > 1 })  # stream from 2 onward; stop_when, iterate, chain take one argument too
+
+## Held blocks in collections
+
+A block written as a dict value or list element is held uncalled. Reads that select no entry halt.
+
+    Wrong: dict[a: { $ + 1 }] -> seq({ $.key })  # halts #TYPE_MISMATCH: entry 'a' holds a code block
+    Right: dict[a: fn { $ + 1 }] -> seq({ $.key })   # list["a"]; an fn entry is a value
+
+    Wrong: dict[a: { $ + 1 }] -> .values          # halts #TYPE_MISMATCH
+    Right: "a" -> dict[a: { "got {$}" }]          # "got a"; selecting the entry runs it with $ = "a"
+
 ## Reassignment inside loops
 
     Wrong: 0 => $sum
@@ -228,13 +267,13 @@ The `|params| body` literal is removed (RILL-P012 names the fn form). The body o
     Wrong: $f -> :fn(x: number)            # exact: a function with a default or a different outer does not match
     Right: $f -> :fn(x: number = 0):any
 
-## Function calls vs closures
+## Function calls vs script functions
 
     Wrong: $double(5)                      # if $double is a built-in or host fn
     Right: double(5)                       # no $ for built-in/host calls
 
     Wrong: log($x)                         # if log was assigned to $log
-    Right: $log($x)                        # script closures need $
+    Right: $log($x)                        # script functions need $
 
     Wrong: fn(x) { $x * 2 } => double      # capture name needs $
     Right: fn(x) { $x * 2 } => $double

@@ -503,8 +503,10 @@ dict-entry    = ( dict-key | "[" , expression , { "," , expression } , "]" ) , "
                  Computed key: [($x -> .upper): value] evaluates expression as key (must be string).
                  Multi-key syntax [k1, k2]: expr maps multiple keys to same value.
                  Semantic: keys "keys", "values", "entries" are reserved (cannot be used as dict keys).
-                 Semantic: function values are bound to the containing dict, so $ is late-bound
-                 to the containing dict at invocation time (like "this" in other languages). *)
+                 Semantic: for fn values only, $ is late-bound to the containing dict at
+                 invocation time (like "this" in other languages).
+                 Semantic: for held code-block entries only, the block runs on selection
+                 with the enclosing $, not the containing dict. *)
 
 (* Tuple literal: keyword-prefixed ordered positional container.
    tuple[...] — keyword and "[" must be adjacent (no whitespace).
@@ -1059,6 +1061,9 @@ type-constructor = ( "list" | "dict" | "tuple" | "ordered" ) , "(" , [ field-arg
 conditional   = body , "?" , body , [ "!" , else-clause ]
               | "?" , body , [ "!" , else-clause ] ; (* piped form: condition is $ *)
 else-clause   = conditional | body ;
+              (* A conditional branch block accepts a trailing assertion or check:
+                 true ? { 5 }:number ! { 6 }. The suffix `:type-ref` or `:?type-ref` applies to the block's result.
+                 Loop, guard, retry, pass, and timeout bodies take no suffix. *)
 
 (* Loop syntax: keyword forms using "while" and "do".
    Both forms require boolean conditions. Non-boolean values cause a runtime error.
@@ -1178,15 +1183,21 @@ on-clause     = "on" , ":" , ( atom-literal | "list[" , atom-literal , { "," , a
 block         = "{" , statement , { statement } , "}" ;
               (* Block expression semantics depend on context:
 
-                 EXPRESSION POSITION (creates function):
-                 - { body } => $fn                  -- stored as function
-                 - [key: { body }]               -- dict value is function
-                 - log({ body })                    -- arg is function
-                 Block creates ScriptCallable with implicit $ parameter.
+                 ARGUMENT POSITION (creates function):
+                 - log({ body })                    -- whole argument is a function
+                 The function takes the unnamed parameters its body reads. Operators take
+                 exact arity; see the iteration arity table in ref-language.md.
 
-                 PIPE TARGET (creates then invokes):
-                 - value -> { body }                -- creates function, invokes with value
-                 Observable result identical to eager evaluation.
+                 COLLECTION ENTRY (held, never a value):
+                 - [key: { body }]                  -- dict value is a held code block
+                 A held block runs on each selection and converts to no function.
+
+                 HEAD OR STATEMENT (runs once, never a value):
+                 - { body } => $x                   -- binds the body's result
+                 - fn { body } => $fn               -- stored as function
+
+                 PIPE TARGET (runs with the pipe value):
+                 - value -> { body }                -- runs body once with $ bound to value
 
                  SYNTACTIC BODY (eager evaluation):
                  - while (cond) do { }              -- while loop body

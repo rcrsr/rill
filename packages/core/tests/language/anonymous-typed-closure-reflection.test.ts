@@ -11,7 +11,7 @@
  * - `.^type.inner` and `.^type.outer` are comparable values derived from the param and return types
  *
  * Anonymous typed fn `fn(T) { body }` produces an unnamed param with type T.
- * Bare block `{ body }` produces an unnamed param with no type (any).
+ * `fn { body }` produces an unnamed param with no type (any) for a body that reads `$`.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -76,7 +76,7 @@ describe('Rill Language: Anonymous Typed Closure Reflection', () => {
 
     it('AC-11: bare block .^type.outer returns any type value', async () => {
       const script = `
-        { $ * 2 } => $fn
+        fn { $ * 2 } => $fn
         $fn.^type.outer == any
       `;
       expect(await run(script)).toBe(true);
@@ -146,7 +146,7 @@ describe('Rill Language: Anonymous Typed Closure Reflection', () => {
   describe('.^type on bare block (AC-10, AC-42)', () => {
     it('AC-10/AC-42: bare block .^type returns fn structural type with $ param typed any', async () => {
       const script = `
-        { $ * 2 } => $fn
+        fn { $ * 2 } => $fn
         $fn.^type
       `;
       const result = await run(script);
@@ -169,7 +169,7 @@ describe('Rill Language: Anonymous Typed Closure Reflection', () => {
 
     it('AC-10/AC-42: bare block .^type.inner equals fn(any) { } .^type.inner', async () => {
       const script = `
-        { $ * 2 } => $bare
+        fn { $ * 2 } => $bare
         fn(any) { $ * 2 } => $typed
         $bare.^type.inner == $typed.^type.inner
       `;

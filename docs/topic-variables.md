@@ -66,6 +66,8 @@ Capture at end of expression stores and ends the chain:
 | Do-while `do { } while (cond)` | Accumulated value |
 | Conditional `cond ? a ! b` | Pipe value entering the conditional, in either branch (block or bare) |
 | Piped conditional `-> ? { }` | Piped value (also used as condition) |
+| Head block `{ } => $x` | Enclosing `$`; the block runs where written |
+| Held block `dict[a: { }]` | Selector under dispatch, else enclosing `$` |
 | Stored function `fn(x) { }` | N/A — use explicit params |
 
 ### Implied `$`
@@ -79,6 +81,8 @@ When certain constructs appear without explicit input, `$` is used implicitly:
 
 A call with no arguments receives no implied `$`. Write `$fn($)` to pass it.
 
+Inside a held block, `$@` is lexical: it resolves to the binding around the block, and a block creates none. See [Code Blocks](ref-language.md#code-blocks) for the held-block rules.
+
 ```rill
 # Inside blocks, $ flows naturally
 "test value" -> {
@@ -90,7 +94,7 @@ fn(x) { $x * 2 } => $double
 [1, 2, 3] -> seq({ $double($) })   # $double receives 1, 2, 3
 ```
 
-**Closure calls pass arguments as written:**
+**Function calls pass arguments as written:**
 
 ```rill
 # Explicit args override implied $
@@ -368,5 +372,5 @@ Use `$` for accumulation in while loops:
 
 - [Types](topic-types.md) — Type system and type assertions
 - [Control Flow](topic-control-flow.md) — Conditionals and loops
-- [Closures](topic-closures.md) — Closure scope and late binding
+- [Functions and Code Blocks](topic-closures.md) — Function scope and late binding
 - [Reference](ref-language.md) — Quick reference tables

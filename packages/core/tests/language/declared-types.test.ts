@@ -400,14 +400,14 @@ describe('Rill Language: declared types', () => {
     it('reports the own type for a $ param called with an equal undeclared value', async () => {
       expect(
         await run(
-          `${OUTER}$x -> { $\n{ $.^type } => $f\n$f(1) } => $t\n$t == number`
+          `${OUTER}$x -> { $\nfn { $.^type } => $f\n$f(1) } => $t\n$t == number`
         )
       ).toBe(true);
     });
 
     it('locks a capture in a $ param body to the own type of an equal undeclared value', async () => {
       await expectLocked(
-        `${OUTER}$x -> { $\n{ $ => $y\n"s" => $y\n$y } => $f\n$f(1) }`
+        `${OUTER}$x -> { $\nfn { $ => $y\n"s" => $y\n$y } => $f\n$f(1) }`
       );
     });
 

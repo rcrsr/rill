@@ -101,9 +101,9 @@ When `->` targets a callable, the runtime decides how to bind the piped value to
 
 **Zero-parameter callables.** Auto-prepend into a zero-parameter callable halts `RILL-R045`; see [A Target Uses the Piped Value](#a-target-uses-the-piped-value).
 
-**Closures stop the scan.** The scanner walks the immediate argument list but stops at closure boundaries (`{`). References to `$` inside a closure literal are not counted — they are late-bound when the callable invokes the closure per element. Only top-level `$` in the argument list triggers explicit placement.
+**Argument blocks stop the scan.** The scanner walks the immediate argument list but stops at block boundaries (`{`). References to `$` inside an argument block are not counted: a block that is a whole argument converts to a function typed by the unnamed parameters its body reads, and the callee binds `$` per call. Only top-level `$` in the argument list triggers explicit placement. See [Functions and Code Blocks](topic-closures.md) for argument blocks and [Collections](topic-collections.md) for the exact arity each operator requires.
 
-**Sub-expressions are scanned.** The scanner descends into non-closure sub-expressions. `fn(g($))` contains a top-level `$` inside `g(...)`, so explicit placement is used.
+**Sub-expressions are scanned.** The scanner descends into sub-expressions outside blocks. `fn(g($))` contains a top-level `$` inside `g(...)`, so explicit placement is used.
 
 #### Worked Examples
 
@@ -117,8 +117,8 @@ When `->` targets a callable, the runtime decides how to bind the piped value to
 | `$val -> fn(1, $, 0)` | yes | `fn(1, $val, 0)` | Explicit: middle position |
 | `$val -> fn(1, $, $)` | yes | `fn(1, $val, $val)` | Explicit: both resolve to piped value |
 | `$val -> fn(g($))` | yes (inside sub-expr) | `fn(g($val))` | Sub-expr `$` counts as top-level |
-| `$list -> filter({ $.active })` | no (closure boundary stops scan) | `filter($list, { $.active })` | Closure `$` is late-bound per element |
-| `$matrix -> seq({ $ -> seq({ $ * 2 }) })` | no (outer closure stops scan) | `seq($matrix, { $ -> seq({ $ * 2 }) })` | Nested closures; outer and inner `$` both late-bound |
+| `$list -> filter({ $.active })` | no (block boundary stops scan) | `filter($list, { $.active })` | Block `$` is bound per element |
+| `$matrix -> seq({ $ -> seq({ $ * 2 }) })` | no (outer block stops scan) | `seq($matrix, { $ -> seq({ $ * 2 }) })` | Nested blocks; outer and inner `$` both bound per call |
 
 #### Auto-prepend — no args
 
@@ -173,23 +173,23 @@ fn(n) { $n + 1 } => $inc
 
 The `$` inside `$inc($)` is a top-level `$` in the argument list of `$double`, so explicit placement is used. The piped value `5` goes to `$inc`, producing `6`, which becomes the single argument to `$double`.
 
-#### Closure `$` is late-bound — not counted by the scanner
+#### Block `$` is bound per call — not counted by the scanner
 
 ```rill
 [[active: true, name: "a"], [active: false, name: "b"], [active: true, name: "c"]] -> filter({ $.active })
 # Result: list[dict[active: true, name: "a"], dict[active: true, name: "c"]]
 ```
 
-The `$` inside `{ $.active }` is inside a closure boundary. The scanner stops there and finds no top-level `$`. Auto-prepend activates: the list is prepended as the first argument to `filter`, and the closure is passed as the second argument. Inside the closure body, `$` is late-bound to each element during iteration.
+The `$` inside `{ $.active }` is inside a block boundary. The scanner stops there and finds no top-level `$`. Auto-prepend activates: the list is prepended as the first argument to `filter`, and the block is passed as the second argument as a function. Inside the block, `$` is bound to each element during iteration.
 
-#### Nested closures — all closure `$` are late-bound
+#### Nested blocks — each `$` is bound per call
 
 ```rill
 [[1, 2, 3], [4, 5, 6]] -> seq({ $ -> seq({ $ * 2 }) })
 # Result: list[list[2, 4, 6], list[8, 10, 12]]
 ```
 
-Both the outer `{ $ -> ... }` and the inner `{ $ * 2 }` use late-bound `$`. Neither counts toward the pipe-site scan for the top-level `seq` call. Auto-prepend places the list as the first argument.
+Both the outer `{ $ -> ... }` and the inner `{ $ * 2 }` bind `$` per call. Neither counts toward the pipe-site scan for the top-level `seq` call. Auto-prepend places the list as the first argument.
 
 ---
 
@@ -392,9 +392,9 @@ No grouping needed; `!.empty` is parsed as a unit before `?` or `=>`.
 
 ### `chain()` Built-in
 
-`chain` pipes a value through a sequence of closures. Each closure receives the result of the previous one.
+`chain` pipes a value through a sequence of functions. Each function receives the result of the previous one.
 
-Chain a list of closures:
+Chain a list of functions:
 
 ```rill
 fn(x) { $x + 1 } => $inc
@@ -405,7 +405,7 @@ fn(x) { $x + 10 } => $add10
 5 -> chain([$inc, $double, $add10])    # 22
 ```
 
-Chain a single closure:
+Chain a single function:
 
 ```rill
 fn(x) { $x * 2 } => $dbl
@@ -414,14 +414,14 @@ fn(x) { $x * 2 } => $dbl
 
 ### `ordered[...]` Literal
 
-`ordered[...]` produces a named, ordered container. It preserves insertion order and carries named keys. Use it to pass named arguments to closures:
+`ordered[...]` produces a named, ordered container. It preserves insertion order and carries named keys. Use it to pass named arguments to functions:
 
 ```rill
 fn(a, b, c) { "{$a}-{$b}-{$c}" } => $fmt
 dict[c: 3, a: 1, b: 2] -> $fmt(...)       # "1-2-3" (names matched, key order irrelevant)
 ```
 
-`ordered` values convert to plain objects via `toNative()`. The `native` field holds `{ key: value, ... }`. Closures, iterators, vectors, and type values produce `native: null`.
+`ordered` values convert to plain objects via `toNative()`. The `native` field holds `{ key: value, ... }`. Functions, iterators, vectors, and type values produce `native: null`.
 
 See [Types](topic-types.md) for full type documentation.
 
@@ -799,7 +799,7 @@ $l.?$k
 # Result: false
 ```
 
-A string held in `$k` is a key, not a field name. On a list, tuple, string, number, atom, closure, iterator, or type value it halts with the error the bracket read raises, such as `List index must be number, got string`. `??` does not recover it, so `$l.$k ?? "d"` with `$k` holding `"a"` halts too. Spell a field name to probe it as one: `$user.?name`.
+A string held in `$k` is a key, not a field name. On a list, tuple, string, number, atom, function, iterator, or type value it halts with the error the bracket read raises, such as `List index must be number, got string`. `??` does not recover it, so `$l.$k ?? "d"` with `$k` holding `"a"` halts too. Spell a field name to probe it as one: `$user.?name`.
 
 ### Existence with Type `.?field&type`
 
@@ -945,7 +945,7 @@ The `-> type` operator converts a value to the target type. Same-type conversion
 ⁴ `true` maps to `1`, `false` maps to `0`.
 ⁵ `0` maps to `false`, `1` maps to `true`; all other values halt with `RILL-R036`.
 
-A closure, an iterator, or a vector has no `-> string` conversion, and neither has a list, dict, tuple, or ordered that holds one at any depth. Converting one, interpolating one in a string, or joining one with `.join` halts with `RILL-R036`. A datetime or a duration interpolates as its printed form, and `duration -> string` yields that form, but `-> string` on a datetime, or on a collection that holds a datetime or a duration, halts with `RILL-R036`.
+A function, an iterator, or a vector has no `-> string` conversion, and neither has a list, dict, tuple, or ordered that holds one at any depth. Converting one, interpolating one in a string, or joining one with `.join` halts with `RILL-R036`. A datetime or a duration interpolates as its printed form, and `duration -> string` yields that form, but `-> string` on a datetime, or on a collection that holds a datetime or a duration, halts with `RILL-R036`.
 
 `-> list(T)`, `-> dict(...)`, `-> ordered(...)`, and `-> tuple(...)` convert every element, field, and position and halt `RILL-R036` or `RILL-R038` naming the part; see the [conversion table](topic-type-system.md#extra-and-missing-dict-fields).
 
@@ -973,7 +973,7 @@ At most one spread is permitted per call.
 
 ### Piped Spread
 
-Spread the piped value into a multi-param closure:
+Spread the piped value into a multi-param function:
 
 ```rill
 fn(a, b, c) { "{$a}-{$b}-{$c}" } => $fmt

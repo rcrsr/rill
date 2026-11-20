@@ -12,10 +12,12 @@
 import './atoms.js';
 import './avoid-reassignment.js';
 import './bare-callable-body.js';
+import './block-capture.js';
 import './break-in-parallel.js';
 import './capture-before-branch.js';
 import './capture-inline-chain.js';
 import './closure-late-binding.js';
+import './collection-arity.js';
 import './complex-condition.js';
 import './condition-type.js';
 import './conversion-inner.js';

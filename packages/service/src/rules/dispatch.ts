@@ -13,6 +13,12 @@
  * - DISPATCH_MISSING_MEMBER: the selector is a union of string literals and
  *   the table has no key for some member, so that member halts. Silent when
  *   the table has a default, or when any key is dynamic, spread, or computed.
+ * - DISPATCH_FN_ENTRY: the selector is a string literal, or a union of them,
+ *   and a selected entry is an fn literal. Only dict targets selected by a
+ *   string are examined; a list target selected by a numeric index is a
+ *   documented limit and stays silent. Dispatch returns a selected
+ *   function uncalled, so the entry is never run; write a bare block to have
+ *   dispatch run it, or call the result.
  */
 
 import { formatFieldKey, formatTypeRef, structureOverlaps } from '@rcrsr/rill';
@@ -108,9 +114,8 @@ function nonStringStructure(type: TypeRef): TypeStructure | null {
   }
 }
 
-/** The member names of a union of plain string literals, or null for any other type. */
-function stringMembers(type: TypeRef): string[] | null {
-  if (type.kind !== 'union') return null;
+/** The names of the plain string literals a type is, or null when any member is not one. */
+function literalNames(type: TypeRef): string[] | null {
   const names: string[] = [];
   for (const member of flattenMembers(type)) {
     const name =
@@ -119,6 +124,11 @@ function stringMembers(type: TypeRef): string[] | null {
     names.push(name);
   }
   return names;
+}
+
+/** The member names of a union of plain string literals, or null for any other type. */
+function stringMembers(type: TypeRef): string[] | null {
+  return type.kind === 'union' ? literalNames(type) : null;
 }
 
 // ============================================================
@@ -164,7 +174,11 @@ function dispatchSites(
     target: DispatchTarget;
     selector: TypeRef;
   }> = [];
-  let selector = staticTypeOf(node.head, context);
+  const head = unwrapBareLiteral(node.head);
+  let selector: TypeRef | null =
+    head.type === 'StringLiteral' && plainStringValue(head) !== null
+      ? { kind: 'literal', value: head }
+      : staticTypeOf(node.head, context);
   for (const step of node.pipes) {
     if (selector === null) break;
     const target = dispatchTarget(step, context);
@@ -252,4 +266,57 @@ export const dispatchMissingMember: Rule = {
   },
 };
 
-registeredRules.push(dispatchSelectorNotString, dispatchMissingMember);
+/** True for an fn literal, however many method-free wrappers surround it. */
+function isFnLiteral(node: ASTNode): boolean {
+  switch (node.type) {
+    case 'Closure':
+      return true;
+    case 'PipeChain':
+      return node.pipes.length === 0 && isFnLiteral(node.head);
+    case 'PostfixExpr':
+      return node.methods.length === 0 && isFnLiteral(node.primary);
+    default:
+      return false;
+  }
+}
+
+export const dispatchFnEntry: Rule = {
+  code: 'DISPATCH_FN_ENTRY',
+  nodeTypes: ['PipeChain'],
+  defaultSeverity: 'warning',
+  category: 'conditionals',
+
+  validate(node: ASTNode, context: RuleContext): Diagnostic[] {
+    if (node.type !== 'PipeChain') return [];
+    const out: Diagnostic[] = [];
+    for (const { step, target, selector } of dispatchSites(node, context)) {
+      if (target.entries === null) continue;
+      const members = literalNames(selector);
+      if (members === null) continue;
+      const selected = new Set(members);
+      const fnKeys: string[] = [];
+      for (const entry of target.entries) {
+        const key = staticEntryKey(entry);
+        if (key !== null && selected.has(key) && isFnLiteral(entry.value)) {
+          fnKeys.push(key);
+        }
+      }
+      if (fnKeys.length === 0) continue;
+      out.push(
+        diagnostic(
+          'DISPATCH_FN_ENTRY',
+          `The selected entry ${fnKeys.map(formatFieldKey).join(', ')} is a function, which dispatch returns uncalled; write a bare block to run it, or call the result.`,
+          step,
+          context
+        )
+      );
+    }
+    return out;
+  },
+};
+
+registeredRules.push(
+  dispatchSelectorNotString,
+  dispatchMissingMember,
+  dispatchFnEntry
+);

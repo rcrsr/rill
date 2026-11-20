@@ -10,6 +10,7 @@ import {
   formatRillLiteral,
   formatTypeRef,
   KEYWORDS,
+  isUnnamedParamName,
 } from '@rcrsr/rill';
 import type {
   HandlerMetadataStatic,
@@ -127,7 +128,7 @@ function hoverForClosureCall(
   if (closureSignature === null) return null;
 
   return {
-    contents: closureSignature.description ?? `closure \`${name}\``,
+    contents: closureSignature.description ?? `function \`${name}\``,
     range: spanToRange(span),
     type: formatClosureSignature(closureSignature),
   };
@@ -140,7 +141,7 @@ function hoverForClosureCall(
 function formatClosureSignature(signature: HandlerMetadataStatic): string {
   const paramList = signature.params
     .map((param) => {
-      const unnamed = param.name === '$' || param.name === '@';
+      const unnamed = isUnnamedParamName(param.name);
       const base = unnamed ? param.type : `${param.name}: ${param.type}`;
       const literal = formatDefault(param.defaultValue);
       return literal === undefined ? base : `${base} = ${literal}`;
