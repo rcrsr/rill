@@ -17,7 +17,7 @@ rill provides six core collection operators for transforming, filtering, reducin
 
 All six operators are host-callable functions. They share similar invocation patterns but differ in execution model and output.
 
-Every operator accepts these sources: list, tuple, string, dict, ordered, iterator, and stream. Any other value halts with a catchable RILL-R002 that names the source kind. A source holding more than 10,000 elements halts fatally with RILL-R010 in `seq`, `fan`, `filter`, `fold`, `acc`, and `sort`; bound it with `take(n)`. The slicing operators `take`, `batch`, `window`, `start_when`, and `stop_when` instead cap their output at 10,000 elements and halt with a catchable RILL-R010 that `guard` recovers.
+Every operator accepts these sources: list, tuple, string, dict, ordered, map, iterator, and stream. Any other value halts with a catchable RILL-R002 that names the source kind. A source holding more than 10,000 elements halts fatally with RILL-R010 in `seq`, `fan`, `filter`, `fold`, `acc`, and `sort`; bound it with `take(n)`. The slicing operators `take`, `batch`, `window`, `start_when`, and `stop_when` instead cap their output at 10,000 elements and halt with a catchable RILL-R010 that `guard` recovers.
 
 > **Important:** Loop bodies cannot modify outer-scope variables (see [Variables](topic-variables.md)). Use `fold` or `acc` with accumulators instead.
 
@@ -119,6 +119,8 @@ When iterating over a dict, `$` contains `key` and `value` fields. Iteration vis
 [a: 1, b: 2, c: 3] -> seq({ $.value * 2 })
 # Result: list[2, 4, 6]
 ```
+
+A map iterates the same way, in insertion order; see [Maps](#maps).
 
 ### Variable Function
 
@@ -554,7 +556,9 @@ An empty stream returns `[]`.
 
 **Dict signature:** `sort(dict: dict[K, V], key_fn?: (entry: [key: K, value: V]) => Comparable) -> ordered[[key: K, value: V]]`
 
-`sort` orders a list or dict using a stable sort (`Array.prototype.sort`, ES2019+). Equal elements preserve their original relative order.
+**Map signature:** `sort(map: map(K, V), key_fn?: (entry: dict[key: K, value: V]) => Comparable) -> map(K, V)`
+
+`sort` orders a list, dict, or map using a stable sort (`Array.prototype.sort`, ES2019+). Equal elements preserve their original relative order.
 
 ### List Form
 
@@ -582,11 +586,16 @@ Dict sort returns an `ordered` collection. The default key is the entry key, a s
 # Result: ordered[a: 1, b: 2, c: 3]
 ```
 
-An ordered sorts the same way and returns an ordered. A tuple sorts to a list.
+An ordered sorts the same way and returns an ordered. A map sorts by key and returns a map; with a key function, `$` is the entry dict and the map is ordered by the returned key. A tuple sorts to a list.
 
 ```rill
 ordered[b: 2, a: 1] -> sort
 # Result: ordered[a: 1, b: 2]
+```
+
+```rill
+map["b": 2, "a": 1] -> sort
+# Result: map["a": 1, "b": 2]
 ```
 
 ### Multi-Key Sorting
@@ -654,7 +663,7 @@ Empty list returns `[]`. Empty dict returns an empty `ordered`.
 | `#TYPE_MISMATCH` | Key extractor returns mixed types (e.g., number and string) | See [Error Handling](topic-error-handling.md) |
 | `#INVALID_INPUT` | Key extractor returns a vacant value | See [Error Handling](topic-error-handling.md) |
 | `#TYPE_MISMATCH` | `key_fn` argument is not callable | See [Error Handling](topic-error-handling.md) |
-| `RILL-R002` | Source is not a list, tuple, string, dict, ordered, iterator, or stream (catchable) | See [Error Handling](topic-error-handling.md) |
+| `RILL-R002` | Source is not a list, tuple, string, dict, ordered, map, iterator, or stream (catchable) | See [Error Handling](topic-error-handling.md) |
 | `RILL-R010` | Source holds more than 10,000 elements (fatal) | See [Error Handling](topic-error-handling.md) |
 
 ---
@@ -850,6 +859,20 @@ Iterates over entries with `key` and `value` fields, in insertion order.
 ```rill
 ordered[b: 1, a: 2] -> seq({ $.key })
 # Result: list["b", "a"]
+```
+
+### Maps
+
+Iterates over entries with `key` and `value` fields, in insertion order. The key keeps its kind. `filter` keeps the entry dicts whose block returns true. See [Maps](topic-maps.md) for keys and selection.
+
+```rill
+map[1: 10, 2: 20] -> seq({ $.key + $.value })
+# Result: list[11, 22]
+```
+
+```rill
+map[1: 10, 2: 20] -> filter({ $.value > 10 })
+# Result: list[dict[key: 2, value: 20]]
 ```
 
 ---

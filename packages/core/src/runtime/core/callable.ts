@@ -34,6 +34,8 @@ import {
   isDuration,
   isFieldDescriptor,
   isIterator,
+  isMap,
+  mapKeyId,
   isOrdered,
   isStream,
   isStructureKind,
@@ -43,6 +45,7 @@ import {
 } from './types/guards.js';
 import type {
   TypeStructure,
+  RillMapKey,
   RillTypeValue,
   RillValue,
 } from './types/structures.js';
@@ -55,7 +58,12 @@ import {
   defaultMismatch,
 } from './types/operations.js';
 import {
+  createMap,
+  createMapKeyChecker,
   createOrdered,
+  createTuple,
+  freezeMap,
+  mapEntryFault,
   copyValue,
   emptyForType,
 } from './types/constructors.js';
@@ -744,8 +752,8 @@ export function marshalArgs(
       if (param.defaultValue !== undefined) {
         value = param.defaultValue;
       } else if (param.type !== undefined && hasCollectionFields(param.type)) {
-        // Collection-typed param with field-level defaults: synthesize empty
-        // collection so Stage 2.5 (hydrateFieldDefaults) can fill in defaults
+        // Seeding happens whenever hasCollectionFields is true; later
+        // hydration (hydrateFieldDefaults) enforces the field-level defaults.
         value = emptyForType(param.type);
       } else {
         // Stage 2: Missing required parameter
@@ -804,9 +812,12 @@ export function marshalArgs(
  * type value, datetime, duration, callable, stream, iterator, field
  * descriptor) stops descent at that node. Anything else that cannot be
  * represented -- undefined, null, symbol, bigint, a raw function, Date,
- * Map, Set, a cyclic reference, or any other non-plain class instance --
+ * Set, a cyclic reference, or any other non-plain class instance --
  * throws a fatal RuntimeError. This is a host-contract violation, not a
  * catchable script error.
+ *
+ * Validation only: a host JS Map is rejected here, because this function
+ * cannot hand back a converted value. {@link normalizeHostResult} converts.
  *
  * @param result - The raw value returned by the host function
  * @param functionName - Name of the host function, for the error message
@@ -823,7 +834,33 @@ export function validateHostResult(
     null,
     undefined,
     location,
-    new WeakSet()
+    new WeakSet(),
+    false
+  );
+}
+
+/**
+ * Validate a raw host result like {@link validateHostResult} and return the
+ * value the runtime should use: the result itself, or a copy in which every
+ * host JS Map is converted to a rill map. A host Map's keys must be scalars
+ * of one rill key kind (string, number, bool, atom, datetime, or duration);
+ * mixed kinds or non-scalar keys halt RILL-R085 with the path.
+ */
+export function normalizeHostResult(
+  result: unknown,
+  functionName: string,
+  location?: SourceLocation
+): RillValue {
+  return asValidated(
+    walkHostResult(
+      result,
+      functionName,
+      null,
+      undefined,
+      location,
+      new WeakSet(),
+      true
+    )
   );
 }
 
@@ -912,37 +949,73 @@ function brandRow<T extends RillValue>(
   return { label, test, valid: (v) => test(v) && valid(v) };
 }
 
+const ATOM_ROW = brandRow('atom', isAtom, (v) => {
+  const atom: unknown = v.atom;
+  return (
+    typeof atom === 'object' &&
+    atom !== null &&
+    '__rill_atom' in atom &&
+    atom.__rill_atom === true &&
+    'name' in atom &&
+    typeof atom.name === 'string' &&
+    isValidAtomName(atom.name) &&
+    Object.keys(v).length === 2 &&
+    Object.keys(atom).length === 2
+  );
+});
+
+const DATETIME_ROW = brandRow('datetime', isDatetime, (v) =>
+  Number.isFinite(v.unix)
+);
+
+const DURATION_ROW = brandRow(
+  'duration',
+  isDuration,
+  (v) =>
+    Number.isFinite(v.months) &&
+    v.months >= 0 &&
+    Number.isFinite(v.ms) &&
+    v.ms >= 0
+);
+
+/** True unless `key` carries a scalar brand whose fields are malformed. Run
+ * on every host-supplied map key before `mapEntryFault` reads its fields. */
+function mapKeyBrandValid(key: RillValue): boolean {
+  for (const row of [ATOM_ROW, DATETIME_ROW, DURATION_ROW]) {
+    if (row.test(key) && !row.valid(key)) return false;
+  }
+  return true;
+}
+
 const BRAND_SHAPE_CHECKS: ReadonlyArray<BrandShapeCheck> = [
-  brandRow('atom', isAtom, (v) => {
-    const atom: unknown = v.atom;
-    return (
-      typeof atom === 'object' &&
-      atom !== null &&
-      '__rill_atom' in atom &&
-      atom.__rill_atom === true &&
-      'name' in atom &&
-      typeof atom.name === 'string' &&
-      isValidAtomName(atom.name) &&
-      Object.keys(v).length === 2 &&
-      Object.keys(atom).length === 2
-    );
-  }),
+  ATOM_ROW,
   brandRow(
     'vector',
     isVector,
     (v) => v.data instanceof Float32Array && typeof v.model === 'string'
   ),
-  brandRow('datetime', isDatetime, (v) => Number.isFinite(v.unix)),
+  DATETIME_ROW,
+  DURATION_ROW,
   brandRow(
-    'duration',
-    isDuration,
+    'ordered',
+    isOrdered,
     (v) =>
-      Number.isFinite(v.months) &&
-      v.months >= 0 &&
-      Number.isFinite(v.ms) &&
-      v.ms >= 0
+      Array.isArray(v.entries) &&
+      v.entries.every((e) => Array.isArray(e) && typeof e[0] === 'string')
   ),
-  brandRow('ordered', isOrdered, (v) => Array.isArray(v.entries)),
+  brandRow(
+    'map',
+    isMap,
+    (v) =>
+      Array.isArray(v.entries) &&
+      v.entries.every(
+        (e) =>
+          Array.isArray(e) &&
+          e.length === 2 &&
+          mapKeyBrandValid(asValidated(e[0]))
+      ) &&
+      mapEntryFault(v.entries) === undefined
+  ),
   brandRow(
     'typevalue',
     isTypeValue,
@@ -988,16 +1061,149 @@ function renderHostPath(
   return path;
 }
 
-/** Walk a host result. `parent` and `key` locate `value` lazily; `key` is
- * undefined only for the root. */
+/** Narrow a value the walk has just validated. The walk is the check. */
+function asValidated(value: unknown): RillValue {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- callers pass a value the host-result walk accepted
+  return value as RillValue;
+}
+
+/** Path segment for a map entry: string and number keys render as written,
+ * any other scalar by its canonical identity. */
+function mapKeyLabel(key: RillMapKey): string | number {
+  return typeof key === 'string' || typeof key === 'number'
+    ? key
+    : mapKeyId(key);
+}
+
+/** Child walker bound to one container's path frame. */
+type ChildWalker = (child: unknown, childKey: string | number) => unknown;
+
+/** Walk each item; return the converted items when any changed, else
+ * undefined so an untouched container keeps its identity. */
+function walkItems(
+  items: readonly unknown[],
+  walk: ChildWalker
+): unknown[] | undefined {
+  let out: unknown[] | undefined;
+  for (let i = 0; i < items.length; i++) {
+    const next = walk(items[i], i);
+    if (out === undefined && next !== items[i]) out = items.slice();
+    if (out !== undefined) out[i] = next;
+  }
+  return out;
+}
+
+/** Walk a branded map, ordered, or tuple's entries. Returns the rebuilt
+ * value when a nested host Map was converted, else the value itself. */
+function walkBrandChildren(value: RillValue, walk: ChildWalker): unknown {
+  if (isTuple(value)) {
+    const out = walkItems(value.entries, walk);
+    return out === undefined ? value : createTuple(out.map(asValidated));
+  }
+  if (isOrdered(value)) {
+    let out: [string, RillValue, RillValue?][] | undefined;
+    for (let i = 0; i < value.entries.length; i++) {
+      const entry = value.entries[i];
+      if (entry === undefined) continue;
+      const [name, entryValue, entryDefault] = entry;
+      const nextValue = walk(entryValue, name);
+      const nextDefault =
+        entryDefault === undefined ? undefined : walk(entryDefault, name);
+      if (
+        out === undefined &&
+        (nextValue !== entryValue || nextDefault !== entryDefault)
+      ) {
+        out = value.entries.map(([n, v, d]) =>
+          d === undefined ? [n, v] : [n, v, d]
+        );
+      }
+      if (out !== undefined) {
+        out[i] =
+          nextDefault === undefined
+            ? [name, asValidated(nextValue)]
+            : [name, asValidated(nextValue), asValidated(nextDefault)];
+      }
+    }
+    return out === undefined ? value : createOrdered(out);
+  }
+  if (isMap(value)) {
+    let out: [RillMapKey, RillValue][] | undefined;
+    for (let i = 0; i < value.entries.length; i++) {
+      const entry = value.entries[i];
+      if (entry === undefined) continue;
+      const [entryKey, entryValue] = entry;
+      const next = walk(entryValue, mapKeyLabel(entryKey));
+      if (out === undefined && next !== entryValue) {
+        out = value.entries.map(([k, v]) => [k, v]);
+      }
+      if (out !== undefined) out[i] = [entryKey, asValidated(next)];
+    }
+    if (out !== undefined) return freezeMap(out);
+    // A host may hand back a raw, unfrozen map it still holds; copy the
+    // entry list so a later host push or splice cannot reach the script's
+    // map or its key index. The [key, value] pairs stay shared.
+    return Object.isFrozen(value) && Object.isFrozen(value.entries)
+      ? value
+      : freezeMap(value.entries);
+  }
+  return value;
+}
+
+/** Convert a host JS Map to a rill map. Keys must be scalars of one kind;
+ * values are validated like any other host result. */
+function convertHostMap(
+  source: Map<unknown, unknown>,
+  functionName: string,
+  parent: HostPathFrame | null,
+  key: string | number | undefined,
+  location: SourceLocation | undefined,
+  seen: WeakSet<object>
+): RillValue {
+  seen.add(source);
+  const frame = key === undefined ? null : { parent, key };
+  const checkKey = createMapKeyChecker();
+  const entries: [RillValue, RillValue][] = [];
+  for (const [k, v] of source) {
+    const label = typeof k === 'string' || typeof k === 'number' ? k : '<key>';
+    const entryKey = asValidated(
+      walkHostResult(k, functionName, frame, label, location, seen, true)
+    );
+    const fault = checkKey(entryKey);
+    if (fault !== undefined) {
+      throwHostResultError(
+        functionName,
+        renderHostPath(parent, key),
+        k,
+        location,
+        fault.message
+      );
+    }
+    entries.push([
+      entryKey,
+      asValidated(
+        walkHostResult(v, functionName, frame, label, location, seen, true)
+      ),
+    ]);
+  }
+  seen.delete(source);
+  return createMap(entries);
+}
+
+/**
+ * Walk a host result, returning the value to use in its place. The value is
+ * returned unchanged unless it holds a host JS Map, which becomes a rill
+ * map; a container holding one is rebuilt with the converted child. `parent`
+ * and `key` locate `value` lazily; `key` is undefined only for the root.
+ */
 function walkHostResult(
   value: unknown,
   functionName: string,
   parent: HostPathFrame | null,
   key: string | number | undefined,
   location: SourceLocation | undefined,
-  seen: WeakSet<object>
-): void {
+  seen: WeakSet<object>,
+  convertMaps: boolean
+): unknown {
   if (value === undefined || value === null) {
     throwHostResultError(
       functionName,
@@ -1021,7 +1227,7 @@ function walkHostResult(
     );
   }
   if (t === 'string' || t === 'number' || t === 'boolean') {
-    return;
+    return value;
   }
   if (t === 'symbol' || t === 'bigint' || t === 'function') {
     throwHostResultError(
@@ -1048,13 +1254,39 @@ function walkHostResult(
     );
   }
 
+  const walkChild: ChildWalker = (child, childKey) =>
+    walkHostResult(
+      child,
+      functionName,
+      key === undefined ? null : { parent, key },
+      childKey,
+      location,
+      seen,
+      convertMaps
+    );
+
+  if (isTuple(rillValue)) {
+    if (!Array.isArray(rillValue.entries)) {
+      throwHostResultError(
+        functionName,
+        renderHostPath(parent, key),
+        value,
+        location,
+        'malformed tuple brand'
+      );
+    }
+    seen.add(obj);
+    const result = walkBrandChildren(rillValue, walkChild);
+    seen.delete(obj);
+    return result;
+  }
+
   if (
-    isTuple(rillValue) ||
     isCallable(rillValue) ||
     isIterator(rillValue) ||
     isFieldDescriptor(obj)
   ) {
-    return;
+    return value;
   }
 
   for (const check of BRAND_SHAPE_CHECKS) {
@@ -1068,8 +1300,15 @@ function walkHostResult(
           `malformed ${check.label} brand`
         );
       }
-      return;
+      seen.add(obj);
+      const result = walkBrandChildren(rillValue, walkChild);
+      seen.delete(obj);
+      return result;
     }
+  }
+
+  if (convertMaps && value instanceof Map) {
+    return convertHostMap(value, functionName, parent, key, location, seen);
   }
 
   if (value instanceof Date || value instanceof Map || value instanceof Set) {
@@ -1083,34 +1322,38 @@ function walkHostResult(
 
   if (Array.isArray(value)) {
     seen.add(obj);
-    const frame = key === undefined ? null : { parent, key };
-    for (let i = 0; i < value.length; i++) {
-      walkHostResult(value[i], functionName, frame, i, location, seen);
-    }
+    const out = walkItems(value, walkChild);
     seen.delete(obj);
-    return;
+    return out ?? value;
   }
 
   if (isPlainObject(obj)) {
     seen.add(obj);
-    const frame = key === undefined ? null : { parent, key };
     const record: Record<string, unknown> = obj;
-    for (const childKey of Object.keys(record)) {
-      walkHostResult(
-        record[childKey],
-        functionName,
-        frame,
-        childKey,
-        location,
-        seen
-      );
+    const keys = Object.keys(record);
+    let next: unknown[] | undefined;
+    for (let i = 0; i < keys.length; i++) {
+      const childKey = keys[i];
+      if (childKey === undefined) continue;
+      const before = record[childKey];
+      const after = walkChild(before, childKey);
+      if (next === undefined && after !== before) {
+        next = keys.map((k) => record[k]);
+      }
+      if (next !== undefined) next[i] = after;
     }
     seen.delete(obj);
-    return;
+    if (next === undefined) return value;
+    const rebuilt: Record<string, unknown> = {};
+    for (let i = 0; i < keys.length; i++) {
+      const childKey = keys[i];
+      if (childKey !== undefined) setDictField(rebuilt, childKey, next[i]);
+    }
+    return rebuilt;
   }
 
   // Non-plain class instance: reject
-  throwHostResultError(
+  return throwHostResultError(
     functionName,
     renderHostPath(parent, key),
     value,

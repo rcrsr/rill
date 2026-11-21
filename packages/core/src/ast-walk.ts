@@ -243,6 +243,13 @@ function astChildren(node: ASTNode): ASTNode[] {
       return [...node.elements];
     case 'OrderedLiteral':
       return [...node.entries];
+    case 'MapLiteral': {
+      const children: ASTNode[] = [...node.entries];
+      if (node.defaultValue !== null) children.push(node.defaultValue);
+      return children;
+    }
+    case 'MapEntry':
+      return [node.key, node.value];
     case 'Destruct':
       return [...node.elements];
     case 'UseExpr': {
@@ -543,6 +550,7 @@ function scanPipeReads(
         break;
       case 'Dict':
       case 'OrderedLiteral':
+      case 'MapLiteral':
         for (const entry of node.entries) {
           if (mode === 'written') markBoundary(entry.value);
         }

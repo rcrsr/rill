@@ -17,7 +17,7 @@ A list type describes a sequence in which every element has one element type.
 ## Syntax
 
 ```ebnf
-type-constructor = ( "list" | "dict" | "tuple" | "ordered" ) , "(" , [ field-arg-list ] , ")"
+type-constructor = ( "list" | "dict" | "tuple" | "ordered" | "map" ) , "(" , [ field-arg-list ] , ")"
                  | union-type
                  | "stream" , "(" , [ field-arg-list ] , ")" , [ ":" , type-ref ] ;
 ```

@@ -42,6 +42,7 @@ $lt.^type.name
 | `dict(T)` | `dict(number)` | Uniform dict type (all values same type) |
 | `ordered(T)` | `ordered(string)` | Uniform ordered type (all values same type) |
 | `tuple(T)` | `tuple(number)` | Tuple of exactly one position |
+| `map(K, V)` | `map(atom, number)` | Map type with scalar key type K and value type V |
 | `dict(k: T, ...)` | `dict(a: number, b: string)` | Dict type (fields alpha-sorted in output) |
 | `tuple(T, T2, ...)` | `tuple(number, string)` | Positional tuple type |
 | `ordered(k: T, ...)` | `ordered(a: number, b: string)` | Named ordered type |
@@ -149,7 +150,7 @@ list[list() == list(any), dict() == dict, tuple() == tuple]
 
 Empty parentheses and a bare name both mean unspecified, so `list()` equals `list(any)`.
 
-Only `stream` takes an outer, and an outer nests inline, as in `list(stream(number):string)`. A bare name takes one too: `stream:number` is `stream(any):number`. Inside parentheses, `name:` starts a named field, so `dict(stream: number)` has a field called `stream`; write `stream():number` there. An outer on `list`, `dict`, `tuple`, `ordered`, or `union` halts with RILL-P006:
+Only `stream` takes an outer, and an outer nests inline, as in `list(stream(number):string)`. A bare name takes one too: `stream:number` is `stream(any):number`. Inside parentheses, `name:` starts a named field, so `dict(stream: number)` has a field called `stream`; write `stream():number` there. An outer on `list`, `dict`, `tuple`, `ordered`, `map`, or `union` halts with RILL-P006:
 
 ```text
 list(number):string    # RILL-P006: list takes no outer type
@@ -299,6 +300,13 @@ $val -> :dict -> .keys        # assert dict, then get keys
 
 ```text
 ["a", "b"] -> :list(number)            # ERROR: expected list(number), got list(string)
+```
+
+A map assertion checks every key against the key type and every value against the value type. An empty map has every `map(K, V)`.
+
+```rill
+map[#a: 1] -> :?map(atom, number)
+# Result: true
 ```
 
 #### Extra and Missing Dict Fields
@@ -980,7 +988,7 @@ Type values expose six properties via dot notation:
 | `.signature` | `string` | Full structural type string |
 | `.inner` | type, collection, or list | What the type holds or takes |
 | `.outer` | type | What a function or stream type yields |
-| `.defaults` | `dict` | Defaults of a dict, ordered, or function type; only fields that have one |
+| `.defaults` | `dict` or `map` | Defaults of a dict, ordered, or function type as a dict, or of a tuple type as a map keyed by position; only fields that have one |
 | `.annotations` | `dict` | Annotations of a dict, ordered, or function type's fields or parameters; only those that have any |
 
 ```rill
@@ -1018,10 +1026,12 @@ tuple[42.^type.name, 42.^type.signature]
 | `dict(a: T)` | `dict[a: T]` |
 | `ordered(a: T)` | `ordered[a: T]` |
 | `tuple(T, U)`, `tuple(T)` | `tuple[T, U]`, `tuple[T]` (always a tuple) |
+| `map(K, V)` | `tuple[K, V]` |
 | `union(...)`, `error_code` | `list` of members in canonical order |
 | `fn(a: T)` | `ordered[a: T]` |
 | `fn(T, U)` | `tuple[T, U]` |
 | `stream(T):R` | `T` |
+| `map` without arguments | `tuple[any, any]` |
 | `list`, `dict`, `tuple`, `ordered`, `stream`, `fn` without arguments | `any` |
 | `string`, `number`, `bool`, `atom`, `vector`, `datetime`, `duration`, `type`, `any` | halts RILL-R003 |
 
@@ -1032,7 +1042,24 @@ union("x", list, #a, 1, true).inner
 # Result: list[list, #a, true, 1, "x"]
 ```
 
-`.outer` is defined on function and stream types and returns the declared result type, `any` when undeclared; bare `fn.outer` is `any` and `fn.defaults` is `dict[]`, so `tuple[fn.inner, fn.outer, fn.defaults]` is `tuple[any, any, dict[]]`. Any other type halts RILL-R003. A leaf type has no `.inner`; guard the read with `??`, or test with `.?`. `.defaults` lists only the fields that declare a default: `dict(a: string = "x", b: number).defaults` is `dict[a: "x"]`. It halts RILL-R003 on types other than dict, ordered, and function:
+`.outer` is defined on function and stream types and returns the declared result type, `any` when undeclared; bare `fn.outer` is `any` and `fn.defaults` is `dict[]`, so `tuple[fn.inner, fn.outer, fn.defaults]` is `tuple[any, any, dict[]]`. Any other type halts RILL-R003. A leaf type has no `.inner`; guard the read with `??`, or test with `.?`. `.defaults` lists only the fields that declare a default: `dict(a: string = "x", b: number).defaults` is `dict[a: "x"]`. A tuple type's `.defaults` is a map keyed by 0-based position, empty when no element has a default, and `.?defaults` is `true` on a tuple type. `.defaults` halts RILL-R003 on types other than dict, ordered, tuple, and function:
+
+```rill
+tuple(number, string = "x", bool = true).defaults == map[1: "x", 2: true]
+# Result: true
+```
+
+```rill
+tuple(number).defaults == map[]
+# Result: true
+```
+
+```rill
+tuple(number, string = "x").?defaults
+# Result: true
+```
+
+A read on a leaf type guards with `??` or `.?`:
 
 ```rill
 string => $t

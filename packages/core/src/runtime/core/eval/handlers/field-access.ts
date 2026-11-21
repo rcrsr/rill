@@ -36,16 +36,27 @@
  */
 
 import type { SourceLocation, VariableNode } from '../../../../types.js';
-import type { RillValue, TypeStructure } from '../../types/structures.js';
+import type {
+  RillMap,
+  RillMapKey,
+  RillValue,
+  TypeStructure,
+} from '../../types/structures.js';
 import type { Carried } from '../../types/declared.js';
 import { pipeDeclaredOf, projectElement } from '../../types/declared.js';
-import { inferType } from '../../types/registrations.js';
+import { inferType, formatValue } from '../../types/registrations.js';
 import {
   isIterator,
+  isMap,
+  isMapKey,
   isOrdered,
+  isStructureKind,
   isTuple,
   isTypeValue,
+  mapKeyId,
+  scalarKindOf,
 } from '../../types/guards.js';
+import type { ScalarKind } from '../../types/guards.js';
 import { getVariable } from '../../context.js';
 import {
   nonIntegerIndexMessage,
@@ -70,8 +81,25 @@ import { resolveSelected } from './code-block.js';
 // TYPES
 // ============================================================
 
-/** A key that can address a field or position. */
-export type FieldKey = string | number;
+/**
+ * A map key as a lookup key. The wrapper keeps a map's scalar key apart from a
+ * spelled field name: a plain string reaching a map is a name and has none.
+ */
+interface MapKeyRef {
+  readonly mapKey: RillMapKey;
+}
+
+/** A key that can address a field, position, or map entry. */
+export type FieldKey = string | number | MapKeyRef;
+
+function isMapKeyRef(key: FieldKey): key is MapKeyRef {
+  return typeof key === 'object';
+}
+
+/** A key as halt messages word it: a map key by its formatted value. */
+function describeKey(key: FieldKey): string {
+  return isMapKeyRef(key) ? formatValue(key.mapKey) : String(key);
+}
 
 /** Why a lookup found nothing. */
 export type FieldMiss =
@@ -85,12 +113,12 @@ export type FieldMiss =
  * A located element. `key` is what a declared type projects from: the field
  * name, or the resolved non-negative position (a negative index already counted
  * from the end of the value). It is undefined where no declaration projects
- * (a type value's property).
+ * (a type value's property, a map entry).
  */
 export interface FoundField {
   readonly found: true;
   readonly value: RillValue;
-  readonly key: FieldKey | undefined;
+  readonly key: string | number | undefined;
 }
 
 /** Outcome of locating a key on a receiver. */
@@ -138,13 +166,20 @@ export function dictSelectorKey(
 
 /**
  * Validate a bracket key against its receiver. Lists and tuples take a number,
- * ordered values a string or number, dicts a string; every other receiver, and
- * an iterator, cannot be indexed.
+ * ordered values a string or number, dicts a string, maps a scalar of the
+ * kind their keys hold; every other receiver, and an iterator, cannot be
+ * indexed. `receiverDeclared` is the receiver's declared type, if any; it
+ * supplies the key kind of an empty map.
+ *
+ * This is the one selector validator for a map: selection, dispatch and
+ * existence checks all reach it, so a wrong selector halts the same way in
+ * each and `??` never masks it.
  */
 export function bracketKey(
   receiver: RillValue,
   indexValue: RillValue,
-  site: TypeHaltSite
+  site: TypeHaltSite,
+  receiverDeclared?: TypeStructure
 ): FieldKey {
   const reject = (message: string): never =>
     throwCatchableHostHalt(site, ERROR_ATOMS[ERROR_IDS.RILL_R002], message);
@@ -164,10 +199,99 @@ export function bracketKey(
       ? indexValue
       : reject(`Tuple index must be number, got ${got()}`);
   }
+  if (isMap(receiver)) {
+    return mapSelectorKey(receiver, indexValue, site, receiverDeclared);
+  }
   // Must precede the dict case: an iterator is structurally a dict.
   if (isIterator(receiver)) return reject('Cannot index iterator');
   if (isFieldReceiver(receiver)) return dictSelectorKey(indexValue, site);
   return reject(`Cannot index ${inferType(receiver)}`);
+}
+
+/**
+ * Validate a map selector: a scalar of the kind the map's keys hold. A
+ * non-scalar, or a scalar of another kind, halts with a catchable type
+ * mismatch ahead of the lookup. An empty map holds no kind: with a declared
+ * map type it takes its key kind from that type, otherwise it accepts any
+ * scalar and the lookup is a miss.
+ */
+function mapSelectorKey(
+  receiver: RillMap,
+  selector: RillValue,
+  site: TypeHaltSite,
+  receiverDeclared: TypeStructure | undefined
+): MapKeyRef {
+  const actual = scalarKindOf(selector);
+  const heldKey = receiver.entries[0]?.[0];
+  const expected =
+    heldKey === undefined
+      ? declaredKeyKind(receiverDeclared)
+      : scalarKindOf(heldKey);
+  if (
+    actual !== undefined &&
+    isMapKey(selector) &&
+    actual === (expected ?? actual)
+  ) {
+    return { mapKey: selector };
+  }
+  const got = inferType(selector);
+  return throwTypeHalt(
+    site,
+    'TYPE_MISMATCH',
+    `Map key must be ${expected ?? 'a scalar'}, got ${got}`,
+    'runtime',
+    { expectedType: expected ?? 'scalar', actualType: got }
+  );
+}
+
+const SCALAR_KIND_NAMES: readonly ScalarKind[] = [
+  'string',
+  'number',
+  'bool',
+  'atom',
+  'datetime',
+  'duration',
+];
+
+/** The scalar key kind a declared map type fixes, if it fixes one. */
+function declaredKeyKind(
+  declared: TypeStructure | undefined
+): ScalarKind | undefined {
+  if (declared === undefined || !isStructureKind(declared, 'map')) {
+    return undefined;
+  }
+  return declared.key === undefined ? undefined : keyKindOf(declared.key);
+}
+
+/**
+ * The scalar kind of a key type: a scalar, a literal, or a union whose members
+ * share one kind (construction rejects mixed kinds, so the first member's kind
+ * stands for all).
+ */
+function keyKindOf(key: TypeStructure): ScalarKind | undefined {
+  if (isStructureKind(key, 'literal')) return scalarKindOf(key.value);
+  if (isStructureKind(key, 'union')) {
+    const [first] = key.members;
+    return first === undefined ? undefined : keyKindOf(first);
+  }
+  return SCALAR_KIND_NAMES.find((kind) => kind === key.kind);
+}
+
+/**
+ * Lazily built key index per map. Maps are frozen (host-returned maps are
+ * frozen at the boundary), so an index never goes stale; the WeakMap drops it
+ * with the map.
+ */
+const MAP_INDEX = new WeakMap<RillMap, Map<string, RillValue>>();
+
+function mapIndexOf(map: RillMap): Map<string, RillValue> {
+  let index = MAP_INDEX.get(map);
+  if (index === undefined) {
+    index = new Map();
+    for (const [held, value] of map.entries) index.set(mapKeyId(held), value);
+    MAP_INDEX.set(map, index);
+  }
+  return index;
 }
 
 const NOT_FOUND = (miss: FieldMiss): FieldLocation => ({ found: false, miss });
@@ -203,6 +327,16 @@ function locateOwnField(
  * returned as stored.
  */
 export function locateField(receiver: RillValue, key: FieldKey): FieldLocation {
+  if (isMap(receiver)) {
+    // A map holds no named fields; only a wrapped key selects an entry.
+    if (typeof key === 'string') return NOT_FOUND('no-fields');
+    if (!isMapKeyRef(key)) return NOT_FOUND('not-indexable');
+    const value = mapIndexOf(receiver).get(mapKeyId(key.mapKey));
+    return value === undefined
+      ? NOT_FOUND('absent')
+      : { found: true, value, key: undefined };
+  }
+  if (isMapKeyRef(key)) return NOT_FOUND('not-indexable');
   if (isTypeValue(receiver)) {
     if (typeof key !== 'string') return NOT_FOUND('not-indexable');
     const property = readTypeProperty(receiver, key);
@@ -331,19 +465,21 @@ export function throwFieldMiss(
       return throwCatchableHostHalt(
         site,
         ERROR_ATOMS[ERROR_IDS.RILL_R003],
-        `Cannot access field '${key}' on non-dict`
+        `Cannot access field '${describeKey(key)}' on non-dict`
       );
     case 'absent': {
-      const message = isOrdered(receiver)
-        ? `Undefined ordered key: ${key}`
-        : typeof key === 'string'
-          ? `Dict has no field '${key}'`
-          : `Undefined dict key: ${key}`;
+      const message = isMapKeyRef(key)
+        ? `Undefined map key: ${formatValue(key.mapKey)}`
+        : isOrdered(receiver)
+          ? `Undefined ordered key: ${key}`
+          : typeof key === 'string'
+            ? `Dict has no field '${key}'`
+            : `Undefined dict key: ${key}`;
       return throwCatchableHostHalt(
         site,
         ERROR_ATOMS[ERROR_IDS.RILL_R009],
         message,
-        raw ?? { key }
+        raw ?? { key: isMapKeyRef(key) ? key.mapKey : key }
       );
     }
     default:
@@ -356,7 +492,7 @@ export function throwFieldMiss(
  * halt's structured context; it defaults to the missing key.
  */
 export function throwUndefinedDictKey(
-  key: FieldKey,
+  key: string | number,
   site: TypeHaltSite,
   raw?: Record<string, unknown>
 ): never {
@@ -380,7 +516,9 @@ export function throwBracketMiss(
   site: TypeHaltSite,
   raw?: Record<string, unknown>
 ): never {
-  if (isFieldReceiver(receiver)) return throwUndefinedDictKey(key, site, raw);
+  if (isFieldReceiver(receiver) && !isMapKeyRef(key)) {
+    return throwUndefinedDictKey(key, site, raw);
+  }
   return throwFieldMiss(receiver, key, miss, site, raw);
 }
 
@@ -447,7 +585,7 @@ export async function readField(
         return throwBracketMiss(receiver, key, miss, site);
       }
       if (miss === 'absent' && isTypeValue(receiver)) {
-        return throwMissingTypeProperty(site, receiver, String(key));
+        return throwMissingTypeProperty(site, receiver, describeKey(key));
       }
       return throwFieldMiss(receiver, key, miss, site);
     }
@@ -545,7 +683,12 @@ export async function evaluateFieldAccessVariable(
     }
   }
 
-  const key = bracketKey(value, keyValue, siteFor(s, node, fn));
+  const key = bracketKey(
+    value,
+    keyValue,
+    siteFor(s, node, fn),
+    receiverDeclared
+  );
   return await readField(s, value, key, {
     allowMissing,
     location: getNodeLocation(s, node),

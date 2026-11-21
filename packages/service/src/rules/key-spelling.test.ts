@@ -11,6 +11,10 @@ function run(source: string): ReturnType<typeof runRules> {
 }
 
 describe('DICT_KEY_SPELLING', () => {
+  it('reports nothing on a map literal with mixed key kinds', () => {
+    expect(run('map["a b": 1, 1: 2]\n')).toEqual([]);
+  });
+
   it('reports the key and its quoted form at info severity', () => {
     const result = run('dict[1: "n"]\n');
 

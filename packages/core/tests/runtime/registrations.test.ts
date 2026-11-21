@@ -1,7 +1,7 @@
 /**
  * Tests for types/registrations.ts dispatch functions and error contracts.
  *
- * BUILT_IN_TYPES has exactly 16 entries, each with unique name
+ * BUILT_IN_TYPES has exactly 17 entries, each with unique name
  * inferType returns the documented type name for each fixture
  * formatValue returns the expected display string for each fixture
  * copyValue returns same reference for immutable, independent copy for mutable
@@ -32,6 +32,7 @@ import {
   BUILT_IN_TYPES,
   callable,
   copyValue,
+  createMap,
   createOrdered,
   createRuntimeContext,
   createTuple,
@@ -112,6 +113,14 @@ const testValues: {
       ['b', 2],
     ]),
     formatted: 'ordered[a: 1, b: 2]',
+  },
+  {
+    typeName: 'map',
+    value: createMap([
+      ['a', 1],
+      ['b', 2],
+    ]),
+    formatted: 'map["a": 1, "b": 2]',
   },
   {
     typeName: 'vector',
@@ -218,6 +227,12 @@ describe('types/registrations', () => {
     it('resolves a vector value as vector, not dict', () => {
       const vec = createVector(new Float32Array([1, 2, 3]), 'model');
       expect(newInferType(vec)).toBe('vector');
+    });
+
+    it('map registration appears after ordered and before dict in BUILT_IN_TYPES', () => {
+      const names = BUILT_IN_TYPES.map((t) => t.name);
+      expect(names.indexOf('map')).toBeGreaterThan(names.indexOf('ordered'));
+      expect(names.indexOf('map')).toBeLessThan(names.indexOf('dict'));
     });
 
     it('vector registration appears before dict in BUILT_IN_TYPES', () => {

@@ -7,7 +7,7 @@ issues: []
 grammar: [field-arg-list, field-arg]
 errors: [RILL-P001, RILL-P014, RILL-R044, TYPE_MISMATCH, INVALID_INPUT]
 depends: [type-value, structural-typing, union, tuple, dict, ordered, fn]
-tests: [structural-type-defaults.test.ts, closure-annotation-defaults.test.ts, collection-type-defaults-bugs.test.ts, no-implied-dollar.test.ts, pipe-targets.test.ts, functions.test.ts, closure-semantics.test.ts]
+tests: [structural-type-defaults.test.ts, closure-annotation-defaults.test.ts, collection-type-defaults-bugs.test.ts, no-implied-dollar.test.ts, pipe-targets.test.ts, functions.test.ts, closure-semantics.test.ts, map-defaults.test.ts]
 ---
 
 # Defaults in types

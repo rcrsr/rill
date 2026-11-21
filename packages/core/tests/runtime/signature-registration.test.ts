@@ -23,6 +23,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  createMap,
   anyTypeValue,
   createRuntimeContext,
   getFunctions,
@@ -823,6 +824,58 @@ describe('Rill Runtime: Signature Registration', () => {
       expect(() =>
         parseSignatureRegistration('fn(x: dict(a: string, a: number))', 'fn')
       ).toThrow(/Duplicate key 'a' in dict type/);
+    });
+  });
+
+  describe('parseSignatureRegistration: map', () => {
+    it('accepts a map(K, V) parameter type', () => {
+      const parsed = parseSignatureRegistration(
+        'fn(m: map(string, number))',
+        'fn'
+      );
+      expect(parsed.params[0]?.type).toEqual({
+        kind: 'map',
+        key: { kind: 'string' },
+        value: { kind: 'number' },
+      });
+    });
+
+    it('reads a map literal default', () => {
+      const parsed = parseSignatureRegistration(
+        'fn(m: map(string, number) = map["a": 1, "b": 2])',
+        'fn'
+      );
+      expect(parsed.params[0]?.defaultValue).toEqual(
+        createMap([
+          ['a', 1],
+          ['b', 2],
+        ])
+      );
+    });
+
+    it('reads a multi-key map default', () => {
+      const parsed = parseSignatureRegistration(
+        'fn(m: map(string, number) = map[["a", "b"]: 1])',
+        'fn'
+      );
+      expect(parsed.params[0]?.defaultValue).toEqual(
+        createMap([
+          ['a', 1],
+          ['b', 1],
+        ])
+      );
+    });
+
+    it('rejects a map default whose keys mix kinds', () => {
+      expect(() =>
+        parseSignatureRegistration('fn(m: map = map["a": 1, 2: 1])', 'fn')
+      ).toThrow(/share one kind/);
+    });
+
+    it('rejects a map default with an interpolated value', () => {
+      expect(() =>
+        parseSignatureRegistration('fn(m: map = map["a": "{$}"])', 'fn')
+      ).toThrow(/string interpolation/);
     });
   });
 });

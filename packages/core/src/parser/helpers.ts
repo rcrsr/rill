@@ -306,12 +306,13 @@ export function rejectRepeatedKey(
   seen: Set<string>,
   key: string,
   at: SourceLocation,
-  collection: string
+  collection: string,
+  display: string = key
 ): void {
   if (seen.has(key)) {
     throw new ParseError(
       ERROR_IDS.RILL_P027,
-      `Duplicate key '${key}' in ${collection}`,
+      `Duplicate key '${display}' in ${collection}`,
       at
     );
   }
@@ -331,7 +332,7 @@ function isKeyValueStart(state: ParserState, tokenTypes: string[]): boolean {
 
 /**
  * Compound bracket opener tokens the lexer emits for `dict[`, `list[`, `tuple[`,
- * `ordered[`, plus the plain `[`. All five close with a single RBRACKET.
+ * `ordered[`, `map[`, plus the plain `[`. All six close with a single RBRACKET.
  * @internal
  */
 const BRACKET_OPENERS: string[] = [
@@ -340,6 +341,7 @@ const BRACKET_OPENERS: string[] = [
   TOKEN_TYPES.DICT_LBRACKET,
   TOKEN_TYPES.TUPLE_LBRACKET,
   TOKEN_TYPES.ORDERED_LBRACKET,
+  TOKEN_TYPES.MAP_LBRACKET,
 ];
 
 /**
@@ -398,7 +400,7 @@ export function isDictStart(state: ParserState): boolean {
  * expression, and a bracketed multi-key list.
  * @internal
  */
-function skipDictKey(state: ParserState, pos: number): number {
+export function skipDictKey(state: ParserState, pos: number): number {
   const token = state.tokens[pos];
   if (token === undefined) return -1;
   const type = token.type;

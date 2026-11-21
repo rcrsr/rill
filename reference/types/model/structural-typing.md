@@ -5,7 +5,7 @@ status: normative
 since: 0.24.0
 issues: []
 errors: [TYPE_MISMATCH]
-depends: [type-value, any, list, dict, tuple, ordered, union]
+depends: [type-value, any, list, dict, tuple, ordered, union, map]
 tests: [equality-gate.test.ts, structural-type-identity.test.ts, structural-type-boundaries.test.ts, structural-type-errors.test.ts, structural-type-defaults.test.ts, type-field-keys.test.ts]
 ---
 
@@ -39,6 +39,10 @@ r[structural-typing.empty] An empty collection has every type of its kind
 `list[]` MUST have `list(T)` for every `T`. `inference.empty` states its own type.
 
 ### Membership
+
+r[structural-typing.map] A map has map(K, V) when every key has K and every value has V
+A `map` value MUST have `map(K, V)` when every key has `K` and every value has `V`. An empty
+map MUST have `map(K, V)` for every `K` and `V`.
 
 r[structural-typing.exact-position] Tuple and ordered membership is exact
 A `tuple` value MUST have a positional `tuple` type only when it has no position the type

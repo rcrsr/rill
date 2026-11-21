@@ -15,6 +15,7 @@ describe('SPACING_DECLARATION', () => {
     ['dict [a: 1]\n', 'dict'],
     ['tuple [1]\n', 'tuple'],
     ['ordered [a: 1]\n', 'ordered'],
+    ['map [1: 2]\n', 'map'],
   ])('fires on a space between a keyword and its bracket: %s', (source, kw) => {
     const result = check(source);
     expect(result).toHaveLength(1);

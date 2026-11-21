@@ -558,6 +558,7 @@ const NO_OUTER_TYPES: readonly string[] = [
   'dict',
   'tuple',
   'ordered',
+  'map',
   'union',
 ];
 

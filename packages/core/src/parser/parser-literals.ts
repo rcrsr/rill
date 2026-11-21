@@ -212,7 +212,7 @@ Parser.prototype.parseLiteral = function (this: Parser): LiteralNode {
     return this.parseAtomLiteral();
   }
 
-  // Keyword-prefixed collection literals: list[...], dict[...], tuple[...], ordered[...]
+  // Keyword-prefixed collection literals: list[...], dict[...], tuple[...], ordered[...], map[...]
   if (check(this.state, TOKEN_TYPES.LIST_LBRACKET)) {
     advance(this.state);
     return this.parseCollectionLiteral('list');
@@ -228,6 +228,9 @@ Parser.prototype.parseLiteral = function (this: Parser): LiteralNode {
   if (check(this.state, TOKEN_TYPES.ORDERED_LBRACKET)) {
     advance(this.state);
     return this.parseCollectionLiteral('ordered');
+  }
+  if (check(this.state, TOKEN_TYPES.MAP_LBRACKET)) {
+    return this.parseMapLiteral(advance(this.state).span.start);
   }
 
   const token = current(this.state);
@@ -792,6 +795,31 @@ function finishDict(
   };
 }
 
+/**
+ * Parse the list literal that names several keys of one entry: a bare `[a, b]`,
+ * the empty `[]`, or `list[a, b]`. Shared by dict and map entry keys.
+ * @internal
+ */
+export function parseMultiKeyList(parser: Parser): ListLiteralNode {
+  const start = current(parser.state).span.start;
+  if (check(parser.state, TOKEN_TYPES.LIST_LBRACKET)) {
+    advance(parser.state); // consume list[
+    return parser.parseCollectionLiteral('list');
+  }
+  advance(parser.state); // consume [
+  skipNewlines(parser.state);
+  if (check(parser.state, TOKEN_TYPES.RBRACKET)) {
+    const rbracket = advance(parser.state);
+    return {
+      type: 'ListLiteral',
+      elements: [],
+      defaultValue: null,
+      span: makeSpan(start, rbracket.span.end),
+    };
+  }
+  return parser.parseTuple(start);
+}
+
 Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   const start = current(this.state).span.start;
 
@@ -838,27 +866,12 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
       expression,
       span: makeSpan(start, closeParen.span.end),
     };
-  } else if (check(this.state, TOKEN_TYPES.LBRACKET)) {
-    // Parse bare [a, b] or [] as multi-key
-    const tupleStart = current(this.state).span.start;
-    advance(this.state); // consume [
-    skipNewlines(this.state);
-    if (check(this.state, TOKEN_TYPES.RBRACKET)) {
-      const rbracket = advance(this.state);
-      key = {
-        type: 'ListLiteral',
-        elements: [],
-        defaultValue: null,
-        span: makeSpan(tupleStart, rbracket.span.end),
-      };
-    } else {
-      key = this.parseTuple(tupleStart);
-    }
-  } else if (check(this.state, TOKEN_TYPES.LIST_LBRACKET)) {
-    // Parse list[...] literal as multi-key: dict[list["a", "b"]: value]
-    advance(this.state); // consume list[
-    const literal = this.parseCollectionLiteral('list');
-    key = literal;
+  } else if (
+    check(this.state, TOKEN_TYPES.LBRACKET) ||
+    check(this.state, TOKEN_TYPES.LIST_LBRACKET)
+  ) {
+    // Bare [a, b], [], or list[...] as multi-key
+    key = parseMultiKeyList(this);
   } else if (check(this.state, TOKEN_TYPES.DICT_LBRACKET)) {
     // dict[...] is not a valid key — reject with clear error
     throw new ParseError(
@@ -900,7 +913,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
  * The grammar allows none, in literals, calls, or parameter lists alike.
  * @internal
  */
-function rejectTrailingComma(
+export function rejectTrailingComma(
   state: ParserState,
   comma: Token,
   collectionType: string

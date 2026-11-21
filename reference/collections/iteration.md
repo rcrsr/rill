@@ -7,7 +7,7 @@ issues: []
 grammar: []
 errors: [RILL-R002, RILL-R010, RILL-R044, RILL-R045, TYPE_MISMATCH]
 depends: [scope, pipe, break]
-tests: [collection-operators.test.ts, iterators.test.ts, streams.test.ts]
+tests: [collection-operators.test.ts, iterators.test.ts, streams.test.ts, map-iteration.test.ts]
 ---
 
 # Iteration
@@ -26,9 +26,9 @@ The operators are `seq`, `fan`, `filter`, `fold`, `acc`, and `sort`.
 
 ## Evaluation
 
-r[iteration.source-kinds] Lists, tuples, strings, dicts, ordereds, iterators, and streams are sources
-A list, a tuple, a string, a dict, an ordered, an iterator, and a stream MUST be accepted as a
-source.
+r[iteration.source-kinds] A list, tuple, string, dict, ordered, map, iterator, or stream is a source
+A list, a tuple, a string, a dict, an ordered, a map, an iterator, and a stream MUST be accepted
+as a source.
 
 r[iteration.other-source] Any other value is not a source
 A source of any other kind MUST halt with RILL-R002 in every operator, `sort` included.
@@ -106,7 +106,7 @@ A map's entries are stated in `map.iteration`.
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
-| The source is not a list, tuple, string, dict, ordered, iterator, or stream | RILL-R002 | Yes |
+| The source is not a list, tuple, string, dict, ordered, map, iterator, or stream | RILL-R002 | Yes |
 | An iterator or stream yields more than 10,000 elements | RILL-R010 | No |
 | An operator's source holds more than 10,000 elements | RILL-R010 | No |
 | The function argument is not callable | `#TYPE_MISMATCH` | Yes |
@@ -144,6 +144,11 @@ tuple[1, 2] -> seq({ $ * 10 })
 
 ```rill
 ordered[b: 1, a: 2] -> seq({ "{$.key}={$.value}" })
+# Result: list["b=1", "a=2"]
+```
+
+```rill
+map["b": 1, "a": 2] -> seq({ "{$.key}={$.value}" })
 # Result: list["b=1", "a=2"]
 ```
 

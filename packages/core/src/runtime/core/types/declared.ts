@@ -8,6 +8,7 @@
  */
 
 import { isStructureKind } from './guards.js';
+import { ANY_STRUCTURE } from './operations.js';
 import type { ControlFlowContext } from './runtime.js';
 import type { RillValue, TypeStructure } from './structures.js';
 
@@ -59,6 +60,9 @@ export function projectElement(
   if (isStructureKind(collection, 'list')) {
     return declarationOf(collection.element);
   }
+  if (isStructureKind(collection, 'map')) {
+    return declarationOf(collection.value);
+  }
   if (isStructureKind(collection, 'tuple')) {
     // Callers pass a non-negative index.
     if (typeof key === 'number') {
@@ -102,7 +106,21 @@ export function projectElement(
 export function iterationElement(
   collection: TypeStructure | undefined
 ): TypeStructure | undefined {
-  return collection !== undefined && isStructureKind(collection, 'list')
+  if (collection === undefined) return undefined;
+  if (isStructureKind(collection, 'map')) {
+    // Each step yields dict[key: K, value: V].
+    const key = declarationOf(collection.key);
+    const value = declarationOf(collection.value);
+    if (key === undefined && value === undefined) return undefined;
+    return {
+      kind: 'dict',
+      fields: {
+        key: { type: key ?? ANY_STRUCTURE },
+        value: { type: value ?? ANY_STRUCTURE },
+      },
+    };
+  }
+  return isStructureKind(collection, 'list')
     ? projectElement(collection, 0)
     : undefined;
 }

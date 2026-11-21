@@ -15,6 +15,7 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 | Dict | `[k: v]` or `dict[k: v]` | `dict[output: "text", code: 0]` |
 | Ordered | `ordered[k: v]` | `ordered[a: 1, b: "hello"]` |
 | Tuple | `tuple[...]` (positional) | `tuple[1, 2]` |
+| Map | `map[k: v]` (scalar keys) | `map[404: "missing"]` |
 | Datetime | `datetime(...)` or `now()` | `datetime("2024-01-15T10:30:00Z")` |
 | Duration | `duration(...)` | `duration(...dict[days: 1, hours: 2])` |
 | Vector | host-provided | `vector(voyage-3, 1024d)` |
@@ -322,7 +323,7 @@ $d.missing ?? ""
 
 ### Dict Keys Are Strings
 
-Every dict key is a string. A single number or boolean key in a literal names the string of its spelling, so `[1: "one"]` and `["1": "one"]` are the same dict. Writing the same key twice halts at parse time with `RILL-P027`, including `[1: "a", "1": "b"]`.
+Every dict key is a string; for keys of another scalar kind, see [Maps](topic-maps.md). A single number or boolean key in a literal names the string of its spelling, so `[1: "one"]` and `["1": "one"]` are the same dict. Writing the same key twice halts at parse time with `RILL-P027`, including `[1: "a", "1": "b"]`.
 
 ```rill
 [1: "one", true: "yes"] -> .keys
@@ -373,6 +374,7 @@ Every key form selects as `[expr]` does: `.$k`, `.?$k`, and `.?[expr]` halt with
 | Receiver | Wrong key | Halts |
 |----------|-----------|-------|
 | dict, stream | number or bool | `#TYPE_MISMATCH` |
+| map | not the key type | `#TYPE_MISMATCH` |
 | list, tuple, ordered | wrong-typed key | `RILL-R002` |
 | string, number, atom, fn, iterator, vector, type value | any key | `RILL-R002`, message `Cannot index <type>` |
 
@@ -404,7 +406,7 @@ Convert a number or bool selector with `-> string`:
 
 `.keys`, `.values`, and `.entries` all return dict's canonical order (see Ordered, below).
 
-On a non-dict receiver (tuple, stream, string, number, and so on) they halt `RILL-R003`, and `??` does not recover the halt. `ordered` values are accepted.
+On a non-dict receiver (tuple, stream, string, number, and so on) they halt `RILL-R003`, and `??` does not recover the halt. `ordered` and `map` values are accepted.
 
 ```rill
 [name: "test", count: 42] -> .keys      # ["count", "name"]
@@ -641,7 +643,7 @@ tuple["x"] -> :$t
 
 The `:` assertion also accepts the shorter value. No field synthesis occurs; the returned value is unchanged. Use `-> type` to fill missing fields with their defaults.
 
-Defaults must appear at trailing positions only. A required field after a defaulted field is a type constructor error.
+Defaults must appear at trailing positions only. A required field after a defaulted field is a type constructor error. A tuple type's `.defaults` returns the defaults as a map; see [Type System](topic-type-system.md#dot-notation-properties-on-type-values).
 
 `ordered` follows the same trailing rule. A `dict` value may omit any defaulted field, not only trailing ones. See [Type System](topic-type-system.md) for how defaults interact with assertions and conversion.
 
@@ -1224,6 +1226,7 @@ For stream function syntax and the `:stream(T):R` annotation on functions, see [
 
 | Document | Description |
 |----------|-------------|
+| [Maps](topic-maps.md) | Map keys, selection, conversion, and sorting |
 | [Type System](topic-type-system.md) | Structural types, type assertions, unions, type-locked variables |
 | [Variables](topic-variables.md) | Declaration, scope, `$` binding |
 | [Functions and Code Blocks](topic-closures.md) | Function semantics and patterns |

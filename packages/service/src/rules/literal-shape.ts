@@ -51,6 +51,7 @@ const COLLECTION_KINDS: ReadonlySet<string> = new Set([
   'dict',
   'tuple',
   'ordered',
+  'map',
   'stream',
 ]);
 
@@ -376,6 +377,7 @@ const NON_FUNCTION_TYPES: ReadonlySet<string> = new Set([
   'Dict',
   'TupleLiteral',
   'OrderedLiteral',
+  'MapLiteral',
 ]);
 
 /**

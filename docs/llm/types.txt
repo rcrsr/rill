@@ -6,7 +6,7 @@ Type names, assertions, conversion, parameterized types, dict shapes, type inspe
 
     string   number   bool     list     dict     ordered
     tuple    fn       vector   iterator any      type
-    atom     datetime duration    error_code
+    atom     datetime duration    error_code        map
 
 ## Type assertion `:type`
 
@@ -59,6 +59,7 @@ Structural types with field/element constraints.
     tuple(number, string)           # positional tuple
     tuple(number)                   # exactly one number; any length is list(number)
     ordered(x: number, y: number)   # named ordered args
+    map(atom, number)               # scalar key type K, any value type V; map(list, number) halts #INVALID_INPUT
     list()                          # empty parens mean unspecified: same as list(any)
 
 An outer type (`:string` after the parentheses or a bare name) attaches only to `stream`: `stream:number` is `stream(any):number`. `list(number):string` and `list:string` halt `RILL-P006`.
@@ -98,7 +99,22 @@ The 8 dict method names are reserved and cannot be used as dict keys:
     dict[len: "fake"]                # halts: reserved method name 'len'
     dict[label: "fake"].len          # fine: dict length (non-reserved key)
 
-`.keys`/`.values`/`.entries` and dict iteration visit dict's canonical order (see the Types reference for the exact rule). On a non-dict receiver these three methods halt (`RILL-R003`) instead of returning an empty list.
+`.keys`/`.values`/`.entries` and dict iteration visit dict's canonical order (see the Types reference for the exact rule). On a receiver other than a dict, ordered, or map these three methods halt (`RILL-R003`) instead of returning an empty list.
+
+### Maps
+
+A map holds keys of one scalar kind (string, number, bool, atom, datetime, duration, error_code). A key is a value: a literal, `$name`, `(expr)`, or a `[k1, k2]` list of keys.
+
+    map[404: "missing"][404]         # "missing"; a wrong key kind halts #TYPE_MISMATCH, an absent key RILL-R009 (?? recovers)
+    map[-1: "last"][-1]              # "last"; a negative number is a key, not an index
+    map[1: "x", 2: "y"].keys         # list[1, 2]; also .values, .entries, .len, .empty
+    map[#a: 1] -> dict               # RILL-R036; only map(string, V) <-> dict converts
+    map["a": 1] -> dict              # dict[a: 1]
+    map[a: 1]                        # RILL-P001: a bare name is not a key
+    map[1: "a", 1.0: "b"]            # RILL-P027
+    map[#a: 1, "b": 2]               # #TYPE_MISMATCH: two key kinds
+    map(atom, number).inner          # tuple[atom, number]
+    $m.a                             # RILL-R003; $m.?a is false
 
 ## Tuple lexicographic comparison
 
@@ -236,9 +252,13 @@ Read what a type holds with `.inner` and what a function or stream yields with `
     string.?inner                   # false
     fn(x: number):string { $x } => $f
     $f.^type.outer                  # string
-    dict(a: string = "x").defaults  # dict[a: "x"]
     fn(^(min: 0) x: number) { $x } => $g
     $g.^type.annotations            # dict[x: dict[min: 0]]; params with no annotations are left out
+
+Read a type's declared defaults with `.defaults`:
+
+    dict(a: string = "x").defaults        # dict[a: "x"]
+    tuple(number, string = "x").defaults  # map[1: "x"]: keyed by 0-based position; map[] when none
 
 Under a declared union, `.^type` reports the declaration and `.^effective` the own type:
 

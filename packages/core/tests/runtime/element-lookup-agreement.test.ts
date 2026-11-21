@@ -117,6 +117,13 @@ const POSITIONAL: readonly Form[] = [
   'pipe selection',
 ];
 
+/** A map has no named forms; a list input does not descend into it. */
+const MAP_FORMS: readonly Form[] = [
+  'variable key',
+  'bracket',
+  'pipe selection',
+];
+
 const HITS: readonly Hit[] = [
   {
     label: 'dict field',
@@ -216,6 +223,24 @@ const HITS: readonly Hit[] = [
     forms: POSITIONAL,
     value: 1,
     type: 'number',
+  },
+  {
+    label: 'map entry by atom key',
+    setup: 'map[#a: 1, #b: 2] => $c',
+    key: '#b',
+    name: '',
+    forms: MAP_FORMS,
+    value: 2,
+    type: 'number',
+  },
+  {
+    label: 'map entry by negative number key',
+    setup: 'map[1: "x", -1: "y"] => $c',
+    key: '-1',
+    name: '',
+    forms: MAP_FORMS,
+    value: 'y',
+    type: 'string',
   },
   {
     label: 'dict number-spelled key',
@@ -341,6 +366,19 @@ const MISSES: readonly Miss[] = [
       'variable key': R009('Ordered index out of bounds: 5'),
       bracket: R009('Ordered index out of bounds: 5'),
       'pipe selection': R009('Ordered index out of bounds: 5'),
+    },
+  },
+  {
+    label: 'map missing key',
+    setup: 'map[#a: 1] => $c',
+    key: '#z',
+    name: '',
+    forms: MAP_FORMS,
+    recovers: true,
+    expected: {
+      'variable key': R009('Undefined map key: #z'),
+      bracket: R009('Undefined map key: #z'),
+      'pipe selection': R009('Undefined map key: #z'),
     },
   },
   {
@@ -568,6 +606,27 @@ describe('element lookup: bracket default covers only the right-most access', ()
     await expectHalt(() => run('dict[a: 1] => $d\n$d.b[1] ?? 0'), {
       code: 'RILL_R009',
     });
+  });
+});
+
+describe('element lookup: map receiver', () => {
+  it('halts a named field read with the no-fields error', async () => {
+    await expectHalt(() => run('map["a": 1] => $c\n$c.a'), {
+      code: 'RILL_R003',
+    });
+  });
+
+  it('halts a wrong-kind selector in every form, even with a default', async () => {
+    const setup = 'map[#a: 1] => $c\n"a" => $k\n';
+    for (const read of ['$c.$k', '$c["a"]', '"a" -> $c', '$c.?["a"]']) {
+      await expectHalt(() => run(`${setup}${read} ?? 5`), {
+        code: 'TYPE_MISMATCH',
+      });
+    }
+  });
+
+  it('answers a named existence check with false', async () => {
+    expect(await run('map["a": 1] => $c\n$c.?a')).toBe(false);
   });
 });
 

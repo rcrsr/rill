@@ -257,9 +257,9 @@ describe('token highlighting', () => {
       expect(tags).not.toContain('keyword');
     });
 
-    it('"map" is no longer a keyword (now an identifier)', () => {
+    it('"map" is a type name, not a keyword', () => {
       const tags = tokenizeLine('map');
-      expect(tags).toContain('variableName');
+      expect(tags).toContain('typeName');
       expect(tags).not.toContain('keyword');
     });
 

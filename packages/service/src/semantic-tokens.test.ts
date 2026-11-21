@@ -131,6 +131,19 @@ describe('semanticTokens', () => {
     expect(typeFn?.tokenType).toBe('typeName');
   });
 
+  it('classifies the map keyword of a map literal as keyword', () => {
+    const source = 'map[1: 2]\n';
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const decoded = decodeAbsolute(
+      semanticTokens(parsed, tokenize(source), source)
+    );
+    const mapToken = decoded.find((t) => t.line === 0 && t.character === 0);
+
+    expect(mapToken?.tokenType).toBe('keyword');
+  });
+
   it('tolerates a recovery/partial AST without throwing', () => {
     const source = '1 -> $x -> ';
     const parsed = parseWithRecovery(source);

@@ -15,6 +15,7 @@
 import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
 import { isDict } from '../guards.js';
+import { createMap } from '../constructors.js';
 import { orderedDictEntries, setDictField } from '../dict-keys.js';
 import { formatFieldKey } from '../format-string.js';
 import {
@@ -74,6 +75,14 @@ function eqDict(a: RillValue, b: RillValue): boolean {
 
 const dictConvertTo: Record<string, (v: RillValue) => RillValue> = {
   string: (v: RillValue): RillValue => formatDict(v),
+  map: (v: RillValue): RillValue => {
+    const dict = isDict(v)
+      ? v
+      : requireReceiver(v, isDict, { fn: 'convert-dict-to-map' }, 'dict');
+    return createMap(
+      orderedDictEntries(dict).map(({ key, value }) => [key, value])
+    );
+  },
 };
 
 // ============================================================

@@ -13,7 +13,8 @@ import type { RuntimeContext } from './runtime.js';
 import type { RillValue } from './structures.js';
 import type { ScriptCallable } from '../callable.js';
 import { isScriptCallable } from '../callable.js';
-import { isOrdered, isPlainDict, isTuple } from './guards.js';
+import { isMap, isOrdered, isPlainDict, isTuple } from './guards.js';
+import { formatValue } from './registrations.js';
 import { throwHeldEntryHalt, type TypeHaltSite } from './halt.js';
 
 /** Which entries `rejectHeldEntries` inspects. */
@@ -38,7 +39,7 @@ function checkEntry(
 }
 
 /**
- * Halt with a catchable #TYPE_MISMATCH when a list, tuple, dict or ordered
+ * Halt with a catchable #TYPE_MISMATCH when a list, tuple, dict, ordered or map
  * value holds a block entry. 'direct' inspects the immediate entries;
  * 'deep' also recurses through nested collections. Other values pass.
  */
@@ -52,9 +53,15 @@ export function rejectHeldEntries(
     value.forEach((entry, i) => checkEntry(entry, i, op, site, mode));
   } else if (isTuple(value)) {
     value.entries.forEach((entry, i) => checkEntry(entry, i, op, site, mode));
-  } else if (isOrdered(value)) {
+  } else if (isOrdered(value) || isMap(value)) {
     for (const [key, entry] of value.entries) {
-      checkEntry(entry, key, op, site, mode);
+      checkEntry(
+        entry,
+        typeof key === 'string' ? key : formatValue(key),
+        op,
+        site,
+        mode
+      );
     }
   } else if (isPlainDict(value)) {
     for (const [key, entry] of Object.entries(value)) {

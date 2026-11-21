@@ -838,8 +838,8 @@ describe('Rill Language: -> Conversion Operator', () => {
       );
     });
 
-    it('VALID_TYPE_NAMES has exactly 18 entries', () => {
-      expect(VALID_TYPE_NAMES).toHaveLength(18);
+    it('VALID_TYPE_NAMES has exactly 19 entries', () => {
+      expect(VALID_TYPE_NAMES).toHaveLength(19);
     });
   });
 });

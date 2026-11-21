@@ -3,8 +3,7 @@
  *
  * The properties a type value exposes to scripts: `name` and `signature` on
  * every kind, `inner` on compound kinds, `outer` on computing kinds and
- * `defaults` and `annotations` on kinds with named or positional fields
- * (dict, ordered, fn). Both read through one field walker. Presence depends on the kind of
+ * `defaults` on dict, ordered, fn and tuple, `annotations` on dict, ordered and fn. Both read through one field walker. Presence depends on the kind of
  * the type only, so `.?p` is true exactly when `.p` does not halt.
  *
  * @internal
@@ -12,7 +11,7 @@
 
 import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
 import { atomName } from './atom-registry.js';
-import { createOrdered, createTuple } from './constructors.js';
+import { createMap, createOrdered, createTuple } from './constructors.js';
 import { setDictField } from './dict-keys.js';
 import { isStructureKind } from './guards.js';
 import { throwCatchableHostHalt, RuntimeHaltSignal } from './halt.js';
@@ -38,16 +37,21 @@ const INNER_KINDS: ReadonlySet<string> = new Set([
   'list',
   'dict',
   'ordered',
+  'map',
   'tuple',
   'union',
   'fn',
   'stream',
 ]);
 const OUTER_KINDS: ReadonlySet<string> = new Set(['fn', 'stream']);
-const FIELD_RECORD_KINDS: ReadonlySet<string> = new Set([
+const ANNOTATION_KINDS: ReadonlySet<string> = new Set([
   'dict',
   'ordered',
   'fn',
+]);
+const DEFAULT_KINDS: ReadonlySet<string> = new Set([
+  ...ANNOTATION_KINDS,
+  'tuple',
 ]);
 
 // ============================================================
@@ -66,8 +70,9 @@ function hasTypeProperty(type: RillTypeValue, name: string): boolean {
     case 'outer':
       return OUTER_KINDS.has(kind);
     case 'defaults':
+      return DEFAULT_KINDS.has(kind);
     case 'annotations':
-      return FIELD_RECORD_KINDS.has(kind);
+      return ANNOTATION_KINDS.has(kind);
     default:
       return false;
   }
@@ -123,6 +128,10 @@ function tupleInner(
   return createTuple(type.elements.map((e) => structureToTypeValue(e.type)));
 }
 
+function mapInner(type: Extract<TypeStructure, { kind: 'map' }>): RillValue {
+  return createTuple([typeOrAny(type.key), typeOrAny(type.value)]);
+}
+
 function unionInner(
   type: Extract<TypeStructure, { kind: 'union' }>
 ): RillValue {
@@ -154,6 +163,7 @@ function readInner(structure: TypeStructure): RillValue {
   if (isStructureKind(structure, 'list')) return typeOrAny(structure.element);
   if (isStructureKind(structure, 'dict')) return dictInner(structure);
   if (isStructureKind(structure, 'ordered')) return orderedInner(structure);
+  if (isStructureKind(structure, 'map')) return mapInner(structure);
   if (isStructureKind(structure, 'tuple')) return tupleInner(structure);
   if (isStructureKind(structure, 'union')) return unionInner(structure);
   if (isStructureKind(structure, 'fn')) return fnInner(structure);
@@ -200,6 +210,19 @@ function pickDefault(field: RillFieldDef): RillValue | undefined {
   return field.defaultValue;
 }
 
+/** A map from 0-based position to default value, for elements that declare one. */
+function tupleDefaults(
+  type: Extract<TypeStructure, { kind: 'tuple' }>
+): RillValue {
+  const entries: (readonly [RillValue, RillValue])[] = [];
+  (type.elements ?? []).forEach((element, index) => {
+    if (element.defaultValue !== undefined) {
+      entries.push([index, element.defaultValue]);
+    }
+  });
+  return createMap(entries);
+}
+
 /** A fresh copy of the field's annotations; nothing when it has none. */
 function pickAnnotations(field: RillFieldDef): RillValue | undefined {
   const source = field.annotations;
@@ -236,6 +259,7 @@ export function readTypeProperty(
       return typeOrAny(ret);
     }
     case 'defaults':
+      if (isStructureKind(structure, 'tuple')) return tupleDefaults(structure);
       return projectFields(structure, pickDefault);
     case 'annotations':
       return projectFields(structure, pickAnnotations);

@@ -846,7 +846,7 @@ describe('Streams: Error Contracts', () => {
   describe('EC-4: non-iterable to collection operator', () => {
     it('error message includes stream in type list', async () => {
       await expect(run('42 -> seq({ $ })')).rejects.toThrow(
-        /list, tuple, string, dict, ordered, iterator, or stream/
+        /list, tuple, string, dict, ordered, map, iterator, or stream/
       );
     });
   });

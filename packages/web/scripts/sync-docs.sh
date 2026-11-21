@@ -45,6 +45,7 @@ declare -A FILE_MAP=(
   # guide-make promoted to /make (standalone page outside docs tree)
   ["topic-types"]="language/types 1"
   ["topic-type-system"]="language/type-system 7"
+  ["topic-maps"]="language/maps 11"
   ["topic-variables"]="language/variables 2"
   ["topic-control-flow"]="language/control-flow 3"
   ["topic-operators"]="language/operators 4"
@@ -84,6 +85,7 @@ declare -A LINK_MAP=(
   ["guide-make.md"]="/make/"
   ["topic-types.md"]="/docs/language/types/"
   ["topic-type-system.md"]="/docs/language/type-system/"
+  ["topic-maps.md"]="/docs/language/maps/"
   ["topic-variables.md"]="/docs/language/variables/"
   ["topic-control-flow.md"]="/docs/language/control-flow/"
   ["topic-operators.md"]="/docs/language/operators/"

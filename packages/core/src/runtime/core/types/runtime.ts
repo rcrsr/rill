@@ -11,7 +11,12 @@ import type { TypeStructure, RillValue } from './structures.js';
 import type { DeclaredSlot } from './declared.js';
 import type { InvalidateMeta } from './status.js';
 
-export type { NativeArray, NativePlainObject, NativeValue } from '../values.js';
+export type {
+  NativeArray,
+  NativeMap,
+  NativePlainObject,
+  NativeValue,
+} from '../values.js';
 
 /**
  * Alias for {@link InvalidateMeta} used by `RuntimeContext.catch` detector

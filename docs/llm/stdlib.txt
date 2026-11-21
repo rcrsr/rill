@@ -60,7 +60,7 @@ String, list, dict methods, comparison helpers, and built-in functions.
 | `.values` | values as list |
 | `.entries` | list of `tuple[k, v]` pairs |
 
-`.keys`, `.values`, and `.entries` halt (`RILL-R003`) on a non-dict receiver such as a list, string, number, bool, or tuple. `??` and `guard` do not recover it. Check first: `$x -> :?dict ? ($x -> .keys) ! list[]`.
+`.keys`, `.values`, and `.entries` halt (`RILL-R003`) on a receiver that is not a dict, ordered, or map, such as a list, string, number, bool, or tuple. `??` and `guard` do not recover it. Check first: `$x -> :?dict ? ($x -> .keys) ! list[]`.
 
 ## Comparison methods
 
@@ -87,6 +87,7 @@ Example:
 | `datetime(...)` | construct datetime (ISO string or named components) |
 | `duration("1h30m")` | construct duration from a printed form |
 | `sort(list, key_fn?)` | stable ascending sort of a list; returns `list` |
+| `sort(map, key_fn?)` | stable ascending sort of a map by key, or by key function result (`$` is `dict[key, value]`); returns `map` |
 | `sort(dict, key_fn?)` | stable ascending sort of dict or ordered entries; returns `ordered[[key, value]]` |
 
 The other built-ins (`seq`, `fan`, `acc`, `fold`, `filter`, `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `iterate`, `debounce`, `throttle`, `sample`) are covered in the `iterate` through `stop_when` sections below and in the control-flow fragment.
@@ -119,6 +120,7 @@ Stable ascending sort. List and tuple sort return `list`. Dict and ordered sort 
     dict[c: 3, a: 1, b: 2] -> sort                 # ordered[a: 1, b: 2, c: 3]
     dict[c: 3, a: 1, b: 2] -> sort({ $.value })    # ordered[a: 1, b: 2, c: 3]
     ordered[b: 2, a: 1] -> sort                    # ordered[a: 1, b: 2]
+    map["b": 2, "a": 1] -> sort                    # map["a": 1, "b": 2]
 
 Multi-key sort uses `tuple[...]` projection. Tuples compare lexicographically left to right.
 

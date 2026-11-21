@@ -210,6 +210,22 @@ interface RillOrdered {
 
 `toNative()` converts `RillOrdered` to a plain object — the `NativeResult.value` field holds `{ key: value, ... }` with insertion-order keys.
 
+### RillMap
+
+`RillMap` holds key/value entries in insertion order. Keys are scalars of one kind: string, number, bool, atom, datetime, or duration (`RillMapKey`). The `entries` field is a plain array of pairs, not a JS `Map`:
+
+```typescript
+interface RillMap {
+  readonly __rill_map: true;
+  readonly entries: readonly (readonly [RillMapKey, RillValue])[];
+}
+// Created by: map["a": 1, "b": 2]
+```
+
+`isMap(value)` narrows a `RillValue` to `RillMap`. `createMap(entries)` builds one from `[key, value]` pairs and halts `#TYPE_MISMATCH` for a non-scalar key or keys of two kinds, and `#INVALID_INPUT` for a duplicate key.
+
+`toNative()` converts `RillMap` to a JS `Map` (`NativeMap`). An atom key becomes its name string; other keys convert as scalars.
+
 ### RillTuple
 
 `RillTuple` holds positional values produced by tuple expressions. The `entries` field is a plain array, not a `Map`:
@@ -250,6 +266,7 @@ type TypeStructure =
   | { kind: 'fn';      params?: [string, TypeStructure][]; ret?: TypeStructure }
   | { kind: 'tuple';   elements?: TypeStructure[] }
   | { kind: 'ordered'; fields?: [string, TypeStructure][] }
+  | { kind: 'map';     key?: TypeStructure; value?: TypeStructure }
 ```
 
 **Breaking change from previous versions:** `{ kind: 'primitive', name: 'string' }` is now `{ kind: 'string' }`. `{ type: 'any' }` (pre-rename) is now `{ kind: 'any' }`. `{ type: 'dict', fields: F }` (pre-rename) is now `{ kind: 'dict', fields?: F }`. Switch on `structure.kind`, not `structure.type`.
@@ -327,7 +344,7 @@ console.log(nativeResult.value);             // JS-native value, always populate
 ```typescript
 interface NativeResult {
   /** Base rill type name — "string", "number", "bool", "list", "dict",
-   *  "tuple", "ordered", "fn", "vector", "type", or "iterator" */
+   *  "tuple", "ordered", "map", "fn", "vector", "type", or "iterator" */
   rillTypeName: string;
   /** Full structural type signature from formatStructure,
    *  e.g. "list(number)", "dict(a: number, b: string)", "fn(x: number):string" */
@@ -337,7 +354,13 @@ interface NativeResult {
   value: NativeValue;
 }
 
-type NativeValue = string | number | boolean | null | NativeValue[] | { [key: string]: NativeValue };
+type NativeValue =
+  | string | number | boolean | null
+  | NativeValue[]
+  | { [key: string]: NativeValue }
+  | NativeMap;
+
+type NativeMap = Map<NativeValue, NativeValue>;
 ```
 
 ### Conversion table
@@ -352,6 +375,7 @@ type NativeValue = string | number | boolean | null | NativeValue[] | { [key: st
 | dict | `"dict"` | plain object (see note below) |
 | tuple | `"tuple"` | array of entry values |
 | ordered | `"ordered"` | plain object with insertion-order keys |
+| map | `"map"` | JS `Map` (atom keys by name) |
 | fn | `"fn"` | descriptor: `{ signature: string }` |
 | vector | `"vector"` | descriptor: `{ model: string, dimensions: number }` |
 | type value | `"type"` | descriptor: `{ name: string, signature: string }` |

@@ -28,6 +28,7 @@
 import type {
   StringLiteralNode,
   ListLiteralNode,
+  MapLiteralNode,
   DictNode,
   ClosureNode,
   BlockNode,
@@ -48,6 +49,7 @@ import {
 } from '../../../../types.js';
 import type { Carried } from '../../types/declared.js';
 import type {
+  RillMapKey,
   RillTypeValue,
   RillValue,
   TypeStructure,
@@ -78,7 +80,12 @@ import {
   RuntimeHaltSignal,
 } from '../../types/halt.js';
 import { ControlSignal } from '../../signals.js';
-import { isAtom, isOrdered, orderedValueEntries } from '../../types/guards.js';
+import {
+  isAtom,
+  isMapKey,
+  isOrdered,
+  orderedValueEntries,
+} from '../../types/guards.js';
 import { isDict } from '../../callable.js';
 import type { EvalState } from '../state.js';
 import type { RuntimeContext } from '../../types/runtime.js';
@@ -91,6 +98,7 @@ import { getEvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getNodeLocation, setDictField, withChildScope } from '../shared.js';
 import { orderedDictEntries } from '../../types/dict-keys.js';
+import { createMapKeyChecker, freezeMap } from '../../types/constructors.js';
 import {
   evaluateExpression,
   evaluateExpressionCarried,
@@ -450,6 +458,25 @@ function plainStringLiteralText(
   return text;
 }
 
+/** Halt RILL-R002 when a multi-key entry's key list is empty. */
+function requireNonEmptyKeys(
+  keys: readonly RillValue[],
+  site: {
+    location: SourceLocation | undefined;
+    sourceId: string | undefined;
+    fn: string;
+  },
+  noun: 'dict' | 'map'
+): void {
+  if (keys.length === 0) {
+    throwCatchableHostHalt(
+      site,
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `Multi-key ${noun} entry requires non-empty list`
+    );
+  }
+}
+
 /**
  * Evaluate a multi-key entry's key list and validate it: the list is
  * non-empty and every element is a string. A number or bool is ambiguous
@@ -471,13 +498,7 @@ async function evaluateMultiKeyStrings(
     sourceId: s.ctx.sourceId,
     fn,
   };
-  if (keys.length === 0) {
-    throwCatchableHostHalt(
-      site,
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      'Multi-key dict entry requires non-empty list'
-    );
-  }
+  requireNonEmptyKeys(keys, site, 'dict');
   const stringKeys: string[] = [];
   for (const key of keys) {
     if (typeof key !== 'string') {
@@ -780,6 +801,72 @@ export async function evaluateDict(
   }
 
   return result;
+}
+
+/**
+ * Evaluate the keys of one map entry: a single key expression, or the
+ * elements of a multi-key list. Every key passes the invalid-value gate.
+ */
+async function evaluateMapKeys(
+  s: EvalState,
+  key: ExpressionNode | ListLiteralNode
+): Promise<RillValue[]> {
+  if (key.type !== 'ListLiteral') {
+    return [
+      accessHaltGateFast(
+        await evaluateExpression(s, key),
+        'evaluateMap',
+        () => key.span?.start,
+        s.ctx.sourceId
+      ),
+    ];
+  }
+  const keys = await evaluateListLiteralElements(s, key.elements);
+  requireNonEmptyKeys(
+    keys,
+    { location: key.span?.start, sourceId: s.ctx.sourceId, fn: 'evaluateMap' },
+    'map'
+  );
+  return keys;
+}
+
+/**
+ * Evaluate a map literal.
+ *
+ * Each entry evaluates its keys, then its value once; a multi-key entry binds
+ * every key to that value. Entries keep insertion order. A map reserves no
+ * keys. A non-scalar key, keys of two kinds, or two keys equal by value halt
+ * at the offending entry.
+ */
+export async function evaluateMap(
+  s: EvalState,
+  node: MapLiteralNode
+): Promise<RillValue> {
+  const check = createMapKeyChecker();
+  const pairs: (readonly [RillMapKey, RillValue])[] = [];
+  for (const entry of node.entries) {
+    const keys = await evaluateMapKeys(s, entry.key);
+    for (const key of keys) {
+      const fault = check(key);
+      if (fault !== undefined || !isMapKey(key)) {
+        throwTypeHalt(
+          {
+            location: entry.span?.start,
+            sourceId: s.ctx.sourceId,
+            fn: 'evaluateMap',
+          },
+          fault?.code ?? 'TYPE_MISMATCH',
+          fault?.message ?? 'Map key must be a scalar',
+          'runtime'
+        );
+      }
+    }
+    const value = await evaluateEntryValue(s, entry.value, 'evaluateMap');
+    for (const key of keys) {
+      if (isMapKey(key)) pairs.push([key, value]);
+    }
+  }
+  return freezeMap(pairs);
 }
 
 /**

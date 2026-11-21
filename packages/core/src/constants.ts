@@ -26,6 +26,7 @@ export const VALID_TYPE_NAMES = [
   'dict',
   'tuple',
   'ordered',
+  'map',
   'vector',
   'any',
   'type',

@@ -90,7 +90,7 @@ Concepts stated here but not built for 0.24.0. Their open questions do not block
 
 | Issue | Question | Concept |
 |-------|----------|---------|
-| [#599](https://github.com/rcrsr/rill/issues/599), [#595](https://github.com/rcrsr/rill/issues/595) | `.annotations` on a tuple type keyed by position, once `map(K, V)` exists | `introspection` |
+| [#599](https://github.com/rcrsr/rill/issues/599), [#595](https://github.com/rcrsr/rill/issues/595) | Whether `.annotations` on a tuple type returns a map | `introspection` |
 | [#629](https://github.com/rcrsr/rill/issues/629) | The name of strict mode, and whether it flags a block passed to a construct or an operator | `strict-mode` |
 
 ## Known inconsistencies

@@ -84,6 +84,8 @@ const KNOWN_NODE_TYPES_RECORD = {
   DictLiteral: true,
   TupleLiteral: true,
   OrderedLiteral: true,
+  MapLiteral: true,
+  MapEntry: true,
   Destruct: true,
   UseExpr: true,
   GuardBlock: true,
@@ -188,6 +190,7 @@ list[1, 2, 3] => $l
 dict[a: 1, b: dict[c: 2]] => $d
 tuple[1, 2] => $t
 ordered[a: 1] => $o
+map[#a: 1] => $m
 $l -> destruct<$a, $b, $c>
 $d -> destruct<a: $x>
 list[1, 2] -> destruct<destruct<$a1, $b1>, $c1>

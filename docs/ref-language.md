@@ -135,6 +135,7 @@ See [Collection Slicing](topic-collection-slicing.md) for detailed documentation
 | Dict | `[k: v]` or `dict[k: v]` (canonical) | `dict[output: "text"]`, `dict[$key: 1]`, `[...$d, b: 2]` | Dict value |
 | Ordered | `ordered[k: v]` | `ordered[a: 1, b: "hello"]` | Ordered value |
 | Tuple | `tuple[...]` | `tuple[1, 2]` | Tuple value |
+| Map | `map[k: v, ...]` | `map[404: "missing"]` | Entries keyed by one scalar kind |
 | Datetime | `datetime(...)` or `now()` | `datetime("2024-01-15T10:30:00Z")`, `now()` | Datetime value |
 | Duration | `duration(...)` | `duration(...dict[days: 1, hours: 2])` | Duration value |
 | Vector | host-provided | `$app.embed("text")` (after `use<ext:app> => $app`) | Vector value |
@@ -144,11 +145,11 @@ See [Collection Slicing](topic-collection-slicing.md) for detailed documentation
 | Atom | `#NAME` | `#TIMEOUT`, `#wired` | `:atom` value |
 | Declared literal | `T literal` | `list(number)[1, 2]`, `union("a", "b") "a"` | Literal checked against `T`, carrying `T` as its declared type |
 
-**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `fn`, `list`, `dict`, `ordered`, `tuple`, `vector`, `iterator`, `datetime`, `duration`, `stream`, `atom`, `error_code`, `any`, `type`
+**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `fn`, `list`, `dict`, `ordered`, `tuple`, `map`, `vector`, `iterator`, `datetime`, `duration`, `stream`, `atom`, `error_code`, `any`, `type`
 
 `union` is also a type name, valid only as `union(T, ...)`; see [Type System](topic-type-system.md).
 
-Parameterized forms (`list(T)`, `dict(k: T, ...)`, `tuple(T, ...)`, `stream(T):R`, `union(T, ...)`) are also valid in all annotation positions and deep-validate element types at runtime. See [Types](topic-types.md) for stream type documentation and [Functions and Code Blocks](topic-closures.md) for stream function syntax.
+Parameterized forms (`list(T)`, `dict(k: T, ...)`, `tuple(T, ...)`, `map(K, V)`, `stream(T):R`, `union(T, ...)`) are also valid in all annotation positions and deep-validate element types at runtime. See [Types](topic-types.md) for stream type documentation and [Functions and Code Blocks](topic-closures.md) for stream function syntax.
 
 **Union types** (`union(T1, T2)`, `union(T1, T2, T3)`) are valid in all annotation positions. A union matches if the value satisfies any member. A member is a type or a string, number, bool, or atom literal: `union("c", "f")`. Type members can be parameterized: `union(list(string), dict)`. See [Type System](topic-type-system.md) for union type documentation.
 
@@ -243,7 +244,7 @@ See [Variables](topic-variables.md) for detailed documentation.
 
 | Form | Reaches or halts |
 |------|------------------|
-| `.$k`, `[expr]`, `.?` | Dict data fields, list and tuple positions, ordered entries |
+| `.$k`, `[expr]`, `.?` | Dict data fields, list and tuple positions, ordered entries, map entries by key |
 | `.name`, `.?name`, and `-> .name` on a type value | `name`, `signature`, `inner`, `outer`, `defaults`, `annotations`, where the type has them; `.$k` and `[k]` halt RILL-R002 |
 | `.len`, `.keys` | Work only as a written `.name` or a pipe method |
 | `.?len` | `false` |
@@ -327,6 +328,7 @@ Type constructors are primary expressions that produce structural type values. T
 | Dict type | `dict(k: T [= literal], ...)` | `dict(a: number, b: string = "x")` |
 | Dict field, quoted/number/bool key | `dict("k": T, ...)` | `dict("a b": number)` |
 | Tuple type | `tuple(T, T2 [= literal], ...)` | `tuple(number, string = "x")` |
+| Map type | `map(K, V)` | `map(atom, number)` |
 | Ordered type | `ordered(k: T [= literal], ...)` | `ordered(a: number, b: string = "x")` |
 | Dict field with annotation | `dict(^(...) k: T, ...)` | `dict(^("label") name: string)` |
 | Ordered field with annotation | `ordered(^(...) k: T, ...)` | `ordered(^("x") x: number, ^("y") y: number)` |
@@ -399,7 +401,7 @@ See [Type System](topic-type-system.md) for detailed structural type documentati
 
 ### Dispatch
 
-Pipe a value to a collection (dict, list, tuple, or ordered) to retrieve the corresponding element. A tuple selects by index and an ordered selects by key, as a list and a dict do.
+Pipe a value to a collection (dict, list, tuple, ordered, or map) to retrieve the corresponding element. A tuple selects by index and an ordered selects by key, as a list and a dict do. A map selects by a key of its key kind; a held block runs with the key as `$`.
 
 **Dict Dispatch:** Match keys and return associated values.
 
@@ -501,15 +503,15 @@ The index must be an integer; a non-integer number halts with `#INVALID_INPUT` a
 | `.ends_with(suf)` | String | Bool | Ends with suffix |
 | `.match(regex)` | String | Dict | First match info |
 | `.is_match(regex)` | String | Bool | Regex matches |
-| `.empty` | String/List/Dict/Tuple/Ordered | Bool | Is empty |
+| `.empty` | String/List/Dict/Tuple/Ordered/Map | Bool | Is empty |
 | `.has(value)` | List | Bool | Check if list contains value (deep equality) |
 | `.has_any([values])` | List | Bool | Check if list contains any value from candidates |
 | `.has_all([values])` | List | Bool | Check if list contains all values from candidates |
-| `.keys` | Dict | List | All keys |
-| `.values` | Dict | List | All values |
-| `.entries` | Dict | List | `tuple(string, V)` pairs |
+| `.keys` | Dict/Ordered/Map | List | All keys |
+| `.values` | Dict/Ordered/Map | List | All values |
+| `.entries` | Dict/Ordered/Map | List | `tuple(K, V)` pairs |
 
-`.keys`, `.values`, and `.entries` halt `RILL-R003` on a non-dict receiver (tuple, stream, string, number, and so on); `??` and `guard` do not recover the halt, so check the receiver first. `ordered` values are accepted.
+`.keys`, `.values`, and `.entries` halt `RILL-R003` on a receiver that is not a dict, ordered, or map (tuple, stream, string, number, and so on); `??` and `guard` do not recover the halt, so check the receiver first. See [Maps](topic-maps.md) for map keys and selection.
 
 See [Strings](topic-strings.md) for detailed string method documentation.
 
@@ -519,7 +521,7 @@ Methods marked "runtime checked" accept any receiver at parse time and halt at r
 
 | Method | Receiver Types | Params | Return |
 |--------|---------------|--------|--------|
-| `.len` | string, list, dict, tuple, ordered | (none) | `number` |
+| `.len` | string, list, dict, tuple, ordered, map | (none) | `number` |
 | `.trim` | string | (none) | `string` |
 | `.head`, `.tail` | string, list | (none) | `any` |
 | `.first` | string, list, dict, iterator (runtime checked) | (none) | `iterator` |
@@ -528,7 +530,7 @@ Methods marked "runtime checked" accept any receiver at parse time and halt at r
 | `.join` | list | `separator: string = ","` | `string` |
 | `.reverse` | list | (none) | `list` |
 | `.lines` | string | (none) | `list` |
-| `.empty` | string, list, dict, tuple, ordered | (none) | `bool` |
+| `.empty` | string, list, dict, tuple, ordered, map | (none) | `bool` |
 | `.starts_with`, `.ends_with` | string | `prefix: string` for `.starts_with`, `suffix: string` for `.ends_with` | `bool` |
 | `.lower`, `.upper` | string | (none) | `string` |
 | `.replace`, `.replace_all` | string | `pattern: string, replacement: string` | `string` |
@@ -566,6 +568,7 @@ Methods marked "runtime checked" accept any receiver at parse time and halt at r
 | `now` | (none) | `datetime` | Current UTC instant |
 | `sort` | `list[T], key_fn?: (item: T) => Comparable` | `list[T]` | Sort list; stable, ascending by default |
 | `sort` | `dict[K, V], key_fn?: (entry: [key: K, value: V]) => Comparable` | `ordered[[key: K, value: V]]` | Sort dict entries; returns ordered key-value pairs |
+| `sort` | `map[K, V], key_fn?: (entry: dict[key: K, value: V]) => Comparable` | `map[K, V]` | Sort map entries by key, or by the key function result; returns a map |
 
 `json` halts `#INVALID_INPUT` on a function value, including a function held in a dict or list.
 

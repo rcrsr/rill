@@ -18,7 +18,9 @@ import {
   isDatetime,
   isDict,
   isDuration,
+  isAtom,
   isIterator,
+  isMap,
   isOrdered,
   isStream,
   isStructureKind,
@@ -58,7 +60,11 @@ export type NativeValue =
   | boolean
   | null
   | NativeArray
-  | NativePlainObject;
+  | NativePlainObject
+  | NativeMap;
+
+/** Map with scalar keys (atom keys by name) and NativeValue values. */
+export type NativeMap = Map<NativeValue, NativeValue>;
 
 /** Array of NativeValue */
 export type NativeArray = NativeValue[];
@@ -86,6 +92,7 @@ export interface NativeResult {
  * Convert a RillValue to a NativeResult for host consumption.
  * Non-representable types (closures, vectors, type values, iterators) produce descriptor objects.
  * Tuples convert to native arrays. Ordered values convert to plain objects.
+ * Maps convert to a JS Map with atom keys as their names.
  */
 export function toNative(value: RillValue): NativeResult {
   const rillTypeName = inferType(value);
@@ -118,6 +125,15 @@ function toNativeValue(value: RillValue): NativeValue {
       setDictField(result, k, toNativeValue(v));
     }
     return result;
+  }
+
+  if (isMap(value)) {
+    return new Map(
+      value.entries.map(([k, v]): [NativeValue, NativeValue] => [
+        isAtom(k) ? k.atom.name : toNativeValue(k),
+        toNativeValue(v),
+      ])
+    );
   }
 
   if (isVector(value)) {
@@ -174,49 +190,12 @@ function toNativeValue(value: RillValue): NativeValue {
   return result;
 }
 
-/**
- * Reserved dict method names that cannot be overridden.
- * Must match the full key set of DICT_METHODS in
- * runtime/ext/builtins/methods/tables.ts (len, first, empty, eq, ne, keys,
- * values, entries). Kept as a literal array rather than an import because
- * core/ must not import from ext/; a runtime-level parity test guards
- * against drift between the two.
- */
-export const RESERVED_DICT_METHODS = [
-  'len',
-  'first',
-  'empty',
-  'eq',
-  'ne',
-  'keys',
-  'values',
-  'entries',
-] as const;
-
-/**
- * Brand keys used internally to discriminate runtime value shapes
- * (atom, tuple, vector, datetime, duration, ordered, type value, callable,
- * field descriptor). A dict key colliding with one of these would let user
- * data masquerade as a branded runtime value, so scripts cannot write them
- * as dict literal keys, type-constructor field names, or annotation keys.
- */
-export const RESERVED_BRAND_KEYS = [
-  '__type',
-  '__rill_atom',
-  '__rill_tuple',
-  '__rill_vector',
-  '__rill_datetime',
-  '__rill_duration',
-  '__rill_ordered',
-  '__rill_type',
-  '__rill_stream',
-  '__rill_stream_resolve',
-  '__rill_stream_head',
-  '__rill_stream_dispose',
-  '__rill_stream_chunk_type',
-  '__rill_stream_ret_type',
-  '__rill_field_descriptor',
-] as const;
+export {
+  RESERVED_DICT_METHODS,
+  RESERVED_BRAND_KEYS,
+  isReservedMethod,
+  isReservedBrandKey,
+} from './types/dict-keys.js';
 
 export { anyTypeValue } from './types/any-type.js';
 
@@ -234,9 +213,14 @@ export function structureToTypeValue(type: TypeStructure): RillTypeValue {
 }
 
 /**
- * Check if a type is a collection (dict, ordered, tuple) with defined
- * fields or elements. Used to decide if an empty collection can be
- * synthesized and hydrated.
+ * Decide whether an omitted member of this type is seeded with an empty
+ * collection. A type counts only when it names fields or positions (dict or
+ * ordered with `fields`, tuple with `elements`); the legacy uniform dict or
+ * ordered `valueType` form also counts until it is removed, and its seed
+ * hydrates to an empty collection with no check. Map, list, and every other
+ * kind never count, so an omitted member of those types halts RILL-R044. This
+ * only decides whether to seed; hydrating the seed halts RILL-R044 when a
+ * child lacks a default.
  */
 export function hasCollectionFields(type: TypeStructure): boolean {
   if (isStructureKind(type, 'dict')) return !!type.fields || !!type.valueType;
@@ -247,14 +231,4 @@ export function hasCollectionFields(type: TypeStructure): boolean {
     return !!type.elements;
   }
   return false;
-}
-
-/** Check if a key name is reserved */
-export function isReservedMethod(name: string): boolean {
-  return (RESERVED_DICT_METHODS as readonly string[]).includes(name);
-}
-
-/** Check if a key name collides with a reserved brand key */
-export function isReservedBrandKey(name: string): boolean {
-  return (RESERVED_BRAND_KEYS as readonly string[]).includes(name);
 }

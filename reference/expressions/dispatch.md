@@ -3,11 +3,11 @@ id: dispatch
 title: Dispatch
 status: normative
 since: 0.24.0
-issues: [599]
+issues: []
 grammar: []
 errors: [RILL-R002]
 depends: [selection, dict, ordered, list, tuple, map, fn]
-tests: [dict-dispatch.test.ts, list-dispatch.test.ts, hierarchical-dispatch.test.ts, unified-dispatch.test.ts]
+tests: [dict-dispatch.test.ts, list-dispatch.test.ts, hierarchical-dispatch.test.ts, unified-dispatch.test.ts, map-selection.test.ts]
 ---
 
 # Dispatch
@@ -53,7 +53,7 @@ r[dispatch.fn] A selected function is returned
 A function selected by key or index MUST be returned and MUST NOT be called, except a host
 property function, which `selection.property` runs.
 
-r[dispatch.map-block] A block held by a map runs on selection {pending #599}
+r[dispatch.map-block] A block held by a map runs on selection
 A block held by a map entry MUST run with `$` bound to the key.
 
 ## Errors

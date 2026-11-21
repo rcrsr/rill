@@ -4,6 +4,7 @@ export { boolType } from './bool.js';
 export { atomType } from './atom.js';
 export { tupleType } from './tuple.js';
 export { orderedType } from './ordered.js';
+export { mapType } from './map.js';
 export { vectorType } from './vector.js';
 export { datetimeType } from './datetime.js';
 export { durationType } from './duration.js';

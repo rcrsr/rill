@@ -170,6 +170,8 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `MIXED_ELEMENT_TYPE_READ` | types | info | `.^type` or `.^effective` read from a list literal of distinct compound shapes, or from the result of iterating a dict literal of distinct value shapes, where the read reports a union element type |
 | `DECLARED_TYPE_PROBE` | types | info | `.^type` read from a value declared with a union, where the read reports the declared type; `.^effective` reports the value's own type |
 | `ANY_CAPTURE_LOCK` | types | error | Second capture of a different type into a variable first captured with `:any`, so the re-capture halts `RILL-R001` |
+| `MAP_MISSING_KEY` | types | info | Map literal checked against a closed key union (`map(union(#a, #b), V)`) with no entry for a member, so reading that key halts `RILL-R009` |
+| `MAP_NEGATIVE_INDEX` | types | info | Negative number literal index on a variable captured once from a map literal (`$m[-1]`); it selects the key -1 and does not count from the end. Silent when the literal has that key |
 | `TYPE_EXTRA_KEY` | types | warning | Typed check, capture, or parameter on a statically known dict or ordered literal with a key the type does not name, so it halts `#TYPE_MISMATCH` or `RILL-R001` |
 | `SIGNATURE_BARE_KEY` | types | warning | `.signature` compared with a string literal that spells a non-identifier key bare, so the comparison is always false (true for `!=`) |
 | `ENTRIES_PAIR_AS_LIST` | types | warning | An `.entries` pair checked against `list(list)` or used with a list-only method, field read, or `-> dict`, so it halts `#TYPE_MISMATCH`, `RILL-R003`, or `RILL-R036` |
@@ -206,7 +208,7 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `SPACING_BRACES` | formatting | info | Braces need inner spacing |
 | `SPACING_BRACKETS` | formatting | info | Brackets need consistent spacing |
 | `SPACING_CLOSURE` | formatting | info | Space between an opening bracket and an `fn` literal |
-| `SPACING_DECLARATION` | formatting | info | No space before `[` after a type or collection keyword; one space before a scalar or atom value |
+| `SPACING_DECLARATION` | formatting | info | No space before `[` after a type or collection keyword (`list`, `dict`, `tuple`, `ordered`, `map`); one space before a scalar or atom value |
 | `SPACING_MEMBER` | formatting | info | Member access dot must touch the field name |
 | `INDENT_CONTINUATION` | formatting | info | Continuation line indentation |
 | `IMPLICIT_DOLLAR_METHOD` | formatting | info | Prefer implicit `$` for methods |

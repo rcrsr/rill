@@ -16,6 +16,8 @@ import type {
   RillDatetime,
   RillDuration,
   RillIterator,
+  RillMap,
+  RillMapKey,
   RillOrdered,
   RillStream,
   RillTuple,
@@ -143,6 +145,55 @@ export function isOrdered(value: RillValue): value is RillOrdered {
   );
 }
 
+/** Type guard for RillMap */
+export function isMap(value: RillValue): value is RillMap {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__rill_map' in value &&
+    value.__rill_map === true
+  );
+}
+
+/** The scalar kinds a map key may take. */
+export type ScalarKind =
+  | 'string'
+  | 'number'
+  | 'bool'
+  | 'atom'
+  | 'datetime'
+  | 'duration';
+
+/** The scalar kind of a value, or undefined when it is not a scalar. */
+export function scalarKindOf(value: RillValue): ScalarKind | undefined {
+  if (typeof value === 'string') return 'string';
+  if (typeof value === 'number') return 'number';
+  if (typeof value === 'boolean') return 'bool';
+  if (isAtom(value)) return 'atom';
+  if (isDatetime(value)) return 'datetime';
+  if (isDuration(value)) return 'duration';
+  return undefined;
+}
+
+/** True when a value is a scalar and so may key a map. */
+export function isMapKey(value: RillValue): value is RillMapKey {
+  return scalarKindOf(value) !== undefined;
+}
+
+/**
+ * Canonical identity of a map key: its kind tag plus its value. Two keys are
+ * the same entry exactly when their identities are equal, so `1` and `1.0`
+ * collide and a number never collides with a string of the same digits.
+ */
+export function mapKeyId(key: RillMapKey): string {
+  if (typeof key === 'string') return `string:${key}`;
+  if (typeof key === 'number') return `number:${key}`;
+  if (typeof key === 'boolean') return `bool:${key}`;
+  if (isAtom(key)) return `atom:${key.atom.name}`;
+  if (isDatetime(key)) return `datetime:${key.unix}`;
+  return `duration:${key.months}:${key.ms}`;
+}
+
 /** Type guard for RillTypeValue */
 export function isTypeValue(value: RillValue): value is RillTypeValue {
   return (
@@ -192,13 +243,14 @@ export function isDict(value: RillValue): value is Record<string, RillValue> {
     value !== null &&
     !Array.isArray(value) &&
     !isCallable(value) &&
-    !isTuple(value)
+    !isTuple(value) &&
+    !isMap(value)
   );
 }
 
 /**
  * True only for plain rill dict values. Callables, tuples, ordered values,
- * vectors, datetimes, durations, atoms, type values, field descriptors,
+ * maps, vectors, datetimes, durations, atoms, type values, field descriptors,
  * streams, lists, and raw JavaScript functions are excluded, so a path walk
  * never reaches a callable's internal `fn`. A dict that merely looks like an
  * iterator (`done` plus a callable `next`) is still a dict. Unlike `isDict`,
@@ -213,6 +265,7 @@ export function isPlainDict(
     isCallable(value) ||
     isTuple(value) ||
     isOrdered(value) ||
+    isMap(value) ||
     isVector(value) ||
     isDatetime(value) ||
     isDuration(value) ||

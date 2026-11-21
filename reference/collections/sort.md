@@ -7,7 +7,7 @@ issues: []
 grammar: []
 errors: [INVALID_INPUT, RILL-R002, RILL-R010, TYPE_MISMATCH]
 depends: [iteration]
-tests: [sort.test.ts]
+tests: [sort.test.ts, map-sort.test.ts]
 ---
 
 # sort
@@ -57,6 +57,11 @@ r[sort.dict] A dict sorts to an ordered
 `sort` over a dict MUST yield an `ordered` whose fields follow the sorted entries. Without
 `key_fn`, an entry's key MUST be its dict key. With `key_fn`, `$` MUST be the entry dict.
 
+r[sort.map] A map sorts to a map
+`sort` over a map MUST yield a map ordered by the sorted entries, with the same key and value
+types. Without `key_fn`, an entry's key MUST be its map key. With `key_fn`, `$` MUST be the entry
+dict from `map.iteration`, and the result MUST be ordered by the key `key_fn` returns.
+
 r[sort.ordered-source] An ordered sorts to an ordered
 `sort` over an ordered MUST sort its entries and yield an `ordered`, as `sort.dict` does for a
 dict.
@@ -73,7 +78,7 @@ sorted result (`pipe.call-operand`).
 | Two keys have no order | `#TYPE_MISMATCH` | Yes |
 | `key_fn` returns a vacant value | `#INVALID_INPUT` | Yes |
 | `key_fn` is not callable | `#TYPE_MISMATCH` | Yes |
-| The source is not a list, tuple, string, dict, ordered, iterator, or stream | RILL-R002 | Yes |
+| The source is not a list, tuple, string, dict, ordered, map, iterator, or stream | RILL-R002 | Yes |
 | The source holds more than 10,000 elements | RILL-R010 | No |
 
 ## Examples
@@ -96,6 +101,16 @@ dict[c: 3, a: 1, b: 2] -> sort({ $.value })
 ```rill
 list[tuple[2, "b"], tuple[1, "z"], tuple[2, "a"]] -> sort
 # Result: list[tuple[1, "z"], tuple[2, "a"], tuple[2, "b"]]
+```
+
+```rill
+map["b": 2, "a": 1] -> sort
+# Result: map["a": 1, "b": 2]
+```
+
+```rill
+map["a": 3, "b": 1] -> sort({ $.value })
+# Result: map["b": 1, "a": 3]
 ```
 
 ```rill

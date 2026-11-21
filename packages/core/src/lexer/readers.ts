@@ -40,7 +40,7 @@ type CompoundToken = {
  * and the compound token type emitted when the opener immediately follows.
  *
  * Three opener flavors:
- * - `[` bracket-body: collection literals (list, dict, tuple, ordered)
+ * - `[` bracket-body: collection literals (list, dict, tuple, ordered, map)
  * - `<` langle-body: angle-delimited heads (destruct, slice, use, retry, do)
  * - `{` brace-body: block heads (guard)
  *
@@ -56,6 +56,7 @@ const COMPOUND_KEYWORD_MAP: Record<
   dict: { bracket: '[', tokenType: TOKEN_TYPES.DICT_LBRACKET },
   tuple: { bracket: '[', tokenType: TOKEN_TYPES.TUPLE_LBRACKET },
   ordered: { bracket: '[', tokenType: TOKEN_TYPES.ORDERED_LBRACKET },
+  map: { bracket: '[', tokenType: TOKEN_TYPES.MAP_LBRACKET },
   destruct: { bracket: '<', tokenType: TOKEN_TYPES.DESTRUCT_LANGLE },
   slice: { bracket: '<', tokenType: TOKEN_TYPES.SLICE_LANGLE },
   use: { bracket: '<', tokenType: TOKEN_TYPES.USE_LANGLE },

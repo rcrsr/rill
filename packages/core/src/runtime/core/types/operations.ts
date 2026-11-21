@@ -20,6 +20,7 @@ import {
   isDict,
   isDuration,
   isIterator,
+  isMap,
   isOrdered,
   isStream,
   isStructureKind,
@@ -277,7 +278,7 @@ const equalsCallbacks: FieldComparisonCallbacks<boolean> = {
 };
 
 /** The unspecified type slot: an absent element, chunk, or ret reads as `any`. */
-const ANY_STRUCTURE: TypeStructure = Object.freeze({ kind: 'any' });
+export const ANY_STRUCTURE: TypeStructure = Object.freeze({ kind: 'any' });
 
 /** Compare two structural types for equality. */
 export function structureEquals(a: TypeStructure, b: TypeStructure): boolean {
@@ -305,6 +306,14 @@ export function structureEquals(a: TypeStructure, b: TypeStructure): boolean {
     return structureEquals(
       a.element ?? ANY_STRUCTURE,
       b.element ?? ANY_STRUCTURE
+    );
+  }
+
+  if (isStructureKind(a, 'map') && isStructureKind(b, 'map')) {
+    // An absent key or value is unspecified and equals `any`.
+    return (
+      structureEquals(a.key ?? ANY_STRUCTURE, b.key ?? ANY_STRUCTURE) &&
+      structureEquals(a.value ?? ANY_STRUCTURE, b.value ?? ANY_STRUCTURE)
     );
   }
 
@@ -502,6 +511,16 @@ export function structureMatches(
     return value.every((elem) => structureMatches(elem, element));
   }
 
+  if (isStructureKind(type, 'map')) {
+    if (!isMap(value)) return false;
+    const { key, value: valueType } = type;
+    return value.entries.every(
+      ([k, v]) =>
+        (isUnspecified(key) || structureMatches(k, key)) &&
+        (isUnspecified(valueType) || structureMatches(v, valueType))
+    );
+  }
+
   // Delegate dict/tuple/ordered to compareStructuredFields
   if (type.kind === 'dict') {
     // A dict TYPE matches only plain dict values. Branded non-dicts
@@ -680,6 +699,13 @@ export function formatStructure(type: TypeStructure): string {
     // Bare type (no fields, no valueType): null signals undefined fields
     if (inner === null) return type.kind;
     return `${type.kind}(${inner})`;
+  }
+
+  if (isStructureKind(type, 'map')) {
+    if (isUnspecified(type.key) && isUnspecified(type.value)) return 'map';
+    const slot = (s: TypeStructure | undefined): string =>
+      isUnspecified(s) ? 'any' : formatStructure(s);
+    return `map(${slot(type.key)}, ${slot(type.value)})`;
   }
 
   if (isStructureKind(type, 'stream')) {
@@ -911,6 +937,17 @@ export function inferStructure(value: RillValue): TypeStructure {
             Object.freeze({ name: k, type: inferStructure(v) })
           )
         ),
+      });
+    });
+  }
+  if (isMap(value)) {
+    const map = value;
+    return memoizedStructure(map, () => {
+      if (map.entries.length === 0) return Object.freeze({ kind: 'map' });
+      return Object.freeze({
+        kind: 'map',
+        key: inferElementType(map.entries.map(([k]) => k)),
+        value: inferElementType(map.entries.map(([, v]) => v)),
       });
     });
   }

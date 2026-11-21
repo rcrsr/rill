@@ -11,6 +11,8 @@
  */
 
 import type {
+  RillMap,
+  RillMapKey,
   RillOrdered,
   RillStream,
   RillTuple,
@@ -23,11 +25,15 @@ import {
   isDict,
   isFieldDescriptor,
   isIterator,
+  isMap,
+  isMapKey,
   isOrdered,
   isStream,
   isTuple,
   isTypeValue,
   isVector,
+  mapKeyId,
+  scalarKindOf,
 } from './guards.js';
 import { setDictField } from './dict-keys.js';
 import { internalCallable } from '../callable-factory.js';
@@ -37,6 +43,7 @@ import { ERROR_ATOMS, ERROR_IDS } from '../../../error-registry.js';
 import {
   RuntimeHaltSignal,
   throwFatalHostHalt,
+  throwTypeHalt,
   type TypeHaltSite,
 } from './halt.js';
 import { ControlSignal } from '../signals.js';
@@ -50,6 +57,95 @@ export function createOrdered(
   entries: [string, RillValue, RillValue?][]
 ): RillOrdered {
   return Object.freeze({ __rill_ordered: true, entries: [...entries] });
+}
+
+/** A map-entry fault: the halt code and message a bad entry list raises. */
+export interface MapEntryFault {
+  readonly code: 'TYPE_MISMATCH' | 'INVALID_INPUT';
+  readonly message: string;
+}
+
+/**
+ * The first fault in a candidate map entry list, or undefined when it is
+ * valid: every key a scalar, all keys of one kind, no two keys equal by
+ * value. Shared by map literal evaluation, `createMap`, and the host-result
+ * brand check so the three agree on what a map is.
+ */
+export function mapEntryFault(
+  entries: readonly (readonly [RillValue, RillValue])[]
+): MapEntryFault | undefined {
+  const check = createMapKeyChecker();
+  for (const [key] of entries) {
+    const fault = check(key);
+    if (fault !== undefined) return fault;
+  }
+  return undefined;
+}
+
+/**
+ * A stateful single-key validator for building a map incrementally: each call
+ * returns the fault the next key raises given the keys accepted so far, or
+ * undefined and records the key. `mapEntryFault` is this checker over a list.
+ */
+export function createMapKeyChecker(): (
+  key: RillValue
+) => MapEntryFault | undefined {
+  const seen = new Set<string>();
+  let kind: string | undefined;
+  return (key) => {
+    let fault: MapEntryFault | undefined;
+    if (!isMapKey(key)) {
+      fault = {
+        code: 'TYPE_MISMATCH',
+        message:
+          'Map key must be a scalar: string, number, bool, atom, datetime, or duration',
+      };
+    } else {
+      const keyKind = scalarKindOf(key);
+      const id = mapKeyId(key);
+      if (kind !== undefined && kind !== keyKind) {
+        fault = {
+          code: 'TYPE_MISMATCH',
+          message: `Map keys must share one kind, found ${kind} and ${keyKind}`,
+        };
+      } else if (seen.has(id)) {
+        fault = { code: 'INVALID_INPUT', message: 'Duplicate map key' };
+      } else {
+        kind = keyKind;
+        seen.add(id);
+      }
+    }
+    return fault;
+  };
+}
+
+/** Freeze already validated entries into a map value. */
+export function freezeMap(
+  entries: readonly (readonly [RillMapKey, RillValue])[]
+): RillMap {
+  return Object.freeze({
+    __rill_map: true,
+    entries: Object.freeze([...entries]),
+  });
+}
+
+/**
+ * Create a map from entries, preserving insertion order.
+ * Halts #TYPE_MISMATCH for a non-scalar key or keys of two kinds, and
+ * #INVALID_INPUT for a duplicate key.
+ */
+export function createMap(
+  entries: readonly (readonly [RillValue, RillValue])[]
+): RillMap {
+  const fault = mapEntryFault(entries);
+  if (fault !== undefined) {
+    throwTypeHalt({ fn: 'createMap' }, fault.code, fault.message, 'runtime');
+  }
+  const typed: (readonly [RillMapKey, RillValue])[] = [];
+  for (const [key, value] of entries) {
+    if (isMapKey(key)) typed.push([key, value]);
+  }
+  return freezeMap(typed);
 }
 
 /** Create tuple from entries array (positional, preserves order) */
@@ -73,7 +169,9 @@ export function createVector(data: Float32Array, model: string): RillVector {
 
 /**
  * Create an empty collection value matching the given TypeStructure.
- * Assumes the type is dict, ordered, or tuple.
+ * Callers check `hasCollectionFields` first, so the type is dict, ordered, or
+ * tuple; the trailing `{}` for any other kind is unreachable from those
+ * callers.
  */
 export function emptyForType(type: TypeStructure): RillValue {
   if (type.kind === 'dict') return {};
@@ -277,6 +375,7 @@ export function copyValue(value: RillValue): RillValue {
   if (
     isTuple(value) ||
     isOrdered(value) ||
+    isMap(value) ||
     isVector(value) ||
     isTypeValue(value) ||
     isCallable(value)

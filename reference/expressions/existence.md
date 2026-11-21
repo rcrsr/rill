@@ -3,11 +3,11 @@ id: existence
 title: Existence check
 status: normative
 since: 0.24.0
-issues: [599]
+issues: []
 grammar: []
 errors: [RILL-R009, INVALID_INPUT, TYPE_MISMATCH]
 depends: [selection]
-tests: [existence-check.test.ts, existence-check-dynamic.test.ts]
+tests: [existence-check.test.ts, existence-check-dynamic.test.ts, map-selection.test.ts, map-membership.test.ts]
 ---
 
 # Existence check
@@ -53,11 +53,13 @@ r[existence.integer] The existence check needs an integer index
 r[existence.type] A type qualifier narrows the existence check
 `.?name&T` MUST yield true only when the field exists and has type `T`.
 
-r[existence.map] A map existence check finds a key {pending #599}
-`$m.?[k]` MUST yield true when the map holds `k` and false otherwise, without halting.
+r[existence.map] A map existence check finds a key
+`$m.?[k]` MUST yield true when the map holds `k` and false otherwise, without halting. `$m.?name` (a spelled name) MUST yield false, because a map holds no named fields.
 
-r[existence.map-type] A map existence check needs the key type {pending #599}
-`$m.?[k]` with a selector that is not the key type MUST halt with `#TYPE_MISMATCH`.
+r[existence.map-type] A map existence check needs the key type
+`$m.?[k]` with a selector that is not the key type MUST halt with `#TYPE_MISMATCH`. An empty
+undeclared `map[]` has no key type, so `.?[k]` with a scalar `k` MUST yield false. A declared
+empty map MUST check `k` against its declared key type.
 
 ## Errors
 
@@ -67,7 +69,7 @@ r[existence.map-type] A map existence check needs the key type {pending #599}
 | An index is not an integer | `#INVALID_INPUT` | Yes |
 | A dict selector is not a string | `#TYPE_MISMATCH` | Yes |
 | A `.?[sel]` selector the read `[sel]` rejects | The read's error | Yes |
-| A map selector has the wrong key type {pending #599} | `#TYPE_MISMATCH` | Yes |
+| A map selector has the wrong key type | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 

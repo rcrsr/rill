@@ -42,15 +42,21 @@ import type {
   RillFieldDef,
   RillTypeValue,
 } from '../../types/structures.js';
-import { inferType, inferTypeName } from '../../types/registrations.js';
+import {
+  inferType,
+  inferTypeName,
+  formatValue,
+} from '../../types/registrations.js';
 import {
   isTuple,
   isOrdered,
+  isMap,
   isPlainDict,
   isStructureKind,
 } from '../../types/guards.js';
 import {
   createOrdered,
+  createMap,
   createTuple,
   copyValue,
   emptyForType,
@@ -98,6 +104,7 @@ export function convertToType(
     isStructureKind(structure, 'ordered') ||
     isStructureKind(structure, 'tuple') ||
     isStructureKind(structure, 'list') ||
+    isStructureKind(structure, 'map') ||
     structure.kind === 'union'
   ) {
     return {
@@ -210,6 +217,39 @@ function convertPart(
         key,
         convertPart(s, item, valueType, node, `field '${key}'`),
       ])
+    );
+  }
+  if (isStructureKind(structure, 'map')) {
+    const outer = applyConversion(s, value, 'map', node, part);
+    if (!isMap(outer)) {
+      return outer;
+    }
+    const { key: keyType, value: valueType } = structure;
+    return createMap(
+      outer.entries.map(([key, item]): [RillValue, RillValue] => {
+        const label = `key ${typeof key === 'string' ? JSON.stringify(key) : formatValue(key)}`;
+        if (keyType !== undefined && !structureMatches(key, keyType)) {
+          throwCatchableHostHalt(
+            {
+              location: getNodeLocation(s, node),
+              sourceId: s.ctx.sourceId,
+              fn: 'convertType',
+            },
+            ERROR_ATOMS[ERROR_IDS.RILL_R036],
+            withPart(
+              `cannot convert ${inferType(key)} key to ${formatStructure(keyType)}`,
+              joinPart(part, label)
+            ),
+            { source: inferType(key), target: keyType.kind }
+          );
+        }
+        return [
+          key,
+          valueType === undefined
+            ? item
+            : convertPart(s, item, valueType, node, joinPart(part, label)),
+        ];
+      })
     );
   }
   if (
@@ -361,6 +401,23 @@ export function applyConversion(
   try {
     return converter(input);
   } catch (err) {
+    // A protocol refusal inside a nested part names that part.
+    if (
+      err instanceof RuntimeHaltSignal &&
+      part !== undefined &&
+      getStatus(err.value).code.name === ERROR_ATOMS[ERROR_IDS.RILL_R036]
+    ) {
+      throwCatchableHostHalt(
+        {
+          location: getNodeLocation(s, node),
+          sourceId: s.ctx.sourceId,
+          fn: 'convertType',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R036],
+        withPart(getStatus(err.value).message, part),
+        { source: sourceType, target: targetType }
+      );
+    }
     // A converter that already raised a typed halt (e.g. the reserved
     // "ok" -> atom rejection) is a catchable RuntimeHaltSignal; propagate
     // it unchanged instead of remapping it to the generic RILL_R036 code

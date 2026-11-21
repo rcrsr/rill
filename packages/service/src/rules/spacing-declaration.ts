@@ -23,7 +23,7 @@ import { registeredRules } from './rules-registry.js';
 const CODE = 'SPACING_DECLARATION';
 
 /** A keyword collection literal separated from its bracket by spaces or tabs. */
-const SPACED_KEYWORD = /^(list|dict|tuple|ordered)([ \t]+)\[/;
+const SPACED_KEYWORD = /^(list|dict|tuple|ordered|map)([ \t]+)\[/;
 
 const DOCUMENT_START = { line: 1, column: 1, offset: 0 } as const;
 
@@ -33,6 +33,7 @@ const BRACKET_VALUES: ReadonlySet<string> = new Set([
   'DictLiteral',
   'TupleLiteral',
   'OrderedLiteral',
+  'MapLiteral',
 ]);
 
 function diagnostic(
@@ -78,7 +79,8 @@ function openerOffset(node: ASTNode, source: string): number {
 }
 
 /** Keyword, then same-line spaces or tabs, ending right before the opener. */
-const KEYWORD_BEFORE_OPENER = /(?<![\w$.])(list|dict|tuple|ordered)([ \t]+)$/;
+const KEYWORD_BEFORE_OPENER =
+  /(?<![\w$.])(list|dict|tuple|ordered|map)([ \t]+)$/;
 
 /**
  * Candidate openers for a keyword literal whose span starts after its opener.
@@ -108,7 +110,7 @@ function checkKeywordLiteral(
 ): Diagnostic[] {
   const startOffset = node.span.start.offset;
   const gaps: { keyword: string; gapStart: number; gapEnd: number }[] = [];
-  if (node.type === 'Dict') {
+  if (node.type === 'Dict' || node.type === 'MapLiteral') {
     const atStart = SPACED_KEYWORD.exec(
       context.source.slice(startOffset, startOffset + 64)
     );
@@ -206,6 +208,7 @@ export const spacingDeclaration: Rule = {
     'DictLiteral',
     'TupleLiteral',
     'OrderedLiteral',
+    'MapLiteral',
   ],
   defaultSeverity: 'info',
   category: 'formatting',
@@ -220,6 +223,7 @@ export const spacingDeclaration: Rule = {
       case 'DictLiteral':
       case 'TupleLiteral':
       case 'OrderedLiteral':
+      case 'MapLiteral':
         return checkKeywordLiteral(node, context);
       default:
         return [];

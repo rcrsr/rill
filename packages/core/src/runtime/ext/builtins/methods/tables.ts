@@ -341,3 +341,12 @@ export const ORDERED_METHODS = Object.freeze({
   entries: buildMethodEntry('entries', 'fn():list', mEntries, true),
   ...EQUALITY_METHODS,
 });
+
+export const MAP_METHODS = Object.freeze({
+  empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
+  len: buildMethodEntry('len', SIG_LEN, mLen),
+  keys: buildMethodEntry('keys', 'fn():list', mKeys, true),
+  values: buildMethodEntry('values', 'fn():list', mValues, true),
+  entries: buildMethodEntry('entries', 'fn():list', mEntries, true),
+  ...EQUALITY_METHODS,
+});
