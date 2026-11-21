@@ -641,6 +641,27 @@ describe('host property functions take self at the access site', () => {
     ).toBe(7);
   });
 
+  rp.it(
+    'runs on .name() and -> .name() on an ordered receiver with the ordered as self',
+    async () => {
+      const getN = callable((args) => {
+        const self = args['self'] as { __rill_ordered?: boolean };
+        return self.__rill_ordered === true ? 7 : -1;
+      }, true);
+      const variables = { p: getN };
+      expect(
+        await runWithOptions('ordered[n: 5, count: $p] => $o\n$o.count()', {
+          variables,
+        })
+      ).toBe(7);
+      expect(
+        await runWithOptions('ordered[n: 5, count: $p] => $o\n$o -> .count()', {
+          variables,
+        })
+      ).toBe(7);
+    }
+  );
+
   rp.it('runs on dispatch with the dict as self', async () => {
     expect(
       await runWithOptions('dict[n: 5, count: $p] => $d\n"count" -> $d', {

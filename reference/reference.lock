@@ -257,7 +257,7 @@ dispatch.block eea8f694c93e
 dispatch.block-held 88a79ab26f9d
 dispatch.block-list 1e9e1042a47d
 dispatch.block-literal c42861d95d4a
-dispatch.fn a115a855126a selection.property@9f965cfc944e
+dispatch.fn a115a855126a selection.property@a2c17ab01fb9
 dispatch.map-block 234ca92e09b6
 dispatch.miss-message fa10b117b81a
 dispatch.multi-key f319180e4904
@@ -454,7 +454,7 @@ invalid-value.origin f59e88d4cf82
 invalid-value.probe 024c35ff18e2
 invalid-value.status 7d727ece29c6
 invalid-value.valid-status 413a1a114f6b
-invocation 59efc89da3df defaults.param@4bd0a3bd35c5 defaults.param-required@94b94909db07 halt.non-catchable@8eb8c26644b7 pipe.call-operand@3a33d5a45012 pipe.script-operand@6cce33562a21 scope.child@fb0f345c5707 scope.late-binding@80ad28cdc782 selection.property@9f965cfc944e spread.arg-dict@60818904593b spread.arg-tuple@ca06a765a105
+invocation 2fcefbf63cce defaults.param@4bd0a3bd35c5 defaults.param-required@94b94909db07 halt.non-catchable@8eb8c26644b7 pipe.call-operand@3a33d5a45012 pipe.script-operand@6cce33562a21 scope.child@fb0f345c5707 scope.late-binding@80ad28cdc782 selection.property@a2c17ab01fb9 spread.arg-dict@60818904593b spread.arg-tuple@ca06a765a105
 invocation.arguments-first 506b39f747fd
 invocation.before-body 248c16d5ba59
 invocation.excess adc4936056b0
@@ -644,7 +644,7 @@ selection.negative ddf7750ffc21
 selection.no-mask 64a407be7b4e
 selection.no-name 8fc222705f4d
 selection.no-paren 057386a9d912
-selection.property 9f965cfc944e code-block.access@3a85d15f615c dispatch.fn@a115a855126a
+selection.property a2c17ab01fb9 code-block.access@3a85d15f615c dispatch.fn@a115a855126a
 selection.range 9cb420804046
 selection.string 0b0752019113 pipe.variable-kind@d61d19325ad6
 selection.variable dff77378d874

@@ -711,7 +711,7 @@ function callable(fn: CallableFn, isProperty?: boolean): ApplicationCallable;
 
 ### Property-Style Callables
 
-Property-style callables run on access from a dict, enabling computed properties:
+Property-style callables run on access from a dict or an ordered value, enabling computed properties:
 
 ```typescript
 const ctx = createRuntimeContext({
@@ -733,11 +733,11 @@ const ctx = createRuntimeContext({
 // Script: "fullName" -> $user -> "John Doe"
 ```
 
-A property-style callable is a computed field. Every selecting form runs it with the collection as `args.self`: `$user.fullName`, `"fullName" -> $user`, `$user["fullName"]`, and destructuring. Every other function entry is returned uncalled, and a function read from a dict does not see the dict as `$`.
+A property-style callable is a computed field. Every selecting form runs it with the collection as `args.self`: `$user.fullName`, `"fullName" -> $user`, `$user["fullName"]`, and destructuring, and so does the call form `$user.fullName()`. Every other function entry is returned uncalled, and a function read from a dict or an ordered value does not see it as `$`.
 
 ### Dict Callables
 
-Callables stored in dicts can be invoked using method syntax:
+Callables stored in dicts or ordered values can be invoked using method syntax:
 
 ```typescript
 const ctx = createRuntimeContext({

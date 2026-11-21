@@ -47,8 +47,7 @@ as it does when the same function is called through a variable.
 
 ## Interactions
 
-A host property function receives the collection it is selected from as `self`
-(`selection.property`).
+A host property function receives the collection it is selected or called from as `self` (`selection.property`).
 A parameter without an argument takes its default (`defaults.param`), or the call halts
 (`defaults.param-required`). A piped value is the first argument (`pipe.call-operand`,
 `pipe.script-operand`). A spread supplies arguments by name or position (`spread.arg-dict`,

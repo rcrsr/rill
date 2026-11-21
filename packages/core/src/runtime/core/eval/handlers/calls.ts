@@ -25,12 +25,7 @@ import { isStream } from '../../types/guards.js';
 import type { EvalState } from '../state.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import {
-  getNodeLocation,
-  checkAborted,
-  withTimeout,
-  isFieldReceiver,
-} from '../shared.js';
+import { getNodeLocation, checkAborted, withTimeout } from '../shared.js';
 import {
   argumentsBinder,
   bindOrdered,
@@ -41,7 +36,12 @@ import {
   invokeStream,
 } from './closures.js';
 import { resolveSelected } from './code-block.js';
-import { computedFieldArgs, locateField } from './field-access.js';
+import {
+  computedFieldArgs,
+  isComputedFieldReceiver,
+  locateField,
+  throwFieldMiss,
+} from './field-access.js';
 
 /**
  * Bind the piped value as the first argument of a call written as a pipe
@@ -201,18 +201,14 @@ export async function evaluateClosureCallWithPipe(
         `Cannot access property '${prop}' on null`
       );
     }
-    if (isFieldReceiver(value)) {
+    if (isComputedFieldReceiver(value)) {
       const located = locateField(value, prop);
       if (!located.found) {
-        throwCatchableHostHalt(
-          {
-            location: getNodeLocation(s, node),
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateClosureCallWithPipe',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R009],
-          `Dict has no field '${prop}'`
-        );
+        throwFieldMiss(value, prop, located.miss, {
+          location: getNodeLocation(s, node),
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateClosureCallWithPipe',
+        });
       }
       container = value;
       // A held block runs with the enclosing `$`, then the result is read on.

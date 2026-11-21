@@ -36,7 +36,7 @@ import { appendTraceFrame } from '../../types/status.js';
 import { throwCatchableHostHalt, RuntimeHaltSignal } from '../../types/halt.js';
 import { createTraceFrame, TRACE_KINDS } from '../../types/trace.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import { getNodeLocation, checkAborted, isFieldReceiver } from '../shared.js';
+import { getNodeLocation, checkAborted } from '../shared.js';
 import {
   argumentsBinder,
   bindOrdered,
@@ -49,6 +49,7 @@ import { resolveSelected } from './code-block.js';
 import type { FieldLocation, FoundField } from './field-access.js';
 import {
   computedFieldArgs,
+  isComputedFieldReceiver,
   locateField,
   PARAMS_REMOVED_MESSAGE,
   readField,
@@ -103,14 +104,16 @@ async function invokeTypeMethod(
 }
 
 /**
- * Own field a method-call node names on a dict or stream receiver, located
+ * Own field a method-call node names on a dict, ordered, or stream receiver, located
  * by locateField. Other receivers carry no own fields.
  */
 function locateMethodOwnField(
   receiver: RillValue,
   name: string
 ): FieldLocation | undefined {
-  return isFieldReceiver(receiver) ? locateField(receiver, name) : undefined;
+  return isComputedFieldReceiver(receiver)
+    ? locateField(receiver, name)
+    : undefined;
 }
 
 /**
@@ -303,8 +306,8 @@ export async function evaluateMethod(
       }
     }
   }
-  if (ownField === undefined && isFieldReceiver(receiver)) {
-    // A dict receiver with no field of this name at all (not merely a
+  if (ownField === undefined && isComputedFieldReceiver(receiver)) {
+    // A dict or ordered receiver with no field of this name at all (not merely a
     // non-callable one) routes through the same dict-field-access halt
     // used by `$d.bogus` (readField), so a literal-chain access
     // (`dict[a: 1].bogus`) and a variable access (`$d.bogus`) both halt

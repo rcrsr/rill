@@ -181,6 +181,8 @@ const ROWS: readonly Row[] = [
     name: 'a',
     read: { value: 1 },
     literal: { value: 1 },
+    method: { value: 1 },
+    postfix: 'ordered[a: 1, b: 2]',
   },
   {
     label: 'ordered, missing name',
@@ -189,6 +191,8 @@ const ROWS: readonly Row[] = [
     name: 'z',
     read: { halt: 'RILL_R009', message: 'Undefined ordered key: z' },
     literal: { halt: 'RILL_R009', message: 'Undefined ordered key: z' },
+    method: { halt: 'RILL_R009', message: 'Undefined ordered key: z' },
+    postfix: 'ordered[a: 1, b: 2]',
   },
   { label: 'ordered, position', setup: ORDERED, key: '1', read: { value: 2 } },
   {
@@ -525,6 +529,12 @@ describe('declared type projection', () => {
 
   it('projects the declared type for a pipe selection', async () => {
     expect(await run(`${DECL}"a" -> $d => $v\n$v.^type == ${U}`)).toBe(true);
+  });
+
+  it('projects the declared type of an ordered entry for a pipe method', async () => {
+    const ordered = `ordered[a: 1] => $o:ordered(a: ${U})\n`;
+    expect(await run(`${ordered}$o.a.^type == ${U}`)).toBe(true);
+    expect(await run(`${ordered}$o -> .a => $v\n$v.^type == ${U}`)).toBe(true);
   });
 
   it('locks a capture from any access form to the declared type', async () => {
