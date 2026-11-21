@@ -48,6 +48,12 @@ describe('ON_LIST_SINGLE', () => {
     );
   });
 
+  it('is silent when the on list carries a ?? default', () => {
+    expect(run('guard(on: list[#TIMEOUT] ?? list[#AUTH]) { $x }\n')).toEqual(
+      []
+    );
+  });
+
   it('is silent on a bare guard', () => {
     expect(run('guard { $x }\n')).toEqual([]);
   });

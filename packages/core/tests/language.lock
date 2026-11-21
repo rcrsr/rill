@@ -90,7 +90,7 @@ ed87174b9632676d8ad45cc056198407a0986755bf4e0b53235bc524aaf07a6a  packages/core/
 ddfab8792de6a77b9b36f918fad7d4653dba751eb3baf3f893c64dd07e358453  packages/core/tests/language/parser-recovery.test.ts
 368c0d80ca51c8d04ff73bdff75c50f3b5950fa076fbfaad8d0e23ea7dbfad4d  packages/core/tests/language/parser-spans.test.ts
 169bb6cbc32f7a529071bac2183dbfd913388088aa8b9347ab460a424f4543ba  packages/core/tests/language/parser-syntax-errors.test.ts
-6951fb346825b7dcabf103b005a0c8dfca33b4810730a6038bb0044cf2a7751a  packages/core/tests/language/pass-async.test.ts
+c8c164aef595a5e22b966d5afa3de9f499850b6341cf56a32962d200e2871d71  packages/core/tests/language/pass-async.test.ts
 e127c6a752a374378f603ecd81f21973488be3b8c05903a10a410611f623ffcb  packages/core/tests/language/pass-parsing.test.ts
 7b151474103b83e354aea75978226e14f2efb5917312fc7729d89e7d8983633f  packages/core/tests/language/pass.test.ts
 02621fe0a804b25dd86049152698e3ec883859a19d4dbf95baf84681dee3bfc9  packages/core/tests/language/pipe-targets.test.ts

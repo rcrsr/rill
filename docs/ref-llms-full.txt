@@ -578,6 +578,10 @@ The `|params| body` literal is removed (RILL-P012 names the fn form). The body o
     Right: use<ext:app> => $app
            $app.fetch($url)
 
+    Wrong: $f(b: 1, a: 5)                  # RILL-P001: a call takes no name: value arguments
+    Right: $f(5, 1)                        # positional, in parameter order
+    Right: $f(...dict[b: 1, a: 5])         # spread a dict to bind by name
+
 ## Callable reflection
 
     Wrong: $fn.^input                      # removed; halts naming the replacement

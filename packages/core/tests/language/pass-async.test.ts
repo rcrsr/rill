@@ -299,7 +299,7 @@ describe('EC-7: non-catchable halt in async body propagates', () => {
 
 describe('EC-8: catchable halt without ignore_halts: true surfaces at dispose', () => {
   it('catchable body halt without suppress causes inflight promise rejection', async () => {
-    // Without on_error: #IGNORE, catchable halts from the body re-throw from
+    // Without ignore_halts: true, catchable halts from the body re-throw from
     // runBody. The trackInflight promise rejects.
     let captured: Promise<unknown> | undefined;
 
@@ -334,8 +334,8 @@ describe('EC-8: catchable halt without ignore_halts: true surfaces at dispose', 
     expect(outcome?.status).toBe('rejected');
   });
 
-  it('catchable body halt IS suppressed when on_error: #IGNORE is set', async () => {
-    // With on_error: #IGNORE, the catchable halt is swallowed; inflight promise
+  it('catchable body halt IS suppressed when ignore_halts: true is set', async () => {
+    // With ignore_halts: true, the catchable halt is swallowed; inflight promise
     // resolves without rejection.
     let captured: Promise<unknown> | undefined;
 

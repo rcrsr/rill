@@ -697,7 +697,7 @@ Unlike `BUILTIN_FUNCTIONS`, `KEYWORDS`, and `BUILTIN_ATOMS`, this is not a `read
 
 ## BUILTIN_ATOMS
 
-`BUILTIN_ATOMS` is a `readonly string[]` listing the built-in atom names, without the leading `#`. The core error set is this list minus `ok` and `IGNORE`. Hosts cannot add names to it.
+`BUILTIN_ATOMS` is a `readonly string[]` listing the built-in atom names, without the leading `#`. The core error set is this list minus `ok`. Hosts cannot add names to it.
 
 ```typescript
 import { BUILTIN_ATOMS } from '@rcrsr/rill';
@@ -710,7 +710,7 @@ Tooling such as the language service's `ATOM_CASE_MISMATCH` rule reads this list
 
 ## ERROR_CODES
 
-`ERROR_CODES` is a frozen `readonly string[]` of the core error set: every name in `BUILTIN_ATOMS` except `ok` and `IGNORE`, without the leading `#`. It lists the values `.!code` can hold on an invalid value. The rill type `error_code` holds the same set.
+`ERROR_CODES` is a frozen `readonly string[]` of the core error set: every name in `BUILTIN_ATOMS` except `ok`, without the leading `#`. It lists the values `.!code` can hold on an invalid value. The rill type `error_code` holds the same set.
 
 ```typescript
 import { ERROR_CODES } from '@rcrsr/rill';
@@ -1350,7 +1350,7 @@ Three helpers on `RuntimeContext` support error-aware extension functions.
 invalidate(error: unknown, meta: InvalidateMeta): RillValue
 ```
 
-Wraps a JavaScript error as an invalid rill value the script can test with `.?` and `.!`. `meta.code` must belong to the core error set (every built-in atom except `ok` and `IGNORE`). Any other code throws `RILL-R084` at the call; carry domain detail in `raw`.
+Wraps a JavaScript error as an invalid rill value the script can test with `.?` and `.!`. `meta.code` must belong to the core error set (every built-in atom except `ok`). Any other code throws `RILL-R084` at the call; carry domain detail in `raw`.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|

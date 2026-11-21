@@ -140,9 +140,22 @@ export async function evaluateRetryBlock(
     node
   );
 
+  if (attempts === undefined || attempts < 1) {
+    // fatal: unreachable, option evaluation requires a positive attempts
+    throwFatalHostHalt(
+      {
+        location: getNodeLocation(s, node),
+        sourceId: s.ctx.sourceId,
+        fn: 'retry',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      'retry options carry no positive attempts'
+    );
+  }
+
   let lastHaltValue: RillValue | undefined;
   const caughtFrames: ReturnType<typeof createTraceFrame>[] = [];
-  for (let attempt = 0; attempt < (attempts ?? 0); attempt++) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
     // Outside the try so an abort halt is never retried.
     checkAborted(s, node);
     const yielded = maybeYield(s, node);

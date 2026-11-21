@@ -47,14 +47,25 @@ function hasUnwrittenFields(options: DictNode | null): boolean {
   );
 }
 
-/** The sole primary of a value written as one bare literal, else undefined. */
+/**
+ * The sole primary of a value written as one bare literal, else undefined.
+ * A pipe, method, default (`??`), existence check, or terminator makes the
+ * value richer than its primary.
+ */
 function writtenPrimary(entry: DictEntryNode): ASTNode | undefined {
-  const value = entry.value;
+  return barePrimary(entry.value);
+}
+
+function barePrimary(value: ASTNode): ASTNode | undefined {
   if (value.type !== 'PipeChain') return undefined;
-  if (value.pipes.length > 0 || value.head.type !== 'PostfixExpr') {
+  if (value.pipes.length > 0 || value.terminator !== null) return undefined;
+  const head = value.head;
+  if (head.type !== 'PostfixExpr') return undefined;
+  if (head.methods.length > 0 || head.defaultValue !== null) return undefined;
+  if (head.existenceCheck !== null && head.existenceCheck !== undefined) {
     return undefined;
   }
-  return value.head.methods.length === 0 ? value.head.primary : undefined;
+  return head.primary;
 }
 
 // ============================================================
@@ -188,9 +199,7 @@ export const onListSingle: Rule = {
     if (only === undefined || rest.length > 0 || only.type === 'ListSpread') {
       return [];
     }
-    if (only.type !== 'PipeChain' || only.pipes.length > 0) return [];
-    const atom =
-      only.head.type === 'PostfixExpr' ? only.head.primary : undefined;
+    const atom = barePrimary(only);
     if (atom?.type !== 'AtomLiteral') return [];
 
     return [

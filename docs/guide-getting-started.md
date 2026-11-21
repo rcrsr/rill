@@ -337,7 +337,7 @@ Use `return` to exit a block early:
 
 ## Loop Limits
 
-Use `do(limit: N)` to cap iterations. Without a limit, while loops default to 10,000 max iterations. The old form `do<limit: N>` is a parse error (`RILL-P025`).
+Use `do(limit: N)` to cap iterations. Without a limit, while loops default to 10,000 max iterations.
 
 ```rill
 # Limit loop to 100 iterations max ($ flows through as accumulator)

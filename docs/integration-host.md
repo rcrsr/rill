@@ -871,7 +871,7 @@ functions: {
 
 **Required contract:** Host functions must check `ctx.signal.aborted` or pass `ctx.signal` to any awaitable they call. Functions that ignore the signal will run to completion even after the runtime aborts, because rill uses cooperative (not forced) termination.
 
-`timeout(total)` and `timeout(idle)` blocks in scripts create a scoped `AbortController` and chain its signal to `ctx.signal` via `AbortSignal.any`. The old form `timeout<total: d>` is a parse error (`RILL-P025`). When a timeout fires:
+`timeout(total)` and `timeout(idle)` blocks in scripts create a scoped `AbortController` and chain its signal to `ctx.signal` via `AbortSignal.any`. When a timeout fires:
 
 1. The scoped controller aborts.
 2. `ctx.signal` becomes aborted for the duration of that body.

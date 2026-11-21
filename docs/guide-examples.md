@@ -465,7 +465,7 @@ $result -> .contains("SUCCESS") ? [code: 0, msg: "Succeeded"] ! dict[code: 1, ms
 
 The do-while form eliminates the separate first-attempt code since the body always executes at least once.
 
-The iteration cap is written `do(limit: 5)`; the angle-bracket form `do<limit: 5>` is a parse error (`RILL-P025`).
+The iteration cap is written `do(limit: 5)`.
 
 ## Inline Capture Pattern
 

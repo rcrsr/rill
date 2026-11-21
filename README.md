@@ -217,7 +217,7 @@ $app.prompt("analyze code") -> .contains("ERROR") ? $app.flag($) ! $app.process(
 
 ### Bounded Loops
 
-The `do(limit: N)` construct option caps loop iterations. `seq` and `fan` enforce a built-in 10,000-iteration ceiling. The host stays in control. The old form `do<limit: N>` is a parse error (`RILL-P025`).
+The `do(limit: N)` construct option caps loop iterations. `seq` and `fan` enforce a built-in 10,000-iteration ceiling. The host stays in control.
 
 ```rill
 # Retry until non-empty, bail after 5 attempts

@@ -143,7 +143,7 @@ $result.! ? {
 }
 ```
 
-`retry(attempts: 3)` re-enters the body up to 3 times. After all attempts fail, `.!` is `true`. The old form `retry<limit: 3>` is a parse error (`RILL-P025`).
+`retry(attempts: 3)` re-enters the body up to 3 times. After all attempts fail, `.!` is `true`.
 
 ### Read the Error Atom
 
