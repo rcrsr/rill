@@ -51,6 +51,7 @@ const COLLECTION_KINDS: ReadonlySet<string> = new Set([
   'dict',
   'tuple',
   'ordered',
+  'map',
   'stream',
 ]);
 

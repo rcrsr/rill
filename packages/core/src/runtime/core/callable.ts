@@ -34,6 +34,7 @@ import {
   isDuration,
   isFieldDescriptor,
   isIterator,
+  isMap,
   isOrdered,
   isStream,
   isStructureKind,
@@ -56,6 +57,7 @@ import {
 } from './types/operations.js';
 import {
   createOrdered,
+  mapEntryFault,
   copyValue,
   emptyForType,
 } from './types/constructors.js';
@@ -943,6 +945,14 @@ const BRAND_SHAPE_CHECKS: ReadonlyArray<BrandShapeCheck> = [
       v.ms >= 0
   ),
   brandRow('ordered', isOrdered, (v) => Array.isArray(v.entries)),
+  brandRow(
+    'map',
+    isMap,
+    (v) =>
+      Array.isArray(v.entries) &&
+      v.entries.every((e) => Array.isArray(e) && e.length === 2) &&
+      mapEntryFault(v.entries) === undefined
+  ),
   brandRow(
     'typevalue',
     isTypeValue,

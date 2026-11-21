@@ -17,6 +17,7 @@ import type { RillOrdered, RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import {
   isIterator,
+  isMap,
   isOrdered,
   isPlainDict,
   isStream,
@@ -26,7 +27,7 @@ import type { RillStream } from '../../types/structures.js';
 import type { RuntimeContext } from '../../types/runtime.js';
 import { BreakSignal } from '../../signals.js';
 import { isCallable } from '../../callable.js';
-import { orderedDictEntries } from '../../types/dict-keys.js';
+import { keyedEntries } from '../../types/dict-keys.js';
 import { rejectHeldEntries } from '../../types/held-block.js';
 import { invokeStreamDispose } from '../../types/constructors.js';
 import {
@@ -94,10 +95,10 @@ export function isKeyedSource(
 
 /**
  * Get elements from a collection source: list, tuple, string (code points),
- * stream, iterator, ordered, or plain dict.
+ * stream, iterator, ordered, map, or plain dict.
  *
- * An ordered yields one dict[key, value] per entry in its own order; a plain
- * dict yields the same shape in canonical key order. Any other value raises
+ * An ordered and a map yield one dict[key, value] per entry in insertion
+ * order; a plain dict yields the same shape in canonical key order. Any other value raises
  * RILL-R002 naming its kind.
  *
  * @param input - The value to iterate over
@@ -138,18 +139,11 @@ export async function getIterableElements(
   if (isIterator(input)) {
     return expandIterator(input, evaluator, node, limit);
   }
-  if (isOrdered(input)) {
+  if (isOrdered(input) || isMap(input) || isPlainDict(input)) {
     rejectHeldEntries(input, 'iteration', site, 'direct');
-    return input.entries.map(([key, value]) => ({ key, value }));
-  }
-  if (isPlainDict(input)) {
-    rejectHeldEntries(input, 'iteration', site, 'direct');
-    // Dict iteration: canonical key order (string keys sorted by UTF-16 code
-    // unit), each element is { key, value }.
-    return orderedDictEntries(input).map((e) => ({
-      key: e.key,
-      value: e.value,
-    }));
+    // An ordered and a map yield insertion order; a dict yields canonical key
+    // order (string keys sorted by UTF-16 code unit).
+    return keyedEntries(input).map((e) => ({ key: e.key, value: e.value }));
   }
   return throwSourceKindHalt(
     {
@@ -158,7 +152,7 @@ export async function getIterableElements(
       fn: 'getIterableElements',
     },
     'Collection operators',
-    ['list', 'tuple', 'string', 'dict', 'ordered', 'iterator', 'stream'],
+    ['list', 'tuple', 'string', 'dict', 'ordered', 'map', 'iterator', 'stream'],
     input,
     'require'
   );

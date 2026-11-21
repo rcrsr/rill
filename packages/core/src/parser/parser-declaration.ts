@@ -28,7 +28,13 @@ declare module './parser.js' {
 }
 
 /** Constructors after which a plain `[` opens that collection's literal. */
-const BRACKET_LITERAL_CONSTRUCTORS = ['list', 'dict', 'tuple', 'ordered'];
+const BRACKET_LITERAL_CONSTRUCTORS = [
+  'list',
+  'dict',
+  'tuple',
+  'ordered',
+  'map',
+];
 
 /** Type names whose `name()` form is not an empty-paren leaf type. */
 const NON_LEAF_TYPE_NAMES = [
@@ -36,6 +42,7 @@ const NON_LEAF_TYPE_NAMES = [
   'dict',
   'tuple',
   'ordered',
+  'map',
   'stream',
   'union',
   'fn',
@@ -62,6 +69,8 @@ function parseDeclarationValue(
         return parser.parseCollectionLiteral('tuple');
       case 'ordered':
         return parser.parseCollectionLiteral('ordered');
+      case 'map':
+        return parser.parseMapLiteral(start);
       default:
         return parser.parseCollectionLiteral('list');
     }
@@ -69,6 +78,10 @@ function parseDeclarationValue(
   if (type === TOKEN_TYPES.DICT_LBRACKET) {
     advance(parser.state); // consume dict[
     return parser.parseKeywordCollectionBody(start);
+  }
+  if (type === TOKEN_TYPES.MAP_LBRACKET) {
+    advance(parser.state); // consume map[
+    return parser.parseMapLiteral(start);
   }
   const literal = parser.parseLiteral();
   switch (literal.type) {
@@ -79,6 +92,7 @@ function parseDeclarationValue(
     case 'ListLiteral':
     case 'TupleLiteral':
     case 'OrderedLiteral':
+    case 'MapLiteral':
       return literal;
     default:
       // parseLiteral is typed wider than the literal forms a declaration

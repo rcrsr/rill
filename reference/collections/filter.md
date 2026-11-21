@@ -3,11 +3,11 @@ id: filter
 title: filter
 status: normative
 since: 0.24.0
-issues: [599]
+issues: []
 grammar: []
 errors: [TYPE_MISMATCH]
 depends: [iteration, fan]
-tests: [collection-operators.test.ts]
+tests: [collection-operators.test.ts, map-iteration.test.ts]
 ---
 
 # filter
@@ -34,7 +34,7 @@ r[filter.element] filter keeps the element the source yields
 The kept element MUST be the value the source yielded: a one-character string for a string,
 and the entry dict for a dict.
 
-r[filter.map] filter over a map keeps the entry dicts {pending #599}
+r[filter.map] filter over a map keeps the entry dicts
 `filter` over a map MUST yield the `dict[key: K, value: V]` entries its predicate accepts.
 
 r[filter.options] filter takes fan's options

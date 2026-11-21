@@ -45,6 +45,8 @@ import type {
   DictLiteralNode,
   TupleLiteralNode,
   OrderedLiteralNode,
+  MapEntryNode,
+  MapLiteralNode,
   DestructNode,
   SpreadArgNode,
   TypeRef,
@@ -189,6 +191,9 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
     case 'DictEntry':
       return sameNodeType(a, b) && dictEntryEquals(a, b);
 
+    case 'MapEntry':
+      return sameNodeType(a, b) && mapEntryEquals(a, b);
+
     case 'Closure':
       return sameNodeType(a, b) && closureEquals(a, b);
 
@@ -227,6 +232,8 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
 
     case 'OrderedLiteral':
       return sameNodeType(a, b) && orderedLiteralEquals(a, b);
+    case 'MapLiteral':
+      return sameNodeType(a, b) && mapLiteralEquals(a, b);
 
     case 'Destruct':
       return sameNodeType(a, b) && destructNodeEquals(a, b);
@@ -674,6 +681,15 @@ function orderedLiteralEquals(
   return arrayEquals(a.entries, b.entries, dictEntryEquals);
 }
 
+function mapLiteralEquals(a: MapLiteralNode, b: MapLiteralNode): boolean {
+  if (!nullableEquals(a.defaultValue, b.defaultValue)) return false;
+  return arrayEquals(a.entries, b.entries, mapEntryEquals);
+}
+
+function mapEntryEquals(a: MapEntryNode, b: MapEntryNode): boolean {
+  return astEquals(a.key, b.key) && astEquals(a.value, b.value);
+}
+
 function destructNodeEquals(a: DestructNode, b: DestructNode): boolean {
   return arrayEquals(a.elements, b.elements, destructElemEquals);
 }
@@ -790,6 +806,8 @@ function literalNodeEquals(
       return sameNodeType(a, b) && tupleLiteralEquals(a, b);
     case 'OrderedLiteral':
       return sameNodeType(a, b) && orderedLiteralEquals(a, b);
+    case 'MapLiteral':
+      return sameNodeType(a, b) && mapLiteralEquals(a, b);
     case 'RecoveryError':
       return sameNodeType(a, b) && recoveryErrorEquals(a, b);
   }

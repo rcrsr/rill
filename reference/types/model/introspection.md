@@ -3,10 +3,10 @@ id: introspection
 title: Type introspection
 status: normative
 since: 0.24.0
-issues: [595]
+issues: []
 errors: [RILL-R003]
 depends: [type-value, structural-typing, any, carried-type, annotation]
-tests: [type-inner-outer.test.ts, type-values.test.ts, declared-types.test.ts, unspecified-type-args.test.ts]
+tests: [type-inner-outer.test.ts, type-values.test.ts, declared-types.test.ts, unspecified-type-args.test.ts, map-type.test.ts]
 ---
 
 # Type introspection
@@ -31,7 +31,7 @@ Every type parameter MUST default to `any`. A bare type MUST equal its construct
 parameter at that default: `list` is `list(any)`, and `stream` is `stream(any):any`.
 
 r[introspection.print-bare] An unspecified container type prints as its bare name
-A `list`, `dict`, `tuple`, `ordered`, or `stream` type whose every parameter is unspecified MUST
+A `list`, `dict`, `tuple`, `ordered`, `map`, or `stream` type whose every parameter is unspecified MUST
 print as its bare name, however it was written or inferred: `list()`, `list(any)`, and the type of
 `list[]` all print `list`, and `stream(any):any` prints `stream`. A stream type with a chunk and an
 unspecified outer MUST print as `stream(T)`.
@@ -81,13 +81,13 @@ r[introspection.defaults] .defaults lists the fields that declare a default
 values, keyed by field or parameter name. A field without a default MUST NOT appear, and a type
 with none MUST return an empty dict.
 
-r[introspection.defaults-tuple] .defaults on a tuple type maps positions to defaults {pending #595}
+r[introspection.defaults-tuple] .defaults on a tuple type maps positions to defaults
 `.defaults` on a tuple type MUST return a map from position to default value.
 `tuple(number, string = "x", bool = true).defaults` MUST equal `map[1: "x", 2: true]`, and a
 tuple type with no defaults MUST return an empty map.
 
 r[introspection.defaults-halt] A type with no named fields has no defaults
-`.defaults` on a list, union, stream, or scalar type MUST halt with RILL-R003.
+`.defaults` on a list, map, union, stream, or scalar type MUST halt with RILL-R003.
 
 r[introspection.annotations] .annotations lists field annotations
 `.annotations` on a `dict`, `ordered`, or function type MUST return a dict keyed by field or

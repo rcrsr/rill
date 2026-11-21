@@ -17,6 +17,7 @@ import {
   boolType,
   tupleType,
   orderedType,
+  mapType,
   vectorType,
   datetimeType,
   durationType,
@@ -33,13 +34,14 @@ import { ERROR_IDS } from '../../../error-registry.js';
 
 export type { TypeProtocol, TypeDefinition } from './protocols/types.js';
 
-/** All 16 built-in type registrations. dict is last (fallback). */
+/** All 17 built-in type registrations. dict is last (fallback). */
 export const BUILT_IN_TYPES: readonly TypeDefinition[] = Object.freeze([
   stringType,
   numberType,
   boolType,
   tupleType,
   orderedType,
+  mapType,
   vectorType,
   datetimeType,
   durationType,
@@ -204,6 +206,7 @@ const METHOD_BEARING_TYPES = new Set([
   'duration',
   'tuple',
   'ordered',
+  'map',
 ]);
 
 /**

@@ -341,8 +341,24 @@ describe('type value inner', () => {
       });
     });
 
-    it('halts RILL-R003 for defaults on a tuple type', async () => {
-      await expectHalt(() => run('tuple(string).defaults'), {
+    it('halts RILL-R003 for annotations on a tuple type', async () => {
+      await expectHalt(() => run('tuple(string).annotations'), {
+        code: 'RILL_R003',
+      });
+    });
+
+    // introspection.defaults-tuple
+    it('returns a map of 0-based positions to defaults for a tuple type', async () => {
+      expect(
+        await run(
+          'tuple(number, string = "x", bool = true).defaults == map[1: "x", 2: true]'
+        )
+      ).toBe(true);
+      expect(await run('tuple(string).defaults == map[]')).toBe(true);
+    });
+
+    it('halts RILL-R003 for defaults on a map type', async () => {
+      await expectHalt(() => run('map(string, number).defaults'), {
         code: 'RILL_R003',
       });
     });
@@ -429,6 +445,7 @@ describe('type value inner', () => {
       ['list', 'list(number)'],
       ['dict', 'dict(a: number = 1)'],
       ['ordered', 'ordered(a: number)'],
+      ['map', 'map(atom, number)'],
       ['tuple', 'tuple(number)'],
       ['union', 'union("a", "b")'],
       ['stream', `${STREAM_TYPE}`],

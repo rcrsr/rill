@@ -64,6 +64,8 @@ export type NodeType =
   | 'DictLiteral'
   | 'TupleLiteral'
   | 'OrderedLiteral'
+  | 'MapLiteral'
+  | 'MapEntry'
   | 'Destruct'
   | 'UseExpr'
   | 'GuardBlock'

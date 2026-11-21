@@ -15,6 +15,7 @@ import './parser-primary.js';
 import './parser-declaration.js';
 import './parser-pipe-target.js';
 import './parser-literals.js';
+import './parser-map.js';
 import './parser-closure.js';
 import './parser-variables.js';
 import './parser-control.js';

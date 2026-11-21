@@ -1024,6 +1024,8 @@ A function, an iterator, or a vector has no `-> string` conversion, and neither 
 
 `-> list(T)`, `-> dict(...)`, `-> ordered(...)`, and `-> tuple(...)` convert every element, field, and position and halt `RILL-R036` or `RILL-R038` naming the part; see the [conversion table](topic-type-system.md#extra-and-missing-dict-fields).
 
+`-> map(string, V)` converts a dict, and `-> dict` converts a string-keyed map; every other source halts `RILL-R036`. See [Map Conversion](topic-types.md#map-conversion).
+
 `-> union(...)` returns a member unchanged and halts `RILL-R036` otherwise; see [Conversion into a Union](topic-type-system.md#conversion-into-a-union).
 
 **Structural conversion with signatures:** `-> dict(sig)`, `-> ordered(sig)`, and `-> tuple(sig)` accept a structural type signature as the conversion target. The source value must match the target kind (dict-to-dict, tuple-to-tuple, or list-to-tuple). Fields present in the signature but absent from the source are hydrated with the signature's default values. See [Type System](topic-type-system.md) for structural type and default value documentation.

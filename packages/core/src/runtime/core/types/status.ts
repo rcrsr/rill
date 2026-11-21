@@ -176,7 +176,7 @@ export function isVacant(value: RillValue): boolean {
  *
  * Invalid values are never empty (they are a distinct category). Empty
  * for primitives is `""`, `null`; `0` and `false` are not empty. Empty
- * for branded tuple/ordered values is a zero-length `entries`; branded
+ * for branded tuple/ordered/map values is a zero-length `entries`; branded
  * vectors are never empty. Empty for plain dicts is zero own keys.
  *
  * Uses inline brand-field checks rather than the `types/guards.js`
@@ -191,7 +191,11 @@ export function isEmpty(value: RillValue): boolean {
   if (typeof value === 'boolean') return false;
   if (Array.isArray(value)) return value.length === 0;
   if (typeof value === 'object') {
-    if ('__rill_tuple' in value || '__rill_ordered' in value) {
+    if (
+      '__rill_tuple' in value ||
+      '__rill_ordered' in value ||
+      '__rill_map' in value
+    ) {
       return (
         'entries' in value &&
         Array.isArray(value.entries) &&

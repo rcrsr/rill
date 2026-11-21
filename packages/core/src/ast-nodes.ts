@@ -318,6 +318,7 @@ export type PrimaryNode =
   | DictLiteralNode
   | TupleLiteralNode
   | OrderedLiteralNode
+  | MapLiteralNode
   | VariableNode
   | HostCallNode
   | AnnotatedExprNode
@@ -370,6 +371,7 @@ export type PipeTargetNode =
   | AnnotationAccessNode
   | DestructNode
   | ListLiteralNode
+  | MapLiteralNode
   | TypeNameExprNode
   | TypeConstructorNode
   | FnTypeNode
@@ -399,6 +401,7 @@ export type LiteralNode =
   | DictLiteralNode
   | TupleLiteralNode
   | OrderedLiteralNode
+  | MapLiteralNode
   | RecoveryErrorNode;
 
 export interface StringLiteralNode extends BaseNode {
@@ -483,6 +486,7 @@ export interface TypeConstructorNode extends BaseNode {
     | 'dict'
     | 'tuple'
     | 'ordered'
+    | 'map'
     | 'stream'
     | 'union';
   readonly args: FieldArg[];
@@ -1059,6 +1063,32 @@ export interface OrderedLiteralNode extends BaseNode {
 }
 
 /**
+ * Map entry: a key and the value it binds. A key is an expression, or a list
+ * literal naming several keys that share the value.
+ */
+export interface MapEntryNode extends BaseNode {
+  readonly type: 'MapEntry';
+  readonly key: ExpressionNode | ListLiteralNode;
+  readonly value: ExpressionNode;
+}
+
+/**
+ * Map literal: map[key: value, ...]
+ * Constructs a map whose keys are scalar values of one kind. As a pipe
+ * target it dispatches on the piped key; `defaultValue` is the `?? body`
+ * that replaces a missing key.
+ *
+ * Examples:
+ *   map[1: "x", 2: "y"]
+ *   map[[#a, #b]: 1]
+ */
+export interface MapLiteralNode extends BaseNode {
+  readonly type: 'MapLiteral';
+  readonly entries: MapEntryNode[];
+  readonly defaultValue: BodyNode | null;
+}
+
+/**
  * Declaration: a written type followed on the same line by the literal it
  * describes, as in `list(number) list[1, 2]` or `atom #wired`.
  */
@@ -1077,7 +1107,8 @@ export type DeclarationValueNode =
   | ListLiteralNode
   | DictNode
   | TupleLiteralNode
-  | OrderedLiteralNode;
+  | OrderedLiteralNode
+  | MapLiteralNode;
 
 // ============================================================
 // DESTRUCT OPERATOR
@@ -1199,6 +1230,8 @@ export type ASTNode =
   | DictLiteralNode
   | TupleLiteralNode
   | OrderedLiteralNode
+  | MapLiteralNode
+  | MapEntryNode
   | DestructNode
   | UseExprNode
   | GuardBlockNode

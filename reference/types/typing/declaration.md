@@ -22,7 +22,7 @@ value follows `number.negative`, so `number -1` declares `-1` and `number - 1` i
 which halts with RILL-R002.
 
 ```text
-declaration   = type-form , ( string | number | bool | atom-literal | list | dict | tuple | ordered ) ;
+declaration   = type-form , ( string | number | bool | atom-literal | list | dict | tuple | ordered | map ) ;
 ```
 
 ## Static rules

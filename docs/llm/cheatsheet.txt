@@ -82,6 +82,7 @@ All copies are deep. All comparisons are by value. No object identity.
                   dict[("{$a}{$b}"): value]  # computed key (dict/ordered: must eval to string)
     Tuples:       tuple[1, 2, 3]
     Ordered:      ordered[a: 1, b: 2]   # named-arg unpacking
+    Maps:         map[404: "missing", 500: "error"]  # keys are values of one scalar kind; map[404: "x"][404]
     Functions:    fn(x) { $x + 1 }      # explicit
                   fn { $ + 1 }          # unnamed param from the reads
                   { $ + 1 }             # code block: runs where written, never a value

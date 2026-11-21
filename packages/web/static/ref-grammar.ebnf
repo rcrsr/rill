@@ -222,12 +222,12 @@ status-probe  = ".!" , [ identifier ] ;
      union("a", "b") "a" => $x       -- declared type union("a", "b")
      list [1, 2] == list[1, 2]       -- true; spaces allowed before "["
      union(#off, #on) #on => $s      -- declared type union(#off, #on) *)
-declaration   = type-form , ( string | number | bool | atom-literal | list | dict | tuple | ordered ) ;
+declaration   = type-form , ( string | number | bool | atom-literal | list | dict | tuple | ordered | map ) ;
 
 primary       = declaration
               | literal
               | atom-literal        (* #NAME — symbolic constant, e.g. #FORBIDDEN, #QUOTA_EXCEEDED *)
-              | type-constructor    (* list(T), dict(k:T), tuple(T, T2), ordered(k:T), stream(T):R, union(T, ...) *)
+              | type-constructor    (* list(T), dict(k:T), tuple(T, T2), ordered(k:T), map(K, V), stream(T):R, union(T, ...) *)
               | type-name           (* type name as value — produces structural type value e.g. list(number), dict *)
               | variable
               | fn-call
@@ -391,7 +391,7 @@ implicit-primary = literal | variable | fn-call | host-call | method-call | bloc
 (* LITERALS                                                     *)
 (* ============================================================ *)
 
-literal       = string | number | bool | list | dict | tuple | ordered | fn-literal ;
+literal       = string | number | bool | list | dict | tuple | ordered | map | fn-literal ;
 
 (* Functions are first-class values. A function literal is a function type
    written in front of a block.
@@ -544,6 +544,29 @@ tuple-element = "..." , expression           (* spread: inline tuple elements *)
 ordered       = "ordered" , "[" , [ ordered-element , { "," , ordered-element } ] , "]" ;
 ordered-element = "..." , expression         (* spread: inline ordered elements *)
               | dict-key , ":" , expression ; (* key-value pair *)
+
+(* Map literal: keyword-prefixed collection keyed by values of one scalar kind.
+   map[...] — keyword and "[" may be separated by spaces or tabs on the same line.
+   A key is a value, not a name. An unparenthesized key is a scalar literal
+   (a negative number included), "$" name, a parenthesized expression, or a
+   bracketed list of keys that all take the entry's value. Any other expression
+   is parenthesized. A bare identifier key is RILL-P001. A spread is RILL-P004.
+   Two literal keys equal by value are RILL-P027. These map productions are
+   authored here; the parser also accepts list[...] as the key list.
+
+   Examples:
+     map[]                           -- empty map
+     map[404: "missing"]             -- number key
+     map[-1: "last", 0: "first"]     -- negative number key
+     map[#a: 1, [#b, #c]: 2]         -- atom keys; one entry binds two keys
+     map[$k: 1, ($x -> .upper): 2]   -- variable and parenthesized keys *)
+map           = "map" , "[" , [ map-entry , { "," , map-entry } ] , "]" ;
+map-entry     = map-key , ":" , expression ;
+map-key       = string | number | "-" , number | bool | atom-literal
+              | "$" , identifier
+              | "(" , expression , ")"
+              | "[" , map-key , { "," , map-key } , "]"
+              | "list" , "[" , map-key , { "," , map-key } , "]" ;
 
 (* ============================================================ *)
 (* VARIABLES                                                    *)
@@ -908,12 +931,13 @@ type-assertion = ":" , type-target ;
 type-check    = ":" , "?" , type-target ;
 
 type-name     = "string" | "number" | "bool" | "fn"
-              | "list" | "dict" | "tuple" | "ordered"
+              | "list" | "dict" | "tuple" | "ordered" | "map"
               | "vector" | "iterator" | "stream"
               | "datetime" | "duration" | "atom"
               | "error_code"
               | "any" | "type" ;
               (* "ordered" — container produced by ...dict spread, preserves insertion order.
+                 "map"     — collection keyed by one scalar kind: map(K, V).
                  "iterator" — lazy sequence produced by range(), repeat(), .first().
                  "stream"   — async iterator with chunk + resolution types: stream(T):R.
                  "atom"     — symbolic constant type (#NAME values).
@@ -940,7 +964,7 @@ type-ref-member   = "stream" , [ "(" , [ field-arg-list ] , ")" ] , [ ":" , type
                   | union-type ;
               (* Only stream and fn take an outer type, after the parentheses or
                  after the bare name: stream:number is stream(any):number. An outer
-                 written after list, dict, tuple, ordered, or union halts with
+                 written after list, dict, tuple, ordered, map, or union halts with
                  RILL-P006. A ":" not followed by a type name is not an outer, except
                  that fn also takes a "$" type: fn(x):$t.
                  Inside a field-arg-list, "name :" starts a named field, so a
@@ -1042,7 +1066,7 @@ field-arg        = [ annotation ] , field-key , ":" , type-ref , [ "=" , literal
 
    These values are used with ^type for structural type inspection. *)
 
-type-constructor = ( "list" | "dict" | "tuple" | "ordered" ) , "(" , [ field-arg-list ] , ")"
+type-constructor = ( "list" | "dict" | "tuple" | "ordered" | "map" ) , "(" , [ field-arg-list ] , ")"
                  | union-type
                  | "stream" , "(" , [ field-arg-list ] , ")" , [ ":" , type-ref ] ;
               (* Stream form: stream(ChunkType):ResolutionType

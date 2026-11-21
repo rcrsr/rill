@@ -192,7 +192,7 @@ datetime.unknown-key 69aa6a35ba5d
 datetime.value c946ba174efd
 datetime.wrong-type 9585caa1d5dd
 declaration.atom a0c9e14d04a7
-declaration.form a10429e8946c number.negative@28b80927e50e
+declaration.form 52273994b70b number.negative@28b80927e50e
 declaration.kind 743e4119b6fd
 declaration.leaf 1847668d1dfe
 declaration.mismatch 62da6f75d63a
@@ -258,7 +258,7 @@ dispatch.block-held 88a79ab26f9d
 dispatch.block-list 1e9e1042a47d
 dispatch.block-literal c42861d95d4a
 dispatch.fn a115a855126a selection.property@a2c17ab01fb9
-dispatch.map-block 234ca92e09b6
+dispatch.map-block a1b02dbb9d77
 dispatch.miss-message fa10b117b81a
 dispatch.multi-key f319180e4904
 dispatch.multi-key-string c83da5281238
@@ -326,8 +326,8 @@ existence.found e543db21d88e
 existence.index 2a5509ce5f92
 existence.integer 7852fe326328
 existence.key-type 7d9a40f81361 selection.key-type@29d9a1316d3a
-existence.map 854f46e4ae13
-existence.map-type 84cd4987a7be
+existence.map aa6b8859cef6
+existence.map-type 5a60bb339799
 existence.missing 85ef8bf2308b existence.bracket@34f6bc46ea46 existence.variable@4c8cf41e5153
 existence.type 01f353140eb8
 existence.variable 4c8cf41e5153 selection.key-validation@ac6e7644d903
@@ -343,7 +343,7 @@ filter e36ebf4e9d8c break.unsupported@2ea2eb802674 fan.concurrent@b60dacd43a31
 filter.bool 268fa5f27adf
 filter.element 9fc7495950e6
 filter.keep 4dfefc2f4747
-filter.map 4100d2d447e0
+filter.map e33e5b705bac
 filter.options 9d8d2a71a7be fan.concurrency@da9c8948cfa0 fan.options-dict@6932795c473b fan.options-number@e1eb0f26d539 fan.options-positive@c5ec919ab770 fan.options-unknown@de8f23d23359
 fn.bare c9f7a5dead8c
 fn.bare-literal da926d363944
@@ -431,8 +431,8 @@ introspection.bare 4675364a5ade
 introspection.bare-inner ee713b640625
 introspection.bare-open d7ff36635b1a
 introspection.defaults d73456d0a7d7
-introspection.defaults-halt 57f0842a85a5
-introspection.defaults-tuple 1d5e81538646
+introspection.defaults-halt 543634c5ed10
+introspection.defaults-tuple 0e452d44afa7
 introspection.fallback 9c9b3e65af7d
 introspection.inner e30db587ed95 fn.inner-type@1181c9f16830 union.canonical-order@f8185ab53429
 introspection.leaf c3102e0c1886
@@ -441,7 +441,7 @@ introspection.name fbdd8f53f35e
 introspection.no-outer 6dda50772827
 introspection.outer d24037c1b427
 introspection.presence 0bcfe8c44eaa
-introspection.print-bare ec061f0989a2
+introspection.print-bare 53cda9338c61
 introspection.signature d11d5cc8fffc
 introspection.type-probe 98d4ed5945dd carried-type.effective-probe@da1ca7bbf1a7 carried-type.type-probe@eaad72137ace
 invalid-value 94bba088c0f7 error-code.status@6c04aa70d1af halt.catchable@929ad6135c87 vacancy.vacant@93e05a6e4241
@@ -449,7 +449,7 @@ invalid-value.access 6b0c47fbf977
 invalid-value.collection b164fa8d8e42
 invalid-value.hold 57118413b4f8
 invalid-value.interpolate c5addb31436e
-invalid-value.map c5311582a3f6
+invalid-value.map 0cf8609c4ce9
 invalid-value.origin f59e88d4cf82
 invalid-value.probe 024c35ff18e2
 invalid-value.status 7d727ece29c6
@@ -461,7 +461,7 @@ invocation.excess adc4936056b0
 invocation.no-self-binding 7b59d21fdf8b
 invocation.positional 95d22ed507e2
 invocation.type 3b9d5f0b7e24
-iteration f33914c2b39a break.return-each@14a36a5597f3 break.seq@e47b3a30461b break.unsupported@2ea2eb802674 map.iteration@430d605ecfa7 pipe.call-operand@3a33d5a45012 scope.iteration@6614cdd083b1
+iteration ca8653153edc break.return-each@14a36a5597f3 break.seq@e47b3a30461b break.unsupported@2ea2eb802674 map.iteration@2ea6aa6f3b16 pipe.call-operand@3a33d5a45012 scope.iteration@6614cdd083b1
 iteration.arity f822d653be93
 iteration.arity-single 34913319a6c3
 iteration.callable a0543ec98142
@@ -476,7 +476,7 @@ iteration.list b614df3f4a13
 iteration.ordered dbafe7a1811b
 iteration.other-source 5708ff8211d4
 iteration.sequential-limit f2ab28bfb904
-iteration.source-kinds 545ea43f2946
+iteration.source-kinds 3049616c8e6f
 iteration.stream 6f2c2ae58f1d value.stream@840cdafa18cd
 iteration.string 89b1c92e7911
 iteration.tuple d651f9b75b66
@@ -505,43 +505,43 @@ loop.result 2fe4a5304602
 loop.scope 3db206370382 scope.iteration@6614cdd083b1
 loop.seed ece9a46ff7a0
 loop.while 88bf4bd89886
-map 27381b9bd5a7 filter.map@4100d2d447e0
-map.duplicate-parse 1f8d1328c8b1
-map.duplicate-run d8bfa2cb2e68
-map.empty 17246839976f
-map.entries 314d054348fc
-map.equality f015e0a6ab01
-map.form afc33944945c
-map.from-dict 5c213b19d813
-map.from-list 67c536307b44
-map.infer-keys 633f57f42e96
-map.infer-values 3ba86bba94fa
-map.inner 7af701993740
-map.inner-unspecified d125d85b4a47 map.inner@7af701993740
-map.iteration 430d605ecfa7
-map.key-any 582786a58c50
-map.key-bare 68bf3dcc22a0
-map.key-kind 6f052976030d
-map.key-mixed 4b7a19c1b335
-map.key-multi fd7da2ea263e
-map.key-pipe a9504e047c2f
-map.key-scalar 20a7e3194e70
-map.key-union 5e8b0d9782f8
-map.key-union-mixed 7285ca8f0c05
-map.key-value 08cb5fc288e1
-map.keys 353c0f6968cb
-map.len 786225f2dffb
-map.no-outer 68c76e499e82
-map.no-reserved b96fcf8fa2f5
-map.no-spread 701e2df33f21 spread.arg-other@265a1a1c71e1 spread.dict@d0646332a6f3
-map.order f8d2fc1fa159
-map.order-views e8fbf403e00c
-map.to-dict 9e52050510e7
-map.to-dict-key d8f6b12eaee1
-map.type-equality 4bd4a987535b
-map.unspecified aff9287c2978
-map.value-type 04c83c21e6b6
-map.values 66d2b38ab3b2
+map 56f701ab9e64 filter.map@e33e5b705bac
+map.duplicate-parse 05b269a892bc
+map.duplicate-run ebcfe219f67b
+map.empty cbe99343719e
+map.entries 55ea5551be9b
+map.equality 1475f752ad29
+map.form 1bf3cec679fa
+map.from-dict b998cddfcf6e
+map.from-list e0ff2922c933
+map.infer-keys 6babeaa7fd3e
+map.infer-values e5fb5342bf1b
+map.inner b0cf898a678b
+map.inner-unspecified ea4b9d5b0527 map.inner@b0cf898a678b
+map.iteration 2ea6aa6f3b16
+map.key-any 702f72c7402f
+map.key-bare d73b3f0a7eba
+map.key-kind 5fd0afdb4117
+map.key-mixed 1164ae8a2efc
+map.key-multi 5c100dab7e8f
+map.key-pipe 5d51e2b27aac
+map.key-scalar 1147029c77c3
+map.key-union 4cff7195ab0e
+map.key-union-mixed 4b7223c62e26
+map.key-value 9c474d1ab8ca
+map.keys a9b3c5ac04e5
+map.len 9b6954d66a58
+map.no-outer 661a31b5f6b6
+map.no-reserved 0afffb0823ee
+map.no-spread 325cc72c6508 spread.arg-other@265a1a1c71e1 spread.dict@d0646332a6f3
+map.order 1fdf622ec116
+map.order-views a8c7e65af5b1
+map.to-dict 673ef89666fb
+map.to-dict-key 57b3f443037e
+map.type-equality c4a36c604073
+map.unspecified 9eff5ecc70ed
+map.value-type 9c23ee639152
+map.values 711b96dda3c6
 notation.code cdf2bd130660
 notation.ebnf 19e6596014c2
 notation.excerpt 537334072dca
@@ -620,9 +620,9 @@ scope.parameter dd958f3cbfa5
 scope.read-outer 34cc09dd4252
 scope.recursion 2c74c0bb9aee
 scope.siblings b9765c9736cc
-selection 55c52498c054 carried-type.element@708e75eb72f7
+selection 68aeaab03f1a carried-type.element@708e75eb72f7
 selection.at 7ee8cd577174
-selection.bracket-default 7ce3c0805d9c selection.key-no-mask@95ef94de5628 selection.key-type@29d9a1316d3a
+selection.bracket-default e8f2ed920b52 selection.key-no-mask@95ef94de5628 selection.key-type@29d9a1316d3a selection.map-default@a5157f804a91
 selection.computed 173483f7594b
 selection.default 40b9bbb857e8
 selection.default-last-step bd0009760a8c selection.key-no-mask@95ef94de5628
@@ -632,13 +632,13 @@ selection.index-type 299ce26a41f9
 selection.key-no-mask 95ef94de5628
 selection.key-type 29d9a1316d3a
 selection.key-validation ac6e7644d903
-selection.map-default 2d1f14ab57ae
-selection.map-forms c6046f0a321f
-selection.map-missing f2efc4c6a125
-selection.map-name 1178f2154119
-selection.map-negative 33486953fbc4
-selection.map-no-mask 965db75a9b66
-selection.map-type 2aa61a90ea46
+selection.map-default a5157f804a91
+selection.map-forms 4cd2f84eb5c8
+selection.map-missing e37e7b4f01dc
+selection.map-name 8e82a547ad9f
+selection.map-negative b004da8fd2dd
+selection.map-no-mask c699b30d3ef3
+selection.map-type ac2bee9fffaf
 selection.missing 73f450e78615
 selection.negative ddf7750ffc21
 selection.no-mask 64a407be7b4e
@@ -675,7 +675,7 @@ sort.ordered-source debcf2259409 sort.dict@abbf3f2fa53e
 sort.stable fbea85ff9a18
 sort.to-list 90ec9e8ab5af iteration.string@89b1c92e7911
 sort.vacant-key 80736937d5a9
-spread ed95d4813db8 map.no-spread@701e2df33f21
+spread ed95d4813db8 map.no-spread@325cc72c6508
 spread.arg-dict 60818904593b
 spread.arg-ordered a60effbc023a
 spread.arg-other 265a1a1c71e1
@@ -848,7 +848,7 @@ use.static-id 6a1e1b1fbabc
 use.type 2ce99c38a8af
 use.value 36f7a7b25185
 vacancy 65b0e218fce5 carried-type.fallback@9a18ebc2b806 conditional.bool@e166d29a4597
-vacancy.empty 93cdf5149efe
+vacancy.empty 27f4cb6477e2
 vacancy.empty-probe 0604f14c1ffc
 vacancy.fallback a8ddb8c219f9
 vacancy.missing 037dd8f22fe9 selection.default@40b9bbb857e8 selection.default-last-step@bd0009760a8c

@@ -37,6 +37,7 @@ export const TOKEN_HIGHLIGHT_MAP: ReadonlyMap<TokenType, HighlightCategory> =
     ['DICT_LBRACKET', 'keyword'],
     ['TUPLE_LBRACKET', 'keyword'],
     ['ORDERED_LBRACKET', 'keyword'],
+    ['MAP_LBRACKET', 'keyword'],
     ['DESTRUCT_LANGLE', 'keyword'],
     ['SLICE_LANGLE', 'keyword'],
     ['USE_LANGLE', 'keyword'],

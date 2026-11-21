@@ -40,6 +40,7 @@ import {
   type Carried,
 } from '../../types/declared.js';
 import {
+  isMap,
   isOrdered,
   isTuple,
   isTypeValue,
@@ -112,6 +113,7 @@ import {
   createClosure,
   evaluatePass,
   evaluateDictDispatch,
+  evaluateMap,
 } from './literals.js';
 import {
   evaluateGroupedExpr,
@@ -539,6 +541,7 @@ export async function evaluatePrimary(
           primary.typeName === 'dict' ||
           primary.typeName === 'tuple' ||
           primary.typeName === 'ordered' ||
+          primary.typeName === 'map' ||
           primary.typeName === 'vector' ||
           primary.typeName === 'type' ||
           primary.typeName === 'datetime' ||
@@ -564,6 +567,9 @@ export async function evaluatePrimary(
     case 'TupleLiteral':
     case 'OrderedLiteral':
       return evaluateCollectionLiteral(s, primary);
+
+    case 'MapLiteral':
+      return evaluateMap(s, primary);
 
     case 'UseExpr':
       return evaluateUseExpr(s, primary);
@@ -687,6 +693,21 @@ export async function evaluatePipeTarget(
         node: target,
         defaultValue: null,
         label: useTargetLabel(target),
+        selected: false,
+        callableName: 'callable',
+      }
+    );
+  }
+  if (target.type === 'MapLiteral') {
+    // The map evaluates eagerly, then the piped value selects from it.
+    return evaluateHeldPipeTarget(
+      s,
+      { value: await evaluateMap(s, target), declared: undefined },
+      carried,
+      {
+        node: target,
+        defaultValue: target.defaultValue,
+        label: 'map[...]',
         selected: false,
         callableName: 'callable',
       }
@@ -824,9 +845,9 @@ export async function evaluateHeldPipeTarget(
     );
   }
 
-  // A tuple or ordered value selects one element; a list input does not
+  // A tuple, ordered or map value selects one element; a list input does not
   // descend into it.
-  if (isTuple(value) || isOrdered(value)) {
+  if (isTuple(value) || isOrdered(value) || isMap(value)) {
     return await selectElement(
       s,
       value,

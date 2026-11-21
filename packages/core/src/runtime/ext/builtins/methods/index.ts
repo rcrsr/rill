@@ -1,7 +1,7 @@
 /**
  * Built-in Method Table Assembly
  *
- * Collects the 8 per-type method records into the single table the runtime
+ * Collects the 11 per-type method records into the single table the runtime
  * and the language service read.
  *
  * Key insertion order is observable, not incidental: get-hover.ts and
@@ -25,6 +25,7 @@ import {
   DURATION_METHODS,
   TUPLE_METHODS,
   ORDERED_METHODS,
+  MAP_METHODS,
 } from './tables.js';
 
 export const BUILTIN_METHODS: {
@@ -38,6 +39,7 @@ export const BUILTIN_METHODS: {
   duration: Record<string, RillFunction>;
   tuple: Record<string, RillFunction>;
   ordered: Record<string, RillFunction>;
+  map: Record<string, RillFunction>;
 } = {
   string: STRING_METHODS,
   list: LIST_METHODS,
@@ -49,4 +51,5 @@ export const BUILTIN_METHODS: {
   duration: DURATION_METHODS,
   tuple: TUPLE_METHODS,
   ordered: ORDERED_METHODS,
+  map: MAP_METHODS,
 };

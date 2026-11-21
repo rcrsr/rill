@@ -16,6 +16,7 @@ import type {
   TimeoutBlockNode,
   DictNode,
   ListLiteralNode,
+  MapLiteralNode,
   ExistenceCheck,
   PipeTargetNode,
   PostfixExprNode,
@@ -209,14 +210,13 @@ Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
 };
 
 /**
- * Attaches a trailing `?? default` to a list or dict literal pipe target.
+ * Attaches a trailing `?? default` to a list, dict, or map literal pipe target.
  * The default is the value dispatched when the piped value selects nothing.
  * The node's span grows to cover the default.
  */
-function withDispatchDefault<T extends ListLiteralNode | DictNode>(
-  parser: Parser,
-  node: T
-): T {
+function withDispatchDefault<
+  T extends ListLiteralNode | DictNode | MapLiteralNode,
+>(parser: Parser, node: T): T {
   if (!check(parser.state, TOKEN_TYPES.NULLISH_COALESCE)) return node;
   advance(parser.state);
   const defaultValue = parser.parseDefaultValue();
@@ -347,6 +347,12 @@ const pipeTargetDispatchTable: Record<
   },
   [TOKEN_TYPES.DICT_LBRACKET]: function (this: Parser): PipeTargetNode {
     return this.parsePipeTargetDictLiteral();
+  },
+  [TOKEN_TYPES.MAP_LBRACKET]: function (this: Parser): PipeTargetNode {
+    return withDispatchDefault(
+      this,
+      this.parseMapLiteral(advance(this.state).span.start) // consume map[
+    );
   },
 };
 

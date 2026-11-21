@@ -3,11 +3,11 @@ id: invalid-value
 title: Invalid values
 status: normative
 since: 0.24.0
-issues: [599]
+issues: []
 grammar: []
 errors: []
 depends: []
-tests: [status-probe.test.ts, guard-retry.test.ts, vacancy-coerce.test.ts, invalid-value-use.test.ts]
+tests: [status-probe.test.ts, guard-retry.test.ts, vacancy-coerce.test.ts, invalid-value-use.test.ts, map-literal.test.ts]
 ---
 
 # Invalid values
@@ -47,7 +47,7 @@ r[invalid-value.collection] A collection literal does not hold an invalid value
 An invalid value written as an element, a field, or a position of a list, dict, tuple, or ordered
 literal MUST raise the halt it holds.
 
-r[invalid-value.map] A map literal does not hold an invalid value {pending #599}
+r[invalid-value.map] A map literal does not hold an invalid value
 An invalid value written as an entry of a map literal MUST raise the halt it holds.
 
 ## Interactions

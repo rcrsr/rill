@@ -24,6 +24,7 @@ import {
   isCallable,
   isTuple,
   isOrdered,
+  isMap,
   isVector,
   isTypeValue,
   isIterator,
@@ -216,6 +217,11 @@ export function serializeListElement(v: RillValue): unknown {
     throw new RuntimeError(
       ERROR_IDS.RILL_R067,
       'ordered values are not JSON-serializable'
+    );
+  if (isMap(v))
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R067,
+      'maps are not JSON-serializable'
     );
   if (isVector(v))
     throw new RuntimeError(

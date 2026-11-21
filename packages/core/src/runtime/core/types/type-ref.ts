@@ -39,7 +39,14 @@ import {
   nonTrailingDefaultMessage,
 } from './field-defaults.js';
 import { setDictField } from './dict-keys.js';
-import { isAtom, isDict, isStructureKind, isTypeValue } from './guards.js';
+import {
+  isAtom,
+  isDict,
+  isStructureKind,
+  isTypeValue,
+  scalarKindOf,
+} from './guards.js';
+import type { ScalarKind } from './guards.js';
 import { defaultMismatch } from './operations.js';
 import { normalizeUnion } from './unions.js';
 import { isReservedBrandKey, structureToTypeValue } from '../values.js';
@@ -109,12 +116,48 @@ export const LEAF_TYPES: ReadonlySet<string> = Object.freeze(
 // PRIVATE HELPERS
 // ============================================================
 
-type CollectionTypeName = 'list' | 'dict' | 'tuple' | 'ordered';
+type CollectionTypeName = 'list' | 'dict' | 'tuple' | 'ordered' | 'map';
 
 function isCollectionTypeName(name: string): name is CollectionTypeName {
   return (
-    name === 'list' || name === 'dict' || name === 'tuple' || name === 'ordered'
+    name === 'list' ||
+    name === 'dict' ||
+    name === 'tuple' ||
+    name === 'ordered' ||
+    name === 'map'
   );
+}
+
+const MAP_KEY_KINDS: readonly ScalarKind[] = [
+  'string',
+  'number',
+  'bool',
+  'atom',
+  'datetime',
+  'duration',
+];
+
+/**
+ * The one scalar kind a map key type names: `any` for an open key, the kind
+ * for a scalar type or literal, the shared kind of a union's members.
+ * `'mixed'` marks a union of two kinds; undefined marks a non-scalar type.
+ */
+function keyKindOfStructure(
+  key: TypeStructure
+): ScalarKind | 'any' | 'mixed' | undefined {
+  if (key.kind === 'any') return 'any';
+  if (isStructureKind(key, 'literal')) return scalarKindOf(key.value);
+  if (isStructureKind(key, 'union')) {
+    let shared: ScalarKind | 'any' | undefined;
+    for (const member of key.members) {
+      const kind = keyKindOfStructure(member);
+      if (kind === undefined || kind === 'mixed') return kind;
+      if (shared !== undefined && shared !== kind) return 'mixed';
+      shared = kind;
+    }
+    return shared;
+  }
+  return MAP_KEY_KINDS.find((kind) => kind === key.kind);
 }
 
 /** The `any` type reference an untyped fn param converts through. */
@@ -268,6 +311,48 @@ function* buildCollectionType(
     }
     const element = yield* resolveArg(only);
     return freezeType(name, { kind: 'list', element });
+  }
+
+  if (name === 'map') {
+    const [keyArg, valueArg] = args;
+    if (
+      args.length !== 2 ||
+      keyArg === undefined ||
+      valueArg === undefined ||
+      keyArg.name !== undefined ||
+      valueArg.name !== undefined
+    ) {
+      return invalidInput(
+        env,
+        'map',
+        'map() requires exactly 2 unnamed type arguments',
+        location
+      );
+    }
+    for (const arg of args) {
+      if (arg.defaultValue !== undefined) {
+        return invalidInput(
+          env,
+          'map',
+          'map key and value types cannot carry a default',
+          argAt(arg) ?? location
+        );
+      }
+    }
+    const key = yield* resolveArg(keyArg);
+    const keyKind = keyKindOfStructure(key);
+    if (keyKind === undefined || keyKind === 'mixed') {
+      return invalidInput(
+        env,
+        'map',
+        keyKind === 'mixed'
+          ? 'map key type must be one scalar kind, found a union of several kinds'
+          : 'map key type must be a scalar kind',
+        argAt(keyArg) ?? location
+      );
+    }
+    const value = yield* resolveArg(valueArg);
+    return freezeType(name, { kind: 'map', key, value });
   }
 
   if (name === 'dict' || name === 'ordered') {

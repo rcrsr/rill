@@ -41,6 +41,7 @@ type TypeStructure =
   | { kind: 'dict'; fields?: Record<string, RillFieldDef>; valueType?: TypeStructure }
   | { kind: 'tuple'; elements?: RillFieldDef[] }
   | { kind: 'ordered'; fields?: RillFieldDef[] }
+  | { kind: 'map'; key?: TypeStructure; value?: TypeStructure }
   | { kind: 'vector'; dimensions: number }
   | { kind: 'fn'; params?: RillFieldDef[]; ret?: TypeStructure }
   | { kind: 'type'; typeName: string }
@@ -65,6 +66,8 @@ The `kind` field is the discriminator. Leaf variants (`number`, `string`, `bool`
 | `tuple` | `elements` | `RillFieldDef[] \| undefined` | Ordered positional fields. Index access: `type.elements[i]` |
 | `ordered` | `fields` | `RillFieldDef[] \| undefined` | Named ordered fields. Index access: `type.fields[i]`. Present for structural ordered types |
 | `ordered` | `valueType` | `TypeStructure \| undefined` | Value type for all ordered values. Present for uniform ordered types |
+| `map` | `key` | `TypeStructure \| undefined` | Scalar key type shared by every key. Absent for the bare `map` type |
+| `map` | `value` | `TypeStructure \| undefined` | Value type for all map values. Absent for the bare `map` type |
 | `vector` | `dimensions` | `number` | Embedding dimension count |
 | `type` | `typeName` | `string` | Name of the registered host type |
 | `union` | `members` | `TypeStructure[]` | Member types in written order, after duplicate and subsumed members are dropped |

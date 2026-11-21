@@ -7,7 +7,7 @@ issues: []
 grammar: [default-value]
 errors: [RILL-R003]
 depends: [value]
-tests: [vacancy-coerce.test.ts, default-value-operator.test.ts, status-probe.test.ts]
+tests: [vacancy-coerce.test.ts, default-value-operator.test.ts, status-probe.test.ts, map-iteration.test.ts]
 ---
 
 # Vacancy
@@ -23,7 +23,7 @@ default-value = "??" , body ;
 ## Evaluation
 
 r[vacancy.empty] Only containers and strings can be empty
-A string, list, tuple, dict, or ordered with no characters, elements, or entries MUST be
+A string, list, tuple, dict, ordered, or map with no characters, elements, or entries MUST be
 empty. A number, bool, atom, datetime, duration, function, or type value MUST never be empty.
 
 r[vacancy.empty-probe] .empty reports emptiness

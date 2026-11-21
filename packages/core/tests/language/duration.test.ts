@@ -642,7 +642,7 @@ describe('Rill Language: Duration Type', () => {
   describe('collection errors', () => {
     it('each on duration halts with collection error [AC-E12, EC-6]', async () => {
       await expect(run('duration("1h") -> seq({ $ })')).rejects.toThrow(
-        'Collection operators require list, tuple, string, dict, ordered, iterator, or stream, got duration'
+        'Collection operators require list, tuple, string, dict, ordered, map, iterator, or stream, got duration'
       );
     });
 

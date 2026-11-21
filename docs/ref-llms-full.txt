@@ -92,6 +92,7 @@ All copies are deep. All comparisons are by value. No object identity.
                   dict[("{$a}{$b}"): value]  # computed key (dict/ordered: must eval to string)
     Tuples:       tuple[1, 2, 3]
     Ordered:      ordered[a: 1, b: 2]   # named-arg unpacking
+    Maps:         map[404: "missing", 500: "error"]  # keys are values of one scalar kind; map[404: "x"][404]
     Functions:    fn(x) { $x + 1 }      # explicit
                   fn { $ + 1 }          # unnamed param from the reads
                   { $ + 1 }             # code block: runs where written, never a value
@@ -364,6 +365,32 @@ A block written as a dict value or list element is held uncalled. Reads that sel
 
     Wrong: dict[a: { $ + 1 }] -> .values          # halts #TYPE_MISMATCH
     Right: "a" -> dict[a: { "got {$}" }]          # "got a"; selecting the entry runs it with $ = "a"
+
+## Maps
+
+A map key is a value of one scalar kind. A dict key is a name, always a string.
+
+    Wrong: map[a: 1]                       # RILL-P001: a is a name, not a value
+    Right: map["a": 1]
+    Right: map[#a: 1]
+
+    Wrong: dict[404: "x"][404]             # halts #TYPE_MISMATCH: dict keys are strings
+    Right: map[404: "x"][404]              # "x"
+
+    Wrong: "a" -> map[#a: 1]               # halts #TYPE_MISMATCH: the key is an atom, not a string
+    Right: #a -> map[#a: 1]                # 1
+
+    Wrong: map[#a: 1, "b": 2]              # halts #TYPE_MISMATCH: two key kinds
+    Right: map[#a: 1, #b: 2]
+
+    Wrong: $m.a                            # halts RILL-R003: a field name selects no map entry
+    Right: $m[#a]
+
+    Wrong: $m[-1]                          # looks up the key -1; absent halts RILL-R009
+    Right: $m.values[-1]                   # the last value
+
+    Wrong: map[#a: 1] -> dict              # halts RILL-R036: only string keys convert
+    Right: map["a": 1] -> dict             # dict[a: 1]
 
 ## Reassignment inside loops
 
@@ -673,7 +700,7 @@ Invalid annotation keys produce a runtime error.
 | `fold(init, ...)` | sequential | final accumulator only | no |
 | `sort` | eager | sorted list, or `ordered` for dict or ordered input | no |
 
-Sources: list, tuple, string, dict, ordered, iterator, stream. Any other value halts catchable RILL-R002 naming the kind. A source over 10,000 elements halts fatally with RILL-R010 in seq, fan, filter, fold, acc, and sort before any body runs, so `break` cannot stop it early; bound it with `take(n)`. Streams and iterators pull lazily in seq and acc, so `break` still bounds them. take, batch, window, start_when, and stop_when cap output at 10,000 with a catchable RILL-R010. A tuple iterates like a list; an ordered binds `$.key` and `$.value` in insertion order.
+Sources: list, tuple, string, dict, ordered, map, iterator, stream. Any other value halts catchable RILL-R002 naming the kind. A source over 10,000 elements halts fatally with RILL-R010 in seq, fan, filter, fold, acc, and sort before any body runs, so `break` cannot stop it early; bound it with `take(n)`. Streams and iterators pull lazily in seq and acc, so `break` still bounds them. take, batch, window, start_when, and stop_when cap output at 10,000 with a catchable RILL-R010. A tuple iterates like a list; an ordered binds `$.key` and `$.value` in insertion order.
 
 `$@` is the accumulator in `fold` and `acc`. See `stdlib` for `sort` details (key extractor, multi-key tuple projection, descending via `.reverse`).
 
@@ -1017,7 +1044,7 @@ Type names, assertions, conversion, parameterized types, dict shapes, type inspe
 
     string   number   bool     list     dict     ordered
     tuple    fn       vector   iterator any      type
-    atom     datetime duration    error_code
+    atom     datetime duration    error_code        map
 
 ## Type assertion `:type`
 
@@ -1070,6 +1097,7 @@ Structural types with field/element constraints.
     tuple(number, string)           # positional tuple
     tuple(number)                   # exactly one number; any length is list(number)
     ordered(x: number, y: number)   # named ordered args
+    map(atom, number)               # scalar key type K, any value type V; map(list, number) halts #INVALID_INPUT
     list()                          # empty parens mean unspecified: same as list(any)
 
 An outer type (`:string` after the parentheses or a bare name) attaches only to `stream`: `stream:number` is `stream(any):number`. `list(number):string` and `list:string` halt `RILL-P006`.
@@ -1109,7 +1137,22 @@ The 8 dict method names are reserved and cannot be used as dict keys:
     dict[len: "fake"]                # halts: reserved method name 'len'
     dict[label: "fake"].len          # fine: dict length (non-reserved key)
 
-`.keys`/`.values`/`.entries` and dict iteration visit dict's canonical order (see the Types reference for the exact rule). On a non-dict receiver these three methods halt (`RILL-R003`) instead of returning an empty list.
+`.keys`/`.values`/`.entries` and dict iteration visit dict's canonical order (see the Types reference for the exact rule). On a receiver other than a dict, ordered, or map these three methods halt (`RILL-R003`) instead of returning an empty list.
+
+### Maps
+
+A map holds keys of one scalar kind (string, number, bool, atom, datetime, duration, error_code). A key is a value: a literal, `$name`, `(expr)`, or a `[k1, k2]` list of keys.
+
+    map[404: "missing"][404]         # "missing"; a wrong key kind halts #TYPE_MISMATCH, an absent key RILL-R009 (?? recovers)
+    map[-1: "last"][-1]              # "last"; a negative number is a key, not an index
+    map[1: "x", 2: "y"].keys         # list[1, 2]; also .values, .entries, .len, .empty
+    map[#a: 1] -> dict               # RILL-R036; only map(string, V) <-> dict converts
+    map["a": 1] -> dict              # dict[a: 1]
+    map[a: 1]                        # RILL-P001: a bare name is not a key
+    map[1: "a", 1.0: "b"]            # RILL-P027
+    map[#a: 1, "b": 2]               # #TYPE_MISMATCH: two key kinds
+    map(atom, number).inner          # tuple[atom, number]
+    $m.a                             # RILL-R003; $m.?a is false
 
 ## Tuple lexicographic comparison
 
@@ -1247,9 +1290,13 @@ Read what a type holds with `.inner` and what a function or stream yields with `
     string.?inner                   # false
     fn(x: number):string { $x } => $f
     $f.^type.outer                  # string
-    dict(a: string = "x").defaults  # dict[a: "x"]
     fn(^(min: 0) x: number) { $x } => $g
     $g.^type.annotations            # dict[x: dict[min: 0]]; params with no annotations are left out
+
+Read a type's declared defaults with `.defaults`:
+
+    dict(a: string = "x").defaults        # dict[a: "x"]
+    tuple(number, string = "x").defaults  # map[1: "x"]: keyed by 0-based position; map[] when none
 
 Under a declared union, `.^type` reports the declaration and `.^effective` the own type:
 
@@ -1594,7 +1641,7 @@ String, list, dict methods, comparison helpers, and built-in functions.
 | `.values` | values as list |
 | `.entries` | list of `tuple[k, v]` pairs |
 
-`.keys`, `.values`, and `.entries` halt (`RILL-R003`) on a non-dict receiver such as a list, string, number, bool, or tuple. `??` and `guard` do not recover it. Check first: `$x -> :?dict ? ($x -> .keys) ! list[]`.
+`.keys`, `.values`, and `.entries` halt (`RILL-R003`) on a receiver that is not a dict, ordered, or map, such as a list, string, number, bool, or tuple. `??` and `guard` do not recover it. Check first: `$x -> :?dict ? ($x -> .keys) ! list[]`.
 
 ## Comparison methods
 

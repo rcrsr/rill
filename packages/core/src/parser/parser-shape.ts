@@ -50,6 +50,7 @@ const TYPE_CONSTRUCTOR_NAMES: ReadonlySet<string> = new Set<string>([
   'dict',
   'tuple',
   'ordered',
+  'map',
   'stream',
   'union',
 ]);
@@ -86,7 +87,7 @@ Parser.prototype.parseTypeConstructor = function (
   if (!isTypeConstructorName(constructorName)) {
     throw new ParseError(
       ERROR_IDS.RILL_P001,
-      `Expected type constructor name (list, dict, tuple, ordered, stream, union), got: ${constructorName}`,
+      `Expected type constructor name (list, dict, tuple, ordered, map, stream, union), got: ${constructorName}`,
       current(this.state).span.start
     );
   }
@@ -104,7 +105,11 @@ Parser.prototype.parseTypeConstructor = function (
     parseAnnotations?: () => AnnotationArg[];
     parseFnAnnotations: () => AnnotationArg[];
   } = { parseLiteral, parseFnAnnotations: () => this.parseAnnotationArgs() };
-  if (constructorName !== 'list' && constructorName !== 'union') {
+  if (
+    constructorName !== 'list' &&
+    constructorName !== 'map' &&
+    constructorName !== 'union'
+  ) {
     opts.parseAnnotations = () => this.parseAnnotationArgs();
   }
   if (!check(this.state, TOKEN_TYPES.LPAREN)) {

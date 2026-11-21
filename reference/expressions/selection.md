@@ -3,11 +3,11 @@ id: selection
 title: Selection
 status: normative
 since: 0.24.0
-issues: [599]
+issues: []
 grammar: []
 errors: [INVALID_INPUT, TYPE_MISMATCH, RILL-P012, RILL-R002, RILL-R003, RILL-R005, RILL-R009]
 depends: [dict, ordered, list, tuple, map, string, carried-type]
-tests: [property-access.test.ts, dynamic-field-access.test.ts, list-dispatch.test.ts, unified-dispatch.test.ts, ordered-access.test.ts, access-halt.test.ts, default-value-operator.test.ts]
+tests: [property-access.test.ts, dynamic-field-access.test.ts, list-dispatch.test.ts, unified-dispatch.test.ts, ordered-access.test.ts, access-halt.test.ts, default-value-operator.test.ts, map-selection.test.ts]
 ---
 
 # Selection
@@ -89,7 +89,7 @@ r[selection.bracket-default] A fallback replaces a missing bracket selection
 `$c[sel] ?? d` MUST yield `d` when `$c` and `sel` both evaluate and the final lookup misses. A miss is an
 out-of-range list, tuple, or ordered index, or an absent string key. A non-string selector on a dict is stated in `selection.key-type` and `selection.key-no-mask`. A key that is not a field key (tuple, dict,
 closure) in pipe selection halts. Variable, postfix, parenthesized, literal, and method-call receivers behave alike. A wrong
-key type on a list or tuple still halts with RILL-R002. Only the future `map` type recovers a missing number key {pending #599}.
+key type on a list or tuple still halts with RILL-R002. Only a map recovers a missing key (`selection.map-default`).
 
 r[selection.default-last-step] A fallback recovers only the last step of a chain
 `??` MUST recover a miss only on the right-most step of an access chain, for fields, annotations, brackets, and existence checks.
@@ -102,25 +102,25 @@ A dict selector that is not a string MUST halt with `#TYPE_MISMATCH`. Selection 
 r[selection.key-no-mask] A fallback does not mask a wrong dict selector
 `??` MUST NOT mask the halt of a non-string dict selector.
 
-r[selection.map-forms] A map selects by its key type {pending #599}
+r[selection.map-forms] A map selects by its key type
 `.$k`, `[sel]`, and dispatch on a map MUST select the value at the key `sel`.
 
-r[selection.map-name] A map has no named fields {pending #599}
+r[selection.map-name] A map has no named fields
 `$m.a` MUST halt with RILL-R003, as `.name` does on any receiver that has no named fields.
 
-r[selection.map-type] A map selector has the key type {pending #599}
+r[selection.map-type] A map selector has the key type
 A map selector that is not the key type MUST halt with `#TYPE_MISMATCH`.
 
-r[selection.map-no-mask] A fallback does not mask a wrong map selector {pending #599}
+r[selection.map-no-mask] A fallback does not mask a wrong map selector
 `??` MUST NOT mask the halt of a map selector that is not the key type.
 
-r[selection.map-negative] A map index is the key {pending #599}
+r[selection.map-negative] A map index is the key
 On `map(number, V)`, `$m[-1]` MUST select the key -1.
 
-r[selection.map-missing] A missing map key halts {pending #599}
+r[selection.map-missing] A missing map key halts
 A selector of the key type that the map lacks MUST halt with RILL-R009.
 
-r[selection.map-default] A fallback replaces a missing map key {pending #599}
+r[selection.map-default] A fallback replaces a missing map key
 `$m[#absent] ?? d` MUST yield `d` when the map lacks the key.
 
 r[selection.property] A host property function runs when selected or called from its collection
@@ -145,7 +145,7 @@ Element typing follows `carried-type.element`. The existence check `.?` is state
 | An index is not an integer | `#INVALID_INPUT` | Yes |
 | A parenthesized or block selector is written | RILL-P012 | No |
 | A dict selector is not a string | `#TYPE_MISMATCH` | Yes |
-| A map selector has the wrong key type {pending #599} | `#TYPE_MISMATCH` | Yes |
+| A map selector has the wrong key type | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 
@@ -168,7 +168,7 @@ list[$d["b"] ?? 0, $d.b ?? 0, list[1][5] ?? 0]
 list["x", "y"][5]
 ```
 
-```rill pending=599
+```rill
 map[200: "ok", 404: "missing"][404]
 # Result: "missing"
 ```

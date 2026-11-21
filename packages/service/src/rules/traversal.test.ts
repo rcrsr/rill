@@ -214,6 +214,15 @@ describe('traverseForRules / walkAst parity: targeted constructs', () => {
     expect(variableNodes).toHaveLength(1);
   });
 
+  it('Map literal containing a nested fn', () => {
+    const { viaRules, viaCore } = computeParity(
+      'map[1: fn(x) { $x }, [2, 3]: 4]\n'
+    );
+    expect(viaRules).toEqual(viaCore);
+    expect(viaCore.some((node) => node.type === 'MapEntry')).toBe(true);
+    expect(viaCore.some((node) => node.type === 'Closure')).toBe(true);
+  });
+
   it('Variable existence check on a literal field', () => {
     const { viaRules, viaCore } = computeParity('$data.?field\n');
     expect(viaRules).toEqual(viaCore);

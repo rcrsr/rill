@@ -746,6 +746,9 @@ const primaryDispatchTable: Record<string, (this: Parser) => PrimaryNode> = {
     advance(this.state); // consume ORDERED_LBRACKET
     return this.parseCollectionLiteral('ordered');
   },
+  [TOKEN_TYPES.MAP_LBRACKET]: function (this: Parser): PrimaryNode {
+    return this.parseMapLiteral(advance(this.state).span.start); // consume map[
+  },
   [TOKEN_TYPES.DICT_LBRACKET]: function (this: Parser): PrimaryNode {
     const start = current(this.state).span.start;
     advance(this.state); // consume DICT_LBRACKET

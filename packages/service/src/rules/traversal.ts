@@ -264,6 +264,15 @@ function getChildren(node: ASTNode): ASTNode[] {
       return children;
     }
 
+    case 'MapLiteral': {
+      const children: ASTNode[] = [...node.entries];
+      if (node.defaultValue) children.push(node.defaultValue);
+      return children;
+    }
+
+    case 'MapEntry':
+      return [node.key, node.value];
+
     case 'DictEntry':
       return [...dictKeyChildren(node.key), node.value];
 

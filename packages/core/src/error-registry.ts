@@ -840,10 +840,10 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_P027,
     category: 'parse',
-    description: 'Duplicate key in a dict or ordered literal or type',
+    description: 'Duplicate key in a dict, ordered, or map',
     messageTemplate: "Duplicate key '{key}' in {collection}",
     cause:
-      'A dict or ordered literal, or a dict or ordered type, spells the same key twice. Identifier, string, number, and boolean keys are compared as strings, so 1 and "1" are the same key.',
+      'A dict, ordered, or map literal, or a dict or ordered type, spells the same key twice. Dict and ordered keys are compared as strings, so 1 and "1" are the same key. A map key is a value, so two literal map keys collide only when equal by value: 1 and 1.0 collide, 1 and "1" do not.',
     resolution: 'Remove the repeated key, or give each entry a distinct key.',
     examples: [
       {
@@ -857,6 +857,10 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Type fields spell the same key twice',
         code: 'dict(a: number, "a": string)',
+      },
+      {
+        description: 'Map literal repeats a key',
+        code: 'map[#a: 1, #a: 2]',
       },
     ],
   },

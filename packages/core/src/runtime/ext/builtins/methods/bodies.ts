@@ -1,5 +1,6 @@
 import { isCallable } from '../../../core/callable.js';
 import type {
+  RillMapKey,
   RillValue,
   RillVector,
   TypeStructure,
@@ -13,14 +14,14 @@ import {
 } from '../../../core/types/registrations.js';
 import {
   isIterator,
+  isMap,
   isOrdered,
   isPlainDict,
   isStream,
   isTuple,
   isVector,
-  orderedValueEntries,
 } from '../../../core/types/guards.js';
-import { orderedDictEntries } from '../../../core/types/dict-keys.js';
+import { keyedEntries } from '../../../core/types/dict-keys.js';
 import {
   rejectHeldEntries,
   rejectHeldSelection,
@@ -59,7 +60,7 @@ import {
 // across type groups (e.g. len appears in string, list, dict).
 // ============================================================
 
-/** Get length of string, list, or dict */
+/** Get length of string, list, dict, ordered, map, or tuple */
 export const mLen: RillMethod = (receiver) => {
   // Strings measure length in Unicode code points, not UTF-16 code units, so
   // an astral character such as "😀" counts as one, matching how seq/fan and
@@ -70,7 +71,9 @@ export const mLen: RillMethod = (receiver) => {
     return isBmpOnly(receiver) ? receiver.length : Array.from(receiver).length;
   }
   if (Array.isArray(receiver)) return receiver.length;
-  if (isOrdered(receiver) || isTuple(receiver)) return receiver.entries.length;
+  if (isOrdered(receiver) || isMap(receiver) || isTuple(receiver)) {
+    return receiver.entries.length;
+  }
   if (receiver !== null && typeof receiver === 'object') {
     return Object.keys(receiver).length;
   }
@@ -599,61 +602,49 @@ export const mLe: RillMethod = (receiver, args, ctx, location) =>
 export const mGe: RillMethod = (receiver, args, ctx, location) =>
   orderedCompare(receiver, args, ctx, location, 'ge') >= 0;
 
-/** Halt RILL-R003 unless receiver is a plain dict (not ordered, branded, or stream). */
-function requireDictReceiver(
+/**
+ * Entries of a dict, ordered, or map receiver in that collection's own order
+ * (`keyedEntries`). Halts RILL-R003 for any other receiver. Value-reading
+ * methods pass `rejectHeld` so a held block entry halts first.
+ */
+function keyedReceiverEntries(
   receiver: RillValue,
   fn: string,
   ctx: RuntimeContext,
-  location: SourceLocation | undefined
-): asserts receiver is Record<string, RillValue> {
-  if (isPlainDict(receiver)) return;
-  throwFatalHostHalt(
-    { location, sourceId: ctx.sourceId, fn, preserveHostShape: true },
+  location: SourceLocation | undefined,
+  rejectHeld: boolean
+): ReadonlyArray<{ key: RillMapKey; value: RillValue }> {
+  const site = { location, sourceId: ctx.sourceId, fn };
+  if (rejectHeld) rejectHeldEntries(receiver, fn, site, 'direct');
+  // Ordered and map values dispatch before the dict check: an ordered's JS
+  // wrapper also satisfies the dict structural shape.
+  if (isOrdered(receiver) || isMap(receiver) || isPlainDict(receiver)) {
+    return keyedEntries(receiver);
+  }
+  return throwFatalHostHalt(
+    { ...site, preserveHostShape: true },
     ERROR_ATOMS[ERROR_IDS.RILL_R003],
     `${fn}() requires dict receiver, got ${inferType(receiver)}`
   );
 }
 
-/** Get all keys of a dict as a list, in sorted string-key order. */
-export const mKeys: RillMethod = (receiver, _args, ctx, location) => {
-  // Ordered values dispatch before isDict: the JS wrapper object also
-  // satisfies isDict's structural shape check.
-  if (isOrdered(receiver)) return orderedValueEntries(receiver).map(([k]) => k);
-  requireDictReceiver(receiver, 'keys', ctx, location);
-  return orderedDictEntries(receiver).map((e) => e.key);
-};
+/** Get all keys of a dict, ordered, or map as a list, in the collection's order. */
+export const mKeys: RillMethod = (receiver, _args, ctx, location) =>
+  keyedReceiverEntries(receiver, 'keys', ctx, location, false).map(
+    (e): RillValue => e.key
+  );
 
-/** Get all values of a dict as a list, in canonical key order. */
-export const mValues: RillMethod = (receiver, _args, ctx, location) => {
-  rejectHeldEntries(
-    receiver,
-    'values',
-    { location, sourceId: ctx.sourceId, fn: 'values' },
-    'direct'
+/** Get all values of a dict, ordered, or map as a list, in the collection's order. */
+export const mValues: RillMethod = (receiver, _args, ctx, location) =>
+  keyedReceiverEntries(receiver, 'values', ctx, location, true).map(
+    (e): RillValue => e.value
   );
-  if (isOrdered(receiver))
-    return orderedValueEntries(receiver).map(([, v]) => v);
-  requireDictReceiver(receiver, 'values', ctx, location);
-  return orderedDictEntries(receiver).map((e) => e.value);
-};
 
-/** Get all entries of a dict or ordered as a list of [key, value] tuples, in canonical key order. */
-export const mEntries: RillMethod = (receiver, _args, ctx, location) => {
-  rejectHeldEntries(
-    receiver,
-    'entries',
-    { location, sourceId: ctx.sourceId, fn: 'entries' },
-    'direct'
+/** Get all entries of a dict, ordered, or map as a list of [key, value] tuples, in the collection's order. */
+export const mEntries: RillMethod = (receiver, _args, ctx, location) =>
+  keyedReceiverEntries(receiver, 'entries', ctx, location, true).map(
+    (e): RillValue => createTuple([e.key, e.value])
   );
-  if (isOrdered(receiver))
-    return orderedValueEntries(receiver).map(([k, v]): RillValue =>
-      createTuple([k, v])
-    );
-  requireDictReceiver(receiver, 'entries', ctx, location);
-  return orderedDictEntries(receiver).map((e): RillValue =>
-    createTuple([e.key, e.value])
-  );
-};
 
 /**
  * Halt #TYPE_MISMATCH when a list's element type cannot overlap the operand

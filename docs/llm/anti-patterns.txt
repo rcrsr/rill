@@ -166,6 +166,32 @@ A block written as a dict value or list element is held uncalled. Reads that sel
     Wrong: dict[a: { $ + 1 }] -> .values          # halts #TYPE_MISMATCH
     Right: "a" -> dict[a: { "got {$}" }]          # "got a"; selecting the entry runs it with $ = "a"
 
+## Maps
+
+A map key is a value of one scalar kind. A dict key is a name, always a string.
+
+    Wrong: map[a: 1]                       # RILL-P001: a is a name, not a value
+    Right: map["a": 1]
+    Right: map[#a: 1]
+
+    Wrong: dict[404: "x"][404]             # halts #TYPE_MISMATCH: dict keys are strings
+    Right: map[404: "x"][404]              # "x"
+
+    Wrong: "a" -> map[#a: 1]               # halts #TYPE_MISMATCH: the key is an atom, not a string
+    Right: #a -> map[#a: 1]                # 1
+
+    Wrong: map[#a: 1, "b": 2]              # halts #TYPE_MISMATCH: two key kinds
+    Right: map[#a: 1, #b: 2]
+
+    Wrong: $m.a                            # halts RILL-R003: a field name selects no map entry
+    Right: $m[#a]
+
+    Wrong: $m[-1]                          # looks up the key -1; absent halts RILL-R009
+    Right: $m.values[-1]                   # the last value
+
+    Wrong: map[#a: 1] -> dict              # halts RILL-R036: only string keys convert
+    Right: map["a": 1] -> dict             # dict[a: 1]
+
 ## Reassignment inside loops
 
     Wrong: 0 => $sum

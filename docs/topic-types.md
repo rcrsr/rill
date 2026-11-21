@@ -15,6 +15,7 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 | Dict | `[k: v]` or `dict[k: v]` | `dict[output: "text", code: 0]` |
 | Ordered | `ordered[k: v]` | `ordered[a: 1, b: "hello"]` |
 | Tuple | `tuple[...]` (positional) | `tuple[1, 2]` |
+| Map | `map[k: v]` (scalar keys) | `map[404: "missing"]` |
 | Datetime | `datetime(...)` or `now()` | `datetime("2024-01-15T10:30:00Z")` |
 | Duration | `duration(...)` | `duration(...dict[days: 1, hours: 2])` |
 | Vector | host-provided | `vector(voyage-3, 1024d)` |
@@ -322,7 +323,7 @@ $d.missing ?? ""
 
 ### Dict Keys Are Strings
 
-Every dict key is a string. A single number or boolean key in a literal names the string of its spelling, so `[1: "one"]` and `["1": "one"]` are the same dict. Writing the same key twice halts at parse time with `RILL-P027`, including `[1: "a", "1": "b"]`.
+Every dict key is a string; for keys of another scalar kind, see [Maps](#maps). A single number or boolean key in a literal names the string of its spelling, so `[1: "one"]` and `["1": "one"]` are the same dict. Writing the same key twice halts at parse time with `RILL-P027`, including `[1: "a", "1": "b"]`.
 
 ```rill
 [1: "one", true: "yes"] -> .keys
@@ -373,6 +374,7 @@ Every key form selects as `[expr]` does: `.$k`, `.?$k`, and `.?[expr]` halt with
 | Receiver | Wrong key | Halts |
 |----------|-----------|-------|
 | dict, stream | number or bool | `#TYPE_MISMATCH` |
+| map | not the key type | `#TYPE_MISMATCH` |
 | list, tuple, ordered | wrong-typed key | `RILL-R002` |
 | string, number, atom, fn, iterator, vector, type value | any key | `RILL-R002`, message `Cannot index <type>` |
 
@@ -404,7 +406,7 @@ Convert a number or bool selector with `-> string`:
 
 `.keys`, `.values`, and `.entries` all return dict's canonical order (see Ordered, below).
 
-On a non-dict receiver (tuple, stream, string, number, and so on) they halt `RILL-R003`, and `??` does not recover the halt. `ordered` values are accepted.
+On a non-dict receiver (tuple, stream, string, number, and so on) they halt `RILL-R003`, and `??` does not recover the halt. `ordered` and `map` values are accepted.
 
 ```rill
 [name: "test", count: 42] -> .keys      # ["count", "name"]
@@ -641,7 +643,7 @@ tuple["x"] -> :$t
 
 The `:` assertion also accepts the shorter value. No field synthesis occurs; the returned value is unchanged. Use `-> type` to fill missing fields with their defaults.
 
-Defaults must appear at trailing positions only. A required field after a defaulted field is a type constructor error.
+Defaults must appear at trailing positions only. A required field after a defaulted field is a type constructor error. A tuple type's `.defaults` returns the defaults as a map; see [Type System](topic-type-system.md#dot-notation-properties-on-type-values).
 
 `ordered` follows the same trailing rule. A `dict` value may omit any defaulted field, not only trailing ones. See [Type System](topic-type-system.md) for how defaults interact with assertions and conversion.
 
@@ -685,6 +687,135 @@ Tuple type constructors support `^()` inline annotations on positional elements.
 ```text
 tuple(^("X coordinate") number, ^("Y coordinate") number)
 ```
+
+## Maps
+
+A map holds entries keyed by values of one scalar kind, with one value type. Write it with `map[key: value, ...]`; a key is an expression, not a name.
+
+```rill
+map[#a: 1, #b: "x"].^type.signature
+# Result: "map(atom, union(number, string))"
+```
+
+The type is `map(K, V)`. `K` is one of `string`, `number`, `bool`, `atom`, `datetime`, `duration`, `error_code`, or a union of members of one kind. `V` is any type. A bare `map` equals `map(any, any)`.
+
+```rill
+list[map == map(any, any), map(union(#a, #b), number) == map(union(#b, #a), number)]
+# Result: list[true, true]
+```
+
+A key type that is not a scalar kind halts `#INVALID_INPUT`; an outer type halts `RILL-P006`.
+
+```rill
+guard { map(list, number) } => $r
+$r.!code
+# Result: #INVALID_INPUT
+```
+
+```text
+map(atom, number):string
+# Error: RILL-P006
+```
+
+### Map Keys
+
+A key is a scalar literal (a negative number included), `$name`, `(expr)`, or a list of keys that share the entry's value. Any other expression, such as `$a.b`, a call, or `??`, needs parentheses. A map has no reserved keys, so `keys` and `values` are ordinary keys.
+
+```rill
+"k" => $s
+map[$s: 1, ("a" -> .upper): 2, ["x", "y"]: 3].len
+# Result: 4
+```
+
+```rill
+map["keys": 1, "values": 2].keys
+# Result: list["keys", "values"]
+```
+
+Each fault below halts with the code shown. A bare identifier is `RILL-P001`, and two literal keys equal by value (`1` and `1.0`) are `RILL-P027`. Two equal computed keys halt `#INVALID_INPUT`, and keys of two kinds or a non-scalar key halt `#TYPE_MISMATCH`.
+
+```rill
+"a" => $k
+list[
+  guard { map[$k: 1, $k: 2] }.!code,
+  guard { map[#a: 1, "b": 2] }.!code,
+  guard { map[(dict[a: 1]): 1] }.!code
+]
+# Result: list[#INVALID_INPUT, #TYPE_MISMATCH, #TYPE_MISMATCH]
+```
+
+```text
+map[a: 1]
+# Error: RILL-P001
+
+map[1: "a", 1.0: "b"]
+# Error: RILL-P027
+```
+
+### Order, Equality, and Methods
+
+A map iterates in insertion order. Two maps are equal when they hold equal keys with equal values, in any order. The methods are `.keys`, `.values`, `.entries`, `.len`, `.empty`, `.eq()`, and `.ne()`.
+
+```rill
+list[map[1: "x", 2: "y"].keys, map[1: "a", 2: "b"] == map[2: "b", 1: "a"]]
+# Result: list[list[1, 2], true]
+```
+
+A field name does not select a map entry: `$m.a` halts `RILL-R003`, `.?a` is `false`, and spreading a map into `dict[...]` halts `RILL-R002`.
+
+```rill
+map[#a: 1] => $m
+list[$m.?a, guard { $m.a }.!code, guard { dict[...$m] }.!code]
+# Result: list[false, #RILL_R003, #RILL_R002]
+```
+
+### Selecting from a Map
+
+```rill
+list[map[200: "ok", 404: "missing"][404], map[-1: "last", 0: "first"][-1], map[1: "a"][2] ?? "none"]
+# Result: list["missing", "last", "none"]
+```
+
+`$m[key]`, `.$k`, and `key -> $m` select by key. The selector must have the held key kind. A negative number is a key, not an index from the end. An absent key halts `RILL-R009`, and `??` recovers it. A wrong key kind halts `#TYPE_MISMATCH`.
+
+```rill
+guard { map[1: "a"][2] } => $miss
+guard { map[1: "a"]["x"] } => $kind
+list[$miss.!code, $kind.!code]
+# Result: list[#RILL_R009, #TYPE_MISMATCH]
+```
+
+A block held as a value runs when selected, with the key as `$`:
+
+```rill
+map[404: { "missing {$}" }] => $m
+404 -> $m
+# Result: "missing 404"
+```
+
+### Map Conversion
+
+Only a `dict` and a `map(string, V)` convert to each other, and each value converts to `V`. Any other source halts `RILL-R036`. A string-keyed map converts to a dict only when no key is one of the eight reserved dict method names (see [Dict Keys Are Strings](#dict-keys-are-strings)).
+
+```rill
+dict[a: "x"] -> map(string, string) => $m
+list[$m["a"], map["a": 1] -> dict]
+# Result: list["x", dict[a: 1]]
+```
+
+```rill
+list[
+  guard { map[#a: 1] -> dict }.!code,
+  guard { map[#a: 1] -> map(string, number) }.!code,
+  guard { map["len": 1] -> dict }.!code,
+  guard { ordered[a: 1] -> map }.!code,
+  guard { tuple[1] -> map }.!code,
+  guard { list[1] -> map }.!code
+]
+# Result: list[#RILL_R036, #RILL_R036, #RILL_R036, #RILL_R036, #RILL_R036, #RILL_R036]
+```
+
+Iteration, `filter`, and `seq` over a map are in [Collections](topic-collections.md#maps).
 
 ## Vectors
 

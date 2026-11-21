@@ -174,15 +174,15 @@ export type { RillStream };
 
 // Value types
 export type { RillValue };
-export type { RillAtomValue, RillDatetime, RillDuration, RillFieldDef, RillIterator, RillTuple, RillVector };
+export type { RillAtomValue, RillDatetime, RillDuration, RillFieldDef, RillIterator, RillMap, RillMapKey, RillTuple, RillVector };
 export type { TraceKind };
 
 // Value conversion
 export { toNative };
-export type { NativeResult, NativeValue, NativeArray, NativePlainObject };
+export type { NativeResult, NativeValue, NativeArray, NativeMap, NativePlainObject };
 
 // Value construction and inspection
-export { copyValue, createOrdered, createTuple, createVector };
+export { copyValue, createMap, createOrdered, createTuple, createVector };
 export {
   getStatus,
   isAtom,
@@ -190,6 +190,7 @@ export {
   isDuration,
   isInvalid,
   isIterator,
+  isMap,
   isStream,
   isTuple,
   isTypeValue,
@@ -387,14 +388,14 @@ interface NativeResult {
 
 type NativeValue =
   | string | number | boolean | null
-  | NativeArray | NativePlainObject;
+  | NativeArray | NativePlainObject | NativeMap;
 ```
 
 A value returned to the host that holds a code block reports the entry as the signature `fn():any` and does not run it. Passing a collection that holds a code block to a host function as an argument halts `#TYPE_MISMATCH` naming the entry.
 
 `rillTypeName` and `rillTypeSignature` describe the own type of the value, never a declared type.
 
-A dict converts to a plain object with string keys; a single number or boolean key in the source literal is already the string of its spelling, and a multi-key list element is a string.
+A map converts to a JS `Map` (`NativeMap`); an atom key becomes its name string. A dict converts to a plain object with string keys; a single number or boolean key in the source literal is already the string of its spelling, and a multi-key list element is a string.
 
 ### Descriptor shapes for non-native types
 
@@ -861,6 +862,7 @@ const greet: RillFunctionShorthand = {
 | Built-in type `error_code` | `list(error_code)` |
 | Named dict type | `dict(k: string)`, `dict("a b": string)` |
 | Tuple type | `tuple(number, string)`; `tuple(number)` is exactly one position |
+| Map type | `map(string, number)`, `map(atom, bool)` |
 | Function type | `cb: fn(string):bool`, `cb: fn(x: number):string`, bare `fn` |
 | Stream type | `stream(number):string`, `stream(number)` |
 | Ordered type | `ordered(a: number)` |

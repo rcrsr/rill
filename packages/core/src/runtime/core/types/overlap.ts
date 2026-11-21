@@ -12,6 +12,7 @@
  */
 
 import {
+  ANY_STRUCTURE,
   compareStructuredFields,
   formatStructure,
   inferStructure,
@@ -20,7 +21,7 @@ import {
 import { RuntimeHaltSignal, throwTypeHalt, type TypeHaltSite } from './halt.js';
 import { rejectHeldEntries } from './held-block.js';
 import { setDictField } from './dict-keys.js';
-import { isAtom, isStructureKind } from './guards.js';
+import { isAtom, isStructureKind, scalarKindOf } from './guards.js';
 import { deepEquals, inferType } from './registrations.js';
 import type { RillFieldDef, RillValue, TypeStructure } from './structures.js';
 
@@ -34,11 +35,7 @@ export interface Carried {
 function overlapKind(s: TypeStructure): string {
   if (s.kind !== 'literal') return s.kind;
   if (!isStructureKind(s, 'literal')) return s.kind;
-  const value = s.value;
-  if (typeof value === 'string') return 'string';
-  if (typeof value === 'number') return 'number';
-  if (typeof value === 'boolean') return 'bool';
-  return 'atom';
+  return scalarKindOf(s.value) ?? s.kind;
 }
 
 /**
@@ -138,6 +135,12 @@ function overlaps(a: TypeStructure, b: TypeStructure): boolean {
 
   if (isStructureKind(a, 'list') && isStructureKind(b, 'list')) {
     return overlaps(a.element ?? { kind: 'any' }, b.element ?? { kind: 'any' });
+  }
+  if (isStructureKind(a, 'map') && isStructureKind(b, 'map')) {
+    return (
+      overlaps(a.key ?? ANY_STRUCTURE, b.key ?? ANY_STRUCTURE) &&
+      overlaps(a.value ?? ANY_STRUCTURE, b.value ?? ANY_STRUCTURE)
+    );
   }
   if (kind === 'dict' || kind === 'tuple' || kind === 'ordered') {
     return compareStructuredFields(a, b, OVERLAP_CALLBACKS, true);

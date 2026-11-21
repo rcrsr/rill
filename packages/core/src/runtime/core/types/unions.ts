@@ -12,6 +12,7 @@ import { compareUnionMembers } from './union-order.js';
 // oxlint-disable-next-line import/no-cycle -- registrations.ts reaches this file through operations.ts; the edge is used only at call time, never at module init
 import { deepEquals as registryDeepEquals } from './registrations.js';
 import {
+  ANY_STRUCTURE,
   formatStructure,
   structureEquals,
   structureMatches,
@@ -24,6 +25,9 @@ import {
 
 /** True when the structure carries no parameterization beyond its kind. */
 function isBareStructure(ts: TypeStructure): boolean {
+  if (isStructureKind(ts, 'map')) {
+    return ts.key === undefined && ts.value === undefined;
+  }
   const parts: Record<string, unknown> = { ...ts };
   return (
     parts['fields'] === undefined &&
@@ -34,6 +38,13 @@ function isBareStructure(ts: TypeStructure): boolean {
     parts['chunk'] === undefined &&
     parts['element'] === undefined
   );
+}
+
+/** The single child type of a list or map: its element or value type. */
+function childType(ts: TypeStructure): TypeStructure | undefined {
+  if (isStructureKind(ts, 'list')) return ts.element;
+  if (isStructureKind(ts, 'map')) return ts.value;
+  return undefined;
 }
 
 /** True when the field declares a default or its type nests one. */
@@ -52,9 +63,8 @@ function containsDefault(ts: TypeStructure): boolean {
   if (isStructureKind(ts, 'tuple') && ts.elements !== undefined) {
     return ts.elements.some(fieldHasDefault);
   }
-  if (isStructureKind(ts, 'list') && ts.element !== undefined) {
-    return containsDefault(ts.element);
-  }
+  const child = childType(ts);
+  if (child !== undefined) return containsDefault(child);
   if (isStructureKind(ts, 'union')) return ts.members.some(containsDefault);
   return false;
 }
@@ -117,10 +127,13 @@ function losesDefault(dropped: TypeStructure, keeper: TypeStructure): boolean {
       fieldLosesDefault(field, keeperElements?.[i])
     );
   }
-  if (isStructureKind(dropped, 'list') && dropped.element !== undefined) {
-    return isStructureKind(keeper, 'list') && keeper.element !== undefined
-      ? losesDefault(dropped.element, keeper.element)
-      : containsDefault(dropped.element);
+  const droppedChild = childType(dropped);
+  if (droppedChild !== undefined) {
+    const keeperChild =
+      keeper.kind === dropped.kind ? childType(keeper) : undefined;
+    return keeperChild !== undefined
+      ? losesDefault(droppedChild, keeperChild)
+      : containsDefault(droppedChild);
   }
   return false;
 }
@@ -188,6 +201,19 @@ function structureAccepts(outer: TypeStructure, inner: TypeStructure): boolean {
     return structureAccepts(outer.element, inner.element);
   }
 
+  if (isStructureKind(outer, 'map') && isStructureKind(inner, 'map')) {
+    return (
+      structureAccepts(
+        outer.key ?? ANY_STRUCTURE,
+        inner.key ?? ANY_STRUCTURE
+      ) &&
+      structureAccepts(
+        outer.value ?? ANY_STRUCTURE,
+        inner.value ?? ANY_STRUCTURE
+      )
+    );
+  }
+
   if (
     isStructureKind(outer, 'dict') &&
     isStructureKind(inner, 'dict') &&
@@ -236,6 +262,7 @@ const PARAMETERIZED_KINDS: ReadonlySet<string> = new Set([
   'dict',
   'tuple',
   'ordered',
+  'map',
   'stream',
   'fn',
 ]);
@@ -282,6 +309,10 @@ function scanMember(ts: TypeStructure, scan: MemberScan): void {
   }
   if (isStructureKind(ts, 'tuple') && ts.elements !== undefined) {
     fieldLists.push(ts.elements);
+  }
+  if (isStructureKind(ts, 'map')) {
+    if (ts.key !== undefined) children.push(ts.key);
+    if (ts.value !== undefined) children.push(ts.value);
   }
   if (isStructureKind(ts, 'fn')) {
     if (ts.params !== undefined) fieldLists.push(ts.params);

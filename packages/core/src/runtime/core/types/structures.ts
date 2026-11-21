@@ -70,6 +70,11 @@ export type TypeStructure =
       value: string | number | boolean | RillAtomValue;
     }
   | { kind: 'iterator' }
+  | {
+      kind: 'map';
+      key?: TypeStructure | undefined;
+      value?: TypeStructure | undefined;
+    }
   | { kind: 'stream'; chunk?: TypeStructure; ret?: TypeStructure }
   | { kind: string; data?: unknown };
 
@@ -95,6 +100,28 @@ export interface RillTuple {
 export interface RillOrdered {
   readonly __rill_ordered: true;
   readonly entries: [string, RillValue, RillValue?][];
+  readonly status?: RillStatus;
+}
+
+/**
+ * A map key: one scalar value. Every key of one map shares a single kind.
+ */
+export type RillMapKey =
+  | string
+  | number
+  | boolean
+  | RillAtomValue
+  | RillDatetime
+  | RillDuration;
+
+/**
+ * Map type - key/value entries in insertion order. Keys are scalar values of
+ * one kind and unique by value; a key is a value, never a name, so a map
+ * reserves no keys.
+ */
+export interface RillMap {
+  readonly __rill_map: true;
+  readonly entries: readonly (readonly [RillMapKey, RillValue])[];
   readonly status?: RillStatus;
 }
 
@@ -204,6 +231,7 @@ export type RillValue =
   | CallableMarker
   | RillTuple
   | RillOrdered
+  | RillMap
   | RillVector
   | RillDatetime
   | RillDuration

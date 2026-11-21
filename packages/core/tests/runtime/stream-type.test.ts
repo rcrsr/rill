@@ -424,6 +424,12 @@ describe('stream TypeDefinition', () => {
     expect(streamIndex).toBeLessThan(listIndex);
   });
 
+  it('is registered alongside map ahead of the dict fallback', () => {
+    const names = BUILT_IN_TYPES.map((t) => t.name);
+    expect(names.indexOf('stream')).toBeLessThan(names.indexOf('dict'));
+    expect(names.indexOf('map')).toBeLessThan(names.indexOf('dict'));
+  });
+
   it('has isLeaf false (parameterized type)', () => {
     expect(streamDef!.isLeaf).toBe(false);
   });
