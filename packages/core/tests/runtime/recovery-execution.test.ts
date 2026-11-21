@@ -38,6 +38,7 @@ import {
   type SourceSpan,
   type StatementNode,
 } from '@rcrsr/rill';
+import { expectHalt } from '../helpers/halt.js';
 import { mockFn } from '../helpers/runtime.js';
 
 const zeroSpan: SourceSpan = {
@@ -127,6 +128,7 @@ describe('PartialExpression children are never evaluated through execute()', () 
     const guardBlock: GuardBlockNode = {
       type: 'GuardBlock',
       body: { type: 'Block', statements: [innerStatement], span: zeroSpan },
+      options: null,
       span: zeroSpan,
     };
 
@@ -156,25 +158,49 @@ describe('PartialExpression children are never evaluated through execute()', () 
   });
 });
 
-describe('guard with a host-built onCodes naming a non-builtin atom', () => {
-  it('never matches, so the body halt propagates, and the filter does not throw', async () => {
-    const parsed = parse('guard<on: #RILL_R002> { 1 / 0 }');
+describe('guard with a host-built `on` option naming a non-builtin atom', () => {
+  it('halts #TYPE_MISMATCH before the body runs, and the guard does not catch it', async () => {
+    const parsed = parse('guard(on: #RILL_R002) { 1 / 0 }');
     const stmt = parsed.statements[0] as StatementNode;
     const chain = stmt.expression;
     const guardBlock = (chain.head as PostfixExprNode)
       .primary as unknown as GuardBlockNode;
     expect(guardBlock.type).toBe('GuardBlock');
+    const atom: PipeChainNode = {
+      type: 'PipeChain',
+      head: {
+        type: 'PostfixExpr',
+        primary: { type: 'AtomLiteral', name: 'NOT_A_CODE', span: zeroSpan },
+        methods: [],
+        defaultValue: null,
+        span: zeroSpan,
+      },
+      pipes: [],
+      terminator: null,
+      span: zeroSpan,
+    };
     const swapped: GuardBlockNode = {
       ...guardBlock,
-      onCodes: [{ type: 'AtomLiteral', name: 'NOT_A_CODE', span: zeroSpan }],
+      options: {
+        type: 'Dict',
+        entries: [
+          {
+            type: 'DictEntry',
+            key: 'on',
+            keyForm: 'identifier',
+            value: atom,
+            span: zeroSpan,
+          },
+        ],
+        defaultValue: null,
+        span: zeroSpan,
+      },
     };
     const script: ScriptNode = {
       ...parsed,
       statements: [{ ...stmt, expression: pipeChainOf(swapped) }],
     };
     const ctx = createRuntimeContext();
-    await expect(execute(script, ctx)).rejects.toMatchObject({
-      errorId: 'RILL-R002',
-    });
+    await expectHalt(() => execute(script, ctx), { code: 'TYPE_MISMATCH' });
   });
 });

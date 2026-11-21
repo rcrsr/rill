@@ -101,7 +101,6 @@ function fieldName(field: RillFieldDef, index: number): string {
 }
 
 function dictInner(type: Extract<TypeStructure, { kind: 'dict' }>): RillValue {
-  if (type.valueType !== undefined) return typeOrAny(type.valueType);
   if (type.fields === undefined) return anyTypeValue;
   return typeDict(
     Object.entries(type.fields).map(([key, f]) => [key, f.type] as const)
@@ -111,7 +110,6 @@ function dictInner(type: Extract<TypeStructure, { kind: 'dict' }>): RillValue {
 function orderedInner(
   type: Extract<TypeStructure, { kind: 'ordered' }>
 ): RillValue {
-  if (type.valueType !== undefined) return typeOrAny(type.valueType);
   if (type.fields === undefined) return anyTypeValue;
   return createOrdered(
     type.fields.map((f, i): [string, RillValue] => [

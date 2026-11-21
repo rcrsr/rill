@@ -78,7 +78,7 @@ function astChildren(node: ASTNode): ASTNode[] {
       return [];
     case 'PassBlock':
     case 'TimeoutBlock':
-      return [node.options, node.body];
+      return node.options === null ? [node.body] : [node.options, node.body];
     case 'Assert': {
       const children: ASTNode[] = [node.condition];
       if (node.message !== null) children.push(node.message);
@@ -147,15 +147,16 @@ function astChildren(node: ASTNode): ASTNode[] {
       return children;
     }
     case 'WhileLoop': {
-      const children: ASTNode[] = [node.condition, node.body];
-      if (node.annotations !== undefined) children.push(...node.annotations);
+      const children: ASTNode[] = [node.condition];
+      if (node.options !== null) children.push(node.options);
+      children.push(node.body);
       return children;
     }
     case 'DoWhileLoop': {
       const children: ASTNode[] = [];
       if (node.input !== null) children.push(node.input);
+      if (node.options !== null) children.push(node.options);
       children.push(node.body, node.condition);
-      if (node.annotations !== undefined) children.push(...node.annotations);
       return children;
     }
     case 'Block':
@@ -261,16 +262,9 @@ function astChildren(node: ASTNode): ASTNode[] {
         children.push(...typeRefChildren(node.typeRef));
       return children;
     }
-    case 'GuardBlock': {
-      const children: ASTNode[] = [node.body];
-      if (node.onCodes !== undefined) children.push(...node.onCodes);
-      return children;
-    }
-    case 'RetryBlock': {
-      const children: ASTNode[] = [node.body];
-      if (node.onCodes !== undefined) children.push(...node.onCodes);
-      return children;
-    }
+    case 'GuardBlock':
+    case 'RetryBlock':
+      return node.options === null ? [node.body] : [node.options, node.body];
     case 'AtomLiteral':
       return [];
     case 'StatusProbe':

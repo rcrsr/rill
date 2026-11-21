@@ -43,6 +43,7 @@ export function semanticTokens(
   if (tokens.length === 0) return [];
 
   const typeNameCoverage = buildTypeNameCoverage(parsed.ast);
+  const timeoutKeywords = collectTimeoutKeywords(parsed.ast);
   const lineStarts = computeLineStarts(source);
 
   const classified: ClassifiedToken[] = [];
@@ -53,7 +54,11 @@ export function semanticTokens(
       );
       continue;
     }
-    const category = classifyToken(token, typeNameCoverage);
+    const category =
+      token.type === TOKEN_TYPES.IDENTIFIER &&
+      timeoutKeywords.has(token.span.start.offset)
+        ? 'keyword'
+        : classifyToken(token, typeNameCoverage);
     if (category !== null) {
       classified.push({ span: token.span, tokenType: category });
     }
@@ -125,6 +130,19 @@ function buildTypeNameCoverage(root: ASTNode): TypeNameCoverage {
     prefixMaxEnd.push(runningMax);
   }
   return { starts, prefixMaxEnd };
+}
+
+/**
+ * Offsets of the `timeout` word that opens each `TimeoutBlock`. `timeout` is
+ * an ordinary identifier to the lexer, so only the AST tells a timeout block
+ * from a host function of that name.
+ */
+function collectTimeoutKeywords(root: ASTNode): ReadonlySet<number> {
+  const offsets = new Set<number>();
+  walkAst(root, (node) => {
+    if (node.type === 'TimeoutBlock') offsets.add(node.span.start.offset);
+  });
+  return offsets;
 }
 
 /**

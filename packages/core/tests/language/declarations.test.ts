@@ -91,7 +91,7 @@ describe('Rill Language: declarations', () => {
       async () => {
         expect(
           await run(
-            'guard<on: list [#TYPE_MISMATCH]> { "a" -> :number } ?? "caught"'
+            'guard(on: list [#TYPE_MISMATCH]) { "a" -> :number } ?? "caught"'
           )
         ).toBe('caught');
       }

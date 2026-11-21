@@ -41,7 +41,7 @@ type CompoundToken = {
  *
  * Three opener flavors:
  * - `[` bracket-body: collection literals (list, dict, tuple, ordered, map)
- * - `<` langle-body: angle-delimited heads (destruct, slice, use, retry, do)
+ * - `<` langle-body: angle-delimited heads (destruct, slice, use)
  * - `{` brace-body: block heads (guard)
  *
  * The brace-body flavor is a parallel addition alongside the other two, not a
@@ -60,10 +60,6 @@ const COMPOUND_KEYWORD_MAP: Record<
   destruct: { bracket: '<', tokenType: TOKEN_TYPES.DESTRUCT_LANGLE },
   slice: { bracket: '<', tokenType: TOKEN_TYPES.SLICE_LANGLE },
   use: { bracket: '<', tokenType: TOKEN_TYPES.USE_LANGLE },
-  retry: { bracket: '<', tokenType: TOKEN_TYPES.RETRY_LANGLE },
-  do: { bracket: '<', tokenType: TOKEN_TYPES.DO_LANGLE },
-  pass: { bracket: '<', tokenType: TOKEN_TYPES.PASS_LANGLE },
-  timeout: { bracket: '<', tokenType: TOKEN_TYPES.TIMEOUT_LANGLE },
   guard: { bracket: '{', tokenType: TOKEN_TYPES.GUARD_LBRACE },
 };
 
@@ -417,11 +413,11 @@ export function readIdentifier(state: LexerState): Token {
   // DOT_QUESTION token (member access). A dot is never followed by a
   // collection literal, angle-delimited head, or block head, so every entry
   // in COMPOUND_KEYWORD_MAP is member-access text in that position (e.g.
-  // `$d.retry<10` is a member named `retry` followed by `<`, not a
-  // `retry<...>` block). Suppressing uniformly, rather than special-casing
+  // `$d.slice<10` is a member named `slice` followed by `<`, not a
+  // `slice<...>` head). Suppressing uniformly, rather than special-casing
   // only the reserved-word entries, keeps the rule simple and correct for
   // the non-reserved-word entries too (`list`, `dict`, `tuple`, `ordered`,
-  // `destruct`, `slice`, `use`, `timeout`).
+  // `destruct`, `slice`, `use`).
   //
   // Both guards test the preceding TOKEN, not the preceding characters. A
   // character-level test has to special-case the `...` spread operator,

@@ -405,8 +405,8 @@ describe('Rill Runtime: Evaluator Base Class', () => {
   describe('Error handling edge cases', () => {
     it('throws RuntimeError for iteration limit exceeded', async () => {
       try {
-        // Infinite loop with do<limit: N> construct option
-        await run('0 -> while (true) do<limit: 10> { $ }');
+        // Infinite loop with do(limit: N) construct option
+        await run('0 -> while (true) do(limit: 10) { $ }');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);

@@ -131,7 +131,7 @@ $out ?? "fallback"
 ```text
 use<ext:app> => $app
 
-retry<limit: 3> {
+retry(attempts: 3) {
   $app.fetch("https://api.example.com/data")
 } => $result
 
@@ -143,7 +143,7 @@ $result.! ? {
 }
 ```
 
-`retry<limit: 3>` re-enters the body up to 3 times. After all attempts fail, `.!` is `true`.
+`retry(attempts: 3)` re-enters the body up to 3 times. After all attempts fail, `.!` is `true`. The old form `retry<limit: 3>` is a parse error (`RILL-P025`).
 
 ### Read the Error Atom
 
@@ -169,20 +169,20 @@ iterate(0, { $ + 1 }) -> take(5)
 
 ### Timeout with Fallback
 
-Wrap a host fetch in `timeout<>` inside `guard` to recover from slow responses with a cached value:
+Wrap a host fetch in `timeout()` inside `guard` to recover from slow responses with a cached value:
 
 ```text
 use<ext:app> => $app
-guard { timeout<total: duration("500ms")> { $app.fetch("https://api.example.com") } } ?? "cached"
+guard { timeout(total: duration("500ms")) { $app.fetch("https://api.example.com") } } ?? "cached"
 ```
 
-### Fire-and-Forget with `pass<async: true>`
+### Fire-and-Forget with `pass(async: true)`
 
-Pipe a value through `pass<async: true, on_error: #IGNORE>` to trigger a side-effect audit log without blocking the pipeline:
+Pipe a value through `pass(async: true, ignore_halts: true)` to trigger a side-effect audit log without blocking the pipeline:
 
 ```text
 use<ext:app> => $app
-42 -> pass<async: true, on_error: #IGNORE> { $app.audit_log($) }
+42 -> pass(async: true, ignore_halts: true) { $app.audit_log($) }
 ```
 
 ## See Also

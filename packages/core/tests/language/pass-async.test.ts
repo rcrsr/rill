@@ -1,30 +1,31 @@
 /**
- * Rill Language Tests: pass<async: true> Block (Phase 1, Task 1.5)
+ * Rill Language Tests: pass(async: true) Block (Phase 1, Task 1.5)
  *
  * Covers:
- * - AC-2  / SC-2  : pass<async: true> flows pipe-entry value downstream immediately
- * - AC-13 / EC-6  : pass<async: non-bool> is a parse-time error (parser rejects non-BoolLiteral)
+ * - AC-2  / SC-2  : pass(async: true) flows pipe-entry value downstream immediately
+ * - AC-13 / EC-6  : pass(async: non-bool) halts #TYPE_MISMATCH when the block runs
  * - AC-21 / BC-4  : async body settling at dispose-time: quickly-completing body settles
  * - EC-7          : non-catchable halt in async body propagates through trackInflight
- * - EC-8          : catchable halt without on_error: #IGNORE surfaces at dispose-time
+ * - EC-8          : catchable halt without ignore_halts: true surfaces at dispose-time
  * - EC-9          : dispose-timeout existing behavior: in-flight bodies are awaited
  *
  * Notes on async semantics:
- * - pass<async: true> registers the body promise via ctx.trackInflight (fire-and-forget).
+ * - pass(async: true) registers the body promise via ctx.trackInflight (fire-and-forget).
  * - The pipe-entry value ($) is returned immediately; the body return value is discarded.
- * - Catchable body halts propagate unless on_error: #IGNORE is also set [EC-8].
+ * - Catchable body halts propagate unless ignore_halts: true is also set [EC-8].
  * - Non-catchable halts (ControlSignal, catchable:false) re-throw per §NOD.10.4 [EC-7].
  * - ctx.dispose() awaits all trackInflight promises with a 5000ms ceiling [EC-9].
  *
- * [DEVIATION] Syntax: pass<async: true> { body } — the body block follows `>` directly.
- * pass<async: true>({ body }) is invalid syntax (parser rejects it as a missing body block).
+ * [DEVIATION] Syntax: pass(async: true) { body } — the body block follows `>` directly.
+ * pass(async: true)({ body }) is invalid syntax (parser rejects it as a missing body block).
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { createRuntimeContext, execute, parse, ParseError } from '@rcrsr/rill';
+import { createRuntimeContext, execute, parse } from '@rcrsr/rill';
 import { invalidate } from '../../src/runtime/core/types/status.js';
 import { createTraceFrame } from '../../src/runtime/core/types/trace.js';
 import { RuntimeHaltSignal } from '../../src/runtime/core/types/halt.js';
+import { expectHalt } from '../helpers/halt.js';
 import { run, runWithContext } from '../helpers/runtime.js';
 
 /** A promise the test resolves explicitly, so no test depends on elapsed time. */
@@ -37,41 +38,41 @@ function createDeferred(): { promise: Promise<void>; resolve: () => void } {
 }
 
 // ---------------------------------------------------------------------------
-// AC-2 / SC-2: pass<async: true> flows pipe-entry value downstream unchanged
+// AC-2 / SC-2: pass(async: true) flows pipe-entry value downstream unchanged
 // ---------------------------------------------------------------------------
 
-describe('AC-2 / SC-2: pass<async: true> flows pipe-entry value downstream', () => {
+describe('AC-2 / SC-2: pass(async: true) flows pipe-entry value downstream', () => {
   it('returns the pipe-entry value immediately when async body is fired', async () => {
     // The body runs asynchronously. The pipe-entry value (42) is returned
     // immediately without waiting for body completion.
-    const result = await run('42 -> pass<async: true> { $ }');
+    const result = await run('42 -> pass(async: true) { $ }');
     expect(result).toBe(42);
   });
 
   it('returns a string pipe-entry value unchanged', async () => {
-    const result = await run('"hello" -> pass<async: true> { $ -> .upper }');
+    const result = await run('"hello" -> pass(async: true) { $ -> .upper }');
     expect(result).toBe('hello');
   });
 
   it('does not block on async body — body return value is discarded', async () => {
-    // The body captures its computation result but pass<async: true> returns
+    // The body captures its computation result but pass(async: true) returns
     // the original pipe value, not the body's result.
-    const result = await run('10 -> pass<async: true> { $ * 100 }');
+    const result = await run('10 -> pass(async: true) { $ * 100 }');
     expect(result).toBe(10);
   });
 
   it('can chain after async pass — downstream sees original pipe value', async () => {
-    const result = await run('5 -> pass<async: true> { $ + 1 } -> { $ * 2 }');
+    const result = await run('5 -> pass(async: true) { $ + 1 } -> { $ * 2 }');
     expect(result).toBe(10);
   });
 
   it('async body runs and observable side effect confirms execution', async () => {
     // The async body calls a host function that records it ran.
-    // We assert both that pass<async:> returned the pipe-entry value AND
+    // We assert both that pass(async:) returned the pipe-entry value AND
     // that the host function was eventually called.
     let sideEffectRan = false;
     const { result, context } = await runWithContext(
-      '"input" -> pass<async: true> { record_run() }',
+      '"input" -> pass(async: true) { record_run() }',
       {
         functions: {
           record_run: {
@@ -91,54 +92,52 @@ describe('AC-2 / SC-2: pass<async: true> flows pipe-entry value downstream', () 
     expect(sideEffectRan).toBe(true);
   });
 
-  it('pass<async: true, on_error: #IGNORE> returns pipe-entry value', async () => {
+  it('pass(async: true, ignore_halts: true) returns pipe-entry value', async () => {
     // Combined options: async + suppress. The pipe-entry value flows through;
     // catchable halts from the body are silently discarded.
     const result = await run(
-      '"data" -> pass<async: true, on_error: #IGNORE> { "a" -> number }'
+      '"data" -> pass(async: true, ignore_halts: true) { "a" -> number }'
     );
     expect(result).toBe('data');
   });
 });
 
 // ---------------------------------------------------------------------------
-// AC-13 / EC-6: pass<async: non-bool> is a parse-time error
+// AC-13 / EC-6: pass(async: non-bool) is a parse-time error
 // ---------------------------------------------------------------------------
 
-describe('AC-13 / EC-6: pass<async: non-bool> is rejected at parse time', () => {
-  it('rejects pass<async: "yes"> with a ParseError', () => {
-    // The parser enforces BoolLiteral for the async option; "yes" is a
-    // StringLiteral and fails the check immediately.
-    expect(() => parse('"x" -> pass<async: "yes"> { $ }')).toThrow(ParseError);
+describe('AC-13 / EC-6: pass(async: non-bool) halts #TYPE_MISMATCH', () => {
+  it('halts on pass(async: "yes")', async () => {
+    await expectHalt(() => run('"x" -> pass(async: "yes") { $ }'), {
+      code: 'TYPE_MISMATCH',
+    });
   });
 
-  it('rejects pass<async: 1> with a ParseError', () => {
-    expect(() => parse('"x" -> pass<async: 1> { $ }')).toThrow(ParseError);
+  it('halts on pass(async: 1)', async () => {
+    await expectHalt(() => run('"x" -> pass(async: 1) { $ }'), {
+      code: 'TYPE_MISMATCH',
+    });
   });
 
-  it('rejects pass<async: #IGNORE> with a ParseError', () => {
-    expect(() => parse('"x" -> pass<async: #IGNORE> { $ }')).toThrow(
-      ParseError
-    );
+  it('halts on pass(async: #IGNORE)', async () => {
+    await expectHalt(() => run('"x" -> pass(async: #IGNORE) { $ }'), {
+      code: 'TYPE_MISMATCH',
+    });
   });
 
-  it('parse error message mentions async option requires boolean', () => {
-    try {
-      parse('"x" -> pass<async: "yes"> { $ }');
-      expect.fail('Expected ParseError');
-    } catch (err) {
-      expect(err).toBeInstanceOf(ParseError);
-      const parseErr = err as ParseError;
-      expect(parseErr.message).toMatch(/async.*bool/i);
-    }
+  it('halt message names the async option and the bool type', async () => {
+    await expectHalt(() => run('"x" -> pass(async: "yes") { $ }'), {
+      code: 'TYPE_MISMATCH',
+      messagePattern: /async.*bool/i,
+    });
   });
 
-  it('accepts pass<async: true> without error', () => {
-    expect(() => parse('"x" -> pass<async: true> { $ }')).not.toThrow();
+  it('accepts pass(async: true) without error', () => {
+    expect(() => parse('"x" -> pass(async: true) { $ }')).not.toThrow();
   });
 
-  it('accepts pass<async: false> without error', () => {
-    expect(() => parse('"x" -> pass<async: false> { $ }')).not.toThrow();
+  it('accepts pass(async: false) without error', () => {
+    expect(() => parse('"x" -> pass(async: false) { $ }')).not.toThrow();
   });
 });
 
@@ -153,7 +152,7 @@ describe('AC-21 / BC-4: async body settles correctly at dispose-time', () => {
     // should have settled (no in-flight work at dispose time).
     let bodyRan = false;
     const { context } = await runWithContext(
-      '"pipe_val" -> pass<async: true> { record_body() }',
+      '"pipe_val" -> pass(async: true) { record_body() }',
       {
         functions: {
           record_body: {
@@ -180,7 +179,7 @@ describe('AC-21 / BC-4: async body settles correctly at dispose-time', () => {
     let completed = false;
     const gate = createDeferred();
     const { context } = await runWithContext(
-      '"x" -> pass<async: true> { delay_record() }',
+      '"x" -> pass(async: true) { delay_record() }',
       {
         functions: {
           delay_record: {
@@ -226,7 +225,7 @@ describe('EC-7: non-catchable halt in async body propagates', () => {
     // We verify by intercepting trackInflight before execute().
     let captured: Promise<unknown> | undefined;
 
-    const ast = parse('"v" -> pass<async: true> { uncatchable_fn() }');
+    const ast = parse('"v" -> pass(async: true) { uncatchable_fn() }');
     const ctx = createRuntimeContext({
       functions: {
         uncatchable_fn: {
@@ -266,7 +265,7 @@ describe('EC-7: non-catchable halt in async body propagates', () => {
     // dispose() uses Promise.allSettled internally so it resolves
     // regardless of individual inflight rejections.
     const { context } = await runWithContext(
-      '"v" -> pass<async: true> { fatal_halt_fn() }',
+      '"v" -> pass(async: true) { fatal_halt_fn() }',
       {
         functions: {
           fatal_halt_fn: {
@@ -295,16 +294,16 @@ describe('EC-7: non-catchable halt in async body propagates', () => {
 });
 
 // ---------------------------------------------------------------------------
-// EC-8: catchable halt without on_error: #IGNORE surfaces at dispose-time
+// EC-8: catchable halt without ignore_halts: true surfaces at dispose-time
 // ---------------------------------------------------------------------------
 
-describe('EC-8: catchable halt without on_error: #IGNORE surfaces at dispose', () => {
+describe('EC-8: catchable halt without ignore_halts: true surfaces at dispose', () => {
   it('catchable body halt without suppress causes inflight promise rejection', async () => {
     // Without on_error: #IGNORE, catchable halts from the body re-throw from
     // runBody. The trackInflight promise rejects.
     let captured: Promise<unknown> | undefined;
 
-    const ast = parse('"v" -> pass<async: true> { bad_type_op() }');
+    const ast = parse('"v" -> pass(async: true) { bad_type_op() }');
     const ctx = createRuntimeContext({
       functions: {
         bad_type_op: {
@@ -341,7 +340,7 @@ describe('EC-8: catchable halt without on_error: #IGNORE surfaces at dispose', (
     let captured: Promise<unknown> | undefined;
 
     const ast = parse(
-      '"v" -> pass<async: true, on_error: #IGNORE> { bad_type_suppressed() }'
+      '"v" -> pass(async: true, ignore_halts: true) { bad_type_suppressed() }'
     );
     const ctx = createRuntimeContext({
       functions: {
@@ -388,7 +387,7 @@ describe('EC-9: dispose() awaits in-flight async bodies', () => {
     const gate = createDeferred();
 
     const { context } = await runWithContext(
-      '"v" -> pass<async: true> { short_async() }',
+      '"v" -> pass(async: true) { short_async() }',
       {
         functions: {
           short_async: {
@@ -423,13 +422,13 @@ describe('EC-9: dispose() awaits in-flight async bodies', () => {
   });
 
   it('dispose() with no in-flight bodies returns immediately', async () => {
-    // pass<async: false> (sync path) does not register with trackInflight.
+    // pass(async: false) (sync path) does not register with trackInflight.
     // Fake timers never advance, so dispose() resolving proves it waits on
     // no timer.
     vi.useFakeTimers();
     try {
       const { context } = await runWithContext(
-        '"v" -> pass<async: false> { $ }'
+        '"v" -> pass(async: false) { $ }'
       );
       await expect(context.dispose()).resolves.toBeUndefined();
     } finally {
@@ -442,7 +441,7 @@ describe('EC-9: dispose() awaits in-flight async bodies', () => {
     // rejected inflight promise. dispose() uses Promise.allSettled so it
     // resolves regardless.
     const { context } = await runWithContext(
-      '"v" -> pass<async: true> { sync_thrower() }',
+      '"v" -> pass(async: true) { sync_thrower() }',
       {
         functions: {
           sync_thrower: {
@@ -467,17 +466,16 @@ describe('EC-9: dispose() awaits in-flight async bodies', () => {
 });
 
 // ---------------------------------------------------------------------------
-// EC-6 (runtime defense): non-bool async value at runtime halts with RILL_R003
+// EC-6: a host-built non-bool async value halts #TYPE_MISMATCH
 // ---------------------------------------------------------------------------
 
-describe('EC-6 (runtime defense): non-bool async value at runtime', () => {
-  it('runtime defense: host-injected non-bool async value halts with RILL_R003', async () => {
-    // The parser blocks non-BoolLiteral at parse time. The runtime defense at
-    // literals.ts:242 runs when a host synthesises a PassBlockNode directly
-    // with a non-bool async option value. We construct that AST manually.
+describe('EC-6: an AST built with a non-bool async value', () => {
+  it('host-injected non-bool async value halts #TYPE_MISMATCH', async () => {
+    // A host may synthesise a PassBlockNode directly with a non-bool async
+    // option value. We construct that AST manually.
     //
-    // Build: pass<async: true> { $ } AST but mutate async value to a string.
-    const ast = parse('"v" -> pass<async: true> { $ }');
+    // Build: pass(async: true) { $ } AST but mutate async value to a string.
+    const ast = parse('"v" -> pass(async: true) { $ }');
 
     // Navigate to PassBlockNode options dict to mutate the async entry value.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -495,10 +493,7 @@ describe('EC-6 (runtime defense): non-bool async value at runtime', () => {
 
     const ctx = createRuntimeContext({});
 
-    // The runtime defense throws a catchable RILL_R003 halt that escapes
-    // execute() as a RuntimeError (convertHaltToRuntimeError converts it).
-    await expect(execute(ast, ctx)).rejects.toThrow(
-      expect.objectContaining({ errorId: 'RILL-R003' })
-    );
+    // The options check halts #TYPE_MISMATCH before the body runs.
+    await expectHalt(() => execute(ast, ctx), { code: 'TYPE_MISMATCH' });
   });
 });

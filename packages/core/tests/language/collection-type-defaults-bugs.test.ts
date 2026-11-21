@@ -19,7 +19,6 @@ import { describe, expect, it } from 'vitest';
 import { isTuple } from '@rcrsr/rill';
 import type { RillValue } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
-import { expectHaltMessage } from '../helpers/halt.js';
 import { isOrdered, orderedEntries } from '../helpers/ordered.js';
 
 // ============================================================
@@ -33,51 +32,14 @@ describe('Rill Language: Ordered Errors, Nested Tuple Hydration, Conversion Cont
   // positional arg. The error message must say "ordered()" not "dict()".
   // ============================================================
 
-  describe('AC-3: resolveTypeRef ordered uniform type path', () => {
-    it(':dict(number) resolves as uniform dict type and passes assertion', async () => {
-      // Single positional arg now produces uniform dict type
-      // [a: 1] is a dict with number values, so :dict(number) passes
-      const result = await run('[a: 1] -> :dict(number)');
-      expect(result).toEqual({ a: 1 });
-    });
-
-    it(':dict(string) assertion fails when value types do not match', async () => {
-      // [a: 1] has number values, not string
-      await expectHaltMessage(
-        () => run('[a: 1] -> :dict(string)'),
-        /Type assertion failed/
-      );
-    });
-
-    it(':ordered(number) assertion fails on dict value (type mismatch)', async () => {
-      // [a: 1] is a dict, not an ordered, so :ordered(number) fails
-      await expectHaltMessage(
-        () => run('[a: 1] -> :ordered(number)'),
-        /Type assertion failed/
-      );
-    });
-  });
-
-  // ============================================================
-  // AC-4: both resolveTypeRef and evaluateTypeConstructor produce
-  // identical error text for ordered with positional arg
-  // ============================================================
-
-  describe('AC-4: resolveTypeRef and evaluateTypeConstructor uniform type parity', () => {
-    it('resolveTypeRef accepts dict(number) as uniform type', async () => {
-      // resolveTypeRef path: :dict(number) resolves as uniform dict type
-      const result = await run('[a: 1] -> :dict(number)');
-      expect(result).toEqual({ a: 1 });
-    });
-
-    it('evaluateTypeConstructor accepts ordered(number) as uniform type', async () => {
-      // evaluateTypeConstructor path: ordered(number) produces uniform type
-      // (Task 1.5: uniform path for 1 positional arg)
-      const result = (await run('ordered(number)')) as any;
-      expect(result.__rill_type).toBe(true);
-      expect(result.typeName).toBe('ordered');
-      expect(result.structure.kind).toBe('ordered');
-      expect(result.structure.valueType).toEqual({ kind: 'number' });
+  describe('uniform dict and ordered assertions are removed', () => {
+    it.each([
+      ['[a: 1] -> :dict(number)', 'map(string, number)'],
+      ['[a: 1] -> :dict(string)', 'map(string, string)'],
+      ['[a: 1] -> :ordered(number)', 'map(string, number)'],
+      ['ordered(number)', 'map(string, number)'],
+    ])('rejects %s naming the map form', async (source, replacement) => {
+      await expect(run(source)).rejects.toThrow(replacement);
     });
   });
 
@@ -118,19 +80,9 @@ describe('Rill Language: Ordered Errors, Nested Tuple Hydration, Conversion Cont
   // RILL-R004 with ordered() in the message
   // ============================================================
 
-  describe('EC-2: ordered() uniform type path (Task 1.5)', () => {
-    it('ordered(number) produces uniform ordered type', async () => {
-      const result = (await run('ordered(number)')) as any;
-      expect(result.__rill_type).toBe(true);
-      expect(result.typeName).toBe('ordered');
-      expect(result.structure.valueType).toEqual({ kind: 'number' });
-    });
-
-    it('ordered(string, number) with 2+ positional args halts typed-atom', async () => {
-      await expectHaltMessage(
-        () => run('ordered(string, number)'),
-        /ordered\(\) requires exactly 1 positional type argument/
-      );
+  describe('ordered() positional arguments', () => {
+    it('rejects ordered(string, number) naming map(K, V)', async () => {
+      await expect(run('ordered(string, number)')).rejects.toThrow('map(K, V)');
     });
   });
 

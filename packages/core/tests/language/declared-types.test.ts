@@ -151,7 +151,7 @@ describe('Rill Language: declared types', () => {
     it('takes the own type for loop $ after the first body run', async () => {
       expect(
         await run(
-          `${DECL}$x -> while ($ < 3) do<limit: 5> { ($.^type == ${U}) ? $x ! 9 }`
+          `${DECL}$x -> while ($ < 3) do(limit: 5) { ($.^type == ${U}) ? $x ! 9 }`
         )
       ).toBe(9);
     });
@@ -161,12 +161,12 @@ describe('Rill Language: declared types', () => {
     });
 
     it('takes the own type for a retry result', async () => {
-      await expectLocked(`${DECL}retry<limit: 2> { $x } => $y\n"a" => $y`);
+      await expectLocked(`${DECL}retry(attempts: 2) { $x } => $y\n"a" => $y`);
     });
 
     it('takes the own type for a timeout result', async () => {
       await expectLocked(
-        `${DECL}timeout<total: duration("200ms")> { $x } => $y\n"a" => $y`
+        `${DECL}timeout(total: duration("200ms")) { $x } => $y\n"a" => $y`
       );
     });
 
@@ -272,7 +272,7 @@ describe('Rill Language: declared types', () => {
     it('clears the slot after a loop', async () => {
       expect(
         await run(
-          `${DECL}$x -> while ($ < 3) do<limit: 5> { $ + 5 } -> .^type => $t\n$t == number`
+          `${DECL}$x -> while ($ < 3) do(limit: 5) { $ + 5 } -> .^type => $t\n$t == number`
         )
       ).toBe(true);
     });

@@ -48,12 +48,12 @@ async function runHeldHalt(src: string): Promise<unknown> {
 
 describe('Trace frame ordering (SM6)', () => {
   it('SM6: origin-first, latest-last frame order on a guard-caught halt', async () => {
-    // The out-of-set selector `guard<on: list[#NOT_A_CODE]> { 1 }` parses as a RecoveryErrorNode whose
+    // The out-of-set selector `guard(on: list[#NOT_A_CODE]) { 1 }` parses as a RecoveryErrorNode whose
     // runtime materialisation is `#R001` with ONE initial `host` frame
     // (provider: 'parse-recovery'). Accessing it appends `access`; the
     // outer guard appends `guard-caught`.
     const src = `
-      guard<on: list[#NOT_A_CODE]> { 1 } => $x
+      guard(on: list[#NOT_A_CODE]) { 1 } => $x
       guard { $x.a }
     `;
     const result = await runRecovered(src);
@@ -75,7 +75,7 @@ describe('Trace frame ordering (SM6)', () => {
 
   it('SM6: guard-caught frame labels its fn as `guard`', async () => {
     const src = `
-      guard<on: list[#NOT_A_CODE]> { 1 } => $x
+      guard(on: list[#NOT_A_CODE]) { 1 } => $x
       guard { $x.a }
     `;
     const result = await runRecovered(src);
@@ -90,8 +90,8 @@ describe('Trace frame ordering (SM6)', () => {
     // frame whose fn is `retry` (recovery.ts convention distinguishing
     // retry from guard at frame creation).
     const src = `
-      guard<on: list[#NOT_A_CODE]> { 1 } => $x
-      retry<limit: 2> { $x.a }
+      guard(on: list[#NOT_A_CODE]) { 1 } => $x
+      retry(attempts: 2) { $x.a }
     `;
     const result = await runRecovered(src);
     const frames = getStatus(result as never).trace;
@@ -109,7 +109,7 @@ describe('FR-ERR-12: Append-only, never rewrite prior frames', () => {
     // via `.a`; an outer guard catches again. The final trace retains
     // BOTH `guard-caught` frames in order (inner then outer).
     const src = `
-      guard<on: list[#NOT_A_CODE]> { 1 } => $x
+      guard(on: list[#NOT_A_CODE]) { 1 } => $x
       guard {
         guard { $x.a } => $inner
         $inner.b
@@ -123,8 +123,8 @@ describe('FR-ERR-12: Append-only, never rewrite prior frames', () => {
 
   it("retry exhaustion retains every attempt's guard-caught frame", async () => {
     const src = `
-      guard<on: list[#NOT_A_CODE]> { 1 } => $x
-      retry<limit: 3> { $x.a }
+      guard(on: list[#NOT_A_CODE]) { 1 } => $x
+      retry(attempts: 3) { $x.a }
     `;
     const result = await runRecovered(src);
     const frames = getStatus(result as never).trace;
@@ -139,7 +139,7 @@ describe('FR-ERR-18: Frames survive capture and container inclusion', () => {
     // present on the captured value: the capture is non-access and must
     // not rewrite the sidecar.
     const src = `
-      guard<on: list[#NOT_A_CODE]> { 1 } => $x
+      guard(on: list[#NOT_A_CODE]) { 1 } => $x
       $x => $y
       $y.!trace
     `;
@@ -152,7 +152,7 @@ describe('FR-ERR-18: Frames survive capture and container inclusion', () => {
 
   it('list inclusion halts and the held halt keeps its host frame plus an access frame', async () => {
     const src = `
-      guard<on: list[#NOT_A_CODE]> { 1 } => $x
+      guard(on: list[#NOT_A_CODE]) { 1 } => $x
       list[$x]
     `;
     const held = await runHeldHalt(src);
@@ -272,7 +272,7 @@ describe('Wrap frame (FR-ERR-13; IR-3, IR-5)', () => {
     // Interpolating an invalid value halts with its held code before the
     // error statement runs, so no wrap frame is attached.
     const src = `
-      guard<on: list[#NOT_A_CODE]> { 1 } => $x
+      guard(on: list[#NOT_A_CODE]) { 1 } => $x
       error "wrapped: {$x}"
     `;
     const held = await runHeldHalt(src);

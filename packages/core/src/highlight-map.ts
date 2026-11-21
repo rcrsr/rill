@@ -42,10 +42,6 @@ export const TOKEN_HIGHLIGHT_MAP: ReadonlyMap<TokenType, HighlightCategory> =
     ['SLICE_LANGLE', 'keyword'],
     ['USE_LANGLE', 'keyword'],
     ['GUARD_LBRACE', 'keyword'],
-    ['RETRY_LANGLE', 'keyword'],
-    ['DO_LANGLE', 'keyword'],
-    ['PASS_LANGLE', 'keyword'],
-    ['TIMEOUT_LANGLE', 'keyword'],
 
     // Keywords
     ['BREAK', 'keyword'],

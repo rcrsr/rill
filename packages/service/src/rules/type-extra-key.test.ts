@@ -130,8 +130,6 @@ describe('TYPE_EXTRA_KEY', () => {
   it.each([
     ['bare dict', 'dict[a: 1, b: 2] -> :dict\n'],
     ['empty dict args', 'dict[a: 1, b: 2] -> :dict()\n'],
-    ['uniform dict', 'dict[a: 1, b: 2] -> :dict(number)\n'],
-    ['any dict', 'dict[a: 1, b: 2] -> :dict(any)\n'],
     ['exact keys', 'dict[a: 1, b: 2] -> :dict(a: number, b: number)\n'],
     [
       'defaulted absent field',

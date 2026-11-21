@@ -271,12 +271,10 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
     );
 
     rule('assertion.membership').it(
-      'keeps bare dict, dict(), dict(any), and dict(V) open to a wider dict',
+      'keeps bare dict, and dict() open to a wider dict',
       async () => {
         expect(await run(`${wide} -> :?dict`)).toBe(true);
         expect(await run(`${wide} -> :?dict()`)).toBe(true);
-        expect(await run(`${wide} -> :?dict(any)`)).toBe(true);
-        expect(await run(`${wide} -> :?dict(number)`)).toBe(true);
       }
     );
 

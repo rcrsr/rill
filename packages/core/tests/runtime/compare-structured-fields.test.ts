@@ -2,7 +2,7 @@
  * Tests for compareStructuredFields() dispatch helper.
  *
  * Verifies that the generic field dispatch handles dict, tuple, and
- * ordered kinds correctly, including valueType checks, empty fields,
+ * ordered kinds correctly, including empty fields,
  * and field presence mismatches.
  *
  * AC-6: compareStructuredFields handles dict, tuple, and ordered dispatch
@@ -19,8 +19,6 @@ import { describe, expect, it } from 'vitest';
 
 /** Test callbacks that return string labels identifying which callback fired */
 const labelCallbacks: FieldComparisonCallbacks<string> = {
-  onValueType: () => 'valueType',
-  onValueTypeMismatch: () => 'valueTypeMismatch',
   onBothEmpty: () => 'bothEmpty',
   onFieldPresenceMismatch: () => 'fieldPresenceMismatch',
   onDictFields: () => 'dictFields',
@@ -30,8 +28,6 @@ const labelCallbacks: FieldComparisonCallbacks<string> = {
 
 /** Boolean callbacks that fire nothing interesting; tests override one handler */
 const falseCallbacks: FieldComparisonCallbacks<boolean> = {
-  onValueType: () => false,
-  onValueTypeMismatch: () => false,
   onBothEmpty: () => false,
   onFieldPresenceMismatch: () => false,
   onDictFields: () => false,
@@ -52,29 +48,6 @@ describe('compareStructuredFields', () => {
       };
       const result = compareStructuredFields(a, b, labelCallbacks, 'fallback');
       expect(result).toBe('dictFields');
-    });
-
-    it('dispatches to onValueType when both dicts have valueType', () => {
-      const a: TypeStructure = {
-        kind: 'dict',
-        valueType: { kind: 'number' },
-      };
-      const b: TypeStructure = {
-        kind: 'dict',
-        valueType: { kind: 'string' },
-      };
-      const result = compareStructuredFields(a, b, labelCallbacks, 'fallback');
-      expect(result).toBe('valueType');
-    });
-
-    it('dispatches to onValueTypeMismatch when one dict has valueType', () => {
-      const a: TypeStructure = {
-        kind: 'dict',
-        valueType: { kind: 'number' },
-      };
-      const b: TypeStructure = { kind: 'dict' };
-      const result = compareStructuredFields(a, b, labelCallbacks, 'fallback');
-      expect(result).toBe('valueTypeMismatch');
     });
 
     it('dispatches to onBothEmpty for bare dicts', () => {
@@ -146,19 +119,6 @@ describe('compareStructuredFields', () => {
       };
       const result = compareStructuredFields(a, b, labelCallbacks, 'fallback');
       expect(result).toBe('orderedFields');
-    });
-
-    it('dispatches to onValueType when both ordered have valueType', () => {
-      const a: TypeStructure = {
-        kind: 'ordered',
-        valueType: { kind: 'string' },
-      };
-      const b: TypeStructure = {
-        kind: 'ordered',
-        valueType: { kind: 'string' },
-      };
-      const result = compareStructuredFields(a, b, labelCallbacks, 'fallback');
-      expect(result).toBe('valueType');
     });
 
     it('dispatches to onBothEmpty for bare ordered types', () => {
@@ -237,29 +197,6 @@ describe('compareStructuredFields', () => {
 
       compareStructuredFields(a, b, callbacks, false);
       expect(receivedLengths).toEqual({ a: 1, b: 2 });
-    });
-
-    it('passes valueTypes to onValueType for ordered', () => {
-      const a: TypeStructure = {
-        kind: 'ordered',
-        valueType: { kind: 'number' },
-      };
-      const b: TypeStructure = {
-        kind: 'ordered',
-        valueType: { kind: 'string' },
-      };
-
-      let receivedKinds: { a: string; b: string } | null = null;
-      const callbacks: FieldComparisonCallbacks<boolean> = {
-        ...falseCallbacks,
-        onValueType: (avt, bvt) => {
-          receivedKinds = { a: avt.kind, b: bvt.kind };
-          return true;
-        },
-      };
-
-      compareStructuredFields(a, b, callbacks, false);
-      expect(receivedKinds).toEqual({ a: 'number', b: 'string' });
     });
   });
 });

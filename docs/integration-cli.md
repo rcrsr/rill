@@ -184,8 +184,8 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `GUARD_BARE` | errors | info | Bare `guard` catches every error |
 | `GUARD_OVER_TRY_CATCH` | errors | info | Branching on `.!` is manual try/catch |
 | `PRESENCE_OVER_NULL_GUARD` | errors | info | Nil-checking conditional instead of `??` |
-| `RETRY_TRIVIAL` | errors | warning | `retry<limit: N>` with N <= 1 has no effect |
-| `TIMEOUT_TRIVIAL` | errors | warning | `timeout<>` with no `total:` or `idle:` limit has no effect |
+| `RETRY_TRIVIAL` | errors | warning | `retry(attempts: N)` with N <= 1 has no effect; the old `retry<limit: N>` form is `RILL-P025` |
+| `TIMEOUT_TRIVIAL` | errors | warning | `timeout()` with no `total:` or `idle:` limit has no effect |
 | `STATUS_PROBE_NO_FIELD` | errors | info | Bare `.!` only yields a boolean invalid-test, not the status record |
 | `CAPTURE_INLINE_CHAIN` | flow | info | Capture breaks a pipe chain |
 | `CAPTURE_BEFORE_BRANCH` | flow | info | Capture value before branching |
@@ -209,6 +209,7 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `SPACING_BRACKETS` | formatting | info | Brackets need consistent spacing |
 | `SPACING_CLOSURE` | formatting | info | Space between an opening bracket and an `fn` literal |
 | `SPACING_DECLARATION` | formatting | info | No space before `[` after a type or collection keyword (`list`, `dict`, `tuple`, `ordered`, `map`); one space before a scalar or atom value |
+| `SPACING_OPTIONS` | formatting | info | No space between a control keyword (`guard`, `retry`, `timeout`, `pass`, `do`) and its `(` option list |
 | `SPACING_MEMBER` | formatting | info | Member access dot must touch the field name |
 | `INDENT_CONTINUATION` | formatting | info | Continuation line indentation |
 | `IMPLICIT_DOLLAR_METHOD` | formatting | info | Prefer implicit `$` for methods |

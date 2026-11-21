@@ -1063,7 +1063,7 @@ describe('Rill Language: use<> Expressions', () => {
         const counter = { calls: 0 };
         await expectHalt(
           () =>
-            run('retry<limit: 3> { count_calls() -> use<m:bad> }', {
+            run('retry(attempts: 3) { count_calls() -> use<m:bad> }', {
               ...badModule(MISMATCH),
               functions: { count_calls: counterFn(counter) },
             }),
@@ -1079,7 +1079,7 @@ describe('Rill Language: use<> Expressions', () => {
         await expectHalt(
           () =>
             run(
-              'timeout<total: duration("500ms")> { use<m:bad> }',
+              'timeout(total: duration("500ms")) { use<m:bad> }',
               badModule(MISMATCH)
             ),
           { code: 'TYPE_MISMATCH' }
@@ -1088,12 +1088,12 @@ describe('Rill Language: use<> Expressions', () => {
     );
 
     rule('use.module-halt').it(
-      'pass<on_error: #IGNORE> does not ignore a halt from a module',
+      'pass(ignore_halts: true) does not ignore a halt from a module',
       async () => {
         await expectHalt(
           () =>
             run(
-              '5 -> pass<on_error: #IGNORE> { use<m:bad> }',
+              '5 -> pass(ignore_halts: true) { use<m:bad> }',
               badModule(MISMATCH)
             ),
           { code: 'TYPE_MISMATCH' }

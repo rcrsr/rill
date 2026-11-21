@@ -337,11 +337,11 @@ Use `return` to exit a block early:
 
 ## Loop Limits
 
-Use `do<limit: N>` to cap iterations. Without a limit, while loops default to 10,000 max iterations.
+Use `do(limit: N)` to cap iterations. Without a limit, while loops default to 10,000 max iterations. The old form `do<limit: N>` is a parse error (`RILL-P025`).
 
 ```rill
 # Limit loop to 100 iterations max ($ flows through as accumulator)
-"" -> do<limit: 100> { check_status($) } while ($ == "")
+"" -> do(limit: 100) { check_status($) } while ($ == "")
 ```
 
 ## Putting It Together
@@ -396,7 +396,7 @@ cond                        # multi-line form
 list -> seq({ body })             # for-each
 while (cond) do { body }          # while
 do { body } while (cond)          # do-while
-do<limit: N> { body }             # with iteration limit
+do(limit: N) { body }             # with iteration limit
 break                             # exit loop
 return                            # exit block
 

@@ -85,34 +85,7 @@ function orderedOverlap(a: RillFieldDef[], b: RillFieldDef[]): boolean {
   return fieldsOverlap(toRecord(a), toRecord(b));
 }
 
-/** Every field of a dict/ordered type overlaps a uniform value type. */
-function fieldsOverlapValueType(
-  s: TypeStructure,
-  valueType: TypeStructure
-): boolean {
-  let fields: RillFieldDef[] = [];
-  if (isStructureKind(s, 'dict')) fields = Object.values(s.fields ?? {});
-  else if (isStructureKind(s, 'ordered')) fields = s.fields ?? [];
-  return fields.every((f) => overlaps(f.type, valueType));
-}
-
-/** The uniform value type of a dict/ordered structure, if it has one. */
-function valueTypeOf(s: TypeStructure): TypeStructure | undefined {
-  if (isStructureKind(s, 'dict') || isStructureKind(s, 'ordered')) {
-    return s.valueType;
-  }
-  return undefined;
-}
-
 const OVERLAP_CALLBACKS: FieldComparisonCallbacks<boolean> = {
-  onValueType: (a, b) => overlaps(a, b),
-  onValueTypeMismatch(a, b) {
-    const aValue = valueTypeOf(a);
-    const bValue = valueTypeOf(b);
-    if (aValue !== undefined) return fieldsOverlapValueType(b, aValue);
-    if (bValue !== undefined) return fieldsOverlapValueType(a, bValue);
-    return true;
-  },
   onBothEmpty: () => true,
   onFieldPresenceMismatch: () => true,
   onDictFields: (a, b) => fieldsOverlap(a, b),

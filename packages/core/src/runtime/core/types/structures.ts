@@ -47,7 +47,6 @@ export type TypeStructure =
   | {
       kind: 'dict';
       fields?: Record<string, RillFieldDef> | undefined;
-      valueType?: TypeStructure | undefined;
     }
   | { kind: 'list'; element?: TypeStructure | undefined }
   | {
@@ -62,7 +61,6 @@ export type TypeStructure =
   | {
       kind: 'ordered';
       fields?: RillFieldDef[] | undefined;
-      valueType?: TypeStructure | undefined;
     }
   | { kind: 'union'; members: TypeStructure[] }
   | {

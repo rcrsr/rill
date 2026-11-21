@@ -380,39 +380,11 @@ function* buildCollectionType(
       }
     }
 
-    if (positional.length > 0 && named.length > 0) {
+    if (positional.length > 0) {
       return invalidInput(
         env,
         name,
-        `${name}() cannot mix positional and named arguments`,
-        location
-      );
-    }
-
-    // Uniform path: exactly 1 positional, 0 named -> valueType
-    const soleArg = positional[0];
-    if (
-      soleArg !== undefined &&
-      positional.length === 1 &&
-      named.length === 0
-    ) {
-      if (soleArg.defaultValue !== undefined) {
-        return invalidInput(
-          env,
-          name,
-          `${name} value type cannot carry a default`,
-          argAt(soleArg) ?? location
-        );
-      }
-      const valueType = yield* resolveArg(soleArg);
-      return freezeType(name, { kind: name, valueType });
-    }
-
-    if (positional.length >= 2) {
-      return invalidInput(
-        env,
-        name,
-        `${name}() requires exactly 1 positional type argument`,
+        `${name}() takes named fields only; write map(string, V) for a uniform value type`,
         location
       );
     }

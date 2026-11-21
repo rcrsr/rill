@@ -28,7 +28,7 @@ describe('pipe target postfix chains', () => {
 
   it('applies a method to a timeout block target', async () => {
     expect(
-      await run('"a" -> timeout<total: duration("1d")> { "x" } .upper')
+      await run('"a" -> timeout(total: duration("1d")) { "x" } .upper')
     ).toBe('X');
   });
 
@@ -38,7 +38,7 @@ describe('pipe target postfix chains', () => {
 
   it('applies a method after a type assertion on a timeout block target', async () => {
     expect(
-      await run('"a" -> timeout<total: duration("1d")> { "x" }:string.upper')
+      await run('"a" -> timeout(total: duration("1d")) { "x" }:string.upper')
     ).toBe('X');
   });
 

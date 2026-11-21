@@ -105,8 +105,11 @@ In rill, `{ ... }` is a block (function body, loop body, etc.), not a dict liter
     Wrong: list[1] -> list(number = 1)         # halts #INVALID_INPUT: an element type carries no default
     Right: list[1] -> list(number)
 
-    Wrong: dict[a: 1] -> dict(number = 0)      # halts #INVALID_INPUT: same for a uniform value type
+    Wrong: dict[a: 1] -> dict(number = 0)      # RILL-P012: dict takes no uniform value type
     Right: dict[a: 1] -> dict(a: number = 0)   # a named field may carry a default
+
+    Wrong: dict[a: 1] -> dict(number)          # RILL-P012: removed uniform form
+    Right: map["a": 1] -> map(string, number)  # keyed data of one value type is a map
 
     Wrong: stream(string, number = 1)          # halts #INVALID_INPUT: stream types carry no default
     Right: stream(string, number)
@@ -253,8 +256,11 @@ A written type before a literal on the same line declares that literal. A newlin
 ## Try/catch
 
     Wrong: try { fetch(url) } catch (e) { fallback }
-    Right: retry<limit: 3> { $app.fetch($url) } => $r
+    Right: retry(attempts: 3) { $app.fetch($url) } => $r
            $r ?? "fallback"
+
+    Wrong: retry<limit: 3> { $app.fetch($url) } => $r   # RILL-P025: options go in parentheses, and limit is now attempts
+    Right: retry(attempts: 3) { $app.fetch($url) } => $r
 
     Wrong: try { JSON.parse(s) } catch { null }
     Right: guard { $app.parse_json($s) } => $out   # JSON parsing is host-provided; rill has no built-in parser
@@ -402,6 +408,7 @@ info level. Write them tight anyway.
 
     use <ext:app>     # ERROR (RILL-P007): keyword and `<` must be adjacent
     list [1, 2, 3]    # SPACING_DECLARATION: keyword must touch its [
+    retry (attempts: 3)  # SPACING_OPTIONS: keyword must touch its (
     $obj. field       # SPACING_MEMBER: dot must touch the field name
     $obj .field       # SPACING_MEMBER: same, on the other side
     $x->.upper        # SPACING_OPERATOR: pipe needs spaces both sides

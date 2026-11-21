@@ -29,8 +29,8 @@ export type RuleState = 'on' | 'off' | 'warn';
 /**
  * Fix suggestion for a diagnostic.
  * Provides automated fix information that can be applied to source code.
- * Only NAMING_SNAKE_CASE, UNNECESSARY_ASSERTION, DECLARED_TYPE_PROBE and
- * SPACING_DECLARATION ever emit a non-null fix.
+ * Only NAMING_SNAKE_CASE, UNNECESSARY_ASSERTION, DECLARED_TYPE_PROBE,
+ * SPACING_DECLARATION and SPACING_OPTIONS ever emit a non-null fix.
  */
 export interface DiagnosticFix {
   /** Human-readable description of what the fix does. */

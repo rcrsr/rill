@@ -52,7 +52,7 @@ Child scopes can READ parent variables but cannot WRITE or redeclare. Loop bodie
 
 ### 6. Errors halt — recover with `guard`
 
-No try/catch. Failures throw runtime errors (uncatchable) or produce **invalid values** that halt on access. Recover access halts with `guard { }` or `retry<limit: N> { }`. Inspect with `.!`, `.!code`, `.!message`.
+No try/catch. Failures throw runtime errors (uncatchable) or produce **invalid values** that halt on access. Recover access halts with `guard { }` or `retry(attempts: N) { }`. Inspect with `.!`, `.!code`, `.!message`.
 
 ### 7. Value semantics
 
@@ -175,7 +175,7 @@ Use parentheses to override.
 | `start_when` | `start_when(list, predicate: fn) -> stream[T]` | Yield from first match onward; predicate must return `bool` |
 | `stop_when` | `stop_when(list, predicate: fn) -> stream[T]` | Yield through first match (inclusive); predicate must return `bool` |
 | `pass { body }` | `pass { body }` | Side-effect block; pipe value flows through unchanged; halts in body propagate |
-| `pass<on_error: #IGNORE>` | `pass<on_error: #IGNORE> { body }` | Side-effect block; suppresses catchable halts in body; `on_error: #IGNORE` is the only valid option (else RILL-P004) |
+| `pass(ignore_halts: true)` | `pass(ignore_halts: true) { body }` | Side-effect block; suppresses catchable halts in body; options `ignore_halts` and `async` are bools (an unknown option halts #TYPE_MISMATCH); angle-bracket options are RILL-P025 |
 
 ## Script return values
 

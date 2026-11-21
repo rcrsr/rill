@@ -185,35 +185,33 @@ export interface PassNode extends BaseNode {
 
 /**
  * PassBlock: non-halting side-effect block.
- * Syntax: pass { body } or pass<on_error: #IGNORE, async: true> { body }
+ * Syntax: pass { body } or pass(ignore_halts: true, async: true) { body }
  *
- * Lexer emits PASS_LANGLE when `pass` is followed immediately by `<`.
  * The body runs in a child scope; captures inside it do not escape.
- * The options dict recognizes `on_error` (`#IGNORE` suppresses halts) and
- * `async` (bool literal).
+ * The options dict recognizes `ignore_halts` (a bool; `true` suppresses
+ * catchable halts) and `async` (a bool). Both default to `false`.
  */
 export interface PassBlockNode extends BaseNode {
   readonly type: 'PassBlock';
-  /** Raw dict parsed from the angle-bracket head, e.g. `<on_error: #IGNORE>`. */
-  readonly options: DictNode;
+  /** Dict written in parentheses after the keyword; null when absent. */
+  readonly options: DictNode | null;
   /** Block body executed in a child scope. */
   readonly body: BlockNode;
 }
 
 /**
  * TimeoutBlock: wall-time and/or inactivity bound wrapping a body.
- * Syntax: timeout<total: duration> { body }
- *         timeout<idle: duration> { body }
- *         timeout<total: duration, idle: duration> { body }
+ * Syntax: timeout(total: duration) { body }
+ *         timeout(idle: duration) { body }
+ *         timeout(total: duration, idle: duration) { body }
  *
- * Lexer emits TIMEOUT_LANGLE when `timeout` is followed immediately by `<`.
  * On expiry, raises a catchable halt carrying #RILL_R082 (total) or
  * #RILL_R083 (idle); the first limit to fire wins, and a tie fires total.
- * `timeout<>` arms neither limit. Recovery is via guard or `??`.
+ * `timeout()` arms neither limit. Recovery is via guard or `??`.
  */
 export interface TimeoutBlockNode extends BaseNode {
   readonly type: 'TimeoutBlock';
-  /** Raw dict parsed from the angle-bracket head, e.g. `<total: $d>`. */
+  /** Dict written in parentheses after the keyword, e.g. `(total: $d)`. */
   readonly options: DictNode;
   /** Non-empty body block to execute under the timeout. */
   readonly body: BlockNode;
@@ -469,14 +467,15 @@ export interface DictEntryNode extends BaseNode {
 }
 
 /**
- * Type constructor: list(string), dict(string, number), tuple(string, number), ordered(string)
+ * Type constructor: list(string), map(string, number), tuple(string, number), dict(a: string)
  * Constructs a parameterized type expression for use in type assertions and shape constraints.
  *
  * Examples:
  *   list(string)
- *   dict(string, number)
+ *   map(string, number)
  *   tuple(string, number, boolean)
- *   ordered(string)
+ *   dict(a: string)
+ *   ordered(a: string)
  *   list(element: string)
  */
 export interface TypeConstructorNode extends BaseNode {
@@ -790,7 +789,8 @@ export interface WhileLoopNode extends BaseNode {
   readonly type: 'WhileLoop';
   readonly condition: ExpressionNode; // must evaluate to boolean
   readonly body: BodyNode;
-  readonly annotations?: AnnotationArg[] | undefined;
+  /** Dict written in parentheses after `do`, e.g. `(limit: 100)`; null when absent. */
+  readonly options: DictNode | null;
 }
 
 /**
@@ -808,7 +808,8 @@ export interface DoWhileLoopNode extends BaseNode {
   readonly input: ExpressionNode | null; // null = implied $
   readonly body: BodyNode;
   readonly condition: BodyNode;
-  readonly annotations?: AnnotationArg[] | undefined;
+  /** Dict written in parentheses after `do`, e.g. `(limit: 100)`; null when absent. */
+  readonly options: DictNode | null;
 }
 
 export interface BlockNode extends BaseNode {
@@ -817,10 +818,10 @@ export interface BlockNode extends BaseNode {
 }
 
 /**
- * Guard block: guard { body }, guard<on: #X> { body } or
- * guard<on: list[#X, ...]> { body }
- * Intercepts error codes raised by the body. If the body raises a code in
- * `onCodes` (or any code when onCodes is absent), the guard handles it and
+ * Guard block: guard { body }, guard(on: #X) { body } or
+ * guard(on: list[#X, ...]) { body }
+ * Intercepts error codes raised by the body. If the body raises a code in the
+ * `on` option (or any code when `on` is absent), the guard handles it and
  * produces a recovered value. Otherwise the error propagates.
  *
  * Both `guard{` and `guard {` parse.
@@ -828,32 +829,22 @@ export interface BlockNode extends BaseNode {
 export interface GuardBlockNode extends BaseNode {
   readonly type: 'GuardBlock';
   readonly body: BlockNode;
-  /**
-   * Optional atom codes that this guard handles. The single form `on: #X`
-   * yields one element; the list form yields one per atom.
-   */
-  readonly onCodes?: AtomLiteralNode[] | undefined;
+  /** Dict written in parentheses after the keyword; null when absent. */
+  readonly options: DictNode | null;
 }
 
 /**
- * Retry block: retry<limit: N> { body }, retry<limit: N, on: #X> { body } or
- * retry<limit: N, on: list[#X, ...]> { body }
- * Runs the body up to N times. On error matching `onCodes` (or any error when
- * onCodes is absent), the body is re-executed. The last attempt's error
- * propagates if all attempts fail.
- *
- * Lexer emits RETRY_LANGLE when `retry` is followed immediately by `<`.
+ * Retry block: retry(attempts: N) { body }, retry(attempts: N, on: #X) { body }
+ * or retry(attempts: N, on: list[#X, ...]) { body }
+ * Runs the body up to N times. On error matching the `on` option (or any
+ * error when `on` is absent), the body is re-executed. The last attempt's
+ * error propagates if all attempts fail.
  */
 export interface RetryBlockNode extends BaseNode {
   readonly type: 'RetryBlock';
-  /** Maximum number of attempts, derived from the N in `retry<limit: N>`. */
-  readonly attempts: number;
   readonly body: BlockNode;
-  /**
-   * Optional atom codes that trigger retry; absent = any error. The single
-   * form `on: #X` yields one element.
-   */
-  readonly onCodes?: AtomLiteralNode[] | undefined;
+  /** Dict written in parentheses after the keyword; null when absent. */
+  readonly options: DictNode | null;
 }
 
 /**

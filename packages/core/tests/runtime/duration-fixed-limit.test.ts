@@ -15,21 +15,21 @@ const MONTH_DURATIONS = ['duration("1mo")', 'duration("1y")'];
 
 describe('timeout limits reject a months part', () => {
   it.each(MONTH_DURATIONS)('halts for total: %s', async (dur) => {
-    await expectHalt(() => run(`timeout<total: ${dur}> { 1 }`), {
+    await expectHalt(() => run(`timeout(total: ${dur}) { 1 }`), {
       code: 'INVALID_INPUT',
       messagePattern: /total/,
     });
   });
 
   it.each(MONTH_DURATIONS)('halts for idle: %s', async (dur) => {
-    await expectHalt(() => run(`timeout<idle: ${dur}> { 1 }`), {
+    await expectHalt(() => run(`timeout(idle: ${dur}) { 1 }`), {
       code: 'INVALID_INPUT',
       messagePattern: /idle/,
     });
   });
 
   it('accepts a seconds duration', async () => {
-    expect(await run('timeout<total: duration("1s")> { 1 }')).toBe(1);
+    expect(await run('timeout(total: duration("1s")) { 1 }')).toBe(1);
   });
 });
 
@@ -83,7 +83,7 @@ describe('timeout limits reject delays above the timer ceiling', () => {
   it('accepts the ceiling and runs the body', async () => {
     const { spy, functions } = spyFns();
     const result = await run(
-      `timeout<total: duration("${CEILING}ms")> { probe() }`,
+      `timeout(total: duration("${CEILING}ms")) { probe() }`,
       { functions }
     );
     expect(result).toBe('ran');
@@ -96,7 +96,7 @@ describe('timeout limits reject delays above the timer ceiling', () => {
       const { spy, functions } = spyFns();
       await expectHalt(
         () =>
-          run(`timeout<${limit}: duration("${CEILING + 1}ms")> { probe() }`, {
+          run(`timeout(${limit}: duration("${CEILING + 1}ms")) { probe() }`, {
             functions,
           }),
         { code: 'INVALID_INPUT', messagePattern: new RegExp(limit) }
@@ -107,7 +107,7 @@ describe('timeout limits reject delays above the timer ceiling', () => {
 
   it('lets guard catch the halt', async () => {
     const result = await run(
-      `guard { timeout<total: duration("${CEILING + 1}ms")> { 1 } } => $r
+      `guard { timeout(total: duration("${CEILING + 1}ms")) { 1 } } => $r
 $r.!code -> .eq(#INVALID_INPUT)`
     );
     expect(result).toBe(true);

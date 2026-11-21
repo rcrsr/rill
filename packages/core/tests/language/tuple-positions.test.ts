@@ -121,11 +121,8 @@ describe('Rill Language: tuple types name positions', () => {
       expect(result.structure.elements).toEqual([{ type: { kind: 'number' } }]);
     });
 
-    it('dict and ordered keep their uniform form', async () => {
-      expect(await run('dict[a: 1, b: 2] -> :?dict(number)')).toBe(true);
-      expect(await run('ordered[a: 1, b: 2] -> :?ordered(number)')).toBe(true);
+    it('dict and ordered name their fields', async () => {
       expect(await run('ordered[a: 1].^type == ordered(a: number)')).toBe(true);
-      expect(await run('ordered(number) == ordered(a: number)')).toBe(false);
     });
   });
 

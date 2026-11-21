@@ -3,9 +3,9 @@ id: retry
 title: Retry
 status: normative
 since: 0.24.0
-issues: [578]
+issues: []
 grammar: []
-errors: [RILL-P004]
+errors: [RILL-P004, RILL-P025]
 depends: [guard]
 tests: [guard-retry.test.ts]
 ---
@@ -26,9 +26,9 @@ retry(attempts: 3, on: list[#TIMEOUT, #UNAVAILABLE]) { body }
 
 r[retry.attempts] attempts is a positive integer literal
 `attempts` MUST be a positive integer literal. Zero or a computed value MUST be rejected with
-RILL-P004.
+RILL-P004, and so MUST a spread (`construct-options.literal-bound`).
 
-r[retry.attempts-name] The count is named attempts {pending #578}
+r[retry.attempts-name] The count is named attempts
 The count MUST be written `attempts`, and counts every run, the first included.
 
 ## Evaluation
@@ -49,16 +49,17 @@ selector does not list MUST propagate at once, without another run.
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
-| `attempts` is not a positive integer literal | RILL-P004 | No |
+| `attempts` is not a positive integer literal, or the options hold a spread | RILL-P004 | No |
+| The options are written in angle brackets | RILL-P025 | No |
 
 ## Examples
 
-```rill pending=578
+```rill
 retry(attempts: 3) { 7 }
 # Result: 7
 ```
 
-```rill pending=578
+```rill
 retry(attempts: 3) { 1 / 0 } => $r
 $r.!
 # Result: true
@@ -66,4 +67,5 @@ $r.!
 
 ## Notes
 
-On 0.23.0 the count is written `retry<limit: N>`, and `limit` comes before `on`.
+On 0.23.0 the count is written `retry<limit: N>`, and `limit` comes before `on`. The angle form now
+halts RILL-P025.

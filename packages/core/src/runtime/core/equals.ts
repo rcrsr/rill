@@ -524,22 +524,14 @@ function conditionalEquals(a: ConditionalNode, b: ConditionalNode): boolean {
   return nullableEquals(a.elseBranch, b.elseBranch);
 }
 
-/** Loop options such as `limit` are annotations; absent equals empty. */
-function loopAnnotationsEqual(
-  a: AnnotationArg[] | undefined,
-  b: AnnotationArg[] | undefined
-): boolean {
-  return arrayEquals(a ?? [], b ?? [], annotationArgEquals);
-}
-
 function whileLoopEquals(a: WhileLoopNode, b: WhileLoopNode): boolean {
-  if (!loopAnnotationsEqual(a.annotations, b.annotations)) return false;
+  if (!nullableEquals(a.options, b.options)) return false;
   if (!astEquals(a.condition, b.condition)) return false;
   return simpleBodyEquals(a.body, b.body);
 }
 
 function doWhileLoopEquals(a: DoWhileLoopNode, b: DoWhileLoopNode): boolean {
-  if (!loopAnnotationsEqual(a.annotations, b.annotations)) return false;
+  if (!nullableEquals(a.options, b.options)) return false;
   if (!nullableEquals(a.input, b.input)) return false;
   if (!simpleBodyEquals(a.condition, b.condition)) return false;
   return simpleBodyEquals(a.body, b.body);

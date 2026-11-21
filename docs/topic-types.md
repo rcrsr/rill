@@ -416,20 +416,13 @@ On a non-dict receiver (tuple, stream, string, number, and so on) they halt `RIL
 
 **Reserved methods** (`keys`, `values`, `entries`) cannot be used as dict keys.
 
-### Uniform Value Type
+### Uniform Value Type Removed
 
-`-> dict(T)` converts every value to type T. `:dict(T)` checks every value and returns the dict unchanged. See the [conversion table](topic-type-system.md#extra-and-missing-dict-fields).
-
-```rill
-[a: 1, b: 2] -> dict(number)
-# Result: dict[a: 1, b: 2]
-```
-
-An empty dict passes; there are no values to violate the constraint.
+`dict(number)` is RILL-P012: a dict type names its fields. Keyed data of one value type is `map(string, number)`; see [Maps](topic-maps.md).
 
 ```rill
-dict[] -> dict(number)
-# Result: dict[]
+dict[a: 1, b: 2] -> map(string, number) -> .values
+# Result: list[1, 2]
 ```
 
 ### Field Annotations
@@ -499,16 +492,9 @@ Key order in `ordered` is the insertion order. `dict` has no insertion order to 
 
 `ordered` converts to a plain object via `toNative()`. The `NativeResult.value` field holds `{ key: value, ... }`.
 
-### Uniform Value Type
+### Uniform Value Type Removed
 
-`-> ordered(T)` converts every entry value to type T. `:ordered(T)` checks every value and returns the container unchanged. See the [conversion table](topic-type-system.md#extra-and-missing-dict-fields).
-
-```rill
-ordered[x: 1, y: 2] -> ordered(number)
-# Result: ordered[x: 1, y: 2]
-```
-
-An empty ordered container passes; there are no values to violate the constraint.
+`ordered(number)` is RILL-P012: an ordered type names its fields. Keyed data of one value type is `map(string, number)`; see [Maps](topic-maps.md).
 
 ### Field Annotations
 

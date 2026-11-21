@@ -94,7 +94,7 @@ You are scaffolding an agent that combines a rill script, extensions, and a runt
 | [docs/topic-closure-annotations.md](docs/topic-closure-annotations.md) | Parameter metadata and reflection |
 | [docs/topic-error-handling.md](docs/topic-error-handling.md) | `.!`, `.?`, `guard`, `retry`, recovery |
 | [docs/topic-collections.md](docs/topic-collections.md) | `seq`, `fan`, `filter`, `fold`, `acc`, `sort` |
-| [docs/topic-collection-slicing.md](docs/topic-collection-slicing.md) | `take`, `skip`, `cycle`, `batch`, `window`, `pass<>` |
+| [docs/topic-collection-slicing.md](docs/topic-collection-slicing.md) | `take`, `skip`, `cycle`, `batch`, `window`, `pass` body form |
 | [docs/topic-iterators.md](docs/topic-iterators.md) | Lazy sequences with `range`, `repeat`, `.first()` |
 | [docs/topic-strings.md](docs/topic-strings.md) | String methods |
 | [docs/topic-architecture.md](docs/topic-architecture.md) | How source text becomes a result |

@@ -1,7 +1,7 @@
-# retry<limit: 3> exhausted: exactly 3 guard-caught frames, byte-equal
+# retry(attempts: 3) exhausted: exactly 3 guard-caught frames, byte-equal
 #
-# retry<limit: 3> catches the type-assertion halt on each attempt.
+# retry(attempts: 3) catches the type-assertion halt on each attempt.
 # After 3 failed attempts the invalid value carries exactly 3
 # guard-caught frames (fn === "retry" per recovery.ts convention).
 
-retry<limit: 3> { "x" -> :number }
+retry(attempts: 3) { "x" -> :number }

@@ -11,8 +11,6 @@ import type {
   IndexAccessNode,
   InvokeNode,
   MethodCallNode,
-  PassBlockNode,
-  DictNode,
   ExistenceCheck,
   PipeChainNode,
   PostfixExprNode,
@@ -53,6 +51,7 @@ import {
   throwBareUnion,
   throwRemovedClosureType,
 } from './parser-types.js';
+import { atTimeoutBlock } from './parser-options.js';
 import { atTypeConstructor } from './parser-shape.js';
 import { parseSpreadOrArg } from './parser-functions.js';
 import { ERROR_IDS } from '../error-registry.js';
@@ -462,7 +461,7 @@ function parsePrimaryImpl(this: Parser): PrimaryNode {
   ) {
     throw new ParseError(
       ERROR_IDS.RILL_R081,
-      'Migration error: use `do<limit: N> { body }`',
+      'Migration error: use `do(limit: N) { body }`',
       current(this.state).span.start
     );
   }
@@ -495,41 +494,14 @@ function parsePrimaryImpl(this: Parser): PrimaryNode {
     } satisfies AnnotatedExprNode;
   }
 
-  // Pass block: pass< options > { body }
-  if (check(this.state, TOKEN_TYPES.PASS_LANGLE)) {
-    return this.parsePassBlock();
-  }
-
-  // Timeout block: timeout< options > { body }
-  if (check(this.state, TOKEN_TYPES.TIMEOUT_LANGLE)) {
+  // Timeout block: timeout(options) { body }
+  if (atTimeoutBlock(this.state)) {
     return this.parseTimeoutBlock();
   }
 
-  // Pass keyword: pass
+  // Pass: pass, pass { body }, pass(options) { body }
   if (check(this.state, TOKEN_TYPES.PASS)) {
-    const token = advance(this.state);
-
-    // Bracketless body form: pass { body }
-    if (check(this.state, TOKEN_TYPES.LBRACE)) {
-      const emptyOptions: DictNode = {
-        type: 'Dict',
-        entries: [],
-        defaultValue: null,
-        span: makeSpan(token.span.end, token.span.end),
-      };
-      const body = this.parseBlock(true);
-      return {
-        type: 'PassBlock',
-        options: emptyOptions,
-        body,
-        span: makeSpan(token.span.start, body.span.end),
-      } satisfies PassBlockNode;
-    }
-
-    return {
-      type: 'Pass',
-      span: token.span,
-    };
+    return this.parsePassForm();
   }
 
   // Unary minus for negative numbers: -42
@@ -604,11 +576,6 @@ function parsePrimaryImpl(this: Parser): PrimaryNode {
   // Compound-token guard: GUARD_LBRACE → guard{ body } (no angle bracket).
   if (check(this.state, TOKEN_TYPES.GUARD_LBRACE)) {
     return this.parseGuardBlock();
-  }
-
-  // Compound-token retry: RETRY_LANGLE → retry<limit: N> { body }.
-  if (check(this.state, TOKEN_TYPES.RETRY_LANGLE)) {
-    return this.parseRetryBlock();
   }
 
   // Atom literal: #NAME (always expression-position primary)

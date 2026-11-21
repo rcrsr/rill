@@ -1,5 +1,5 @@
 /**
- * Rill Runtime Tests: timeout<idle:> activity
+ * Rill Runtime Tests: timeout(idle:) activity
  *
  * An idle limit restarts on activity: a stream chunk arriving in the body or
  * a host function call returning. Activity restarts the idle timer of every
@@ -148,10 +148,10 @@ function runScript(script: string): Promise<RillValue> {
   return clock.drive(pending);
 }
 
-describe('timeout<idle:> activity', () => {
+describe('timeout(idle:) activity', () => {
   it('completes when each host call returns inside the idle window', async () => {
     const result = await runScript(`
-      timeout<idle: duration("50ms")> {
+      timeout(idle: duration("50ms")) {
         work(30)
         work(30)
         work(30)
@@ -163,7 +163,7 @@ describe('timeout<idle:> activity', () => {
 
   it('halts #RILL_R083 when a single host call outlasts the idle window', async () => {
     const result = await runScript(`
-      guard { timeout<idle: duration("50ms")> { work(80) } } => $r
+      guard { timeout(idle: duration("50ms")) { work(80) } } => $r
       ($r.!code == #RILL_R083)
     `);
     expect(result).toBe(true);
@@ -171,7 +171,7 @@ describe('timeout<idle:> activity', () => {
 
   it('completes when stream chunks arrive inside the idle window', async () => {
     const result = await runScript(`
-      timeout<idle: duration("50ms")> {
+      timeout(idle: duration("50ms")) {
         ticks(5, 30) -> seq({ $ }) -> .len
       }
     `);
@@ -180,7 +180,7 @@ describe('timeout<idle:> activity', () => {
 
   it('halts #RILL_R083 when a stream gap outlasts the idle window', async () => {
     const result = await runScript(`
-      guard { timeout<idle: duration("50ms")> { ticks(3, 80) -> seq({ $ }) } } => $r
+      guard { timeout(idle: duration("50ms")) { ticks(3, 80) -> seq({ $ }) } } => $r
       ($r.!code == #RILL_R083)
     `);
     expect(result).toBe(true);
@@ -188,8 +188,8 @@ describe('timeout<idle:> activity', () => {
 
   it('restarts an enclosing idle limit from activity in a nested timeout', async () => {
     const result = await runScript(`
-      timeout<idle: duration("50ms")> {
-        timeout<total: duration("1s")> {
+      timeout(idle: duration("50ms")) {
+        timeout(total: duration("1s")) {
           work(30)
           work(30)
           work(30)
@@ -203,7 +203,7 @@ describe('timeout<idle:> activity', () => {
   it('halts #RILL_R082 on total regardless of activity', async () => {
     const result = await runScript(`
       guard {
-        timeout<total: duration("100ms"), idle: duration("50ms")> {
+        timeout(total: duration("100ms"), idle: duration("50ms")) {
           work(30)
           work(30)
           work(30)
@@ -219,7 +219,7 @@ describe('timeout<idle:> activity', () => {
   it('does not restart a timer from a host return in a sibling fan branch', async () => {
     const result = await runScript(`
       list[1, 2] -> fan({
-        ($ == 1) ? guard { timeout<idle: duration("50ms")> { work(80) } } ! work(30)
+        ($ == 1) ? guard { timeout(idle: duration("50ms")) { work(80) } } ! work(30)
       }) => $r
       ($r[0].!code == #RILL_R083)
     `);
@@ -232,7 +232,7 @@ describe('timeout<idle:> activity', () => {
     const pending = run(
       `
       use<ext:g> => $g
-      timeout<idle: duration("50ms")> {
+      timeout(idle: duration("50ms")) {
         $g.f(30)
         $g.f(30)
         $g.f(30)
@@ -261,7 +261,7 @@ describe('timeout<idle:> activity', () => {
     };
     const pending = run(
       `
-      guard { timeout<idle: duration("50ms")> { guard { failing() } => $a
+      guard { timeout(idle: duration("50ms")) { guard { failing() } => $a
         work(30)
       } } => $r
       ($r.!code == #RILL_R083)

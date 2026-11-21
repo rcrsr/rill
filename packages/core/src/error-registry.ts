@@ -64,6 +64,7 @@ export const ERROR_IDS = {
   RILL_P022: 'RILL-P022',
   RILL_P023: 'RILL-P023',
   RILL_P024: 'RILL-P024',
+  RILL_P025: 'RILL-P025',
   RILL_P026: 'RILL-P026',
   RILL_P027: 'RILL-P027',
   RILL_P028: 'RILL-P028',
@@ -668,7 +669,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     category: 'parse',
     description: 'Removed syntax used',
     messageTemplate: 'Syntax removed: {details}',
-    cause: 'Code uses a syntax form that was removed in a previous version.',
+    cause:
+      'Code uses a syntax form that was removed in a previous version, such as a closure literal, a namespaced host call, or the uniform dict(V) and ordered(V) types.',
     resolution: 'Migrate to the replacement syntax shown in the error message.',
     examples: [
       {
@@ -692,8 +694,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
         code: '$f -> :|x: number|:string  # Error: use :fn(x: number):string',
       },
       {
-        description: 'closure type name removed',
-        code: '$f -> :closure  # Error: use :fn',
+        description: 'dict(V) uniform value type removed',
+        code: 'dict(number)  # Error: use map(string, number), or name the fields as in dict(a: number)',
       },
     ],
   },
@@ -813,6 +815,31 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Comment text read as an atom followed by a word',
         code: '#TODO fix this later',
+      },
+    ],
+  },
+  {
+    errorId: ERROR_IDS.RILL_P025,
+    category: 'parse',
+    description: 'Control statement options in angle brackets',
+    messageTemplate:
+      "Options of '{keyword}' go in parentheses: write '{keyword}(...)', not '{keyword}<...>'",
+    cause:
+      "A control statement (guard, retry, timeout, pass, or the loop 'do') has its options written between '<' and '>'. These keywords take their options as a dict in parentheses after the keyword. Angle brackets are reserved for 'slice<...>', 'destruct<...>', and 'use<...>'.",
+    resolution:
+      "Write the options in parentheses: 'retry(attempts: 3)', 'guard(on: #TIMEOUT)', 'timeout(total: $d)', 'pass(async: true)', 'do(limit: 100)'. The retry bound 'limit' is now 'attempts'. The pass option that took #IGNORE is now 'ignore_halts: true'.",
+    examples: [
+      {
+        description: 'Retry options in angle brackets',
+        code: 'retry<limit: 3> { 1 }',
+      },
+      {
+        description: 'Pass option in angle brackets',
+        code: 'pass<async: true> { 1 }',
+      },
+      {
+        description: 'After (parenthesized options)',
+        code: 'retry(attempts: 3) { 1 }',
       },
     ],
   },
@@ -2265,7 +2292,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     cause:
       "The parser encountered the legacy pre-loop '@' operator. The 'while (cond) do { body }' syntax is now the canonical while-loop form.",
     resolution:
-      "Replace '(cond) @ { body }' with 'while (cond) do { body }'. For annotated loops, use 'do<limit: N> { body } while (cond)'.",
+      "Replace '(cond) @ { body }' with 'while (cond) do { body }'. For bounded loops, use 'do(limit: N) { body } while (cond)'.",
     examples: [
       {
         description: 'Before (legacy syntax triggers RILL-R079)',
@@ -2305,11 +2332,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     errorId: ERROR_IDS.RILL_R081,
     category: 'runtime',
     description: 'Legacy ^(limit:) loop annotation syntax',
-    messageTemplate: 'Migration error: use `do<limit: N> { body }`',
+    messageTemplate: 'Migration error: use `do(limit: N) { body }`',
     cause:
-      "The parser encountered the legacy '^(limit: N)' annotation form for loop limits. The 'do<limit: N>' construct option is now the canonical syntax.",
+      "The parser encountered the legacy '^(limit: N)' annotation form for loop limits. The 'do(limit: N)' construct option is now the canonical syntax.",
     resolution:
-      "Replace '^(limit: N) @ { body }' with 'do<limit: N> { body } while (cond)' or 'while (cond) do<limit: N> { body }'.",
+      "Replace '^(limit: N) @ { body }' with 'do(limit: N) { body } while (cond)' or 'while (cond) do(limit: N) { body }'.",
     examples: [
       {
         description: 'Before (legacy syntax triggers RILL-R081)',
@@ -2317,7 +2344,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       },
       {
         description: 'After (current syntax)',
-        code: '0 -> do<limit: 10> { $ + 1 } while ($ < 3)',
+        code: '0 -> do(limit: 10) { $ + 1 } while ($ < 3)',
       },
     ],
   },
@@ -2327,15 +2354,15 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     errorId: ERROR_IDS.RILL_R082,
     category: 'runtime',
     description: 'Total wall-time timeout exceeded',
-    messageTemplate: 'timeout<total:> exceeded after {durationMs}ms',
+    messageTemplate: 'timeout(total) exceeded after {durationMs}ms',
     cause:
-      'The timeout<total: duration> block body did not complete within the wall-time bound.',
+      'The timeout(total: duration) block body did not complete within the wall-time bound.',
     resolution:
-      'Recover via guard { timeout<total: d> { body } } ?? fallback. Increase duration or optimize body.',
+      'Recover via guard { timeout(total: d) { body } } ?? fallback. Increase duration or optimize body.',
     examples: [
       {
         description: 'Total timeout with guard recovery',
-        code: 'guard { timeout<total: duration("500ms")> { $app.slow() } } ?? "fallback"',
+        code: 'guard { timeout(total: duration("500ms")) { $app.slow() } } ?? "fallback"',
       },
     ],
   },
@@ -2343,15 +2370,15 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     errorId: ERROR_IDS.RILL_R083,
     category: 'runtime',
     description: 'Idle inactivity timeout exceeded',
-    messageTemplate: 'timeout<idle:> exceeded: no activity for {durationMs}ms',
+    messageTemplate: 'timeout(idle) exceeded: no activity for {durationMs}ms',
     cause:
-      'The timeout<idle: duration> block saw no stream chunk and no host call return within the idle bound.',
+      'The timeout(idle: duration) block saw no stream chunk and no host call return within the idle bound.',
     resolution:
-      'Recover via guard { timeout<idle: d> { body } } ?? fallback. Increase the idle duration, or make the body read stream chunks or call the host more often.',
+      'Recover via guard { timeout(idle: d) { body } } ?? fallback. Increase the idle duration, or make the body read stream chunks or call the host more often.',
     examples: [
       {
         description: 'Idle timeout with guard recovery',
-        code: 'guard { timeout<idle: duration("200ms")> { $stream } } ?? "fallback"',
+        code: 'guard { timeout(idle: duration("200ms")) { $stream } } ?? "fallback"',
       },
     ],
   },

@@ -1,5 +1,5 @@
 /**
- * Activity signal for `timeout<idle:>`.
+ * Activity signal for `timeout(idle: ...)`.
  *
  * Activity is a stream chunk arriving or a host function call returning.
  * Each idle timeout gives its body a context whose `activityListeners` set is

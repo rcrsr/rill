@@ -95,7 +95,7 @@ describe('Rill Runtime: Configuration', () => {
     });
 
     // The per-call timer runs on an injected scheduler, so a host can drive
-    // it the same way it drives timeout<> blocks.
+    // it the same way it drives timeout() blocks.
     it('runs the per-call timer on the injected scheduler', async () => {
       const requested: number[] = [];
       let cleared = 0;

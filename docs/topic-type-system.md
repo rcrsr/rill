@@ -39,8 +39,6 @@ $lt.^type.name
 | Constructor | Example | Produced Type |
 |-------------|---------|---------------|
 | `list(T)` | `list(number)` | List-of-number type |
-| `dict(T)` | `dict(number)` | Uniform dict type (all values same type) |
-| `ordered(T)` | `ordered(string)` | Uniform ordered type (all values same type) |
 | `tuple(T)` | `tuple(number)` | Tuple of exactly one position |
 | `map(K, V)` | `map(atom, number)` | Map type with scalar key type K and value type V |
 | `dict(k: T, ...)` | `dict(a: number, b: string)` | Dict type (fields alpha-sorted in output) |
@@ -75,7 +73,7 @@ tuple["x"] -> tuple(string, number = 0)
 # Result: tuple["x", 0]
 ```
 
-A list element type, a uniform dict or ordered value type, and a stream chunk or return type carry no default. No element is ever omitted, so a default would never fill anything. The type halts `#INVALID_INPUT` when it is built.
+A list element type and a stream chunk or return type carry no default. No element is ever omitted, so a default would never fill anything. The type halts `#INVALID_INPUT` when it is built.
 
 ```rill
 list[1] -> list(number = 1)
@@ -156,7 +154,7 @@ Only `stream` takes an outer, and an outer nests inline, as in `list(stream(numb
 list(number):string    # RILL-P006: list takes no outer type
 ```
 
-`tuple(T)` names exactly one position. `tuple(number, string)` names two. A sequence of any length with one element type is `list(T)`, not a tuple. `dict(T)` and `ordered(T)` keep their uniform value form.
+`tuple(T)` names exactly one position. `tuple(number, string)` names two. A sequence of any length with one element type is `list(T)`, not a tuple.
 
 ### Element Type Inference
 
@@ -230,8 +228,6 @@ The string representation of structural types follows this format:
 | Any value | `"any"` |
 | Primitive | `"string"`, `"number"`, `"bool"` |
 | List | `"list(number)"`, `"list(list(number))"` |
-| Dict (uniform) | `"dict(number)"` (all values same type) |
-| Ordered (uniform) | `"ordered(string)"` (all values same type) |
 | Dict | `"dict(a: number, b: string)"` (fields alphabetically sorted; a key not spelled as an identifier or reserved word, and `true`/`false`, is quoted, as in `"dict(\"a b\": number)"`) |
 | Tuple | `"tuple(number, string, bool)"` (positional) |
 | Ordered | `"ordered(a: number, b: string)"` (named, order-sensitive) |
@@ -1022,7 +1018,7 @@ tuple[42.^type.name, 42.^type.signature]
 
 | Type | `.inner` |
 |------|----------|
-| `list(T)`, `dict(T)` | `T` |
+| `list(T)` | `T` |
 | `dict(a: T)` | `dict[a: T]` |
 | `ordered(a: T)` | `ordered[a: T]` |
 | `tuple(T, U)`, `tuple(T)` | `tuple[T, U]`, `tuple[T]` (always a tuple) |

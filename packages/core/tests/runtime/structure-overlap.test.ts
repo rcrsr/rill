@@ -151,18 +151,6 @@ const rows: [string, TypeStructure, TypeStructure, boolean][] = [
     },
     true,
   ],
-  [
-    'valueType overlaps fields that overlap it',
-    { kind: 'dict', valueType: num },
-    { kind: 'dict', fields: { a: { type: num } } },
-    true,
-  ],
-  [
-    'valueType does not overlap a disjoint field',
-    { kind: 'dict', valueType: num },
-    { kind: 'dict', fields: { a: { type: str } } },
-    false,
-  ],
   ['closures overlap by kind', { kind: 'fn' }, { kind: 'fn', ret: num }, true],
   [
     'iterators overlap by kind',

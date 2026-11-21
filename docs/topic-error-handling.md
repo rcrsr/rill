@@ -6,15 +6,15 @@
 
 rill has no exceptions and no try/catch. Errors are values.
 
-When a computation fails, the result becomes an **invalid value**. Invalid values carry a status sidecar with an error code, message, and trace. Any access on an invalid value halts execution. Recovery requires explicit `guard` or `retry<limit: N>` blocks.
+When a computation fails, the result becomes an **invalid value**. Invalid values carry a status sidecar with an error code, message, and trace. Any access on an invalid value halts execution. Recovery requires explicit `guard` or `retry(attempts: N)` blocks.
 
 | Concept | Syntax | Purpose |
 |---------|--------|---------|
 | Status probe | `$x.!` | Test whether a value is invalid |
 | Status field | `$x.!code` | Read the error atom from the sidecar |
 | Guard recovery | `guard { body }` | Catch a halt; return the invalid value |
-| Filtered guard | `guard<on: #AUTH> { body }` | Catch only specific error atoms |
-| Retry | `retry<limit: 3> { body }` | Re-enter the body up to N times |
+| Filtered guard | `guard(on: #AUTH) { body }` | Catch only specific error atoms |
+| Retry | `retry(attempts: 3) { body }` | Re-enter the body up to N times |
 | Vacancy default | `$x ?? fallback` | Replace a vacant or missing value |
 | Presence check | `$x.?field` | Test field existence without halting |
 
@@ -72,9 +72,9 @@ Not all operations behave the same when applied to an invalid value. The access 
 | Status probe | `$x.!` |
 | Presence check | `$x.?field` |
 | Default operator | `$x ?? fallback` |
-| `guard` / `retry<limit: N>` wrapping | `guard { $x.name }` |
+| `guard` / `retry(attempts: N)` wrapping | `guard { $x.name }` |
 
-Access halts are **catchable** by `guard` and `retry<limit: N>`. Halts from non-catchable sources (for example `error` and `assert`) propagate through any recovery block. A halt raised while a module loaded by `use<>` runs also passes through `use<>`, `guard`, and `retry<limit: N>`; see [Modules](integration-modules.md#halts-inside-a-module).
+Access halts are **catchable** by `guard` and `retry(attempts: N)`. Halts from non-catchable sources (for example `error` and `assert`) propagate through any recovery block. A halt raised while a module loaded by `use<>` runs also passes through `use<>`, `guard`, and `retry(attempts: N)`; see [Modules](integration-modules.md#halts-inside-a-module).
 
 ```rill
 "valid" => $v
@@ -152,17 +152,17 @@ A malformed name halts instead of converting:
 
 ## Built-in Atoms and the Core Error Set
 
-rill defines these atoms. Every halt and every invalid value carries one of them as its code, except `#ok` and `#IGNORE`, which are not error codes. The remaining atoms form the **core error set**, a closed list that hosts cannot extend:
+rill defines these atoms. Every halt and every invalid value carries one of them as its code, except `#ok`, which is not an error code. The remaining atoms form the **core error set**, a closed list that hosts cannot extend:
 
 | Atom | Meaning |
 |------|---------|
 | `#ok` | Not an error code. Code on every valid value; never appears on invalid values |
-| `#R001` | Ordinary error code. Carried by an invalid value from a parse-recovery node and by a synthesized or host-built `retry` node with an attempt count below 1 (script `retry<limit: 0>` is a parse error) |
+| `#R001` | Ordinary error code. Carried by an invalid value from a parse-recovery node and by a synthesized or host-built `retry` node with an attempt count below 1 (script `retry(attempts: 0)` is a parse error, `RILL-P004`) |
 | `#R999` | Unhandled extension throw reshaped at the extension boundary |
 | `#TIMEOUT` | Operation exceeded its time limit |
 | `#RILL_R###` | Family of 36 atoms, one per halting registry error. Each is named for its error ID and carries that halt's code, for example `#RILL_R002` for a type error. The names are `RILL_R001`, `RILL_R002`, `RILL_R003`, `RILL_R005` to `RILL_R010`, `RILL_R012`, `RILL_R015`, `RILL_R016`, `RILL_R036` to `RILL_R038`, `RILL_R040` to `RILL_R044`, `RILL_R054` to `RILL_R058`, `RILL_R060`, `RILL_R061`, `RILL_R064` to `RILL_R066`, `RILL_R082`, `RILL_R083`, `RILL_R085`, and `RILL_R088` to `RILL_R090`. See [Error Reference](ref-errors.md) |
-| `#RILL_R082` | `timeout<total:>` wall-time bound exceeded; recover via `guard`/`??` |
-| `#RILL_R083` | `timeout<idle:>` inactivity bound exceeded; recover via `guard`/`??` |
+| `#RILL_R082` | `timeout(total)` wall-time bound exceeded; recover via `guard`/`??` |
+| `#RILL_R083` | `timeout(idle)` inactivity bound exceeded; recover via `guard`/`??` |
 | `#AUTH` | Authentication failure (HTTP 401) |
 | `#FORBIDDEN` | Authorization failure after authentication (HTTP 403, scope mismatch, content-filter block) |
 | `#RATE_LIMIT` | Temporal throttling (HTTP 429); recover via retry-after |
@@ -174,7 +174,6 @@ rill defines these atoms. Every halt and every invalid value carries one of them
 | `#PROTOCOL` | Response shape violates documented contract (parse failure, schema mismatch) |
 | `#DISPOSED` | Extension was called after disposal |
 | `#TYPE_MISMATCH` | Failed `:type` assertion or conversion; also: `==`, `!=`, `.eq`, `.ne`, `.has`, `.has_any`, `.has_all` between operands whose types cannot overlap (including an atom outside a closed set, such as `.!code` against a misspelled code), `sort` key extractor produces mixed types across elements, `sort` `key_fn` argument is non-callable, tuple comparison receives different-length or differently-typed tuples, or `start_when`/`stop_when` predicate returns a non-bool value; a non-string selector on a dict or stream; a non-number component in `duration(...dict[...])`, wrong-typed argument to `datetime()` or to datetime/duration methods such as `.add`, `.subtract`, `.multiply`, `.diff`; non-vector argument to `.similarity`/`.dot`/`.distance`; non-dict options for `fan`/`filter`; non-number `concurrency` for `fan`/`filter`; `filter` predicate returns a non-bool value; typed capture or typed destructure element that fails its type |
-| `#IGNORE` | Not an error code. Marker for `pass<on_error: #IGNORE> { body }` to suppress catchable halts in the body |
 
 `#ok` is lowercase because it is a reserved sentinel, not a user-visible error. Scripts and hosts cannot produce `#ok` as an error code. You can write `#ok` as a literal to compare against a sidecar code, or build the value with `"ok" -> atom`. `.!code` has the closed type `union(error_code, #ok)`, so comparing it with any other atom halts `#TYPE_MISMATCH`; see [Literal Members](topic-type-system.md#literal-members).
 
@@ -243,35 +242,35 @@ $out.!
 
 ### Filtered Guard
 
-Add `<on: #CODE>` or `<on: list[#CODE, ...]>` to catch only specific codes. Halts with non-matching codes propagate:
+Add `(on: #CODE)` or `(on: list[#CODE, ...])` to catch only specific codes. Halts with non-matching codes propagate:
 
 ```rill
-guard<on: #RILL_R002> { 1 / 0 } ?? 9
+guard(on: #RILL_R002) { 1 / 0 } ?? 9
 # Result: 9
 ```
 
 ```text
 use<ext:app> => $app
-guard<on: list[#TIMEOUT, #UNAVAILABLE]> {
+guard(on: list[#TIMEOUT, #UNAVAILABLE]) {
   $app.fetch("https://api.example.com")
 }
 ```
 
-Every name must belong to the core error set (see [Built-in Atoms and the Core Error Set](#built-in-atoms-and-the-core-error-set)). A name outside it is a parse error, so a misspelled code fails before the script runs:
+Every name must belong to the core error set (see [Built-in Atoms and the Core Error Set](#built-in-atoms-and-the-core-error-set)). A written name outside it is a parse error (`RILL-P004`), so a misspelled code fails before the script runs. A computed `on` value, such as a variable, is checked when the guard runs and halts `#TYPE_MISMATCH` when it holds a code outside the set:
 
 ```rill
-guard<on: #CARD_DECLINED> { 1 }
+guard(on: #CARD_DECLINED) { 1 }
 # Error: '#CARD_DECLINED' is not a core error code
 ```
 
-`on: list[]` is also a parse error. It does not mean catch everything:
+A written `on: list[]` is also a parse error. A computed empty list halts `#INVALID_INPUT`. Neither means catch everything:
 
 ```rill
-guard<on: list[]> { 1 / 0 }
+guard(on: list[]) { 1 / 0 }
 # Error: on: list[] is empty
 ```
 
-Omit `on:` and write `guard { ... }` to catch every catchable halt.
+Omit `on:` and write `guard { ... }` to catch every catchable halt. Options written in angle brackets, such as `guard<on: #AUTH>`, `retry<limit: 3>`, or `timeout<total: d>`, are a parse error (`RILL-P025`) that names the parenthesized form.
 
 `guard` does **not** catch halts from non-catchable sources (for example `error "..."` and `assert`). Those always propagate. A halt inside a source module loaded by `use<>` also propagates; `guard` around `use<>` catches only resolution failures. See [Modules](integration-modules.md#halts-inside-a-module).
 
@@ -282,7 +281,7 @@ guard { error "fatal" }
 
 ---
 
-## Side-Effect Suppression with `pass<on_error: #IGNORE>`
+## Side-Effect Suppression with `pass(ignore_halts: true)`
 
 The `pass` keyword has three distinct forms. Two of them, the body forms, interact with halts.
 
@@ -290,27 +289,27 @@ The `pass` keyword has three distinct forms. Two of them, the body forms, intera
 |------|----------------------------|
 | Bare `pass` | N/A — references current `$`; halts `#RILL_R005` if `$` is unbound |
 | `pass { body }` | No — runs body for side effects; pipe value flows through; halts in body propagate |
-| `pass<on_error: #IGNORE> { body }` | Yes — runs body; suppresses catchable halts in body; pipe value flows through |
+| `pass(ignore_halts: true) { body }` | Yes — runs body; suppresses catchable halts in body; pipe value flows through |
 
-Use `pass<on_error: #IGNORE>` when a side-effect block (logging, metrics, audit calls) may halt and you do not want the halt to break the surrounding pipeline:
+Use `pass(ignore_halts: true)` when a side-effect block (logging, metrics, audit calls) may halt and you do not want the halt to break the surrounding pipeline:
 
 ```rill
-10 -> pass<on_error: #IGNORE> { 1 / 0 }
+10 -> pass(ignore_halts: true) { 1 / 0 }
 # Result: 10 (the body halt is suppressed; pipe value is unchanged)
 ```
 
-Without `on_error: #IGNORE`, halts in the body propagate normally:
+Without `ignore_halts: true`, halts in the body propagate normally:
 
 ```text
 # Error: #RILL_R002 — body halt propagates
 10 -> pass { 1 / 0 }
 ```
 
-`on_error` accepts only `#IGNORE`. Empty `pass<>`, unknown option keys, and any other `on_error` value are parse errors (`RILL-P004`).
+`pass` accepts the bool options `ignore_halts` and `async`. An unknown option, or a value that is not a bool, halts `#TYPE_MISMATCH`. Empty `pass()` is legal and means the same as `pass { body }`. The old angle-bracket form `pass<on_error: #IGNORE>` is a parse error (`RILL-P025`); write `pass(ignore_halts: true)`.
 
 ### What Is and Is Not Suppressed
 
-`pass<on_error: #IGNORE>` matches `guard`'s catchable-halt rule. Two categories always propagate out of the body:
+`pass(ignore_halts: true)` matches `guard`'s catchable-halt rule. Two categories always propagate out of the body:
 
 | Signal | Behavior |
 |--------|----------|
@@ -323,19 +322,19 @@ See [Collection Slicing](topic-collection-slicing.md#pass-body-forms) for the fu
 
 ## Timeout Recovery
 
-`timeout<total:>` and `timeout<idle:>` blocks produce catchable halts on expiry. The expiry halt propagates like any other catchable halt: it must be caught by `guard` before `??` can supply a fallback.
+`timeout(total)` and `timeout(idle)` blocks produce catchable halts on expiry. The expiry halt propagates like any other catchable halt: it must be caught by `guard` before `??` can supply a fallback.
 
 | Timeout kind | Expiry atom | Recovery pattern |
 |-------------|-------------|-----------------|
-| `timeout<total: duration>` | `#RILL_R082` | `guard { timeout<total: d> { body } }` |
-| `timeout<idle: duration>` | `#RILL_R083` | `guard { timeout<idle: d> { body } }` |
+| `timeout(total: duration)` | `#RILL_R082` | `guard { timeout(total: d) { body } }` |
+| `timeout(idle: duration)` | `#RILL_R083` | `guard { timeout(idle: d) { body } }` |
 
 Wrap the timeout block in `guard` to prevent the halt from stopping execution:
 
 ```text
 use<ext:app> => $app
 guard {
-  timeout<total: duration("500ms")> {
+  timeout(total: duration("500ms")) {
     $app.fetch("https://api.example.com/slow")
   }
 } ?? "fallback"
@@ -348,7 +347,7 @@ One head carries both limits. The first to fire ends the body, and the halt carr
 ```text
 use<ext:app> => $app
 guard {
-  timeout<total: duration("5s"), idle: duration("500ms")> {
+  timeout(total: duration("5s"), idle: duration("500ms")) {
     $app.fetch("https://api.example.com/slow")
   }
 } ?? "fallback"
@@ -359,7 +358,7 @@ Branch on the specific atom to handle timeout distinctly from other errors:
 ```text
 use<ext:app> => $app
 guard {
-  timeout<total: duration("500ms")> {
+  timeout(total: duration("500ms")) {
     $app.fetch("https://api.example.com/slow")
   }
 } => $result
@@ -375,11 +374,11 @@ See [Control Flow](topic-control-flow.md#timeout-blocks) for the full timeout bl
 
 ## Retry
 
-`retry<limit: N>` re-enters its body up to N times. Each failed attempt appends a `guard-caught` trace frame. On success, the body result is returned. If all N attempts fail, the final invalid value is returned with N trace frames.
+`retry(attempts: N)` re-enters its body up to N times. Each failed attempt appends a `guard-caught` trace frame. On success, the body result is returned. If all N attempts fail, the final invalid value is returned with N trace frames.
 
 ```text
 use<ext:app> => $app
-retry<limit: 3> {
+retry(attempts: 3) {
   $app.fetch("https://api.example.com")
 }
 ```
@@ -389,13 +388,14 @@ Attempt count rules:
 | N | Behavior |
 |---|----------|
 | `>= 1` | Body runs up to N times |
-| `0` | Parse error: `retry<limit: 0>` is rejected by the parser |
+| `0` | Parse error: `retry(attempts: 0)` is rejected by the parser (`RILL-P004`) |
+| Variable or computed | Parse error (`RILL-P004`): `attempts` is a written positive integer literal |
 
-`retry<limit: N>` accepts the same `on:` forms as `guard` (`on: #CODE` or `on: list[#CODE, ...]`) and the same core error set. Non-matching halts propagate immediately.
+`attempts` is required; `retry { body }` and `retry() { body }` halt `#TYPE_MISMATCH`. Any spread in `retry(...)` is a parse error (`RILL-P004`). `retry(attempts: N)` accepts the same `on:` forms as `guard` (`on: #CODE` or `on: list[#CODE, ...]`) and the same core error set. Non-matching halts propagate immediately.
 
 ```text
 use<ext:app> => $app
-retry<limit: 3, on: #UNAVAILABLE> {
+retry(attempts: 3, on: #UNAVAILABLE) {
   $app.fetch("https://api.example.com")
 }
 ```
@@ -404,7 +404,7 @@ After all attempts fail, read the trace to see how many attempts ran:
 
 ```text
 use<ext:app> => $app
-retry<limit: 3> {
+retry(attempts: 3) {
   $app.fetch("https://api.example.com")
 } => $result
 $result.!trace -> .len      # up to 3 guard-caught frames
@@ -462,7 +462,7 @@ $user.?age ? ($user.age) ! ($user.name ?? "no name")
 
 ## Trace Model
 
-Every access on an invalid value appends an `access` frame to the sidecar trace. `guard` and `retry<limit: N>` append a `guard-caught` frame when they intercept a halt.
+Every access on an invalid value appends an `access` frame to the sidecar trace. `guard` and `retry(attempts: N)` append a `guard-caught` frame when they intercept a halt.
 
 Frames accumulate in append order. Prior frames are never copied; only the new frame is added (O(1) per append).
 
@@ -482,7 +482,7 @@ Frame kinds:
 | `host` | Extension calls `ctx.invalidate`. First frame on a new invalid value. |
 | `type` | A type assertion or conversion fails. |
 | `access` | An invalid value is accessed (pipe, method, arithmetic, etc.). |
-| `guard-caught` | A `guard` or `retry<limit: N>` block catches a halt. |
+| `guard-caught` | A `guard` or `retry(attempts: N)` block catches a halt. |
 | `guard-rethrow` | A caught invalid value is re-accessed and halts again. |
 | `wrap` | `error "..."` wraps an invalid value; `wrapped` carries the prior status. |
 
@@ -496,7 +496,7 @@ $result.!trace -> seq({
 })
 ```
 
-A trace with 3 frames from `retry<limit: 3>` exhaustion looks like:
+A trace with 3 frames from `retry(attempts: 3)` exhaustion looks like:
 
 ```text
 [
@@ -507,7 +507,7 @@ A trace with 3 frames from `retry<limit: 3>` exhaustion looks like:
 ]
 ```
 
-Each `retry<limit: N>` exhaustion adds one `guard-caught` frame per attempt.
+Each `retry(attempts: N)` exhaustion adds one `guard-caught` frame per attempt.
 
 ---
 
@@ -536,11 +536,11 @@ $out.! ? "failed: {$out.!message}" ! $out
 
 ### Retry With Fallback
 
-Combine `retry<limit: N>` and `??` for resilient access:
+Combine `retry(attempts: N)` and `??` for resilient access:
 
 ```text
 use<ext:app> => $app
-retry<limit: 3> {
+retry(attempts: 3) {
   $app.fetch("https://api.example.com")
 } => $result
 $result ?? "fallback response"
@@ -552,11 +552,11 @@ Handle specific errors differently using filtered guard:
 
 ```text
 use<ext:app> => $app
-guard<on: #TIMEOUT> {
+guard(on: #TIMEOUT) {
   $app.fetch("https://api.example.com/slow")
 } => $timeout_result
 
-guard<on: #AUTH> {
+guard(on: #AUTH) {
   $app.fetch("https://api.example.com/secure")
 } => $auth_result
 ```

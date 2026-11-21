@@ -1,50 +1,72 @@
 /**
- * Rill Language Tests: Uniform Value Type Assertions
+ * Rill Language Tests: Removed uniform value types
  *
- * Tests for uniform value type syntax on dict and ordered:
- * - dict(closure), ordered(closure) assertions
- * - Nested uniform types: dict(list(number))
- * - Type inference for lists of dicts: differing keys infer a union of shapes
- * - Error contracts for mixed/invalid args
- *
- * AC = Acceptance Criterion, EC = Error Contract from the
- * dict-uniform-value-type spec.
- *
- * Implementation notes:
- * - Spec uses {key: val} pseudocode; rill dict literals use [key: val]
- *   or dict[key: val] syntax.
- * - Zero-param closures in dict values use fn() { body } syntax.
- * - RuntimeError stores error code in errorId, not code.
+ * `dict(V)` and `ordered(V)` no longer exist: a dict or ordered type always
+ * names its fields, and keyed data is written as `map(string, V)`. Inference
+ * for a list of dicts with different keys produces a union of shapes.
  */
 
 import { describe, expect, it } from 'vitest';
+import { parse, ParseError } from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
-import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
+import { expectHalt } from '../helpers/halt.js';
 
-describe('Rill Language: Uniform Value Type Assertions', () => {
-  // ============================================================
-  // Happy path assertions [AC-1 through AC-8]
-  // ============================================================
+function parseError(source: string): ParseError {
+  try {
+    parse(source);
+  } catch (err) {
+    if (err instanceof ParseError) return err;
+    throw err;
+  }
+  throw new Error(`expected a ParseError for: ${source}`);
+}
 
-  describe('Happy path uniform assertions', () => {
-    it('dict(closure) passes when all values are callable [AC-1]', async () => {
-      // All values must be closures for dict(closure) to pass
-      const result = await run(
-        '[name: fn() { "a" }, run: fn() { 1 }] -> dict(fn)'
-      );
-      expect(result).toHaveProperty('name');
-      expect(result).toHaveProperty('run');
+describe('Rill Language: Removed uniform value types', () => {
+  describe('uniform forms raise RILL-P012', () => {
+    it.each([
+      ['dict(number)', 'dict(number)'],
+      ['ordered(fn)', 'ordered(fn)'],
+      ['dict($t)', 'dict($t)'],
+      ['dict(number = 1)', 'dict(number = 1)'],
+      ['dict(fn, a: string)', 'dict(fn, a: string)'],
+      ['ordered(fn, a: string)', 'ordered(fn, a: string)'],
+      ['an assertion target', '[a: 1] -> :dict(number)'],
+      ['a conversion target', '[a: 1] -> dict(number)'],
+      ['a capture type', '[a: 1] => $x:dict(number)'],
+      ['a nested element type', 'list(dict(number))'],
+    ])('rejects %s naming map(string, V)', (_label, source) => {
+      const err = parseError(source);
+      expect(err.errorId).toBe('RILL-P012');
+      expect(err.message).toContain('map(string,');
     });
 
-    it('ordered(closure) passes when all values are callable [AC-2]', async () => {
-      const result = await run(
-        'ordered[name: fn() { "a" }, run: fn() { 1 }] -> ordered(fn)'
+    it('names the written value type in the replacement', () => {
+      expect(parseError('dict(number)').message).toContain(
+        'map(string, number)'
       );
-      expect(result).toHaveProperty('entries');
+      expect(parseError('ordered(list(number))').message).toContain(
+        'map(string, list(number))'
+      );
     });
 
-    it('tuple(number) keeps only the first position', async () => {
+    it.each([
+      ['dict(string, number)', 'dict(string, number)'],
+      ['ordered(string, number)', 'ordered(string, number)'],
+    ])('rejects %s naming map(K, V)', (_label, source) => {
+      const err = parseError(source);
+      expect(err.errorId).toBe('RILL-P012');
+      expect(err.message).toContain('map(K, V)');
+    });
+  });
+
+  describe('forms that remain', () => {
+    it('keeps a bare dict type matching any dict', async () => {
+      const result = await run('[a: 1, b: "s"] -> dict');
+      expect(result).toEqual({ a: 1, b: 's' });
+    });
+
+    it('keeps tuple(number) keeping only the first position', async () => {
       const result = await run('tuple[1, 2, 3] -> tuple(number)');
       expect(result).toEqual({
         __rill_tuple: true,
@@ -52,169 +74,42 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
       });
     });
 
-    it('dict(list(number)) passes with nested uniform types [AC-4]', async () => {
-      const result = await run(
-        '[a: list[1, 2], b: list[3, 4]] -> dict(list(number))'
-      );
-      expect(result).toEqual({ a: [1, 2], b: [3, 4] });
+    it('keeps tuple["a", 1] failing tuple(number) on the first position', async () => {
+      await expectHalt(() => run('tuple["a", 1] -> tuple(number)'), {
+        code: 'RILL_R038',
+      });
     });
 
-    it('dict() bare type matches any dict [AC-5]', async () => {
-      // -> dict (bare, no parens) passes any dict through unchanged
-      const result = await run('[a: 1, b: "s"] -> dict');
-      expect(result).toEqual({ a: 1, b: 's' });
-    });
-
-    it('list of dicts with different keys infers a union of shapes [AC-6]', async () => {
-      const sig = await run('list[dict[a: 1], dict[b: 2]].^type.signature');
-      expect(sig).toBe('list(union(dict(a: number), dict(b: number)))');
-    });
-
-    it('structural dict assertion unchanged [AC-7]', async () => {
+    it('keeps a structural dict assertion', async () => {
       const result = await run(
         '[name: "a", age: 1] -> dict(name: string, age: number)'
       );
       expect(result).toEqual({ name: 'a', age: 1 });
     });
 
-    it('multi-element structural tuple unchanged [AC-8]', async () => {
+    it('keeps a multi-element structural tuple', async () => {
       const result = await run('tuple["a", 1] -> tuple(string, number)');
       expect(result).toEqual({
         __rill_tuple: true,
         entries: ['a', 1],
       });
     });
-  });
 
-  // ============================================================
-  // Error cases [AC-10 through AC-14, EC-1 through EC-3]
-  // ============================================================
-
-  describe('Error cases for uniform assertions', () => {
-    it('string value fails dict(closure) [AC-10, EC-3]', async () => {
-      await expectHalt(() => run('[name: "a", run: "b"] -> dict(fn)'), {
-        code: 'RILL_R036',
-      });
+    it('infers a union of shapes for a list of dicts with different keys', async () => {
+      const sig = await run('list[dict[a: 1], dict[b: 2]].^type.signature');
+      expect(sig).toBe('list(union(dict(a: number), dict(b: number)))');
     });
 
-    it('dict(fn, name: string) halts for mixed args [AC-11, EC-1]', async () => {
-      await expectHaltMessage(
-        () => run('dict(fn, name: string)'),
-        'dict() cannot mix positional and named arguments'
-      );
-    });
-
-    it('ordered(fn, name: string) halts for mixed args [AC-12, EC-1]', async () => {
-      await expectHaltMessage(
-        () => run('ordered(fn, name: string)'),
-        'ordered() cannot mix positional and named arguments'
-      );
-    });
-
-    it('tuple["a", 1] fails tuple(number) on the first position', async () => {
-      await expectHalt(() => run('tuple["a", 1] -> tuple(number)'), {
-        code: 'RILL_R038',
-      });
-    });
-
-    it('dict(string, number) halts for 2 positional args [AC-14, EC-2]', async () => {
-      await expectHaltMessage(
-        () => run('dict(string, number)'),
-        'dict() requires exactly 1 positional type argument'
-      );
-    });
-  });
-
-  // ============================================================
-  // Error message format [AC-9, EC-3]
-  // ============================================================
-
-  describe('Error message format', () => {
-    it('failed dict(closure) conversion message names the failing field [AC-9, EC-3]', async () => {
-      await expectHaltMessage(
-        () => run('[name: "a", run: "b"] -> dict(fn)'),
-        "cannot convert string to fn (field 'name')"
-      );
-    });
-
-    it('failed dict(closure) conversion uses RILL-R036 [EC-3]', async () => {
-      await expectHalt(() => run('[name: "a", run: "b"] -> dict(fn)'), {
-        code: 'RILL_R036',
-      });
-    });
-  });
-
-  // ============================================================
-  // Boundary conditions [AC-15 through AC-20]
-  // ============================================================
-
-  describe('Boundary conditions', () => {
-    it('empty dict passes dict(closure) [AC-15]', async () => {
-      const result = await run('dict[] -> dict(fn)');
-      expect(result).toEqual({});
-    });
-
-    it('empty tuple halts tuple(number) for the missing position', async () => {
-      await expectHalt(() => run('tuple[] -> tuple(number)'), {
-        code: 'RILL_R044',
-      });
-    });
-
-    it('empty ordered passes ordered(number) [AC-17]', async () => {
-      const result = await run('ordered[] -> ordered(number)');
-      expect(result).toHaveProperty('entries');
-      expect((result as { entries: unknown[] }).entries).toHaveLength(0);
-    });
-
-    it('conflicting dict value types infer a union of the dict types [AC-18]', async () => {
+    it('infers a union of the dict types when value types conflict', async () => {
       const result = await run(
         'list[dict[a: 1], dict[a: "s"]].^type == list(union(dict(a: number), dict(a: string)))'
       );
       expect(result).toBe(true);
     });
 
-    it('dynamic key extract from dict(closure) carries no uniform type [AC-20]', async () => {
-      // A no-parens read returns a stored fn uncalled (dispatch.fn). Calling
-      // the selected fn yields its plain return value, which carries no
-      // uniform type metadata.
-      const script = `
-        dict[run: fn() { 42 }] -> dict(fn) => $d
-        "run" => $key
-        $d.$key()
-      `;
-      const result = await run(script);
-      expect(result).toBe(42);
-    });
-  });
-
-  // ============================================================
-  // Non-type-value arg error [EC-4]
-  // ============================================================
-
-  describe('Non-type-value positional arg', () => {
-    it('dict(42) non-type positional arg — fails at parse time [EC-4]', async () => {
-      // parseFieldArgList uses parseTypeRef; numeric literals are not valid type names.
-      await expect(run('dict(42)')).rejects.toThrow('Expected type name');
-    });
-  });
-
-  // ============================================================
-  // FR-DFIELD-1: Unannotated uniform paths unchanged by annotations feature
-  // ============================================================
-
-  describe('Unannotated uniform paths unchanged by annotations feature', () => {
-    it('dict(string) uniform type has no annotations on valueType', async () => {
-      const result = (await run('dict(string)')) as any;
-      expect(result.__rill_type).toBe(true);
-      expect(result.structure.kind).toBe('dict');
-      expect(result.structure.valueType).toEqual({ kind: 'string' });
-      // Uniform types have no per-field annotations
-      expect(result.structure.fields).toBeUndefined();
-    });
-
-    it('ordered(number) uniform assertion passes without annotations', async () => {
-      const result = await run('ordered[a: 1, b: 2] -> ordered(number)');
-      expect(result).toHaveProperty('entries');
+    it('accepts map(string, V) for keyed data', async () => {
+      const result = await run('map["a": 1, "b": 2] -> map(string, number)');
+      expect(result).toBeDefined();
     });
   });
 });

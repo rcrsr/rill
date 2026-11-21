@@ -3,11 +3,11 @@ id: construct-options
 title: Construct options
 status: normative
 since: 0.24.0
-issues: [578]
+issues: []
 grammar: []
-errors: [INVALID_INPUT, RILL-P004, RILL-P025, TYPE_MISMATCH]
+errors: [INVALID_INPUT, RILL-P004, RILL-P025, RILL-P027, RILL-R002, TYPE_MISMATCH]
 depends: [loop, pass]
-tests: [timeout.test.ts, throttling.test.ts]
+tests: [construct-options.test.ts, timeout.test.ts, throttling.test.ts]
 ---
 
 # Construct options
@@ -18,8 +18,11 @@ A control statement takes its options as a dict in parentheses between its keywo
 
 ```text
 keyword(name: value, ...) { body }
-keyword(...$policy) { body }
+guard(...$policy) { body }
 ```
+
+A spread is legal in `guard`, `pass`, and `timeout`. `construct-options.literal-bound` rejects it in
+`retry`, `do`, and `while ... do`.
 
 | Keyword | Options |
 |---------|---------|
@@ -31,42 +34,55 @@ keyword(...$policy) { body }
 
 ## Static rules
 
-r[construct-options.parens] Options are written in parentheses {pending #578}
+r[construct-options.parens] Options are written in parentheses
 A control statement's options MUST be written in parentheses after its keyword. The form
 `keyword<...>` MUST be rejected with RILL-P025 and a message naming the parenthesized form.
 
-r[construct-options.dict] Options are a dict of the keyword's options type {pending #578}
+r[construct-options.dict] Options are a dict of the keyword's options type
 The options MUST be checked as a dict against the keyword's options type. An unknown option,
 a missing required option, or a value of the wrong type MUST halt with `#TYPE_MISMATCH`. An
-option with a default MAY be absent.
+option with a default MAY be absent. A written option repeated MUST be rejected with RILL-P027.
 
-r[construct-options.order] Options have no order {pending #578}
+r[construct-options.order] Options have no order
 Options MUST be accepted in any order.
 
-r[construct-options.values] An option value is an expression {pending #578}
+r[construct-options.values] An option value is an expression
 An option value MUST be evaluated as an expression and checked against its field's type,
 except where a literal is required.
 
-r[construct-options.literal-bound] Bounds are literals {pending #578}
-`limit` and `attempts` MUST be written positive integer literals. A computed value, zero, or
-a spread that supplies either MUST be rejected with RILL-P004.
+r[construct-options.literal-bound] Bounds are literals
+`limit` and `attempts` MUST be written positive integer literals. A computed value or zero MUST be
+rejected with RILL-P004. Any spread in the options of `retry`, `do`, or `while ... do` MUST be
+rejected with RILL-P004, whatever it supplies. A variable, computed, or multi-key entry in those
+options MUST be rejected with RILL-P004.
 
-r[construct-options.spread] A dict may be spread in {pending #578}
-`keyword(...$d)` MUST supply the fields of `$d` as options. A spread field that repeats a written
-option MUST halt with `#INVALID_INPUT`.
+r[construct-options.spread] A dict may be spread in
+In `guard`, `pass`, and `timeout`, `keyword(...$d)` MUST supply the fields of `$d` as options
+(`construct-options.literal-bound` rejects a spread in the other keywords). A spread field that
+repeats a written option, or a spread or computed key that duplicates another key, MUST halt with
+`#INVALID_INPUT`. A spread of a value that is not a dict MUST halt with RILL-R002.
 
-r[construct-options.space] A space before the parenthesis is legal {pending #578}
+r[construct-options.space] A space before the parenthesis is legal
 `keyword (opts)` MUST parse as `keyword(opts)`.
 
 r[construct-options.none] No options means no parentheses
-The forms without options, `do { }`, `pass { }`, and `guard { }`, MUST keep their meaning.
+The forms without options, `do { }`, `pass { }`, and `guard { }`, MUST keep their meaning. An
+empty `keyword()` is legal for `guard`, `retry`, `timeout`, `pass`, and `do`, and means the same as
+the form without parentheses, so `retry() { }` halts `#TYPE_MISMATCH` because `attempts` is required.
+
+r[construct-options.timeout-context] timeout is recognized by what follows it
+`timeout` MUST open a timeout block when the identifier is followed by `(` and either the first
+entry is `key:` or the matching `)` is followed on the same line by `{`. The body MUST start on
+the line where the options end. Any other `timeout` MUST stay an ordinary name, so a host function
+called `timeout` remains callable. `timeout<` with the `<` touching the keyword MUST be rejected
+with RILL-P025.
 
 r[construct-options.timeout-limits] timeout takes total, idle, both, or neither
 `timeout` MUST accept `total`, `idle`, both, or neither. With both, the first limit reached MUST
 end the body.
 
 r[construct-options.timeout-idle-activity] idle restarts on activity
-`timeout<idle: D>` MUST restart its timer when a stream chunk arrives in the body or a host
+`timeout(idle: D)` MUST restart its timer when a stream chunk arrives in the body or a host
 function call returns. That activity MUST restart the idle limit of every enclosing `timeout`. A
 body doing neither, such as a pure computation, MUST count as idle. Only a host call that returns
 counts; a call that halts does not. Activity in a concurrent sibling branch outside the `timeout`
@@ -89,24 +105,35 @@ MUST be accepted.
 |-----------|-------|-----------|
 | An unknown option, a missing required option, or a wrong value type | `#TYPE_MISMATCH` | Yes |
 | `limit` or `attempts` is not a written positive integer literal | RILL-P004 | No |
-| Options written in angle brackets {pending #578} | RILL-P025 | No |
-| A spread field repeats a written option {pending #578} | `#INVALID_INPUT` | Yes |
+| A spread, or a variable, computed, or multi-key entry, in the options of `retry`, `do`, or `while ... do` | RILL-P004 | No |
+| Options written in angle brackets, `keyword<...>` | RILL-P025 | No |
+| A written option repeated | RILL-P027 | No |
+| A spread field repeats a written option, or a spread or computed key duplicates another key | `#INVALID_INPUT` | Yes |
+| A spread value is not a dict | RILL-R002 | Yes |
 | A time bound's duration has a months part | `#INVALID_INPUT` | Yes |
 | A `timeout` `total` or `idle` limit is above 2147483647 milliseconds | `#INVALID_INPUT` | Yes |
 
 ## Examples
 
-```rill pending=578
+```rill
 0 -> while ($ < 10) do(limit: 100) { $ + 1 }
 # Result: 10
 ```
 
-```rill pending=578
+```rill
 # Error: #TYPE_MISMATCH
 retry(attempts: 3, bogus: 1) { 1 }
 ```
 
+```rill
+# Error: RILL-P004
+dict[attempts: 3] => $d
+retry(...$d) { 1 }
+```
+
 ## Notes
 
-On 0.23.0 each keyword parses its options in angle brackets with its own grammar, and `retry`
-names its bound `limit`. `guard`, `retry`, and `timeout` are stated with errors and limits.
+On 0.23.0 each keyword parses its options in angle brackets with its own grammar, and that form now
+halts RILL-P025. `retry` names its bound `limit`, and `pass<on_error: #IGNORE>` is written
+`pass(ignore_halts: true)`.
+`guard`, `retry`, and `timeout` are stated with errors and limits.

@@ -163,17 +163,17 @@ describe('Rill Runtime: Annotations', () => {
 
   describe('Limit Annotation', () => {
     it('allows loops within limit', async () => {
-      // Uses do<limit: N> construct option syntax
+      // Uses do(limit: N) construct option syntax
       const script = `
-        0 -> while ($ < 3) do<limit: 5> { $ + 1 }
+        0 -> while ($ < 3) do(limit: 5) { $ + 1 }
       `;
       expect(await run(script)).toBe(3);
     });
 
     it('throws when while loop exceeds limit', async () => {
-      // do<limit: N> enforces the limit at runtime
+      // do(limit: N) enforces the limit at runtime
       const script = `
-        0 -> while ($ < 100) do<limit: 3> { $ + 1 }
+        0 -> while ($ < 100) do(limit: 3) { $ + 1 }
       `;
       await expect(run(script)).rejects.toThrow(/exceeded 3 iterations/);
     });
@@ -181,7 +181,7 @@ describe('Rill Runtime: Annotations', () => {
     it('includes iteration count in error context when limit exceeded', async () => {
       // Verify AC-13: error context contains limit and iteration count
       const script = `
-        0 -> while ($ < 100) do<limit: 5> { $ + 1 }
+        0 -> while ($ < 100) do(limit: 5) { $ + 1 }
       `;
       const err = await run(script).catch((e: unknown) => e);
       expect(err).toMatchObject({
@@ -207,23 +207,23 @@ describe('Rill Runtime: Annotations', () => {
     });
 
     it('rejects non-positive limit values at parse time', async () => {
-      // do<limit: N> requires a positive integer at parse time
+      // do(limit: N) requires a positive integer at parse time
       await expect(
-        run('0 -> while ($ < 100) do<limit: -5> { $ + 1 }')
+        run('0 -> while ($ < 100) do(limit: -5) { $ + 1 }')
       ).rejects.toThrow(/limit.*must be a positive integer/i);
     });
 
     it('rejects fractional limit values at parse time', async () => {
-      // do<limit: N> requires an integer literal; fractional values error at parse time.
+      // do(limit: N) requires an integer literal; fractional values error at parse time.
       await expect(
-        run('0 -> while ($ < 100) do<limit: 3.9> { $ + 1 }')
+        run('0 -> while ($ < 100) do(limit: 3.9) { $ + 1 }')
       ).rejects.toThrow(/limit.*must be a positive integer/i);
     });
 
     it('preserves limit behavior with multiple annotations (AC-8)', async () => {
-      // do<limit: N> sets the iteration ceiling; unknown option keys error at parse
+      // do(limit: N) sets the iteration ceiling; unknown option keys error at parse
       const script = `
-        0 -> while ($ < 100) do<limit: 50> { $ + 1 }
+        0 -> while ($ < 100) do(limit: 50) { $ + 1 }
       `;
       await expect(run(script)).rejects.toThrow(/exceeded 50 iterations/);
     });
@@ -231,20 +231,20 @@ describe('Rill Runtime: Annotations', () => {
 
   describe('Annotation Inheritance', () => {
     it('inner annotations override outer', async () => {
-      // Inner do<limit: 2> on the loop
+      // Inner do(limit: 2) on the loop
       const script = `
         0 -> {
-          $ -> while ($ < 10) do<limit: 2> { $ + 1 }
+          $ -> while ($ < 10) do(limit: 2) { $ + 1 }
         }
       `;
       await expect(run(script)).rejects.toThrow(/exceeded 2 iterations/);
     });
 
     it('inner scope inherits outer annotations', async () => {
-      // do<limit: 3> on the loop enforces the limit
+      // do(limit: 3) on the loop enforces the limit
       const script = `
         0 -> {
-          $ -> while ($ < 10) do<limit: 3> { $ + 1 }
+          $ -> while ($ < 10) do(limit: 3) { $ + 1 }
         }
       `;
       await expect(run(script)).rejects.toThrow(/exceeded 3 iterations/);
@@ -671,18 +671,18 @@ describe('Rill Runtime: Annotations', () => {
     // not at statement level. Phase 2 adds parser support only; Phase 3 (Task 3.3)
     // will implement runtime enforcement of operator-level limits.
 
-    describe('While loop with do<limit:> construct option', () => {
-      it('parses while (cond) do<limit: N> { body } without error', () => {
-        // New syntax: while (cond) do<limit: N> { body }
-        const ast = parse('0 -> while ($ < 3) do<limit: 100> { $ + 1 }');
+    describe('While loop with do(limit:) construct option', () => {
+      it('parses while (cond) do(limit: N) { body } without error', () => {
+        // New syntax: while (cond) do(limit: N) { body }
+        const ast = parse('0 -> while ($ < 3) do(limit: 100) { $ + 1 }');
         expect(ast.statements).toHaveLength(1);
         expect(ast.statements[0]?.type).toBe('Statement');
       });
 
-      it('executes while loop with do<limit:> construct option', async () => {
-        // Limit is enforced at runtime with the new do<limit: N> syntax.
+      it('executes while loop with do(limit:) construct option', async () => {
+        // Limit is enforced at runtime with the new do(limit: N) syntax.
         const result = await run(
-          '0 -> while ($ < 50) do<limit: 100> { $ + 1 }'
+          '0 -> while ($ < 50) do(limit: 100) { $ + 1 }'
         );
         expect(result).toBe(50);
       });

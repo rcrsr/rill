@@ -343,33 +343,26 @@ function getChildren(node: ASTNode): ASTNode[] {
     }
 
     case 'WhileLoop': {
-      const children: ASTNode[] = [node.condition, node.body];
-      if (node.annotations) children.push(...node.annotations);
+      const children: ASTNode[] = [node.condition];
+      if (node.options) children.push(node.options);
+      children.push(node.body);
       return children;
     }
 
     case 'DoWhileLoop': {
       const children: ASTNode[] = [];
       if (node.input) children.push(node.input);
+      if (node.options) children.push(node.options);
       children.push(node.body, node.condition);
-      if (node.annotations) children.push(...node.annotations);
       return children;
     }
 
     case 'Block':
       return [...node.statements];
 
-    case 'GuardBlock': {
-      const children: ASTNode[] = [node.body];
-      if (node.onCodes) children.push(...node.onCodes);
-      return children;
-    }
-
-    case 'RetryBlock': {
-      const children: ASTNode[] = [node.body];
-      if (node.onCodes) children.push(...node.onCodes);
-      return children;
-    }
+    case 'GuardBlock':
+    case 'RetryBlock':
+      return node.options ? [node.options, node.body] : [node.body];
 
     case 'AtomLiteral':
       return [];
@@ -457,7 +450,7 @@ function getChildren(node: ASTNode): ASTNode[] {
 
     case 'PassBlock':
     case 'TimeoutBlock':
-      return [node.options, node.body];
+      return node.options ? [node.options, node.body] : [node.body];
 
     case 'Declaration':
       return [node.typeExpr, node.value];

@@ -58,14 +58,10 @@ function isCallable(value: RillValue): value is RillCallable {
 
 /**
  * Callbacks for kind-specific field dispatch in dict/tuple/ordered types.
- * `compareStructuredFields` handles the common valueType check and
- * kind-based field extraction, then delegates to these callbacks.
+ * `compareStructuredFields` handles kind-based field extraction, then
+ * delegates to these callbacks.
  */
 export interface FieldComparisonCallbacks<T> {
-  /** Both structures carry a uniform valueType */
-  onValueType(aValueType: TypeStructure, bValueType: TypeStructure): T;
-  /** One structure has valueType, the other does not; receives both operands */
-  onValueTypeMismatch(a: TypeStructure, b: TypeStructure): T;
   /** Neither structure has fields/elements */
   onBothEmpty(): T;
   /** One structure has fields/elements, the other does not */
@@ -83,7 +79,7 @@ export interface FieldComparisonCallbacks<T> {
 
 /**
  * Shared dispatch for dict/tuple/ordered field comparison.
- * Handles valueType check and field iteration across
+ * Handles field iteration across
  * structureEquals, structureMatches, and formatStructure.
  *
  * Constraints:
@@ -102,13 +98,6 @@ export function compareStructuredFields<T>(
   fallback: T
 ): T {
   if (isStructureKind(a, 'dict') && isStructureKind(b, 'dict')) {
-    const aValue = a.valueType;
-    const bValue = b.valueType;
-    if (aValue !== undefined || bValue !== undefined) {
-      if (aValue === undefined || bValue === undefined)
-        return callbacks.onValueTypeMismatch(a, b);
-      return callbacks.onValueType(aValue, bValue);
-    }
     if (a.fields === undefined && b.fields === undefined) {
       return callbacks.onBothEmpty();
     }
@@ -129,13 +118,6 @@ export function compareStructuredFields<T>(
   }
 
   if (isStructureKind(a, 'ordered') && isStructureKind(b, 'ordered')) {
-    const aValue = a.valueType;
-    const bValue = b.valueType;
-    if (aValue !== undefined || bValue !== undefined) {
-      if (aValue === undefined || bValue === undefined)
-        return callbacks.onValueTypeMismatch(a, b);
-      return callbacks.onValueType(aValue, bValue);
-    }
     if (a.fields === undefined && b.fields === undefined) {
       return callbacks.onBothEmpty();
     }
@@ -250,8 +232,6 @@ function compareSequentialFields(
 
 /** Equality callbacks for compareStructuredFields */
 const equalsCallbacks: FieldComparisonCallbacks<boolean> = {
-  onValueType: (aVT, bVT) => structureEquals(aVT, bVT),
-  onValueTypeMismatch: () => false,
   onBothEmpty: () => true,
   onFieldPresenceMismatch: () => false,
   onDictFields(aFields, bFields) {
@@ -400,21 +380,6 @@ function createMatchesCallbacks(
   value: RillValue
 ): FieldComparisonCallbacks<boolean> {
   return {
-    onValueType(valueType) {
-      // Uniform valueType: check all values match the type.
-      // Order matters: isOrdered before isDict because ordered values
-      // also satisfy isDict.
-      if (isOrdered(value)) {
-        return value.entries.every(([, v]) => structureMatches(v, valueType));
-      }
-      if (isDict(value)) {
-        const dict = value;
-        const vals = Object.values(dict);
-        return vals.every((v) => structureMatches(v, valueType));
-      }
-      return false;
-    },
-    onValueTypeMismatch: () => false,
     onBothEmpty: () => true,
     onFieldPresenceMismatch: () => false,
     onDictFields(fields) {
@@ -608,14 +573,10 @@ export function structureMatches(
 
 /**
  * Format callbacks for compareStructuredFields.
- * Returns `null` for bare types (no fields, no valueType) so the caller
+ * Returns `null` for bare types (no fields) so the caller
  * can distinguish "fields: undefined" from "fields: {}".
  */
 const formatCallbacks: FieldComparisonCallbacks<string | null> = {
-  onValueType(valueType) {
-    return formatStructure(valueType);
-  },
-  onValueTypeMismatch: () => null,
   onBothEmpty: () => null,
   onFieldPresenceMismatch: () => null,
   onDictFields(fields) {
@@ -696,7 +657,7 @@ export function formatStructure(type: TypeStructure): string {
     type.kind === 'ordered'
   ) {
     const inner = compareStructuredFields(type, type, formatCallbacks, null);
-    // Bare type (no fields, no valueType): null signals undefined fields
+    // Bare type (no fields): null signals undefined fields
     if (inner === null) return type.kind;
     return `${type.kind}(${inner})`;
   }

@@ -6,18 +6,15 @@
 import { Parser } from './parser.js';
 import type {
   AnnotatedStatementNode,
-  AnnotationArg,
   AssertNode,
-  AtomLiteralNode,
   BlockNode,
   ConditionalNode,
+  DictNode,
   DoWhileLoopNode,
   ErrorNode,
   ExpressionNode,
   GroupedExprNode,
   GuardBlockNode,
-  NamedArgNode,
-  NumberLiteralNode,
   PipeChainNode,
   PostfixExprNode,
   RecoveryErrorNode,
@@ -39,12 +36,10 @@ import {
   skipNewlines,
   skipNewlinesIfFollowedBy,
   makeSpan,
-  reportError,
   type ParserState,
 } from './state.js';
-import { parseOptionDict } from './parser-options.js';
+import { checkWrittenOn, parseParenOptions } from './parser-options.js';
 import { ERROR_IDS } from '../error-registry.js';
-import { ERROR_CODE_NAMES } from '../constants.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -91,10 +86,6 @@ Parser.prototype.parseBody = function (this: Parser): BodyNode {
 
   return this.parsePostfixExpr();
 };
-
-type OnCodeListResult =
-  | { kind: 'ok'; codes: AtomLiteralNode[] }
-  | { kind: 'invalid'; node: RecoveryErrorNode };
 
 // ============================================================
 // CONDITIONALS
@@ -236,125 +227,20 @@ Parser.prototype.parseConditionalRest = function (
 // ============================================================
 
 /**
- * Parse construct options after `do<`.
+ * Parse a do-while loop: `do [(limit: N)] { body } while ( cond )`.
  *
- * Precondition: DO_LANGLE token has already been consumed.
- * Grammar: `limit` `:` NUMBER `>`
- *
- * Validates that `limit` is a positive integer.
- * Returns a synthesized AnnotationArg[] equivalent to `^(limit: N)`.
- *
- * Error contracts:
- *   unknown option name  → RILL-P004
- *   non-positive limit   → RILL-P004
- *   missing `>`          → RILL-P005
- */
-function parseConstructOptions(
-  parser: Parser,
-  start: { line: number; column: number; offset: number }
-): AnnotationArg[] {
-  skipNewlines(parser.state);
-
-  // Require an identifier as the option name.
-  if (!check(parser.state, TOKEN_TYPES.IDENTIFIER)) {
-    throw new ParseError(
-      ERROR_IDS.RILL_P004,
-      `Parse error: unknown option \`${current(parser.state).value}\` for \`do\` construct (only \`limit\` accepted)`,
-      current(parser.state).span.start
-    );
-  }
-
-  const optionToken = advance(parser.state);
-  if (optionToken.value !== 'limit') {
-    throw new ParseError(
-      ERROR_IDS.RILL_P004,
-      `Parse error: unknown option \`${optionToken.value}\` for \`do\` construct (only \`limit\` accepted)`,
-      optionToken.span.start
-    );
-  }
-
-  expect(parser.state, TOKEN_TYPES.COLON, "Expected ':' after option name");
-  skipNewlines(parser.state);
-
-  if (!check(parser.state, TOKEN_TYPES.NUMBER)) {
-    throw new ParseError(
-      ERROR_IDS.RILL_P004,
-      'Validation error: `limit` must be a positive integer',
-      current(parser.state).span.start
-    );
-  }
-
-  const numToken = advance(parser.state);
-  const limitValue = Number(numToken.value);
-
-  if (!Number.isInteger(limitValue) || limitValue < 1) {
-    throw new ParseError(
-      ERROR_IDS.RILL_P004,
-      'Validation error: `limit` must be a positive integer',
-      numToken.span.start
-    );
-  }
-
-  skipNewlines(parser.state);
-  expect(
-    parser.state,
-    TOKEN_TYPES.GT,
-    'Parse error: expected `>` to close `do` construct options',
-    ERROR_IDS.RILL_P005
-  );
-
-  // Synthesise a NamedArgNode for `limit: N` matching the shape produced by
-  // the legacy `^(limit: N)` annotation. The value must be an ExpressionNode
-  // (= PipeChainNode) wrapping a NumberLiteralNode.
-  const numLiteral: NumberLiteralNode = {
-    type: 'NumberLiteral',
-    value: limitValue,
-    span: numToken.span,
-  };
-  const postfix: PostfixExprNode = {
-    type: 'PostfixExpr',
-    primary: numLiteral,
-    methods: [],
-    defaultValue: null,
-    span: numToken.span,
-  };
-  const valueExpr: PipeChainNode = {
-    type: 'PipeChain',
-    head: postfix,
-    pipes: [],
-    terminator: null,
-    span: numToken.span,
-  };
-  const namedArg: NamedArgNode = {
-    type: 'NamedArg',
-    name: 'limit',
-    value: valueExpr,
-    span: makeSpan(start, numToken.span.end),
-  };
-
-  return [namedArg];
-}
-
-/**
- * Parse a do-while loop: `do [<limit: N>] { body } while ( cond )`.
- *
- * Precondition: current token is DO or DO_LANGLE.
+ * Precondition: current token is DO.
  * Produces a DoWhileLoopNode. `input` is null (set by parseLoopWithInput when
  * called from a pipe chain). Trailing `while (cond)` is required.
  */
 Parser.prototype.parseLoop = function (this: Parser): DoWhileLoopNode {
   const start = current(this.state).span.start;
 
-  // Consume `do` or `do<`; parse optional construct options.
-  let annotations: AnnotationArg[] | undefined;
-  if (check(this.state, TOKEN_TYPES.DO_LANGLE)) {
-    advance(this.state); // consume do<
-    annotations = parseConstructOptions(this, start);
-  } else {
-    expect(this.state, TOKEN_TYPES.DO, 'Expected `do`');
-  }
+  // Consume `do`; parse optional construct options.
+  expect(this.state, TOKEN_TYPES.DO, 'Expected `do`');
+  const options = parseParenOptions(this, 'do');
 
-  // A newline between `do`/`do<opts>` and the body block is allowed.
+  // A newline between `do`/`do(opts)` and the body block is allowed.
   skipNewlines(this.state);
   const body = this.parseBlock();
 
@@ -398,16 +284,16 @@ Parser.prototype.parseLoop = function (this: Parser): DoWhileLoopNode {
     input: null,
     body,
     condition,
-    annotations,
+    options,
     span: makeSpan(start, previous(this.state).span.end),
   };
 };
 
 /**
- * Parse a while loop: `while ( cond ) do [<limit: N>] { body }`.
+ * Parse a while loop: `while ( cond ) do [(limit: N)] { body }`.
  *
  * Precondition: current token is WHILE.
- * Produces a WhileLoopNode. `do` / `do<limit: N>` is required on the same
+ * Produces a WhileLoopNode. `do` / `do(limit: N)` is required on the same
  * line as `while (cond)`. Across a newline, a bare `{ body }` is accepted
  * as shorthand for `do { body }`: `while (cond)\n{ body }` and
  * `while (cond)\ndo { body }` parse to equivalent nodes. `while (cond) {
@@ -435,7 +321,7 @@ Parser.prototype.parseWhileLoop = function (this: Parser): WhileLoopNode {
   skipNewlines(this.state);
   expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
 
-  // `do` / `do<opts>` is required, except when a newline separates
+  // `do` / `do(opts)` is required, except when a newline separates
   // `while (cond)` from a bare `{` block: `while (cond)\n{ body }` is then
   // accepted as shorthand for `while (cond)\ndo { body }` — the two forms
   // parse to equivalent nodes. On the same line, `do` still stays
@@ -450,7 +336,6 @@ Parser.prototype.parseWhileLoop = function (this: Parser): WhileLoopNode {
 
   if (
     !check(this.state, TOKEN_TYPES.DO) &&
-    !check(this.state, TOKEN_TYPES.DO_LANGLE) &&
     !(bareBlockFollowsNewline && check(this.state, TOKEN_TYPES.LBRACE))
   ) {
     throw new ParseError(
@@ -460,17 +345,14 @@ Parser.prototype.parseWhileLoop = function (this: Parser): WhileLoopNode {
     );
   }
 
-  let annotations: AnnotationArg[] | undefined;
-  if (check(this.state, TOKEN_TYPES.DO_LANGLE)) {
-    const doStart = current(this.state).span.start;
-    advance(this.state); // consume do<
-    annotations = parseConstructOptions(this, doStart);
-  } else if (check(this.state, TOKEN_TYPES.DO)) {
+  let options: DictNode | null = null;
+  if (check(this.state, TOKEN_TYPES.DO)) {
     advance(this.state); // consume `do`
+    options = parseParenOptions(this, 'do');
   }
   // else: bare `{` stands in for `do {` — nothing to consume here.
 
-  // A newline between `do`/`do<opts>` and the body block is allowed.
+  // A newline between `do`/`do(opts)` and the body block is allowed.
   skipNewlines(this.state);
   const body = this.parseBlock();
 
@@ -478,7 +360,7 @@ Parser.prototype.parseWhileLoop = function (this: Parser): WhileLoopNode {
     type: 'WhileLoop',
     condition,
     body,
-    annotations,
+    options,
     span: makeSpan(start, previous(this.state).span.end),
   };
 };
@@ -489,7 +371,7 @@ Parser.prototype.parseWhileLoop = function (this: Parser): WhileLoopNode {
  *
  * - WHILE token  → parseWhileLoop(); seed is threaded into the condition head
  *   so the seed value is the initial $ when the condition first evaluates.
- * - DO / DO_LANGLE → parseLoop(); seed threads into DoWhileLoopNode.input.
+ * - DO → parseLoop(); seed threads into DoWhileLoopNode.input.
  */
 Parser.prototype.parseLoopWithInput = function (
   this: Parser,
@@ -552,7 +434,7 @@ Parser.prototype.parseLoopWithInput = function (
     return { ...node, condition: newCondition };
   }
 
-  // DO or DO_LANGLE: parse the do-while body then attach seed as input.
+  // DO: parse the do-while body then attach seed as input.
   const node = this.parseLoop();
 
   // Build the seed as ExpressionNode to satisfy DoWhileLoopNode.input type.
@@ -747,159 +629,24 @@ Parser.prototype.parseError = function (
 };
 
 // ============================================================
-// GUARD / RETRY BLOCKS (task 1.4)
+// GUARD / RETRY BLOCKS
 // ============================================================
 
 /**
- * Parse the `<on: #X>` or `<on: list[#X, #Y, ...]>` option that may follow
- * `guard` or `retry<N,`. Returns either the collected atoms or a
- * RecoveryErrorNode when an atom fails the strict shape check, names a code
- * outside the core error set, or the list is empty.
+ * Parse a guard block: `guard { body }`, `guard(on: #X) { body }`, or
+ * `guard(on: list[#X, #Y]) { body }`.
  *
- * Assumes the opening `<` has NOT yet been consumed by the caller; caller
- * decides based on whether the compound lexer token (GUARD_LBRACE /
- * RETRY_LANGLE) was emitted.
- *
- * Grammar: `<` `on` `:` ( atom | `list[` atom (`,` atom)* `]` ) `>`
- */
-function parseOnOptionList(
-  parser: Parser,
-  start: { line: number; column: number; offset: number }
-): OnCodeListResult {
-  // Opening `<` already consumed for GUARD (bare) path; we consume `on:`.
-  skipNewlines(parser.state);
-  if (
-    !check(parser.state, TOKEN_TYPES.IDENTIFIER) ||
-    current(parser.state).value !== 'on'
-  ) {
-    throw new ParseError(
-      ERROR_IDS.RILL_P004,
-      "Expected 'on:' inside guard/retry option list",
-      current(parser.state).span.start
-    );
-  }
-  advance(parser.state); // consume 'on'
-  expect(parser.state, TOKEN_TYPES.COLON, "Expected ':' after 'on'");
-  skipNewlines(parser.state);
-
-  const codes: AtomLiteralNode[] = [];
-  let hadInvalid = false;
-  let invalidMessage = '';
-
-  const collectAtom = (token: {
-    value: string;
-    span: AtomLiteralNode['span'];
-  }): void => {
-    if (!ERROR_CODE_NAMES.includes(token.value)) {
-      hadInvalid = true;
-      invalidMessage = `'#${token.value}' is not a core error code`;
-    } else {
-      codes.push({ type: 'AtomLiteral', name: token.value, span: token.span });
-    }
-  };
-
-  if (check(parser.state, TOKEN_TYPES.ATOM)) {
-    // Single form: `on: #CODE`
-    collectAtom(advance(parser.state));
-  } else if (check(parser.state, TOKEN_TYPES.LIST_LBRACKET)) {
-    // List form: the compound `list[` lexer token (no whitespace between
-    // keyword and bracket); bare `[` is not accepted.
-    advance(parser.state); // consume list[
-    skipNewlines(parser.state);
-
-    let entryCount = 0;
-    while (!check(parser.state, TOKEN_TYPES.RBRACKET)) {
-      if (check(parser.state, TOKEN_TYPES.EOF)) {
-        throw new ParseError(
-          ERROR_IDS.RILL_P005,
-          "Expected ']' to close on: option list",
-          current(parser.state).span.start
-        );
-      }
-      if (!check(parser.state, TOKEN_TYPES.ATOM)) {
-        throw new ParseError(
-          ERROR_IDS.RILL_P004,
-          'on: option list entries must be atom literals (e.g. #NAME)',
-          current(parser.state).span.start
-        );
-      }
-      collectAtom(advance(parser.state));
-      entryCount++;
-      skipNewlines(parser.state);
-      if (check(parser.state, TOKEN_TYPES.COMMA)) {
-        advance(parser.state);
-        skipNewlines(parser.state);
-      } else {
-        break;
-      }
-    }
-
-    expect(
-      parser.state,
-      TOKEN_TYPES.RBRACKET,
-      "Expected ']' to close on: option list",
-      ERROR_IDS.RILL_P005
-    );
-
-    if (entryCount === 0) {
-      hadInvalid = true;
-      invalidMessage =
-        'on: list[] is empty; write guard { ... } to catch every catchable halt';
-    }
-  } else {
-    throw new ParseError(
-      ERROR_IDS.RILL_P004,
-      "Expected '#CODE' or 'list[' after 'on:'",
-      current(parser.state).span.start
-    );
-  }
-
-  skipNewlines(parser.state);
-  const rangle = expect(
-    parser.state,
-    TOKEN_TYPES.GT,
-    "Expected '>' to close option list",
-    ERROR_IDS.RILL_P005
-  );
-
-  if (hadInvalid) {
-    const invalidEnd = rangle.span.end;
-    // Record the error on the parser's error collection so
-    // parseWithRecovery reports success: false for shape-invalid atoms.
-    // Without this push, parser.errors remains empty and the
-    // caller incorrectly reports a successful parse despite a
-    // RecoveryErrorNode in the AST.
-    reportError(parser.state, ERROR_IDS.RILL_P004, invalidMessage, start);
-    return {
-      kind: 'invalid',
-      node: {
-        type: 'RecoveryError',
-        message: invalidMessage,
-        text: parser.state.source.slice(start.offset, invalidEnd.offset),
-        span: makeSpan(start, invalidEnd),
-      },
-    };
-  }
-
-  return { kind: 'ok', codes };
-}
-
-/**
- * Parse a guard block: `guard { body }`, `guard<on: #X> { body }`, or
- * `guard<on: list[#X, #Y]> { body }`.
- *
- * Enters with current token being GUARD_LBRACE (compound, no option list)
- * or GUARD (bare keyword, option list follows). Returns a RecoveryErrorNode
- * if any atom in the option list fails the strict shape check.
+ * Enters with current token being GUARD_LBRACE (compound, no options) or
+ * GUARD (bare keyword; a parenthesized option list may follow).
  */
 Parser.prototype.parseGuardBlock = function (
   this: Parser
 ): GuardBlockNode | RecoveryErrorNode {
   const start = current(this.state).span.start;
 
-  // Form 1: `guard{` — the compound token already consumed the `{`, so
-  // parse the block statements directly. The body starts at the `{`, which
-  // is the last character of the token.
+  // `guard{` — the compound token already consumed the `{`, so parse the
+  // block statements directly. The body starts at the `{`, which is the last
+  // character of the token.
   if (check(this.state, TOKEN_TYPES.GUARD_LBRACE)) {
     const tokenEnd = advance(this.state).span.end;
     const braceStart = {
@@ -911,148 +658,46 @@ Parser.prototype.parseGuardBlock = function (
     return {
       type: 'GuardBlock',
       body,
+      options: null,
       span: makeSpan(start, body.span.end),
     };
   }
 
-  // Form 2a: `guard { body }` — bare GUARD keyword with whitespace
-  // before `{`. The lexer emits GUARD + LBRACE (rather than the
-  // compound GUARD_LBRACE) when any whitespace separates the two.
-  // Treat this as the no-option-list path.
   expect(this.state, TOKEN_TYPES.GUARD, "Expected 'guard'");
-  if (check(this.state, TOKEN_TYPES.LBRACE)) {
-    const body = parseGuardOrRetryBody(this, start);
-    return {
-      type: 'GuardBlock',
-      body,
-      span: makeSpan(start, body.span.end),
-    };
-  }
-  // Form 2b: `guard<...> { body }` — bare GUARD keyword then `<on: ...>`.
-  if (!check(this.state, TOKEN_TYPES.LT)) {
-    throw new ParseError(
-      ERROR_IDS.RILL_P004,
-      "Expected '<on: #X> { body }', '<on: list[#X, ...]> { body }' or 'guard { body }'",
-      current(this.state).span.start
-    );
-  }
-  advance(this.state); // consume `<`
-  const onResult = parseOnOptionList(this, start);
-  if (onResult.kind === 'invalid') {
-    // Still consume the body so recovery leaves the stream in a sane state.
-    if (check(this.state, TOKEN_TYPES.LBRACE)) {
-      this.parseBlock(true);
-    }
-    return onResult.node;
-  }
-
-  const body = parseGuardOrRetryBody(this, start);
+  const options = parseParenOptions(this, 'guard');
+  const invalidOn = checkWrittenOn(this, options, start);
+  if (invalidOn !== null) return invalidOn;
+  const body = parseGuardOrRetryBody(this);
   return {
     type: 'GuardBlock',
     body,
-    onCodes: onResult.codes,
+    options,
     span: makeSpan(start, body.span.end),
   };
 };
 
 /**
- * Parse a retry block: `retry<limit: N> { body }`, `retry<limit: N, on: #X> { body }`, or
- * `retry<limit: N, on: list[#X]> { body }`.
+ * Parse a retry block: `retry(attempts: N) { body }`,
+ * `retry(attempts: N, on: #X) { body }`, or
+ * `retry(attempts: N, on: list[#X]) { body }`.
  *
- * Enters with current token being RETRY_LANGLE (compound) or RETRY (bare).
- * The `limit:` named argument is required; bare `retry<N>` is a parse error.
- * Returns a RecoveryErrorNode when an atom in the on: list fails the strict
- * shape check.
+ * Enters with current token being RETRY. The options are checked against the
+ * `retry` options type when the block runs, so `retry { body }` and
+ * `retry() { body }` parse and halt there.
  */
 Parser.prototype.parseRetryBlock = function (
   this: Parser
 ): RetryBlockNode | RecoveryErrorNode {
   const start = current(this.state).span.start;
-
-  // Both RETRY_LANGLE and RETRY + `<` lead into the same `<N[, on: ...]>`
-  // body. Consume the opener uniformly.
-  if (check(this.state, TOKEN_TYPES.RETRY_LANGLE)) {
-    advance(this.state); // consume retry<
-  } else {
-    expect(this.state, TOKEN_TYPES.RETRY, "Expected 'retry'");
-    if (!check(this.state, TOKEN_TYPES.LT)) {
-      throw new ParseError(
-        ERROR_IDS.RILL_P004,
-        "Expected 'retry<limit: N> { body }', 'retry<limit: N, on: #X> { body }' or 'retry<limit: N, on: list[#X]> { body }'",
-        current(this.state).span.start
-      );
-    }
-    advance(this.state); // consume `<`
-  }
-
-  skipNewlines(this.state);
-  // Require the `limit:` named argument before the integer attempt count.
-  if (
-    !check(this.state, TOKEN_TYPES.IDENTIFIER) ||
-    current(this.state).value !== 'limit'
-  ) {
-    throw new ParseError(
-      ERROR_IDS.RILL_P004,
-      "Expected 'limit:' inside 'retry<...>'",
-      current(this.state).span.start
-    );
-  }
-  advance(this.state); // consume 'limit'
-  expect(
-    this.state,
-    TOKEN_TYPES.COLON,
-    "Expected ':' after 'limit'",
-    ERROR_IDS.RILL_P004
-  );
-  skipNewlines(this.state);
-  // Parse integer attempts.
-  if (!check(this.state, TOKEN_TYPES.NUMBER)) {
-    throw new ParseError(
-      ERROR_IDS.RILL_P004,
-      "Expected integer attempt count inside 'retry<limit: N>'",
-      current(this.state).span.start
-    );
-  }
-  const attemptsToken = advance(this.state);
-  const attempts = Number(attemptsToken.value);
-  if (!Number.isInteger(attempts) || attempts < 1) {
-    throw new ParseError(
-      ERROR_IDS.RILL_P004,
-      `retry<limit: N> attempt count must be a positive integer; got ${attemptsToken.value}`,
-      attemptsToken.span.start
-    );
-  }
-
-  skipNewlines(this.state);
-
-  let onCodes: AtomLiteralNode[] | undefined = undefined;
-
-  if (check(this.state, TOKEN_TYPES.COMMA)) {
-    advance(this.state); // consume `,`
-    const onResult = parseOnOptionList(this, start);
-    if (onResult.kind === 'invalid') {
-      if (check(this.state, TOKEN_TYPES.LBRACE)) {
-        this.parseBlock(true);
-      }
-      return onResult.node;
-    }
-    onCodes = onResult.codes;
-  } else {
-    expect(
-      this.state,
-      TOKEN_TYPES.GT,
-      "Expected '>' to close retry attempt list",
-      ERROR_IDS.RILL_P005
-    );
-  }
-
-  skipNewlines(this.state);
-  const body = parseGuardOrRetryBody(this, start);
+  expect(this.state, TOKEN_TYPES.RETRY, "Expected 'retry'");
+  const options = parseParenOptions(this, 'retry');
+  const invalidOn = checkWrittenOn(this, options, start);
+  if (invalidOn !== null) return invalidOn;
+  const body = parseGuardOrRetryBody(this);
   return {
     type: 'RetryBlock',
-    attempts,
     body,
-    onCodes,
+    options,
     span: makeSpan(start, body.span.end),
   };
 };
@@ -1061,10 +706,7 @@ Parser.prototype.parseRetryBlock = function (
  * Parse the `{ body }` that follows a guard/retry header. Unlike
  * parser-level generic blocks the body is required.
  */
-function parseGuardOrRetryBody(
-  parser: Parser,
-  start: { line: number; column: number; offset: number }
-): BlockNode {
+function parseGuardOrRetryBody(parser: Parser): BlockNode {
   if (!check(parser.state, TOKEN_TYPES.LBRACE)) {
     throw new ParseError(
       ERROR_IDS.RILL_P004,
@@ -1072,7 +714,6 @@ function parseGuardOrRetryBody(
       current(parser.state).span.start
     );
   }
-  void start;
   return parser.parseBlock(false);
 }
 
@@ -1082,25 +723,30 @@ function parseGuardOrRetryBody(
 
 /**
  * Parse a timeout block:
- *   timeout<total: duration, idle: duration> { body }
+ *   timeout(total: duration, idle: duration) { body }
  *
- * Enters with current token being TIMEOUT_LANGLE (compound `timeout<`).
- * Either, both (in any order), or neither key may appear. Option values
- * are primaries; wrap richer expressions in parentheses, e.g.
- * `timeout<total: ($d -> .multiply(2))> { ... }`.
+ * Enters with the cursor on the identifier `timeout`, where atTimeoutBlock
+ * holds. Either, both (in any order), or neither key may appear, and a dict
+ * may be spread in. The options type is checked when the block runs. The body
+ * starts on the line where the options end.
  */
 Parser.prototype.parseTimeoutBlock = function (this: Parser): TimeoutBlockNode {
   const start = current(this.state).span.start;
-  advance(this.state); // consume timeout<
+  advance(this.state); // consume `timeout`
 
-  const options = parseOptionDict(this, 'timeout', ['total', 'idle']);
-
-  skipNewlines(this.state);
+  const options = parseParenOptions(this, 'timeout');
+  if (options === null) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P004,
+      "Expected '(' after 'timeout'",
+      current(this.state).span.start
+    );
+  }
 
   if (!check(this.state, TOKEN_TYPES.LBRACE)) {
     throw new ParseError(
       ERROR_IDS.RILL_P004,
-      "Expected '{ body }' after 'timeout<...>'",
+      "Expected '{ body }' after 'timeout(...)'",
       current(this.state).span.start
     );
   }

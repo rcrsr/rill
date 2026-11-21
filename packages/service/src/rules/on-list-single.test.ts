@@ -9,7 +9,7 @@ function run(source: string): ReturnType<typeof runRules> {
 
 describe('ON_LIST_SINGLE', () => {
   it('fires on guard with a one-element on list', () => {
-    const result = run('guard<on: list[#TIMEOUT]> { $x }\n');
+    const result = run('guard(on: list[#TIMEOUT]) { $x }\n');
 
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
@@ -21,18 +21,29 @@ describe('ON_LIST_SINGLE', () => {
   });
 
   it('fires on retry with a one-element on list', () => {
-    const result = run('retry<limit: 3, on: list[#TIMEOUT]> { $x }\n');
+    const result = run('retry(attempts: 3, on: list[#TIMEOUT]) { $x }\n');
 
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ code: 'ON_LIST_SINGLE' });
   });
 
+  it('fires on a bare bracketed one-element on list', () => {
+    const result = run('guard(on: [#TIMEOUT]) { $x }\n');
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ code: 'ON_LIST_SINGLE' });
+  });
+
+  it('is silent on a spread options dict', () => {
+    expect(run('guard(...$policy) { $x }\n')).toEqual([]);
+  });
+
   it('is silent on the single-atom form', () => {
-    expect(run('guard<on: #TIMEOUT> { $x }\n')).toEqual([]);
+    expect(run('guard(on: #TIMEOUT) { $x }\n')).toEqual([]);
   });
 
   it('is silent on a multi-element list', () => {
-    expect(run('guard<on: list[#TIMEOUT, #TYPE_MISMATCH]> { $x }\n')).toEqual(
+    expect(run('guard(on: list[#TIMEOUT, #TYPE_MISMATCH]) { $x }\n')).toEqual(
       []
     );
   });

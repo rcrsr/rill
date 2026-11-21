@@ -951,7 +951,7 @@ Process nested structures with nested operators.
 
 ## See Also
 
-- [Collection Slicing and Restructuring Operators](topic-collection-slicing.md) — `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `debounce`, `throttle`, `sample`, `pass<>` body form
+- [Collection Slicing and Restructuring Operators](topic-collection-slicing.md) — `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `debounce`, `throttle`, `sample`, `pass` body form
 - [Iterators](topic-iterators.md) — Lazy sequences with `range`, `repeat`, `iterate` (infinite source stream), `.first()`
 - [Reference](ref-language.md) — Complete language specification
 - [Functions and Code Blocks](topic-closures.md) — Function semantics and patterns

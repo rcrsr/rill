@@ -58,7 +58,7 @@ $double(5) => $result
 fn(x: number) { $x * 2 } => $double
 [1, 2, 3] -> destruct<$a, $b, $c>
 dict[name: "Alice"] => $person
-pass<on_error: #IGNORE> {
+pass(ignore_halts: true) {
   $outer -> log
 }
 `;
@@ -82,7 +82,7 @@ pass<on_error: #IGNORE> {
 
   it.each([
     ['pass { 1 => $f }\n$f', 'plain pass'],
-    ['pass<async: true> { 1 => $f }\n$f', 'async pass'],
+    ['pass(async: true) { 1 => $f }\n$f', 'async pass'],
     ['1 -> pass { 2 => $f }\n$f', 'piped pass'],
   ])(
     'keeps a capture inside a pass body out of the scope after it (%#: %s)',

@@ -372,7 +372,7 @@ $ -> /<1:3>  # Error: use slice<1:3>
 
 **Description:** Removed syntax used
 
-**Cause:** Code uses a syntax form that was removed in a previous version.
+**Cause:** Code uses a syntax form that was removed in a previous version, such as a closure literal, a namespaced host call, or the uniform dict(V) and ordered(V) types.
 
 **Resolution:** Migrate to the replacement syntax shown in the error message.
 
@@ -395,8 +395,8 @@ $d.("a")  # Error: use $d["a"], or $d.?["a"] to probe
 # |x: T|:R closure type literal removed
 $f -> :|x: number|:string  # Error: use :fn(x: number):string
 
-# closure type name removed
-$f -> :closure  # Error: use :fn
+# dict(V) uniform value type removed
+dict(number)  # Error: use map(string, number), or name the fields as in dict(a: number)
 ```
 
 ---
@@ -525,6 +525,29 @@ log(1)
 
 # Comment text read as an atom followed by a word
 #TODO fix this later
+```
+
+---
+
+### rill-p025
+
+**Description:** Control statement options in angle brackets
+
+**Cause:** A control statement (guard, retry, timeout, pass, or the loop 'do') has its options written between '<' and '>'. These keywords take their options as a dict in parentheses after the keyword. Angle brackets are reserved for 'slice<...>', 'destruct<...>', and 'use<...>'.
+
+**Resolution:** Write the options in parentheses: 'retry(attempts: 3)', 'guard(on: #TIMEOUT)', 'timeout(total: $d)', 'pass(async: true)', 'do(limit: 100)'. The retry bound 'limit' is now 'attempts'. The pass option that took #IGNORE is now 'ignore_halts: true'.
+
+**Example:**
+
+```text
+# Retry options in angle brackets
+retry<limit: 3> { 1 }
+
+# Pass option in angle brackets
+pass<async: true> { 1 }
+
+# After (parenthesized options)
+retry(attempts: 3) { 1 }
 ```
 
 ---
@@ -2014,7 +2037,7 @@ list[1, 2] -> tuple
 
 **Cause:** The parser encountered the legacy pre-loop '@' operator. The 'while (cond) do { body }' syntax is now the canonical while-loop form.
 
-**Resolution:** Replace '(cond) @ { body }' with 'while (cond) do { body }'. For annotated loops, use 'do<limit: N> { body } while (cond)'.
+**Resolution:** Replace '(cond) @ { body }' with 'while (cond) do { body }'. For bounded loops, use 'do(limit: N) { body } while (cond)'.
 
 **Example:**
 
@@ -2052,9 +2075,9 @@ list[1, 2] -> tuple
 
 **Description:** Legacy ^(limit:) loop annotation syntax
 
-**Cause:** The parser encountered the legacy '^(limit: N)' annotation form for loop limits. The 'do<limit: N>' construct option is now the canonical syntax.
+**Cause:** The parser encountered the legacy '^(limit: N)' annotation form for loop limits. The 'do(limit: N)' construct option is now the canonical syntax.
 
-**Resolution:** Replace '^(limit: N) @ { body }' with 'do<limit: N> { body } while (cond)' or 'while (cond) do<limit: N> { body }'.
+**Resolution:** Replace '^(limit: N) @ { body }' with 'do(limit: N) { body } while (cond)' or 'while (cond) do(limit: N) { body }'.
 
 **Example:**
 
@@ -2063,7 +2086,7 @@ list[1, 2] -> tuple
 0 -> ^(limit: 10) @ { $ + 1 } ? ($ < 3)
 
 # After (current syntax)
-0 -> do<limit: 10> { $ + 1 } while ($ < 3)
+0 -> do(limit: 10) { $ + 1 } while ($ < 3)
 ```
 
 ---
@@ -2072,15 +2095,15 @@ list[1, 2] -> tuple
 
 **Description:** Total wall-time timeout exceeded
 
-**Cause:** The timeout<total: duration> block body did not complete within the wall-time bound.
+**Cause:** The timeout(total: duration) block body did not complete within the wall-time bound.
 
-**Resolution:** Recover via guard { timeout<total: d> { body } } ?? fallback. Increase duration or optimize body.
+**Resolution:** Recover via guard { timeout(total: d) { body } } ?? fallback. Increase duration or optimize body.
 
 **Example:**
 
 ```text
 # Total timeout with guard recovery
-guard { timeout<total: duration("500ms")> { $app.slow() } } ?? "fallback"
+guard { timeout(total: duration("500ms")) { $app.slow() } } ?? "fallback"
 ```
 
 ---
@@ -2089,15 +2112,15 @@ guard { timeout<total: duration("500ms")> { $app.slow() } } ?? "fallback"
 
 **Description:** Idle inactivity timeout exceeded
 
-**Cause:** The timeout<idle: duration> block saw no stream chunk and no host call return within the idle bound.
+**Cause:** The timeout(idle: duration) block saw no stream chunk and no host call return within the idle bound.
 
-**Resolution:** Recover via guard { timeout<idle: d> { body } } ?? fallback. Increase the idle duration, or make the body read stream chunks or call the host more often.
+**Resolution:** Recover via guard { timeout(idle: d) { body } } ?? fallback. Increase the idle duration, or make the body read stream chunks or call the host more often.
 
 **Example:**
 
 ```text
 # Idle timeout with guard recovery
-guard { timeout<idle: duration("200ms")> { $stream } } ?? "fallback"
+guard { timeout(idle: duration("200ms")) { $stream } } ?? "fallback"
 ```
 
 ---

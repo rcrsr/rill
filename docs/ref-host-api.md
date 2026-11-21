@@ -899,7 +899,7 @@ Registration throws `RuntimeError` with `RILL-R091` in these cases:
 | Tuple default is not trailing | `Invalid signature for function '{name}': tuple() default values must be trailing: element at position {n} has no default but a preceding element does at {line}:{col}` |
 | Default or annotation value interpolates or reads a variable | `Invalid signature for function '{name}': string interpolation is not allowed here; a signature holds constant literals only at {line}:{col}`; a `$` default reads `Expected literal, got: $ at {line}:{col}`, and a `$` annotation value reads `a Variable expression is not allowed here; a signature holds constant literals only at {line}:{col}` |
 | Union is empty, lists a member twice, or has a compound literal member | `Invalid signature for function '{name}': union requires at least one member at {line}:{col}`; a repeat reads `union lists string more than once`; a compound literal reads `union member must be a type or a string, number, bool, or atom literal at {line}:{col}` |
-| Element or value type carries a default: list element, uniform dict or ordered value, stream chunk or return | `Invalid signature for function '{name}': list element type cannot carry a default at {line}:{col}`; a dict or ordered value reads `dict value type cannot carry a default` or `ordered value type cannot carry a default`; a stream reads `stream chunk type cannot carry a default` or `stream return type cannot carry a default` |
+| Element or value type carries a default: list element, stream chunk or return | `Invalid signature for function '{name}': list element type cannot carry a default at {line}:{col}`; a stream reads `stream chunk type cannot carry a default` or `stream return type cannot carry a default` |
 | Tuple element is named | `Invalid signature for function '{name}': tuple() requires positional arguments at {line}:{col}`, as in `tuple(a: number)` |
 | Parameter default does not match its type | `Invalid signature for function '{name}': Default value for parameter 'n' must be number, got string at {line}:{col}` |
 
@@ -1053,7 +1053,7 @@ Manifest names are quoted and escaped, so a name that is not an identifier still
 
 ## TimeoutScheduler
 
-`TimeoutScheduler` is the type of the `scheduler` option on `createRuntimeContext()`. It replaces the global timer functions for `timeout<total:>` and `timeout<idle:>` blocks and for the per-call `timeout` option, so a test can drive them from fake timers.
+`TimeoutScheduler` is the type of the `scheduler` option on `createRuntimeContext()`. It replaces the global timer functions for `timeout(total: ...)` and `timeout(idle: ...)` blocks and for the per-call `timeout` option, so a test can drive them from fake timers.
 
 ```typescript
 interface TimeoutScheduler {

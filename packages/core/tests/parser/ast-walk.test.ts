@@ -215,11 +215,14 @@ $d.?a&string
 1 -> ($ > 0) ? pass ! pass
 0 -> while ($ < 3) do { $ + 1 }
 0 -> do { $ + 1 } while ($ < 3)
+0 -> while ($ < 3) do(limit: 5) { $ + 1 }
+0 -> do(limit: 5) { $ + 1 } while ($ < 3)
 1 -> assert true "msg"
 guard { 1 } => $gd
-retry<limit: 2> { 1 } => $rt
+guard(on: #TIMEOUT) { 1 } => $gd2
+retry(attempts: 2, on: list[#TIMEOUT]) { 1 } => $rt
 1 -> pass { 2 }
-1 -> pass<on_error: #IGNORE> { 2 }
+1 -> pass(ignore_halts: true) { 2 }
 1 -> :number
 1 -> :?number
 1 -> number
@@ -239,7 +242,7 @@ fn(x):stream() { $x -> yield } => $y
 list[1, 2] -> seq({ $ -> break })
 fn(q) { $q -> return } => $rr
 error "boom"
-timeout<total: duration("500ms")> { 1 }
+timeout(total: duration("500ms")) { 1 }
 $f(...$d)
 `;
 
@@ -256,6 +259,23 @@ describe('walkAst', () => {
 
     expect(visited.size).toBeGreaterThan(0);
     expect(visited).toEqual(oracle);
+  });
+
+  it.each([
+    ['guard', 'guard(on: #TIMEOUT) { 1 }'],
+    ['retry', 'retry(attempts: 2) { 1 }'],
+    ['timeout', 'timeout(total: duration("1s")) { 1 }'],
+    ['pass', '1 -> pass(async: true) { 1 }'],
+    ['while-do', '0 -> while ($ < 3) do(limit: 5) { $ + 1 }'],
+    ['do-while', '0 -> do(limit: 5) { $ + 1 } while ($ < 3)'],
+  ])('visits the %s options dict before its body', (_keyword, source) => {
+    const order: string[] = [];
+    walkAst(parse(source), (node) => {
+      if (node.type === 'Dict' || node.type === 'Block') order.push(node.type);
+    });
+    const firstDict = order.indexOf('Dict');
+    expect(firstDict).toBeGreaterThanOrEqual(0);
+    expect(firstDict).toBeLessThan(order.indexOf('Block'));
   });
 
   it('visits the LiteralNode default nested inside a typed fn param parameterized type', () => {

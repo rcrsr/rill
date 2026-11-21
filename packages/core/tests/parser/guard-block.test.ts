@@ -71,24 +71,52 @@ describe('guard{ compound token', () => {
 
 describe('keyword blocks with an option list and no space before {', () => {
   it.each([
-    ['retry<limit: 2>{ 1 }'],
-    ['guard<on: list[#RILL_R005]>{ 1 }'],
-    ['guard<on: #RILL_R005>{ 1 }'],
-    ['retry<limit: 2, on: #TIMEOUT>{ 1 }'],
-    ['pass<on_error: #IGNORE>{ 1 }'],
-    ['timeout<total: duration("1d")>{ 1 }'],
-    ['do<limit: 3>{ 1 } while ($ < 0)'],
+    ['retry(attempts: 2){ 1 }'],
+    ['guard(on: list[#RILL_R005]){ 1 }'],
+    ['guard(on: #RILL_R005){ 1 }'],
+    ['retry(attempts: 2, on: #TIMEOUT){ 1 }'],
+    ['pass(ignore_halts: true){ 1 }'],
+    ['timeout(total: duration("1d")){ 1 }'],
+    ['do(limit: 3){ 1 } while ($ < 0)'],
   ])('parses %j', (src) => {
     expect(() => parse(src)).not.toThrow();
   });
 });
 
-describe('on: option validation', () => {
-  it.each([
-    ['guard<on: list[]>{ 1 }'],
-    ['guard<on: #NOT_A_CODE>{ 1 }'],
-    ['guard<on: 5>{ 1 }'],
-  ])('rejects %j with RILL-P004', (src) => {
-    expect(parseErrorId(src)).toBe('RILL-P004');
+describe('options on the guard and retry nodes', () => {
+  it('holds no options for guard { }', () => {
+    expect(parseGuard('guard { 1 }').options).toBeNull();
+    expect(parseGuard('guard{ 1 }').options).toBeNull();
   });
+
+  it('holds the written options dict for guard(on: ...)', () => {
+    const node = parseGuard('guard(on: #TIMEOUT) { 1 }');
+    expect(node.options?.entries.map((entry) => entry.key)).toEqual(['on']);
+  });
+
+  it('holds the written options dict for retry, in written order', () => {
+    const primary = getFirstPrimary(
+      parse('retry(on: #TIMEOUT, attempts: 2) { 1 }')
+    );
+    if (primary.type !== 'RetryBlock') throw new Error('expected RetryBlock');
+    expect(primary.options?.entries.map((entry) => entry.key)).toEqual([
+      'on',
+      'attempts',
+    ]);
+  });
+
+  it('keeps a spread as an entry of the options dict', () => {
+    const node = parseGuard('guard(...$p) { 1 }');
+    expect(node.options?.entries).toHaveLength(1);
+    expect(node.options?.entries[0]?.key).toBe('...');
+  });
+});
+
+describe('on: option validation', () => {
+  it.each([['guard(on: list[]){ 1 }'], ['guard(on: #NOT_A_CODE){ 1 }']])(
+    'rejects %j with RILL-P004',
+    (src) => {
+      expect(parseErrorId(src)).toBe('RILL-P004');
+    }
+  );
 });

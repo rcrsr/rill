@@ -909,16 +909,18 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
 // ============================================================
 
 /**
- * A comma immediately followed by the closing bracket is a trailing comma.
- * The grammar allows none, in literals, calls, or parameter lists alike.
+ * A comma immediately followed by the closing token is a trailing comma.
+ * The grammar allows none, in literals, calls, parameter lists, or control
+ * statement options alike. `closer` is the closing bracket, `]` by default.
  * @internal
  */
 export function rejectTrailingComma(
   state: ParserState,
   comma: Token,
-  collectionType: string
+  collectionType: string,
+  closer: string = TOKEN_TYPES.RBRACKET
 ): void {
-  if (check(state, TOKEN_TYPES.RBRACKET)) {
+  if (check(state, closer)) {
     throw new ParseError(
       ERROR_IDS.RILL_P004,
       `trailing comma is not allowed in ${collectionType} literal`,
@@ -933,7 +935,7 @@ export function rejectTrailingComma(
  * `parseCollectionLiteral` uses for ordered spread) or a `key: value` pair.
  * @internal
  */
-function parseDictEntryOrSpread(parser: Parser): DictEntryNode {
+export function parseDictEntryOrSpread(parser: Parser): DictEntryNode {
   if (check(parser.state, TOKEN_TYPES.ELLIPSIS)) {
     const { spreadStart, expression } = parseSpreadOperand(parser);
     return {
@@ -980,15 +982,16 @@ function parseSpreadOperand(parser: Parser): {
 
 /**
  * Raise RILL-P027 when an identifier, string, number, or boolean key repeats
- * within one dict or ordered literal. Number and boolean keys are already
- * stored as the string of their source spelling, so all four forms compare
- * as strings. Spread, variable, computed, and multi-key entries carry no
- * keyForm and are never checked.
+ * within one dict, ordered literal, or control statement option list. Number
+ * and boolean keys are already stored as the string of their source spelling,
+ * so all four forms compare as strings. Spread, variable, computed, and
+ * multi-key entries carry no keyForm and are never checked.
+ * @internal
  */
-function rejectDuplicateKey(
+export function rejectDuplicateKey(
   seenKeys: Set<string>,
   entry: DictEntryNode,
-  collection: 'dict' | 'ordered'
+  collection: string
 ): void {
   if (entry.keyForm === undefined || typeof entry.key !== 'string') return;
   rejectRepeatedKey(seenKeys, entry.key, entry.span.start, collection);

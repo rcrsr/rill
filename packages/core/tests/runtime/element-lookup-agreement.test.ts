@@ -136,16 +136,6 @@ const HITS: readonly Hit[] = [
     type: U,
   },
   {
-    label: 'dict field under a uniform value type',
-    setup: `dict[a: 1, b: 2] => $c:dict(${U})`,
-    key: '"b"',
-    name: 'b',
-    pattern: 'b: $v',
-    forms: [...NAMED, 'pipe selection', 'hierarchical', 'destructure'],
-    value: 2,
-    type: U,
-  },
-  {
     label: 'ordered entry by name',
     setup: `ordered[a: 1, b: "x"] => $c:ordered(a: number, b: ${U})`,
     key: '"b"',
@@ -244,7 +234,7 @@ const HITS: readonly Hit[] = [
   },
   {
     label: 'dict number-spelled key',
-    setup: `dict[1: "x"] => $c:dict(${U})`,
+    setup: `dict[1: "x"] => $c:dict(1: ${U})`,
     key: '"1"',
     name: '',
     forms: ['variable key', 'bracket', 'pipe selection'],
@@ -253,7 +243,7 @@ const HITS: readonly Hit[] = [
   },
   {
     label: 'dict bool-spelled key',
-    setup: `dict[true: "x"] => $c:dict(${U})`,
+    setup: `dict[true: "x"] => $c:dict(true: ${U})`,
     key: '"true"',
     name: '',
     forms: ['variable key', 'bracket', 'pipe selection'],

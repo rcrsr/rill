@@ -2056,7 +2056,7 @@ describe('Host function return-value validation (RILL-R085)', () => {
 
     it('retry does not intercept the halt — it propagates to the caller', async () => {
       await expect(
-        run('retry<limit: 2> { badFn() } => $r\n$r', {
+        run('retry(attempts: 2) { badFn() } => $r\n$r', {
           functions: { badFn: badFn(() => {}) },
         })
       ).rejects.toHaveProperty('errorId', 'RILL-R085');

@@ -1,7 +1,7 @@
 /**
  * The built-in `error_code` type: the closed set of error codes a halt or
  * `ctx.invalidate` may carry, written as a union of one atom literal per
- * code. `#ok` and `#IGNORE` are not members.
+ * code. `#ok` is not a member.
  *
  * Imports only leaf modules so the registrations and union modules can
  * depend on this one without a cycle.

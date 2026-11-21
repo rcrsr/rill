@@ -81,7 +81,6 @@ import {
 } from '../../types/halt.js';
 import { ControlSignal } from '../../signals.js';
 import {
-  isAtom,
   isMapKey,
   isOrdered,
   orderedValueEntries,
@@ -105,6 +104,7 @@ import {
   evaluatePipeChain,
 } from './core.js';
 import { evaluateAnnotations } from './annotations.js';
+import { evaluateConstructOptions } from './construct-options.js';
 import { invokeCallable } from './closures.js';
 import { resolveSelected } from './code-block.js';
 import { rejectHeldEntries } from '../../types/held-block.js';
@@ -179,17 +179,17 @@ export async function evaluatePass(
 /**
  * Evaluate pass block node — non-halting side-effect.
  *
- * Runs `body` in the current context. Reads `on_error` from `options`;
- * when it equals `#IGNORE`, catchable halts from the body are suppressed
- * and the original pipe value is returned unchanged.
+ * Runs `body` in the current context. When the `ignore_halts` option is
+ * `true`, catchable halts from the body are suppressed and the original pipe
+ * value is returned unchanged.
  *
  * When `async: true` is present in options, the body is dispatched via
  * `trackInflight` without awaiting (fire-and-forget). The pipe-entry value
  * flows downstream immediately; the body return value is discarded.
- * `on_error: #IGNORE` composes with `async: true`: the registered promise
+ * `ignore_halts: true` composes with `async: true`: the registered promise
  * suppresses catchable body halts when both options are set.
  *
- * Without `on_error: #IGNORE`, a body halt in the async path is not
+ * Without `ignore_halts: true`, a body halt in the async path is not
  * awaited by any caller, so it is tagged (`markDeferredHalt`) before it
  * reaches `trackInflight` and surfaces at `dispose()` time via the log
  * callbacks rather than being swallowed. Non-catchable `error`/`assert`
@@ -209,30 +209,9 @@ export async function evaluatePassBlock(
   // Capture pipe value at entry — returned unchanged regardless of body outcome.
   const pipeBefore = s.ctx.pipeValue;
 
-  // Evaluate options dict to determine suppression and async dispatch mode.
-  const opts = await evaluateDict(s, node.options);
-
-  const onErrorValue = opts['on_error'];
-  const suppress =
-    onErrorValue !== undefined &&
-    isAtom(onErrorValue) &&
-    onErrorValue.atom.name === 'IGNORE';
-
-  // Read async option. Parser enforces BoolLiteral; runtime defends
-  // against non-bool at evaluation time [RILL_R003].
-  const asyncValue = opts['async'];
-  if (asyncValue !== undefined && typeof asyncValue !== 'boolean') {
-    throwCatchableHostHalt(
-      {
-        location: getNodeLocation(s, node),
-        sourceId: s.ctx.sourceId,
-        fn: 'evaluatePassBlock',
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
-      `pass<async:> value must be a bool, got ${typeof asyncValue}`
-    );
-  }
-  const isAsync = asyncValue === true;
+  // Evaluate options to determine suppression and async dispatch mode.
+  const { ignoreHalts: suppress, async: isAsync } =
+    await evaluateConstructOptions(s, 'pass', node.options, node);
 
   // Body execution logic shared between sync and async paths.
   // Returns a promise that resolves on body completion or rejects with a
@@ -246,7 +225,7 @@ export async function evaluatePassBlock(
         if (e instanceof ControlSignal) throw e;
         // Non-catchable halts always re-throw.
         if (e instanceof RuntimeHaltSignal && !e.catchable) throw e;
-        // Catchable halt: suppress only when on_error: #IGNORE.
+        // Catchable halt: suppress only when ignore_halts is true.
         if (e instanceof RuntimeHaltSignal && suppress) {
           // Suppressed — body error discarded.
           return;
@@ -270,10 +249,10 @@ export async function evaluatePassBlock(
     const asyncEvaluator: EvalState = getEvalState(asyncCtx);
     // Fire-and-forget: nobody awaits this promise, so a body halt would
     // otherwise be swallowed by trackInflight. Tag any non-suppressed
-    // rejection (catchable halt without on_error: #IGNORE, or any
+    // rejection (catchable halt without ignore_halts: true, or any
     // non-catchable error/assert halt) so dispose() surfaces it via the
-    // log callbacks — as documented for pass<async: true>. Suppressed
-    // halts (on_error: #IGNORE) resolve in runBody and never reject, so
+    // log callbacks — as documented for pass(async: true). Suppressed
+    // halts (ignore_halts: true) resolve in runBody and never reject, so
     // they are correctly never surfaced.
     const surfacing = runBody(asyncEvaluator).catch((e: unknown): never => {
       throw markDeferredHalt(e);
@@ -287,9 +266,9 @@ export async function evaluatePassBlock(
 
   // Restore pipe value (body execution may have mutated ctx.pipeValue).
   s.ctx.pipeValue = pipeBefore;
-  // pipe-optional semantics: pass<> treats an unbound pipe (null) as ''.
+  // pipe-optional semantics: a pass block treats an unbound pipe (null) as ''.
   // This intentionally deviates from evaluatePass (bare `pass`), which throws
-  // RILL_R005 when $ is not bound. pass<> is designed for use outside a pipe
+  // RILL_R005 when $ is not bound. A pass block is designed for use outside a pipe
   // chain, so returning '' is the correct fallback rather than halting.
   return pipeBefore ?? '';
 }

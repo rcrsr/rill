@@ -113,7 +113,7 @@ statement     = [ annotation ] , ( pipe-chain | assert-statement | error-stateme
               (* pipe-chain includes optional terminator: capture | "break" | "return" *)
 
 (* Annotations: ^(key: value, ...) placed at statement or expression level to attach metadata.
-   Loop iteration limits use the do<limit: N> construct option, not annotations.
+   Loop iteration limits use the do(limit: N) construct option, not annotations.
    annotation    = "^" , "(" , [ annotation-arg , { "," , annotation-arg } ] , ")" ;
    annotation-arg = identifier , ":" , literal ;
 *)
@@ -234,13 +234,13 @@ primary       = declaration
               | host-call
               | conditional
               | loop
-              | guard-block         (* guard { body } / guard<on: #X> { body } / guard<on: list[#X, #Y]> { body } *)
-              | retry-block         (* retry<limit: N> { body } / retry<limit: N, on: #X> { body } / retry<limit: N, on: list[#X, #Y]> { body } *)
-              | timeout-block       (* timeout<total: duration, idle: duration> { body } — both options optional, any order *)
+              | guard-block         (* guard { body } / guard(on: #X) { body } / guard(on: list[#X, #Y]) { body } *)
+              | retry-block         (* retry(attempts: N) { body } / retry(attempts: N, on: #X) { body } / retry(attempts: N, on: list[#X, #Y]) { body } *)
+              | timeout-block       (* timeout(total: duration, idle: duration) { body } — both options optional, any order *)
               | block
               | grouped-expr
               | annotated-expr      (* ^(key: val) expr — annotation on expression *)
-              | pass-block          (* pass<on_error: #IGNORE> { body } / pass<async: bool> { body } *)
+              | pass-block          (* pass(ignore_halts: true) { body } / pass(async: true) { body } *)
               | pass ;
 
 (* Atom literal: a symbolic constant introduced with "#".
@@ -276,40 +276,73 @@ atom-literal  = "#" , identifier ;
    throws RILL-R005: Variable '$' not defined *)
 pass          = "pass" ;
 
-(* Pass with options: non-halting side-effect block.
+(* Control statement options: one parenthesized dict shared by guard, retry,
+   timeout, pass, and the loop keyword "do".
+
+   The options are a dict written in parentheses between the keyword and the
+   body. An entry is a dict entry or a spread, in any order, and each value is
+   an expression. Empty parentheses are legal for every keyword. A space may
+   separate the keyword from "(".
+
+   Parse-time rules:
+     - The removed angle-bracket form, keyword<...>, is RILL-P025.
+     - A written option key that repeats is RILL-P027.
+     - "limit" of a loop and "attempts" of retry must be a positive integer
+       literal (RILL-P004).
+     - A spread in the options of retry, do, or while-do is RILL-P004, as is a
+       variable, computed, or multi-key entry in them.
+     - A written "on" atom outside the core error set, or a written
+       "on: list[]", is RILL-P004.
+   Run-time rules:
+     - The dict is checked against the keyword's options type; an unknown
+       option, a missing required option, or a wrong value type halts
+       #TYPE_MISMATCH.
+     - A spread field or computed key that repeats another key halts
+       #INVALID_INPUT, and a spread of a non-dict halts RILL-R002.
+
+   Options by keyword:
+     guard     on: #CODE | list[#CODE, ...]                 (optional)
+     retry     attempts: positive integer, on: ...          (attempts required)
+     timeout   total: duration, idle: duration              (each optional)
+     pass      ignore_halts: bool, async: bool              (each optional)
+     do        limit: positive integer                      (optional)
+
+   Examples:
+     guard(on: #TIMEOUT) { body }
+     retry(attempts: 3, on: list[#TIMEOUT, #UNAVAILABLE]) { body }
+     timeout(total: duration("5s"), idle: duration("200ms")) { body }
+     expr -> pass(ignore_halts: true) { body }
+     0 -> while ($ < 50) do(limit: 100) { $ + 1 } *)
+
+construct-options = "(" , [ dict-element , { "," , dict-element } ] , ")" ;
+positive-integer  = nonzero-digit , { digit } ;
+              (* The literal form "limit" and "attempts" accept: no zero, decimal,
+                 or negative number (RILL-P004). *)
+
+(* Pass with options: with a body it
+   is a non-halting side-effect block.
    Pipe value ($) flows through unchanged regardless of body outcome.
-   Only recognized option key: on_error: #IGNORE (suppresses catchable halts in body).
-   Unknown option keys produce a parse error (RILL-P004).
 
-   Syntax:
-     expr -> pass<on_error: #IGNORE> { body }   -- execute body, propagate $ if body errors
+   ignore_halts: true
+     - Catchable halts inside the body are discarded; the pipe value propagates.
+   async: true
+     - Fire-and-forget: the body is dispatched without blocking, the pipe value
+       flows through immediately, and the body return value is discarded.
 
-   Semantic: body executes with $ bound to the pipe value. When on_error: #IGNORE is set,
-   catchable halts inside body are silently discarded. The pipe value always propagates.
+   pass-block is a primary expression. It participates in pipe chains:
+     value -> pass(ignore_halts: true) { log($) } -> next-step *)
 
-   Disambiguation: pass<> (with angle brackets) is distinct from bare "pass". The lexer
-   distinguishes on the character following "pass": "<" starts pass_block, anything else
-   starts the bare pass production. *)
-
-pass-block    = "pass" , "<" , pass-option-list , ">" , block ;
-              (* pass-block is a primary expression. It participates in pipe chains:
-                 value -> pass<on_error: #IGNORE> { log($) } -> next-step *)
-
-pass-option-list = pass-option , { "," , pass-option } ;
-pass-option      = identifier , ":" , ( atom-literal | literal ) ;
-              (* Recognized option keys:
-                 "on_error: #IGNORE"  — suppress catchable halts in body.
-                 "async: true"        — fire-and-forget: dispatch body without blocking;
-                                        pipe value flows through immediately; body return
-                                        value is discarded. Body promise is tracked via
-                                        trackInflight.
-                 "async" and "on_error" may appear together in any order.
-                 Unknown keys are rejected at parse time (RILL-P004). *)
+pass-block    = "pass" , construct-options , block ;
 
 (* Timeout block: scoped wall-time and/or idle-inactivity limit.
-   Both options are optional, unordered, and may appear at most once each.
-   A repeated or unknown key is a parse error (RILL-P004). timeout<> with
-   neither limit arms nothing; the checker reports it as TIMEOUT_TRIVIAL.
+   Both options are optional and unordered. timeout() with neither limit arms
+   nothing; the checker reports it as TIMEOUT_TRIVIAL.
+
+   "timeout" is no reserved word. It opens a block when the identifier is
+   followed by "(" and either the first entry is "key:" or the matching ")" is
+   followed on the same line by "{". Any other timeout stays an ordinary name,
+   so a host function may carry it. timeout< with the "<" touching the keyword
+   is RILL-P025.
 
    total: duration
      - Starts a countdown from block entry.
@@ -328,19 +361,14 @@ pass-option      = identifier , ":" , ( atom-literal | literal ) ;
    chained to ctx.signal. The innermost expiry fires first; the outer block
    continues only if the inner block's body completes before the outer timer.
 
-   Examples:
-     timeout<total: duration("500ms")> { $app.slow() }
-     timeout<total: duration("5s"), idle: duration("200ms")> { $stream -> seq({ $ }) }
-     guard { timeout<total: duration("500ms")> { $app.slow() } } ?? "timed out" *)
+   A non-duration value halts #TYPE_MISMATCH.
 
-timeout-block = "timeout" , "<" , [ timeout-option , [ "," , timeout-option ] ] , ">" , block ;
-timeout-option = ( "total" | "idle" ) , ":" , expression ;
-              (* Each key appears at most once. The expression is a primary, so wrap
-                 richer expressions in parentheses. It must evaluate to a duration value
-                 at runtime; a non-duration value produces a catchable `#INVALID_INPUT` halt.
-                 Examples:
-                   timeout<total: duration("500ms")>
-                   timeout<idle: duration("200ms")> *)
+   Examples:
+     timeout(total: duration("500ms")) { $app.slow() }
+     timeout(total: duration("5s"), idle: duration("200ms")) { $stream -> seq({ $ }) }
+     guard { timeout(total: duration("500ms")) { $app.slow() } } ?? "timed out" *)
+
+timeout-block = "timeout" , construct-options , block ;
 
 (* Annotated expression: attach metadata to any primary expression.
    ^(key: value, ...) expression
@@ -773,8 +801,8 @@ pipe-target   = host-call       (* $ -> greet("world") — call with explicit ar
               | assert-statement   (* $ -> assert ($ > 0) "positive" — assert with optional message *)
               | pipe-error         (* 42 -> error "msg" or 42 -> error — message optional *)
               | use-expr           (* $ -> use<scheme:resource> — resolver import *)
-              | pass-block         (* $ -> pass<on_error: #IGNORE> { body } *)
-              | timeout-block      (* $ -> timeout<total: duration("5s")> { body } *)
+              | pass-block         (* $ -> pass(ignore_halts: true) { body } *)
+              | timeout-block      (* $ -> timeout(total: duration("5s")) { body } *)
               | "pass" , block     (* $ -> pass { body } — bare pass without a block halts RILL-P004 *)
               | existence-check    (* $x -> .?field — presence probe on $ *)
               | declaration        (* $ -> list(T)[...] — only list, dict and string values are legal; number, bool, atom, tuple and ordered values halt RILL-P001 *)
@@ -949,7 +977,6 @@ type-name     = "string" | "number" | "bool" | "fn"
    Examples:
      string                          -- single type
      list(number)                    -- parameterized type
-     dict(number)                    -- uniform value type (all values same type)
      list()                          -- unspecified element type, same as list(any)
      stream(string):number           -- chunk type and outer (resolution) type
      union(string, number)           -- union of two types
@@ -1041,9 +1068,8 @@ field-arg        = [ annotation ] , field-key , ":" , type-ref , [ "=" , literal
    tuple(number, string, bool)     -- positional tuple type
    ordered(x: number, y: string)   -- ordered container type
 
-   Uniform value type form (single positional arg for dict, ordered):
-   dict(number)                    -- all dict values must be number
-   ordered(string)                 -- all ordered values must be string
+   dict and ordered name every field: dict(V) and ordered(V) are RILL-P012.
+   Use map(string, V) for keyed data with one value type.
    tuple(T) is not uniform: one argument names exactly one position.
    Use list(T) for a sequence of any length with one element type.
 
@@ -1109,23 +1135,24 @@ else-clause   = conditional | body ;
    Both forms require boolean conditions. Non-boolean values cause a runtime error.
    For-each iteration uses collection operators (seq, fan, fold, filter, acc).
 
-   while_loop:    while (cond) do [<options>] { body }
+   while_loop:    while (cond) do [construct-options] { body }
                   while (cond) <newline> { body }    -- newline substitutes for "do"
-   do_while_loop: do [<options>] { body } while (cond)
+   do_while_loop: do [construct-options] { body } while (cond)
 
-   construct_options: <limit: N> sets maximum iterations (default 10,000).
-   Unknown option keys or non-positive integer values are rejected at parse time.
+   The loop option is the shared construct-options production. "limit: N" sets
+   maximum iterations (default 10,000); N must be a positive integer literal
+   (RILL-P004), and a spread in the options is RILL-P004.
 
    Examples:
      0 -> while ($ < 10) do { $ + 1 }            -- while loop
      0 -> do { $ + 1 } while ($ < 10)            -- do-while loop
-     0 -> while ($ < 50) do<limit: 100> { $ + 1 } -- while with iteration limit
-     0 -> do<limit: 50> { $ + 1 } while ($ < 50) -- do-while with iteration limit
+     0 -> while ($ < 50) do(limit: 100) { $ + 1 } -- while with iteration limit
+     0 -> do(limit: 50) { $ + 1 } while ($ < 50) -- do-while with iteration limit
      [1, 2, 3] -> seq({ $ * 2 })                 -- sequential for-each *)
 
 loop          = while_loop | do_while_loop ;
 
-while_loop    = "while" , "(" , expression , ")" , "do" , [ construct_options ] , block ;
+while_loop    = "while" , "(" , expression , ")" , "do" , [ construct-options ] , block ;
               (* Condition is evaluated before each iteration.
                  The seeded value flows as $ into the first condition check.
                  If condition is false on first check, body never runs.
@@ -1134,21 +1161,9 @@ while_loop    = "while" , "(" , expression , ")" , "do" , [ construct_options ] 
                  "while (cond) { }" on one line halts RILL-P004.
                  The body must be a block: "while (true) do 1" does not parse. *)
 
-do_while_loop = "do" , [ construct_options ] , block , "while" , "(" , expression , ")" ;
+do_while_loop = "do" , [ construct-options ] , block , "while" , "(" , expression , ")" ;
               (* Body executes at least once before condition is checked.
                  Example: 0 -> do { $ + 1 } while ($ < 5) *)
-
-construct_options = "<" , option , ">" ;
-              (* Attach a single named option to the loop construct.
-                 Currently only "limit" is defined; the grammar will extend to
-                 comma-separated options when additional option keys are added.
-                 Example: do<limit: 100> — sets iteration ceiling to 100
-                 Constraints: N must be a positive integer literal (RILL-P004). *)
-
-option        = identifier , ":" , positive-integer ;
-              (* "limit" requires a positive integer literal; decimals and
-                 negative numbers are parse errors (RILL-P004). The
-                 positive-integer nonterminal is defined alongside retry-block. *)
 
 (* ============================================================ *)
 (* ERROR HANDLING: GUARD AND RETRY                              *)
@@ -1158,40 +1173,35 @@ option        = identifier , ":" , positive-integer ;
    primary expressions (never pipe targets):
 
      guard { fetch("url") } => $r           -- catch failure; then inspect with $r.!
-     retry<limit: 3> { fetch("url") }       -- re-run on transient failures
+     retry(attempts: 3) { fetch("url") }    -- re-run on transient failures
 
    Guard:
    - guard { body }                  -- catch every error; body runs once
-   - guard<on: #X> { body }          -- catch only that code; rethrow others
-   - guard<on: list[#X, #Y]> { body } -- catch only the listed codes; rethrow others
+   - guard(on: #X) { body }          -- catch only that code; rethrow others
+   - guard(on: list[#X, #Y]) { body } -- catch only the listed codes; rethrow others
 
    Retry:
-   - retry<limit: N> { body }                       -- retry up to N attempts on any error
-   - retry<limit: N, on: #X> { body }                -- retry only when error code matches
-   - retry<limit: N, on: list[#X, #Y]> { body }      -- retry only when error code in list
-   - "limit:" is a REQUIRED named argument; bare retry<N> is a parse error (RILL-P004).
-   - N must be a positive integer literal.
+   - retry(attempts: N) { body }                       -- retry up to N attempts on any error
+   - retry(attempts: N, on: #X) { body }                -- retry only when error code matches
+   - retry(attempts: N, on: list[#X, #Y]) { body }      -- retry only when error code in list
+   - "attempts:" is a REQUIRED option; N must be a positive integer literal.
+     A missing attempts halts #TYPE_MISMATCH.
 
-   Every on: name must belong to the core error set: the built-in atoms except
-   ok and IGNORE. A name outside the set is a parse error (RILL-P004), and so
-   is on: list[]. Names are case-sensitive, so #timeout is outside the set.
-   Omit on: to catch every catchable halt. *)
+   Both take the shared construct-options production. Every written on: name
+   must belong to the core error set: the built-in atoms except ok. A name
+   outside the set is a parse error (RILL-P004), and so is a written
+   on: list[]. A computed on: is checked when it runs. Names are
+   case-sensitive, so #timeout is outside the set. Omit on: to catch every
+   catchable halt. *)
 
-guard-block   = "guard" , [ "<" , on-clause , ">" ] , block ;
-retry-block   = "retry" , "<" , "limit" , ":" , positive-integer , [ "," , on-clause ] , ">" , block ;
-
-positive-integer = nonzero-digit , { digit } ;
-              (* `limit:` accepts only positive integer literals (>= 1).
-                 Zero, decimals (e.g. retry<limit: 1.5>), and negative numbers
-                 are parse errors. *)
-
-on-clause     = "on" , ":" , ( atom-literal | "list[" , atom-literal , { "," , atom-literal } , "]" ) ;
+guard-block   = "guard" , [ construct-options ] , block ;
+retry-block   = "retry" , construct-options , block ;
               (* Lexer note: "list[" is a single compound token. Spaces or tabs on
                  the same line between "list" and "[" fold into the same token;
                  a newline or comment between them stops the fold.
-                 Likewise, "guard{" and "retry<" are compound tokens when no
-                 whitespace separates the keyword from the bracket; the bare
-                 "guard" / "retry" forms are also accepted when whitespace is present. *)
+                 Likewise, "guard{" is a compound token when no whitespace
+                 separates the keyword from the brace; the bare "guard" form is
+                 also accepted when whitespace is present. *)
 
 (* ============================================================ *)
 (* COLLECTION OPERATORS                                         *)

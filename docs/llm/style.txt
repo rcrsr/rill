@@ -86,8 +86,10 @@ Discouraged (style only; parses and runs):
 
 ### Retry an extension call with fallback
 
-    retry<limit: 3, on: list[#UNAVAILABLE, #TIMEOUT]> { $app.fetch($url) } => $res
+    retry(attempts: 3, on: list[#UNAVAILABLE, #TIMEOUT]) { $app.fetch($url) } => $res
     $res ?? "fallback"
+
+Options go in parentheses. `retry<limit: 3>` is RILL-P025.
 
 ### Reduce with running state
 

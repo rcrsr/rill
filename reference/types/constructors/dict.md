@@ -3,11 +3,11 @@ id: dict
 title: Dict types
 status: normative
 since: 0.24.0
-issues: [600]
+issues: []
 grammar: [field-key]
-errors: [RILL-P006, RILL-P027, TYPE_MISMATCH]
+errors: [RILL-P006, RILL-P012, RILL-P027, TYPE_MISMATCH]
 depends: [type-value, type-form]
-tests: [structural-type-identity.test.ts, structural-type-boundaries.test.ts, type-inner-outer.test.ts, type-assertions.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts, type-field-keys.test.ts, bare-bracket-literals.test.ts]
+tests: [uniform-value-type.test.ts, structural-type-identity.test.ts, structural-type-boundaries.test.ts, type-inner-outer.test.ts, type-assertions.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts, type-field-keys.test.ts, bare-bracket-literals.test.ts]
 ---
 
 # Dict types
@@ -33,11 +33,11 @@ A named field MAY carry a default, as in `dict(a: number = 1)`.
 r[dict.field-type] A field type is any type
 A field type MUST be any type, and a dict type MAY nest, as in `dict(a: list(number))`.
 
-r[dict.fields] A dict type always names its fields {pending #600}
+r[dict.fields] A dict type always names its fields
 Every argument of a dict type MUST carry a field name.
 
-r[dict.no-uniform] A dict type has no uniform form {pending #600}
-The parse error for `dict(V)` MUST name `map(string, V)`.
+r[dict.no-uniform] A dict type has no uniform form
+`dict(V)` MUST be rejected with RILL-P012, and the message MUST name `map(string, V)`.
 
 r[dict.empty-parens] dict and dict() are one type
 `dict` and `dict()` MUST compare equal.
@@ -110,6 +110,7 @@ that holds a non-type follows `type-value.variable-halt`. Which dicts have a dic
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | Outer on a type that takes none | RILL-P006 | No |
+| An argument with no field name, as in `dict(V)` | RILL-P012 | No |
 | Value has a field a named form does not name (`structural-typing.exact-dict`) | `#TYPE_MISMATCH` | Yes |
 | A literal spells one key twice | RILL-P027 | No |
 | A type names one key twice | RILL-P027 | No |
@@ -143,8 +144,8 @@ dict[a: 1, b: 2] -> :?dict
 # Result: true
 ```
 
-```rill pending=600
-# Error: parse error naming map(string, number)
+```rill
+# Error: RILL-P012
 dict(number)
 ```
 
@@ -177,7 +178,7 @@ ordered[while: 1, true: 2, 1: 3].^type.signature
 
 The 0.23.0 runtime accepts the uniform form: `dict(number)` is a type, `dict[a: 1, b: 2] -> :?dict(number)`
 is true, `.inner` of `dict(T)` is `T`, and mixing named and unnamed arguments halts
-`#INVALID_INPUT`. #600 removes it, and a script rewrites `dict(V)` to `map(string, V)`.
+`#INVALID_INPUT`. The form now halts RILL-P012, and a script rewrites `dict(V)` to `map(string, V)`.
 
 Superseded rule ids: `dict.forms`, `dict.mixed`, `dict.uniform-count`, `dict.value-type`,
 `dict.equality`, `dict.inner`, `dict.print`, `dict.unspecified`, `dict.any`,

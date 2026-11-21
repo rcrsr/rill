@@ -379,20 +379,27 @@ describe('GUARD_BARE', () => {
       code: 'GUARD_BARE',
       severity: 'info',
       message:
-        'Bare guard catches every error. Prefer guard<on: list[#X, ...]> to make recoverability explicit.',
+        'Bare guard catches every error. Prefer guard(on: list[#X, ...]) to make recoverability explicit.',
       fix: null,
     });
   });
 
   it('does not fire for the single-atom on form', () => {
-    const source = 'guard<on: #TIMEOUT> { fetch_data() }\n';
+    const source = 'guard(on: #TIMEOUT) { fetch_data() }\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [guardBare])).toEqual([]);
+  });
+
+  it('does not fire when the options are spread in', () => {
+    const source = 'guard(...$policy) { fetch_data() }\n';
     const parsed = toParseResult(source);
 
     expect(runRules(parsed, source, makeConfig(), [guardBare])).toEqual([]);
   });
 
   it('does not fire when the guard declares on-codes', () => {
-    const source = 'guard<on: list[#TIMEOUT]> { fetch_data() }\n';
+    const source = 'guard(on: list[#TIMEOUT]) { fetch_data() }\n';
     const parsed = toParseResult(source);
 
     expect(runRules(parsed, source, makeConfig(), [guardBare])).toEqual([]);
@@ -400,8 +407,8 @@ describe('GUARD_BARE', () => {
 });
 
 describe('RETRY_TRIVIAL', () => {
-  it('fires when retry<limit: 1> has no effect', () => {
-    const source = 'retry<limit: 1> { fetch_data() }\n';
+  it('fires when retry(attempts: 1) has no effect', () => {
+    const source = 'retry(attempts: 1) { fetch_data() }\n';
     const parsed = toParseResult(source);
 
     const result = runRules(parsed, source, makeConfig(), [retryTrivial]);
@@ -411,13 +418,13 @@ describe('RETRY_TRIVIAL', () => {
       code: 'RETRY_TRIVIAL',
       severity: 'warning',
       message:
-        'retry<limit: 1> has no effect; remove the wrapper or raise the attempt count.',
+        'retry(attempts: 1) has no effect; remove the wrapper or raise the attempt count.',
       fix: null,
     });
   });
 
   it('does not fire when the attempt count is greater than 1', () => {
-    const source = 'retry<limit: 3> { fetch_data() }\n';
+    const source = 'retry(attempts: 3) { fetch_data() }\n';
     const parsed = toParseResult(source);
 
     expect(runRules(parsed, source, makeConfig(), [retryTrivial])).toEqual([]);
@@ -425,8 +432,8 @@ describe('RETRY_TRIVIAL', () => {
 });
 
 describe('TIMEOUT_TRIVIAL', () => {
-  it('fires on timeout<> with no limit', () => {
-    const source = 'timeout<> { fetch_data() }\n';
+  it('fires on timeout() with no limit', () => {
+    const source = 'timeout() { fetch_data() }\n';
     const parsed = toParseResult(source);
 
     const result = runRules(parsed, source, makeConfig(), [timeoutTrivial]);
@@ -435,15 +442,15 @@ describe('TIMEOUT_TRIVIAL', () => {
     expect(result[0]).toMatchObject({
       code: 'TIMEOUT_TRIVIAL',
       severity: 'warning',
-      message: 'timeout<> has no effect; remove the wrapper or add a limit.',
+      message: 'timeout() has no effect; remove the wrapper or add a limit.',
       fix: null,
     });
   });
 
   it.each([
-    'timeout<total: duration("1y")> { fetch_data() }',
-    'timeout<idle: duration("1y")> { fetch_data() }',
-    'timeout<total: duration("2y"), idle: duration("1y")> { fetch_data() }',
+    'timeout(total: duration("1y")) { fetch_data() }',
+    'timeout(idle: duration("1y")) { fetch_data() }',
+    'timeout(total: duration("2y"), idle: duration("1y")) { fetch_data() }',
   ])('does not fire when a limit is set: %s', (line) => {
     const source = `${line}\n`;
     const parsed = toParseResult(source);
@@ -489,8 +496,8 @@ describe('with all rules from this task on', () => {
       'while ($ < 5) do { $ + 1 }\n' +
       'use<scheme:resource>\n' +
       'use<host:my_fn>:string\n' +
-      'guard<on: list[#TIMEOUT]> { fetch_data() }\n' +
-      'retry<limit: 3> { fetch_data() }\n' +
+      'guard(on: list[#TIMEOUT]) { fetch_data() }\n' +
+      'retry(attempts: 3) { fetch_data() }\n' +
       '#TIMEOUT\n' +
       '$x.!code\n';
     const parsed = toParseResult(source);

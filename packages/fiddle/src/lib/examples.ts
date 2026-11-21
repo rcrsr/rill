@@ -402,7 +402,7 @@ $out ?? "recovered"`,
     id: 'retry',
     label: 'Retry',
     source: `# retry runs the body up to 3 times, then returns the last failure
-retry<limit: 3> { "x" -> :number } => $r
+retry(attempts: 3) { "x" -> :number } => $r
 log($r.!)
 log($r.!code -> string)
 

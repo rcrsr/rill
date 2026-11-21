@@ -50,6 +50,7 @@ import './spacing-closure.js';
 import './spacing-declaration.js';
 import './spacing-member.js';
 import './spacing-operator.js';
+import './spacing-options.js';
 import './status-probe-no-field.js';
 import './stream-pre-iteration.js';
 import './temporal-literal.js';
