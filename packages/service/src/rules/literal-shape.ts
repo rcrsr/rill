@@ -233,7 +233,7 @@ export function literalShape(expr: ASTNode): string | null {
 // ============================================================
 
 /** Dict method names the runtime refuses as dict keys. */
-const RESERVED_METHOD_KEYS: ReadonlySet<string> = new Set([
+export const RESERVED_METHOD_KEYS: ReadonlySet<string> = new Set([
   'len',
   'first',
   'empty',

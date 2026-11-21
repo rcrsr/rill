@@ -244,7 +244,7 @@ See [Variables](topic-variables.md) for detailed documentation.
 | Form | Reaches or halts |
 |------|------------------|
 | `.$k`, `[expr]`, `.?` | Dict data fields, list and tuple positions, ordered entries |
-| `.name`, `.?name`, and `-> .name` on a type value | `name`, `signature`, `inner`, `outer`, `defaults`, where the type has them; `.$k` and `[k]` halt RILL-R002 |
+| `.name`, `.?name`, and `-> .name` on a type value | `name`, `signature`, `inner`, `outer`, `defaults`, `annotations`, where the type has them; `.$k` and `[k]` halt RILL-R002 |
 | `.len`, `.keys` | Work only as a written `.name` or a pipe method |
 | `.?len` | `false` |
 | `["len"]` | Halts RILL-R002 on a list, tuple, string, or function; RILL-R009 on a dict or ordered |

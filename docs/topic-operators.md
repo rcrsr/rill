@@ -33,6 +33,7 @@
 42 -> ($ + 8)                  # 50
 [1, 2, 3] -> seq({ $ * 2 })    # list[2, 4, 6]
 ```
+
 | Target | What `->` does | Example |
 |--------|----------------|---------|
 | type `T` | converts; see [Conversion Operator](#conversion-operator---type) | `"5" -> number` |
@@ -44,13 +45,62 @@
 | call `f(args)` or `$h(args)` | prepends the value unless a top-level `$` places it; see [Pipe Binding Rule](#pipe-binding-rule) | `list[1, 2, 3] -> take(2)` |
 | `( expr )` | evaluates with `$` bound | `5 -> ($ * $ + $)` |
 | variable `$x` | does what its value calls for; halts `RILL-R002` otherwise | `1 -> $t` |
-| `:T`, `:?T` | asserts or checks, never converts | |
+| `:T`, `:?T` | asserts or checks, never converts | `5 -> :number` |
 | number, bool, or atom literal | is not a target; halts `RILL-P001` | `5 -> 3` |
+
 ```rill
 fn(x) { $x * 2 } => $double
 tuple["x", "y"] => $t
 tuple["5" -> number, 0 -> list["a", "b"], 3 -> { $ + 1 }, 5 -> "x{$}", "hi" -> .upper, 5 -> $double, list[1, 2, 3] -> take(2), 5 -> ($ * 2), 1 -> $t]
 # Result: tuple[5, "a", 4, "x5", "HI", 10, list[1, 2], 10, "y"]
+```
+
+A `:T` target asserts and never converts, so a string does not become a number:
+
+```rill
+# Error: #TYPE_MISMATCH
+"5" -> :number
+```
+
+```rill
+5 -> :number
+# Result: 5
+```
+
+A code block target that never reads `$` is rejected where written:
+
+```rill
+# Error: RILL-P031
+3 -> { 5 }
+```
+
+A zero-parameter function takes no piped value:
+
+```rill
+# Error: RILL-R045
+fn() { 7 } => $z
+3 -> $z
+```
+
+A block written inside a collection is held, and selecting its entry runs it:
+
+```rill
+0 -> list[{ 5 }]
+# Result: 5
+```
+
+```rill
+dict[a: { 5 }] => $d
+$d.a
+# Result: 5
+```
+
+A bare block captured with `=>` runs where it is written, so the variable holds its result:
+
+```rill
+{ 5 } => $x
+$x
+# Result: 5
 ```
 
 ### A Target Uses the Piped Value

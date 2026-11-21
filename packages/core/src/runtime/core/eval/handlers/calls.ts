@@ -257,15 +257,7 @@ export async function evaluateClosureCallWithPipe(
 
   if (argumentsBinder.hasSpread(node.args)) {
     const orderedArgs = await bindOrdered(s, closure, node, pipeInput);
-    return invokeCallable(
-      s,
-      closure,
-      container === undefined
-        ? orderedArgs
-        : computedFieldArgs(closure, container, orderedArgs),
-      node.span.start,
-      fullPath
-    );
+    return invokeCallable(s, closure, orderedArgs, node.span.start, fullPath);
   }
 
   const args = await evaluateArgs(s, node.args);

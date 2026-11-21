@@ -257,7 +257,7 @@ Use `break` to exit a loop early:
 
 ## Functions
 
-Define reusable logic with fn syntax `fn(params) { body }`. See [Functions and Code Blocks](topic-closures.md) for advanced patterns including late binding and dict-bound functions.
+Define reusable logic with fn syntax `fn(params) { body }`. See [Functions and Code Blocks](topic-closures.md) for advanced patterns including late binding and function entries in dicts.
 
 ```rill
 fn(x) { $x * 2 } => $double

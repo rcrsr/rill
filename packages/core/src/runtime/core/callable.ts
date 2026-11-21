@@ -115,9 +115,8 @@ export interface RillFunction {
 interface CallableBase {
   readonly __type: 'callable';
   /**
-   * Property-style callable: auto-invoked when accessed from a dict.
-   * For script callables, $ is bound to the containing dict.
-   * For application callables, the dict is passed as the `self` argument.
+   * Host property callable: runs when selected from a dict or ordered, with
+   * the collection as `args.self`. Always false for script callables.
    */
   readonly isProperty: boolean;
   readonly params: readonly RillParam[];

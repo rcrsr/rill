@@ -47,7 +47,12 @@ import {
 } from './closures.js';
 import { resolveSelected } from './code-block.js';
 import type { FieldLocation, FoundField } from './field-access.js';
-import { computedFieldArgs, locateField, readField } from './field-access.js';
+import {
+  computedFieldArgs,
+  locateField,
+  PARAMS_REMOVED_MESSAGE,
+  readField,
+} from './field-access.js';
 
 /**
  * Call a built-in type method with the receiver prepended. Arguments go
@@ -147,6 +152,18 @@ export async function evaluateMethod(
 
   if (node.type === 'Invoke') {
     return evaluateInvoke(s, node, receiver);
+  }
+  if (isCallable(receiver) && node.name === 'params') {
+    throwCatchableHostHalt(
+      {
+        location: getNodeLocation(s, node),
+        sourceId: s.ctx.sourceId,
+        fn: 'evaluateMethod',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R008],
+      PARAMS_REMOVED_MESSAGE,
+      { field: 'params' }
+    );
   }
   if (isCallable(receiver)) {
     throwCatchableHostHalt(

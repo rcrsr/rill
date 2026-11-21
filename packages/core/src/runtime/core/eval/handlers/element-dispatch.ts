@@ -30,6 +30,7 @@ import type { FieldKey } from './field-access.js';
 import {
   bracketKey,
   computedFieldArgs,
+  isComputedFieldReceiver,
   projectLocated,
   throwBracketMiss,
   locateOrRecover,
@@ -140,7 +141,7 @@ async function runSelected(
   );
   if (resolved.ran) return { value: resolved.value, declared: undefined };
   const { value } = selected;
-  if (isPropertyCallable(value)) {
+  if (isComputedFieldReceiver(collection) && isPropertyCallable(value)) {
     const savedPipeValue = s.ctx.pipeValue;
     s.ctx.pipeValue = key;
     try {

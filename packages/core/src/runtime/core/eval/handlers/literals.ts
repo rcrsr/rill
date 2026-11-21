@@ -66,7 +66,11 @@ import {
   RESERVED_DICT_METHODS,
   structureToTypeValue,
 } from '../../values.js';
-import { type ScriptCallable, type RillParam } from '../../callable.js';
+import {
+  isPropertyCallable,
+  type ScriptCallable,
+  type RillParam,
+} from '../../callable.js';
 import {
   throwCatchableHostHalt,
   throwFatalHostHalt,
@@ -93,6 +97,7 @@ import {
   evaluatePipeChain,
 } from './core.js';
 import { evaluateAnnotations } from './annotations.js';
+import { invokeCallable } from './closures.js';
 import { resolveSelected } from './code-block.js';
 import { rejectHeldEntries } from '../../types/held-block.js';
 import { accessHaltGateFast } from './access.js';
@@ -489,13 +494,31 @@ async function evaluateMultiKeyStrings(
   return stringKeys;
 }
 
+/** An already evaluated entry value, reused instead of evaluating its node again. */
+interface EntryReuse {
+  readonly node: ExpressionNode;
+  readonly value: RillValue;
+}
+
+/** Evaluate an entry value, or return the reused value when its node matches. */
+function evaluateEntryOrReuse(
+  s: EvalState,
+  valueNode: ExpressionNode,
+  reuse: EntryReuse | undefined
+): Promise<RillValue> {
+  return reuse !== undefined && reuse.node === valueNode
+    ? Promise.resolve(reuse.value)
+    : evaluateEntryValue(s, valueNode);
+}
+
 /**
  * Evaluate multi-key dict entry from a ListLiteralNode key.
  */
 export async function evaluateDictMultiKeyFromList(
   s: EvalState,
   keyList: ListLiteralNode,
-  value: ExpressionNode
+  value: ExpressionNode,
+  reuse?: EntryReuse
 ): Promise<Array<[string, RillValue]>> {
   const stringKeys = await evaluateMultiKeyStrings(
     s,
@@ -503,7 +526,7 @@ export async function evaluateDictMultiKeyFromList(
     'evaluateDictMultiKeyFromList'
   );
   // Evaluate value once
-  const evaluatedValue = await evaluateEntryValue(s, value);
+  const evaluatedValue = await evaluateEntryOrReuse(s, value, reuse);
   return stringKeys.map((key): [string, RillValue] => [key, evaluatedValue]);
 }
 
@@ -596,7 +619,8 @@ export function assertUsableDictKey(
  */
 export async function evaluateDict(
   s: EvalState,
-  node: DictNode
+  node: DictNode,
+  reuse?: EntryReuse
 ): Promise<Record<string, RillValue>> {
   const result: Record<string, RillValue> = {};
   for (const entry of node.entries) {
@@ -690,7 +714,7 @@ export async function evaluateDict(
           setDictField(
             result,
             stringKey,
-            await evaluateEntryValue(s, entry.value)
+            await evaluateEntryOrReuse(s, entry.value, reuse)
           );
 
           continue;
@@ -726,7 +750,7 @@ export async function evaluateDict(
         setDictField(
           result,
           stringKey,
-          await evaluateEntryValue(s, entry.value)
+          await evaluateEntryOrReuse(s, entry.value, reuse)
         );
 
         continue;
@@ -735,7 +759,8 @@ export async function evaluateDict(
       const pairs = await evaluateDictMultiKeyFromList(
         s,
         entry.key,
-        entry.value
+        entry.value,
+        reuse
       );
       for (const [key, value] of pairs) {
         assertUsableDictKey(s, key, entry.span);
@@ -747,7 +772,11 @@ export async function evaluateDict(
 
     const storeKey = String(entry.key);
     assertUsableDictKey(s, storeKey, entry.span);
-    setDictField(result, storeKey, await evaluateEntryValue(s, entry.value));
+    setDictField(
+      result,
+      storeKey,
+      await evaluateEntryOrReuse(s, entry.value, reuse)
+    );
   }
 
   return result;
@@ -820,6 +849,26 @@ export async function evaluateDictDispatch(
         entry.value,
         'evaluateDictDispatch'
       );
+      // A host property callable runs with the evaluated literal as `self`
+      // and the selector as its pipe value.
+      if (isPropertyCallable(matchedValue)) {
+        const self = await evaluateDict(s, node, {
+          node: entry.value,
+          value: matchedValue,
+        });
+        const savedPipeValue = s.ctx.pipeValue;
+        s.ctx.pipeValue = input;
+        try {
+          return await invokeCallable(
+            s,
+            matchedValue,
+            [self],
+            node.span?.start
+          );
+        } finally {
+          s.ctx.pipeValue = savedPipeValue;
+        }
+      }
       return (
         await resolveSelected(
           s,

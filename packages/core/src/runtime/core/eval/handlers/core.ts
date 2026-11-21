@@ -46,7 +46,11 @@ import {
   isPlainDict,
 } from '../../types/guards.js';
 import { inferType } from '../../types/registrations.js';
-import { isCallable, isScriptCallable } from '../../callable.js';
+import {
+  isCallable,
+  isPropertyCallable,
+  isScriptCallable,
+} from '../../callable.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
 import { invalidate, getStatus } from '../../types/status.js';
 import { createTraceFrame } from '../../types/trace.js';
@@ -625,20 +629,21 @@ async function invokePipeCallable(
   location: ReturnType<typeof getNodeLocation>,
   functionName = 'callable'
 ): Promise<RillValue> {
-  if (!(value.kind === 'application' && value.isProperty)) {
-    return value.kind === 'application'
-      ? invokeCallable(s, value, argsOf(input), location, functionName)
-      : invokeCallable(s, value, argsOf(input), location);
+  const invoked = value;
+  if (isPropertyCallable(value)) {
+    const savedPipeValue = s.ctx.pipeValue;
+    const savedPipeDeclared = s.ctx.pipeDeclared;
+    setPipe(s.ctx, input.value, input.declared);
+    try {
+      return await invokeCallable(s, value, [], location);
+    } finally {
+      restorePipe(s.ctx, savedPipeValue, savedPipeDeclared);
+    }
   }
 
-  const savedPipeValue = s.ctx.pipeValue;
-  const savedPipeDeclared = s.ctx.pipeDeclared;
-  setPipe(s.ctx, input.value, input.declared);
-  try {
-    return await invokeCallable(s, value, [], location);
-  } finally {
-    restorePipe(s.ctx, savedPipeValue, savedPipeDeclared);
-  }
+  return invoked.kind === 'application'
+    ? invokeCallable(s, invoked, argsOf(input), location, functionName)
+    : invokeCallable(s, invoked, argsOf(input), location);
 }
 
 /** Build a one-element args array whose declaration rides in the sidecar. */

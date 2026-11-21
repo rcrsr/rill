@@ -179,7 +179,7 @@ describe('Rill Runtime: Closure Semantics', () => {
       expect(await run(script)).toBe(1004);
     });
 
-    it('explicit param closure does not inherit caller pipeValue', async () => {
+    it('rejects a named-param closure that reads $', async () => {
       // A closure with named params binds no $, so reading one is rejected
       // where the function is written.
       await expect(

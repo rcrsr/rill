@@ -394,6 +394,10 @@ export function projectLocated(
     : projectElement(receiverDeclared, located.key);
 }
 
+/** Halt message for the removed `.params` property on a function. */
+export const PARAMS_REMOVED_MESSAGE =
+  'Property .params was removed; use .^type.annotations for parameter annotations and .^type.inner for parameter types';
+
 /** True for a receiver whose property functions take it as `self`: a dict or ordered value. */
 export function isComputedFieldReceiver(receiver: RillValue): boolean {
   return isFieldReceiver(receiver) || isOrdered(receiver);

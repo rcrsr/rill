@@ -90,6 +90,7 @@ import {
   throwNonIntegerIndex,
   computedFieldArgs,
   isComputedFieldReceiver,
+  PARAMS_REMOVED_MESSAGE,
 } from './field-access.js';
 
 /**
@@ -645,7 +646,7 @@ export async function evaluateVariableCarried(
               fn: 'evaluateVariableAsync',
             },
             ERROR_ATOMS[ERROR_IDS.RILL_R008],
-            'Property .params was removed; use .^type.annotations for parameter annotations and .^type.inner for parameter types',
+            PARAMS_REMOVED_MESSAGE,
             { field }
           );
         }

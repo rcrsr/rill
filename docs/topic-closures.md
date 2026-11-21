@@ -215,10 +215,10 @@ The `list`, `dict`, `tuple`, and `ordered` types accept type arguments for deep 
 |------|-------------|----------------------|
 | `fn { body }` (bare literal) | Piped input, type `any` | N/A: no type check |
 | `fn(type) { body }` (unnamed) | Piped input, type-checked | Type mismatch halt |
-| `fn(x: type) { body }` (named) | Hard error | RILL-R005 |
+| `fn(x: type) { body }` (named) | Rejected where written | RILL-P029 |
 | `fn() { body }` (zero-param) | Rejected where written | RILL-P029 |
 
-Accessing `$` inside a named-param function is a hard error (RILL-R005) because that form defines no pipe binding.
+Reading `$` inside a named-param function halts parsing with RILL-P029 because that form defines no pipe binding.
 
 ### Input Type Mismatch
 
@@ -230,14 +230,20 @@ When the piped value does not match the declared type, execution halts:
 # Error: Parameter type mismatch: $ expects number, got string
 ```
 
-### Zero-Param `$` Error
+### Zero-Param and Named-Param `$` Error
 
-A `fn()` body that reads `$` or `$@` raises RILL-P029 where the function is written. `fn()` declares no parameters, so the body has nothing to bind. Declare an unnamed parameter, a named parameter, or use `fn { body }`:
+A `fn()` or named-parameter body that reads `$` or `$@` raises RILL-P029 where the function is written. Neither form binds a pipe value. Declare an unnamed parameter, read the named parameter, or use `fn { body }`:
 
 ```text
 # fn() declares no params, so its body cannot read '$'
 fn() { $ } => $f
 # Error: RILL-P029: fn() declares no params, so its body cannot read '$' or '$@'
+```
+
+```text
+# a named-param body cannot read '$' either
+fn(x) { $x + $ } => $g
+# Error: RILL-P029
 ```
 
 ```rill
