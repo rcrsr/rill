@@ -7,7 +7,7 @@ issues: []
 grammar: []
 errors: [RILL-R001, RILL-R045]
 depends: [fn, defaults, scope]
-tests: [functions.test.ts, closure-semantics.test.ts, pipe-targets.test.ts]
+tests: [functions.test.ts, closure-semantics.test.ts, pipe-targets.test.ts, property-access.test.ts]
 ---
 
 # Invocation
@@ -41,8 +41,13 @@ first failing parameter in order MUST be the one reported.
 r[invocation.before-body] Binding completes before the body runs
 The body MUST NOT run until every parameter is bound and checked.
 
+r[invocation.no-self-binding] A call does not bind $ to the dict it was read from
+Calling a function read from a dict MUST NOT bind `$` to that dict. `$` in its body MUST resolve
+as it does when the same function is called through a variable.
+
 ## Interactions
 
+A host property function receives the collection it is selected or called from as `self` (`selection.property`).
 A parameter without an argument takes its default (`defaults.param`), or the call halts
 (`defaults.param-required`). A piped value is the first argument (`pipe.call-operand`,
 `pipe.script-operand`). A spread supplies arguments by name or position (`spread.arg-dict`,
@@ -78,5 +83,7 @@ $f("x")
 ```
 
 ## Notes
+
+On 0.23.0 a function called from a dict reads that dict as `$` (#627).
 
 On 0.23.0 a function is written `|a, b| ($a - $b)`. #571 removes that form.

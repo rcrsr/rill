@@ -99,7 +99,7 @@ describe('zero-param dict-stored callables invoke with zero args', () => {
     expect(result).toBe('hi');
   });
 
-  it('a property/receiver callable in a dict still receives the bound dict', async () => {
+  it('a property/receiver callable in a dict still receives the dict it was selected from', async () => {
     let receivedName: RillValue = null;
 
     const result = await run('$person.greet()', {

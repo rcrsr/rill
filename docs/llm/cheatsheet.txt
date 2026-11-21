@@ -9,7 +9,7 @@ Default context for any rill task. Covers the 7 critical differences, syntax, `$
     Wrong: x = 5         Mainstream: x = value
     Right: 5 => $x       rill:       value => $x
 
-`->` pipes a value to the next operation. `=>` captures a value AND continues the chain.
+`->` evaluates its target with the value, by the target's kind: a type converts, a list or dict selects, a block, string, function, method, or call takes the value. `=>` binds the value to a variable and passes it on; it never converts, calls, or selects.
 
     "hello" => $x -> .upper => $y    # $x="hello", $y="HELLO"
 

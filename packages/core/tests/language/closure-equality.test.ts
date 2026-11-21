@@ -90,8 +90,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('closures with loops are equal', async () => {
       const code = `
-        fn(x) { while (true) do { $x } } => $a
-        fn(x) { while (true) do { $x } } => $b
+        fn(x) { $x -> while (true) do { $x } } => $a
+        fn(x) { $x -> while (true) do { $x } } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(true);

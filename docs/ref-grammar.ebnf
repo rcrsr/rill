@@ -517,8 +517,8 @@ dict-entry    = ( dict-key | "[" , expression , { "," , expression } , "]" ) , "
                  Computed key: [($x -> .upper): value] evaluates expression as key (must be string).
                  Multi-key syntax [k1, k2]: expr maps multiple keys to same value.
                  Semantic: keys "keys", "values", "entries" are reserved (cannot be used as dict keys).
-                 Semantic: for fn values only, $ is late-bound to the containing dict at
-                 invocation time (like "this" in other languages).
+                 Semantic: a function entry is returned uncalled and does not see the
+                 containing dict as $; pass the dict as an argument.
                  Semantic: for held code-block entries only, the block runs on selection
                  with the enclosing $, not the containing dict. *)
 

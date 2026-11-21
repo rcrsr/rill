@@ -545,27 +545,11 @@ async function invokeFnCallable(
     return s.ctx.createDisposedResult();
   }
 
-  // Inject the bound dict as the sole receiver argument only for
-  // property/receiver-style callables (`isProperty`). Every callable stored
-  // in a dict gets a `boundDict` (bindDictCallables in types/runtime.ts), but
-  // a plain zero-param application callable must still be called with zero
-  // args — otherwise `$d.fn()` on a `params: []` callable would pass 1 arg
-  // (RILL-R045) and a defaults-only callable would take the dict as its first
-  // param (RILL-R001). The `isProperty` flag is the receiver contract locked
-  // by tests/runtime/host-integration.test.ts.
-  const injectedBoundDict =
-    callable.boundDict !== undefined &&
-    callable.isProperty === true &&
-    args.length === 0;
-  const effectiveArgs = injectedBoundDict ? [callable.boundDict] : args;
-
-  const fnArgs = marshalArgs(effectiveArgs, callable.params, {
+  const fnArgs = marshalArgs(args, callable.params, {
     functionName,
     location: callLocation,
   });
-  if (!injectedBoundDict) {
-    transferArgsDeclared(effectiveArgs, fnArgs);
-  }
+  transferArgsDeclared(args, fnArgs);
 
   // A host function takes values; a collection argument that holds a block
   // has none to give. Built-ins are internal and gate their own arguments.
@@ -705,9 +689,6 @@ export function createCallableContext(
     sourceId: defScope.sourceId ?? s.ctx.sourceId,
     sourceText: defScope.sourceText ?? s.ctx.sourceText,
   };
-  if (callable.boundDict) {
-    setPipe(callableCtx, callable.boundDict, undefined);
-  }
   // This context is spread from the caller's rather than built by
   // createChildContext, so it gets no policy binding from there. Without
   // this, every call made from inside a closure body would dispatch
@@ -1022,8 +1003,4 @@ export {
   evaluateClosureCallWithPipe,
   evaluatePipeInvoke,
 } from './calls.js';
-export {
-  evaluateMethod,
-  evaluateAnnotationAccess,
-  evaluateParamsProperty,
-} from './methods.js';
+export { evaluateMethod, evaluateAnnotationAccess } from './methods.js';

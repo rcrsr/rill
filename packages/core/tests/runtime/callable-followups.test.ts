@@ -59,10 +59,9 @@ describe('Rill Runtime: callable follow-ups', () => {
       __type: 'callable',
       kind: 'application',
     } as unknown as RillValue;
-    await expectHalt(() => run('$f.params', { variables: { f: forged } }), {
+    await expectHalt(() => run('$f()', { variables: { f: forged } }), {
       code: 'RILL_R085',
-      messagePattern:
-        /Host function '<anonymous>' has no parameter declaration/,
+      messagePattern: /Host function '\$f' has no parameter declaration/,
     });
   });
 

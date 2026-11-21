@@ -215,10 +215,10 @@ The `list`, `dict`, `tuple`, and `ordered` types accept type arguments for deep 
 |------|-------------|----------------------|
 | `fn { body }` (bare literal) | Piped input, type `any` | N/A: no type check |
 | `fn(type) { body }` (unnamed) | Piped input, type-checked | Type mismatch halt |
-| `fn(x: type) { body }` (named) | Hard error | RILL-R005 |
+| `fn(x: type) { body }` (named) | Rejected where written | RILL-P029 |
 | `fn() { body }` (zero-param) | Rejected where written | RILL-P029 |
 
-Accessing `$` inside a named-param function is a hard error (RILL-R005) because that form defines no pipe binding.
+Reading `$` inside a named-param function halts parsing with RILL-P029 because that form defines no pipe binding.
 
 ### Input Type Mismatch
 
@@ -230,14 +230,20 @@ When the piped value does not match the declared type, execution halts:
 # Error: Parameter type mismatch: $ expects number, got string
 ```
 
-### Zero-Param `$` Error
+### Zero-Param and Named-Param `$` Error
 
-A `fn()` body that reads `$` or `$@` raises RILL-P029 where the function is written. `fn()` declares no parameters, so the body has nothing to bind. Declare an unnamed parameter, a named parameter, or use `fn { body }`:
+A `fn()` or named-parameter body that reads `$` or `$@` raises RILL-P029 where the function is written. Neither form binds a pipe value. Declare an unnamed parameter, read the named parameter, or use `fn { body }`:
 
 ```text
 # fn() declares no params, so its body cannot read '$'
 fn() { $ } => $f
 # Error: RILL-P029: fn() declares no params, so its body cannot read '$' or '$@'
+```
+
+```text
+# a named-param body cannot read '$' either
+fn(x) { $x + $ } => $g
+# Error: RILL-P029
 ```
 
 ```rill
@@ -294,6 +300,14 @@ Defaults sit under `.defaults`, which lists only the parameters that have one:
 fn(a: string, b: string = "hi") { $a } => $fn
 $fn.^type.defaults
 # Result: dict[b: "hi"]
+```
+
+Parameter annotations sit under `.annotations`, which lists only the parameters that have any:
+
+```rill
+fn(^(min: 0) x: number, y: string) { $x } => $fn
+$fn.^type.annotations
+# Result: dict[x: dict[min: 0]]
 ```
 
 A default does not infer the parameter type. `fn(x = "d")` gives `x` the type `any`; write `fn(x: string = "d")` to constrain it. A function type equals another only when parameter names, types, defaults, and outer type all match, so a function with an extra defaulted parameter does not match a type that omits it.
@@ -440,6 +454,16 @@ $d.inc(4)
 ```
 
 `x.name` without parentheses is a selection and does not call.
+
+A function read from a dict does not see the dict as `$`. Pass the dict as an argument:
+
+```rill
+dict[n: 2, twice: fn(d) { $d.n * 2 }] => $d
+$d.twice($d)
+# Result: 4
+```
+
+A function with named parameters cannot read a bare `$`; the parser rejects it with RILL-P029.
 
 ---
 

@@ -3,7 +3,7 @@
  *
  * For each receiver and key that passes the form's key validation, `.?k` is
  * true exactly when `.k ?? sentinel` returns something other than the sentinel
- * and exactly when `.k` does not halt. Method sugar (`.len`, `.params`) is
+ * and exactly when `.k` does not halt. Method sugar (`.len`) is
  * literal-only, and a non-string key on a dict halts in every form, including
  * `.?`, with the same type mismatch.
  */
@@ -181,6 +181,8 @@ const ROWS: readonly Row[] = [
     name: 'a',
     read: { value: 1 },
     literal: { value: 1 },
+    method: { value: 1 },
+    postfix: 'ordered[a: 1, b: 2]',
   },
   {
     label: 'ordered, missing name',
@@ -189,6 +191,8 @@ const ROWS: readonly Row[] = [
     name: 'z',
     read: { halt: 'RILL_R009', message: 'Undefined ordered key: z' },
     literal: { halt: 'RILL_R009', message: 'Undefined ordered key: z' },
+    method: { halt: 'RILL_R009', message: 'Undefined ordered key: z' },
+    postfix: 'ordered[a: 1, b: 2]',
   },
   { label: 'ordered, position', setup: ORDERED, key: '1', read: { value: 2 } },
   {
@@ -221,7 +225,10 @@ const ROWS: readonly Row[] = [
     key: '"params"',
     name: 'params',
     read: { halt: 'RILL_R002', message: 'Cannot index fn' },
-    literal: { value: { x: {} } },
+    literal: {
+      halt: 'RILL_R008',
+      message: 'Property .params was removed',
+    },
     exists: false,
   },
   {
@@ -522,6 +529,12 @@ describe('declared type projection', () => {
 
   it('projects the declared type for a pipe selection', async () => {
     expect(await run(`${DECL}"a" -> $d => $v\n$v.^type == ${U}`)).toBe(true);
+  });
+
+  it('projects the declared type of an ordered entry for a pipe method', async () => {
+    const ordered = `ordered[a: 1] => $o:ordered(a: ${U})\n`;
+    expect(await run(`${ordered}$o.a.^type == ${U}`)).toBe(true);
+    expect(await run(`${ordered}$o -> .a => $v\n$v.^type == ${U}`)).toBe(true);
   });
 
   it('locks a capture from any access form to the declared type', async () => {

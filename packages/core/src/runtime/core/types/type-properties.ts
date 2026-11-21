@@ -3,7 +3,8 @@
  *
  * The properties a type value exposes to scripts: `name` and `signature` on
  * every kind, `inner` on compound kinds, `outer` on computing kinds and
- * `defaults` on kinds with defaulted fields. Presence depends on the kind of
+ * `defaults` and `annotations` on kinds with named or positional fields
+ * (dict, ordered, fn). Both read through one field walker. Presence depends on the kind of
  * the type only, so `.?p` is true exactly when `.p` does not halt.
  *
  * @internal
@@ -43,7 +44,11 @@ const INNER_KINDS: ReadonlySet<string> = new Set([
   'stream',
 ]);
 const OUTER_KINDS: ReadonlySet<string> = new Set(['fn', 'stream']);
-const DEFAULTS_KINDS: ReadonlySet<string> = new Set(['dict', 'ordered', 'fn']);
+const FIELD_RECORD_KINDS: ReadonlySet<string> = new Set([
+  'dict',
+  'ordered',
+  'fn',
+]);
 
 // ============================================================
 // PRESENCE
@@ -61,7 +66,8 @@ function hasTypeProperty(type: RillTypeValue, name: string): boolean {
     case 'outer':
       return OUTER_KINDS.has(kind);
     case 'defaults':
-      return DEFAULTS_KINDS.has(kind);
+    case 'annotations':
+      return FIELD_RECORD_KINDS.has(kind);
     default:
       return false;
   }
@@ -157,33 +163,52 @@ function readInner(structure: TypeStructure): RillValue {
   );
 }
 
-function defaultsOf(
-  entries: readonly (readonly [string, RillFieldDef])[]
+/** The `[key, field]` pairs of a dict, ordered, or fn type; empty for any other kind. */
+function fieldEntries(
+  structure: TypeStructure
+): readonly (readonly [string, RillFieldDef])[] {
+  if (isStructureKind(structure, 'dict')) {
+    return Object.entries(structure.fields ?? {});
+  }
+  if (isStructureKind(structure, 'ordered')) {
+    return (structure.fields ?? []).map(
+      (f, i) => [fieldName(f, i), f] as const
+    );
+  }
+  if (isStructureKind(structure, 'fn')) {
+    return (structure.params ?? []).map(
+      (f, i) => [fieldName(f, i), f] as const
+    );
+  }
+  return [];
+}
+
+/** Build a fresh dict from the field entries, keeping what `pick` returns. */
+function projectFields(
+  structure: TypeStructure,
+  pick: (field: RillFieldDef) => RillValue | undefined
 ): RillValue {
   const out: Record<string, RillValue> = {};
-  for (const [key, field] of entries) {
-    if (field.defaultValue !== undefined) {
-      setDictField(out, key, field.defaultValue);
-    }
+  for (const [key, field] of fieldEntries(structure)) {
+    const picked = pick(field);
+    if (picked !== undefined) setDictField(out, key, picked);
   }
   return out;
 }
 
-function readDefaults(structure: TypeStructure): RillValue {
-  if (isStructureKind(structure, 'dict')) {
-    return defaultsOf(Object.entries(structure.fields ?? {}));
-  }
-  if (isStructureKind(structure, 'ordered')) {
-    return defaultsOf(
-      (structure.fields ?? []).map((f, i) => [fieldName(f, i), f] as const)
-    );
-  }
-  if (isStructureKind(structure, 'fn')) {
-    return defaultsOf(
-      (structure.params ?? []).map((f, i) => [fieldName(f, i), f] as const)
-    );
-  }
-  return {};
+function pickDefault(field: RillFieldDef): RillValue | undefined {
+  return field.defaultValue;
+}
+
+/** A fresh copy of the field's annotations; nothing when it has none. */
+function pickAnnotations(field: RillFieldDef): RillValue | undefined {
+  const source = field.annotations;
+  if (source === undefined) return undefined;
+  const entries = Object.entries(source);
+  if (entries.length === 0) return undefined;
+  const copy: Record<string, RillValue> = {};
+  for (const [key, value] of entries) setDictField(copy, key, value);
+  return copy;
 }
 
 /**
@@ -210,8 +235,12 @@ export function readTypeProperty(
           : undefined;
       return typeOrAny(ret);
     }
+    case 'defaults':
+      return projectFields(structure, pickDefault);
+    case 'annotations':
+      return projectFields(structure, pickAnnotations);
     default:
-      return readDefaults(structure);
+      return undefined;
   }
 }
 

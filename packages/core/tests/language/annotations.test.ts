@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Annotations
  * Tests for statement annotations with ^(key: value) syntax.
@@ -15,6 +16,7 @@ import {
 import { run, runWithContext } from '../helpers/runtime.js';
 import { createHostCallable } from '../helpers/structure.js';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Annotations', () => {
   describe('Parsing', () => {
@@ -444,164 +446,51 @@ describe('Rill Runtime: Annotations', () => {
       });
     });
 
-    describe('Parameter Annotation Reflection (AC-5)', () => {
-      it('accesses parameter annotations via __annotations', async () => {
-        const script = `
-          fn(^(min: 0, max: 100) x: number) { $x } => $fn
-          $fn.params.x.__annotations.min
-        `;
-        expect(await run(script)).toBe(0);
+    describe('.params removed', () => {
+      rule('annotation-access.no-params').it.each([
+        ['named params', 'fn(a: string, b: number) { $a } => $fn\n$fn.params'],
+        ['no params', 'fn() { 42 } => $fn\n$fn.params'],
+        [
+          'an annotated param',
+          'fn(^(min: 0) x: number) { $x } => $fn\n$fn.params',
+        ],
+        ['a field read of a param', 'fn(x) { $x } => $fn\n$fn.params.x'],
+      ])(
+        'halts RILL-R008 naming the replacement for .params on a function with %s',
+        async (_label, script) => {
+          await expectHalt(() => run(script), {
+            code: 'RILL_R008',
+            messagePattern: '.^type.annotations',
+          });
+        }
+      );
+
+      rule('annotation-access.no-params').it(
+        'names .^type.inner in the halt message',
+        async () => {
+          await expectHalt(() => run('fn(x) { $x } => $fn\n$fn.params'), {
+            code: 'RILL_R008',
+            messagePattern: '.^type.inner',
+          });
+        }
+      );
+
+      rule('annotation-access.no-params').it(
+        'recovers the halt with ?? on the right-most step',
+        async () => {
+          expect(await run('fn(x) { $x } => $fn\n$fn.params ?? "none"')).toBe(
+            'none'
+          );
+        }
+      );
+
+      it('reads a dict key named params like any other key', async () => {
+        expect(await run('dict[params: 7] => $d\n$d.params')).toBe(7);
       });
 
-      it('accesses multiple parameter annotations via __annotations', async () => {
-        const script = `
-          fn(^(min: 0, max: 100) x: number) { $x } => $fn
-          list[$fn.params.x.__annotations.min, $fn.params.x.__annotations.max]
-        `;
-        expect(await run(script)).toEqual([0, 100]);
-      });
-
-      it('supports coalescing for missing parameter annotation field', async () => {
-        const script = `
-          fn(^(min: 0) x: number) { $x } => $fn
-          $fn.params.x.__annotations.max ?? 100
-        `;
-        expect(await run(script)).toBe(100);
-      });
-
-      it('handles multiple params with different annotations', async () => {
-        // Mixed-type list [number, bool] not allowed; verify each annotation separately
-        const script1 = `
-          fn(^(min: 0) x: number, ^(required: true) y: string) { $x } => $fn
-          $fn.params.x.__annotations.min
-        `;
-        expect(await run(script1)).toEqual(0);
-        const script2 = `
-          fn(^(min: 0) x: number, ^(required: true) y: string) { $x } => $fn
-          $fn.params.y.__annotations.required
-        `;
-        expect(await run(script2)).toEqual(true);
-      });
-
-      it('has no __annotations field when param has no annotations', async () => {
-        const script = `
-          fn(x: number) { $x } => $fn
-          $fn.params.x.__annotations ?? "missing"
-        `;
-        expect(await run(script)).toBe('missing');
-      });
-    });
-
-    describe('.params Property (AC-6)', () => {
-      it('returns params dict with types', async () => {
-        const script = `
-          fn(a: string, b: number) { $a } => $fn
-          $fn.params
-        `;
-        const result = await run(script);
-        expect(result).toEqual({
-          a: { type: 'string' },
-          b: { type: 'number' },
-        });
-      });
-
-      it('returns empty dict for no params (AC-13)', async () => {
-        const script = `
-          fn() { 42 } => $fn
-          $fn.params
-        `;
-        const result = await run(script);
-        expect(result).toEqual({});
-      });
-
-      it('includes annotations in params dict', async () => {
-        const script = `
-          fn(^(min: 0, max: 100) x: number) { $x } => $fn
-          $fn.params.x.__annotations
-        `;
-        const result = await run(script);
-        expect(result).toEqual({ min: 0, max: 100 });
-      });
-
-      it('returns params with mixed annotation presence', async () => {
-        const script = `
-          fn(^(min: 0) x: number, y: string) { $x } => $fn
-          $fn.params
-        `;
-        const result = await run(script);
-        expect(result).toEqual({
-          x: { type: 'number', __annotations: { min: 0 } },
-          y: { type: 'string' },
-        });
-      });
-
-      it('throws when accessing .params on non-closure (EC-6)', async () => {
-        const script = `
-          "hello" => $str
-          $str.params
-        `;
-        await expect(run(script)).rejects.toThrow(
-          /Cannot access \.params on string/
-        );
-      });
-
-      it('throws when accessing .params on number', async () => {
-        const script = `
-          42 => $num
-          $num.params
-        `;
-        await expect(run(script)).rejects.toThrow(
-          /Cannot access \.params on number/
-        );
-      });
-
-      it('throws when accessing .params on boolean', async () => {
-        const script = `
-          true => $bool
-          $bool.params
-        `;
-        await expect(run(script)).rejects.toThrow(
-          /Cannot access \.params on bool/
-        );
-      });
-
-      it('throws when accessing .params on list', async () => {
-        const script = `
-          list[1, 2, 3] => $list
-          $list.params
-        `;
-        await expect(run(script)).rejects.toThrow(
-          /Cannot access \.params on list/
-        );
-      });
-
-      it('throws when accessing .params on dict', async () => {
-        const script = `
-          dict[name: "test"] => $dict
-          $dict.params
-        `;
-        await expect(run(script)).rejects.toThrow(
-          /Cannot access \.params on dict/
-        );
-      });
-
-      it('accesses specific param by name', async () => {
-        const script = `
-          fn(a: string, b: number) { $a } => $fn
-          $fn.params.a.type
-        `;
-        expect(await run(script)).toBe('string');
-      });
-
-      it('handles params without type annotations', async () => {
-        const script = `
-          fn(x, y) { $x } => $fn
-          $fn.params
-        `;
-        const result = await run(script);
-        expect(result).toEqual({
-          x: {},
-          y: {},
+      it('halts RILL-R003 for .params on a value with no such property', async () => {
+        await expectHalt(() => run('"hello" => $s\n$s.params'), {
+          code: 'RILL_R003',
         });
       });
     });
@@ -687,11 +576,6 @@ describe('Rill Runtime: Annotations', () => {
           $fn.^doc
         `;
         expect(await run(script1)).toBe('test function');
-        const script2 = `
-          ^(doc: "test function") fn(^(min: 0) x: number) { $x } => $fn
-          $fn.params.x.__annotations.min
-        `;
-        expect(await run(script2)).toBe(0);
       });
 
       it('chains annotation access with pipe', async () => {
@@ -734,14 +618,6 @@ describe('Rill Runtime: Annotations', () => {
           $fn.^enabled ? "yes" ! "no"
         `;
         expect(await run(script)).toBe('yes');
-      });
-
-      it('uses param annotation in arithmetic', async () => {
-        const script = `
-          fn(^(min: 0, max: 100) x: number) { $x } => $fn
-          $fn.params.x.__annotations.max - $fn.params.x.__annotations.min
-        `;
-        expect(await run(script)).toBe(100);
       });
     });
   });

@@ -115,16 +115,13 @@ export interface RillFunction {
 interface CallableBase {
   readonly __type: 'callable';
   /**
-   * Property-style callable: auto-invoked when accessed from a dict.
-   * For script callables, $ is bound to the containing dict.
-   * For application callables, the dict is passed as the `self` argument.
+   * Host property callable: runs when selected from a dict or ordered, with
+   * the collection as `args.self`. Always false for script callables.
    */
   readonly isProperty: boolean;
   readonly params: readonly RillParam[];
   readonly annotations: Record<string, RillValue>;
   readonly returnType: RillTypeValue;
-  /** Reference to containing dict (set when stored in a dict) */
-  boundDict?: Record<string, RillValue>;
 }
 
 /**
@@ -169,6 +166,17 @@ export function isApplicationCallable(
   value: RillValue
 ): value is ApplicationCallable {
   return isCallable(value) && value.kind === 'application';
+}
+
+/**
+ * True for a host callable registered as a property: a computed field that
+ * runs when selected, with the collection it is selected from as `self`.
+ * Script callables are never property callables.
+ */
+export function isPropertyCallable(
+  value: RillValue
+): value is ApplicationCallable {
+  return isApplicationCallable(value) && value.isProperty;
 }
 
 export { callable, internalCallable } from './callable-factory.js';
@@ -684,7 +692,8 @@ export function declaredParams(
  * Preconditions (enforced by caller):
  * - args contains already-evaluated RillValue[]
  * - pipe value already inserted as first element by caller
- * - boundDict already prepended as first element by caller
+ * - for a property callable, the receiver is already the first element
+ *   (supplied by the access site)
  * - params is the callable's declared parameter list (empty for zero-param)
  *
  * @param args - Positional arguments (already evaluated)

@@ -59,27 +59,6 @@ const derivedIdentities = new WeakMap<RillCallable, ExtensionIdentity>();
 // keeps the brand of whichever call ran first.
 
 /**
- * Carry both brands from one callable object to its copy.
- *
- * Both maps key on object identity, so any site that rebuilds a callable
- * (`{ ...value, boundDict }`) would otherwise hand the script an unbranded,
- * unpoliced twin. Existing brands on `to` are left alone.
- */
-export function copyExtensionIdentity(
-  from: RillCallable,
-  to: RillCallable
-): void {
-  const identity = identities.get(from);
-  if (identity !== undefined && !identities.has(to)) {
-    identities.set(to, identity);
-  }
-  const derived = derivedIdentities.get(from);
-  if (derived !== undefined && !derivedIdentities.has(to)) {
-    derivedIdentities.set(to, derived);
-  }
-}
-
-/**
  * Members visited when branding one resolved value.
  *
  * A budget rather than a depth bound. A depth bound left every callable

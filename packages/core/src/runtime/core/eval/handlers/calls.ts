@@ -11,11 +11,10 @@ import type {
   ExpressionNode,
   SpreadArgNode,
 } from '../../../../types.js';
-import type { RillCallable } from '../../callable.js';
 import {
   isCallable,
   isScriptCallable,
-  isApplicationCallable,
+  isPropertyCallable,
   marshalArgs,
 } from '../../callable.js';
 import { getVariable } from '../../context.js';
@@ -26,12 +25,7 @@ import { isStream } from '../../types/guards.js';
 import type { EvalState } from '../state.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import {
-  getNodeLocation,
-  checkAborted,
-  withTimeout,
-  isFieldReceiver,
-} from '../shared.js';
+import { getNodeLocation, checkAborted, withTimeout } from '../shared.js';
 import {
   argumentsBinder,
   bindOrdered,
@@ -42,7 +36,12 @@ import {
   invokeStream,
 } from './closures.js';
 import { resolveSelected } from './code-block.js';
-import { locateField } from './field-access.js';
+import {
+  computedFieldArgs,
+  isComputedFieldReceiver,
+  locateField,
+  throwFieldMiss,
+} from './field-access.js';
 
 /**
  * Bind the piped value as the first argument of a call written as a pipe
@@ -187,6 +186,9 @@ export async function evaluateClosureCallWithPipe(
   }
 
   const fullPath = ['$' + node.name, ...node.accessChain].join('.');
+  // The collection the last access step selected from; a property callable
+  // takes it as `self`.
+  let container: RillValue | undefined;
   for (const prop of node.accessChain) {
     if (value === null) {
       throwCatchableHostHalt(
@@ -199,19 +201,16 @@ export async function evaluateClosureCallWithPipe(
         `Cannot access property '${prop}' on null`
       );
     }
-    if (isFieldReceiver(value)) {
+    if (isComputedFieldReceiver(value)) {
       const located = locateField(value, prop);
       if (!located.found) {
-        throwCatchableHostHalt(
-          {
-            location: getNodeLocation(s, node),
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateClosureCallWithPipe',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R009],
-          `Dict has no field '${prop}'`
-        );
+        throwFieldMiss(value, prop, located.miss, {
+          location: getNodeLocation(s, node),
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateClosureCallWithPipe',
+        });
       }
+      container = value;
       // A held block runs with the enclosing `$`, then the result is read on.
       value = (
         await resolveSelected(
@@ -266,12 +265,15 @@ export async function evaluateClosureCallWithPipe(
     inPipeTarget,
     isPropertyCallable(closure)
   );
-  return invokeCallable(s, closure, args, node.span.start, fullPath);
-}
-
-/** True for a property-style callable, whose `self` is bound to the dict, not piped. */
-function isPropertyCallable(value: RillCallable): boolean {
-  return isApplicationCallable(value) && value.isProperty;
+  return invokeCallable(
+    s,
+    closure,
+    container === undefined
+      ? args
+      : computedFieldArgs(closure, container, args),
+    node.span.start,
+    fullPath
+  );
 }
 
 /** Evaluate pipe invoke: value -> (args). */

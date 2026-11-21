@@ -27,21 +27,80 @@
 
 ## Pipe Operator `->`
 
-The pipe operator passes the left-hand value to the right-hand side:
-
+`v -> target` evaluates the target with the value `v`, by the kind of the target.
 ```rill
 "hello" -> .upper              # "HELLO"
 42 -> ($ + 8)                  # 50
 [1, 2, 3] -> seq({ $ * 2 })    # list[2, 4, 6]
 ```
 
-### Piped Value as `$`
-
-The piped value is available as `$`:
+| Target | What `->` does | Example |
+|--------|----------------|---------|
+| type `T` | converts; see [Conversion Operator](#conversion-operator---type) | `"5" -> number` |
+| list, dict, tuple, ordered | selects | `0 -> list["a", "b"]` |
+| code block | runs once with `$` bound | `3 -> { $ + 1 }` |
+| string | is built with `$` bound | `5 -> "x{$}"` |
+| function `$f` | calls it with the value as its one argument | `5 -> $double` |
+| method `.m` | calls the method on the value | `"hi" -> .upper` |
+| call `f(args)` or `$h(args)` | prepends the value unless a top-level `$` places it; see [Pipe Binding Rule](#pipe-binding-rule) | `list[1, 2, 3] -> take(2)` |
+| `( expr )` | evaluates with `$` bound | `5 -> ($ * $ + $)` |
+| variable `$x` | does what its value calls for; halts `RILL-R002` otherwise | `1 -> $t` |
+| `:T`, `:?T` | asserts or checks, never converts | `5 -> :number` |
+| number, bool, or atom literal | is not a target; halts `RILL-P001` | `5 -> 3` |
 
 ```rill
-"world" -> "hello {$}"         # "hello world"
-5 -> ($ * $ + $)               # 30
+fn(x) { $x * 2 } => $double
+tuple["x", "y"] => $t
+tuple["5" -> number, 0 -> list["a", "b"], 3 -> { $ + 1 }, 5 -> "x{$}", "hi" -> .upper, 5 -> $double, list[1, 2, 3] -> take(2), 5 -> ($ * 2), 1 -> $t]
+# Result: tuple[5, "a", 4, "x5", "HI", 10, list[1, 2], 10, "y"]
+```
+
+A `:T` target asserts and never converts, so a string does not become a number:
+
+```rill
+# Error: #TYPE_MISMATCH
+"5" -> :number
+```
+
+```rill
+5 -> :number
+# Result: 5
+```
+
+A code block target that never reads `$` is rejected where written:
+
+```rill
+# Error: RILL-P031
+3 -> { 5 }
+```
+
+A zero-parameter function takes no piped value:
+
+```rill
+# Error: RILL-R045
+fn() { 7 } => $z
+3 -> $z
+```
+
+A block written inside a collection is held, and selecting its entry runs it:
+
+```rill
+0 -> list[{ 5 }]
+# Result: 5
+```
+
+```rill
+dict[a: { 5 }] => $d
+$d.a
+# Result: 5
+```
+
+A bare block captured with `=>` runs where it is written, so the variable holds its result:
+
+```rill
+{ 5 } => $x
+$x
+# Result: 5
 ```
 
 ### A Target Uses the Piped Value
@@ -61,6 +120,14 @@ A block or string target must read `$`. A leading method such as `.upper` or `pa
 ```rill
 # Error: RILL-P031
 5 -> "x"
+```
+```rill
+# Error: RILL-P001
+5 -> 3
+```
+```rill
+# Error: RILL-R002
+3 => $n -> $n
 ```
 
 Piping into a zero-parameter function halts `RILL-R045`, because the piped value is an excess argument.
@@ -200,6 +267,14 @@ Captures a value into a variable:
 ```rill
 "hello" => $greeting           # store in $greeting
 42 => $count                   # store in $count
+```
+
+`v => $x` binds `v` and passes `v` on unchanged. A capture evaluates nothing: it never converts, calls, or selects. `=> $x:T` asserts, as `-> :T` does. A block before `=>` runs by its own rule, so `{ 5 } => $x` binds 5. Store a function with `fn { 5 } => $x`. See [Code Blocks](topic-closures.md#code-blocks).
+
+```rill
+guard { "5" => $x:number } => $r
+$r.!code == #TYPE_MISMATCH
+# Result: true
 ```
 
 ### Capture and Continue

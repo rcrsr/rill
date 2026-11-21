@@ -52,7 +52,8 @@ import {
   throwIndexOutOfBounds,
 } from '../../types/index-access.js';
 import type { IndexKind } from '../../types/index-access.js';
-import { isCallable } from '../../callable.js';
+import { isPropertyCallable } from '../../callable.js';
+import type { RillCallable } from '../../callable.js';
 import { throwCatchableHostHalt, throwTypeHalt } from '../../types/halt.js';
 import type { TypeHaltSite } from '../../types/halt.js';
 import {
@@ -393,11 +394,37 @@ export function projectLocated(
     : projectElement(receiverDeclared, located.key);
 }
 
+/** Halt message for the removed `.params` property on a function. */
+export const PARAMS_REMOVED_MESSAGE =
+  'Property .params was removed; use .^type.annotations for parameter annotations and .^type.inner for parameter types';
+
+/** True for a receiver whose property functions take it as `self`: a dict or ordered value. */
+export function isComputedFieldReceiver(receiver: RillValue): boolean {
+  return isFieldReceiver(receiver) || isOrdered(receiver);
+}
+
+/**
+ * Arguments for a callable selected from `receiver`. A property callable
+ * called with no arguments takes the receiver as its `self`; any other
+ * callable, or a call that passes arguments, keeps the arguments as given.
+ */
+export function computedFieldArgs(
+  callable: RillCallable,
+  receiver: RillValue,
+  args: (RillValue | undefined)[]
+): (RillValue | undefined)[] {
+  return isPropertyCallable(callable) &&
+    args.length === 0 &&
+    isComputedFieldReceiver(receiver)
+    ? [receiver]
+    : args;
+}
+
 /**
  * Read `key` from `receiver`, with the receiver's own halts on a miss.
  *
- * A property-style callable held in a dict field is invoked and its result
- * takes its own type. Any other found value reports the element type projected
+ * A property-style callable held in a dict or ordered field is invoked with
+ * the receiver as `self` and its result takes its own type. Any other found value reports the element type projected
  * from the receiver's declared type; a type value's property projects nothing.
  */
 export async function readField(
@@ -428,16 +455,15 @@ export async function readField(
   if (located === undefined) return { value: null, declared: undefined };
 
   const stored = located.value;
-  if (
-    typeof key === 'string' &&
-    isFieldReceiver(receiver) &&
-    isCallable(stored) &&
-    stored.kind === 'application' &&
-    stored.isProperty
-  ) {
-    // A host property-style function receives the dict as its argument.
+  if (isComputedFieldReceiver(receiver) && isPropertyCallable(stored)) {
+    // A host property function runs, with the receiver as its `self`.
     return {
-      value: await invokeCallable(s, stored, [receiver], request.location),
+      value: await invokeCallable(
+        s,
+        stored,
+        computedFieldArgs(stored, receiver, []),
+        request.location
+      ),
       declared: undefined,
     };
   }

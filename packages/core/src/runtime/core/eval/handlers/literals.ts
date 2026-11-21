@@ -67,7 +67,7 @@ import {
   structureToTypeValue,
 } from '../../values.js';
 import {
-  isCallable,
+  isPropertyCallable,
   type ScriptCallable,
   type RillParam,
 } from '../../callable.js';
@@ -97,11 +97,11 @@ import {
   evaluatePipeChain,
 } from './core.js';
 import { evaluateAnnotations } from './annotations.js';
+import { invokeCallable } from './closures.js';
 import { resolveSelected } from './code-block.js';
-import { isHeldBlock, rejectHeldEntries } from '../../types/held-block.js';
+import { rejectHeldEntries } from '../../types/held-block.js';
 import { accessHaltGateFast } from './access.js';
 import { describeNoStringForm } from './conversion.js';
-import { copyExtensionIdentity } from '../../policy/identity.js';
 import { evaluateBody, evaluateBodyExpression } from './control-flow.js';
 import { resolveTypeRef } from './types.js';
 import { evaluateListLiteralElements } from './extraction.js';
@@ -494,13 +494,31 @@ async function evaluateMultiKeyStrings(
   return stringKeys;
 }
 
+/** An already evaluated entry value, reused instead of evaluating its node again. */
+interface EntryReuse {
+  readonly node: ExpressionNode;
+  readonly value: RillValue;
+}
+
+/** Evaluate an entry value, or return the reused value when its node matches. */
+function evaluateEntryOrReuse(
+  s: EvalState,
+  valueNode: ExpressionNode,
+  reuse: EntryReuse | undefined
+): Promise<RillValue> {
+  return reuse !== undefined && reuse.node === valueNode
+    ? Promise.resolve(reuse.value)
+    : evaluateEntryValue(s, valueNode);
+}
+
 /**
  * Evaluate multi-key dict entry from a ListLiteralNode key.
  */
 export async function evaluateDictMultiKeyFromList(
   s: EvalState,
   keyList: ListLiteralNode,
-  value: ExpressionNode
+  value: ExpressionNode,
+  reuse?: EntryReuse
 ): Promise<Array<[string, RillValue]>> {
   const stringKeys = await evaluateMultiKeyStrings(
     s,
@@ -508,7 +526,7 @@ export async function evaluateDictMultiKeyFromList(
     'evaluateDictMultiKeyFromList'
   );
   // Evaluate value once
-  const evaluatedValue = await evaluateEntryValue(s, value);
+  const evaluatedValue = await evaluateEntryOrReuse(s, value, reuse);
   return stringKeys.map((key): [string, RillValue] => [key, evaluatedValue]);
 }
 
@@ -593,7 +611,6 @@ export function assertUsableDictKey(
 
 /**
  * Evaluate dict literal.
- * All callables in the dict are bound to the containing dict via boundDict property.
  *
  * Reserved method names (len, first, empty, eq, ne, keys, values, entries)
  * cannot be used as dict keys.
@@ -602,7 +619,8 @@ export function assertUsableDictKey(
  */
 export async function evaluateDict(
   s: EvalState,
-  node: DictNode
+  node: DictNode,
+  reuse?: EntryReuse
 ): Promise<Record<string, RillValue>> {
   const result: Record<string, RillValue> = {};
   for (const entry of node.entries) {
@@ -696,7 +714,7 @@ export async function evaluateDict(
           setDictField(
             result,
             stringKey,
-            await evaluateEntryValue(s, entry.value)
+            await evaluateEntryOrReuse(s, entry.value, reuse)
           );
 
           continue;
@@ -732,7 +750,7 @@ export async function evaluateDict(
         setDictField(
           result,
           stringKey,
-          await evaluateEntryValue(s, entry.value)
+          await evaluateEntryOrReuse(s, entry.value, reuse)
         );
 
         continue;
@@ -741,7 +759,8 @@ export async function evaluateDict(
       const pairs = await evaluateDictMultiKeyFromList(
         s,
         entry.key,
-        entry.value
+        entry.value,
+        reuse
       );
       for (const [key, value] of pairs) {
         assertUsableDictKey(s, key, entry.span);
@@ -753,20 +772,11 @@ export async function evaluateDict(
 
     const storeKey = String(entry.key);
     assertUsableDictKey(s, storeKey, entry.span);
-    setDictField(result, storeKey, await evaluateEntryValue(s, entry.value));
-  }
-
-  // Bind all callables to the containing dict. Use setDictField so a field
-  // literally named `__proto__` is rewritten as an own property rather than
-  // reparenting the dict via the prototype setter.
-  for (const key of Object.keys(result)) {
-    const value = result[key];
-    // A held block takes `$` from its selection, never from the dict.
-    if (value !== undefined && isCallable(value) && !isHeldBlock(value)) {
-      const bound = { ...value, boundDict: result };
-      copyExtensionIdentity(value, bound);
-      setDictField(result, key, bound);
-    }
+    setDictField(
+      result,
+      storeKey,
+      await evaluateEntryOrReuse(s, entry.value, reuse)
+    );
   }
 
   return result;
@@ -839,6 +849,26 @@ export async function evaluateDictDispatch(
         entry.value,
         'evaluateDictDispatch'
       );
+      // A host property callable runs with the evaluated literal as `self`
+      // and the selector as its pipe value.
+      if (isPropertyCallable(matchedValue)) {
+        const self = await evaluateDict(s, node, {
+          node: entry.value,
+          value: matchedValue,
+        });
+        const savedPipeValue = s.ctx.pipeValue;
+        s.ctx.pipeValue = input;
+        try {
+          return await invokeCallable(
+            s,
+            matchedValue,
+            [self],
+            node.span?.start
+          );
+        } finally {
+          s.ctx.pipeValue = savedPipeValue;
+        }
+      }
       return (
         await resolveSelected(
           s,
@@ -873,7 +903,8 @@ export async function evaluateDictDispatch(
  * Closures use late binding - variables are resolved in definingScope when invoked.
  *
  * Default parameter values are evaluated immediately in the current context.
- * Property-style callables (zero params) are auto-invoked on dict access.
+ * A script callable is never property-style: only a host callable
+ * registered as a property runs on selection.
  */
 export async function createClosure(
   s: EvalState,
@@ -937,7 +968,7 @@ function buildScriptCallable(parts: {
     params: parts.params,
     body: parts.body,
     definingScope: parts.definingScope,
-    isProperty: parts.params.length === 0,
+    isProperty: false,
     annotations: parts.annotations,
     returnType: parts.returnType,
   };

@@ -314,7 +314,7 @@ use<host:value> => $v   # dict-shaped host value; its key entry is a host functi
 $v.key()                # calls the entry
 ```
 
-A dispatch pipe `sel -> $c` selects an entry of a collection. A function entry is returned uncalled, and that includes a host function entry and one reached through `use<host:value>`. Call it explicitly with `$c.name(args)`. See [Dispatch](ref-language.md#dispatch) for the selection rules.
+A dispatch pipe `sel -> $c` selects an entry of a collection. A function entry is returned uncalled, and that includes a host function entry and one reached through `use<host:value>`, except a property-style callable, which is a computed field and runs on selection (see [Property-style callables](#property-style-callables)). Call it explicitly with `$c.name(args)`. See [Dispatch](ref-language.md#dispatch) for the selection rules.
 
 ## Dispatch-Boundary Policy
 
@@ -705,13 +705,13 @@ function callable(fn: CallableFn, isProperty?: boolean): ApplicationCallable;
 | Parameter | Description |
 |-----------|-------------|
 | `fn` | The function to wrap. Receives a name-keyed record |
-| `isProperty` | If `true`, runs on access from a dict and declares one `self` parameter |
+| `isProperty` | If `true`, makes a computed field: every selecting form runs it with the collection as `args.self` |
 
 `callable()` declares `params: []`, or a single `self: any` parameter when `isProperty` is `true`. Use it for zero-argument callables; use `toCallable` when the callable takes arguments.
 
 ### Property-Style Callables
 
-Property-style callables run on access from a dict, enabling computed properties:
+Property-style callables run on access from a dict or an ordered value, enabling computed properties:
 
 ```typescript
 const ctx = createRuntimeContext({
@@ -719,9 +719,9 @@ const ctx = createRuntimeContext({
     user: {
       firstName: 'John',
       lastName: 'Doe',
-      // Runs on access, receives bound dict
+      // Runs on access, receives the collection as args.self
       fullName: callable((args) => {
-        // Property-style callable: args.self is the bound dict this callable was accessed from
+        // Property-style callable: args.self is the dict this callable was selected from
         const dict = args.self as Record<string, RillValue>;
         return `${dict.firstName} ${dict.lastName}`;
       }, true),
@@ -730,11 +730,14 @@ const ctx = createRuntimeContext({
 });
 
 // Script: $user.fullName -> "John Doe"
+// Script: "fullName" -> $user -> "John Doe"
 ```
+
+A property-style callable is a computed field. Every selecting form runs it with the collection as `args.self`: `$user.fullName`, `"fullName" -> $user`, `$user["fullName"]`, and destructuring, and so does the call form `$user.fullName()`. Every other function entry is returned uncalled, and a function read from a dict or an ordered value does not see it as `$`.
 
 ### Dict Callables
 
-Callables stored in dicts can be invoked using method syntax:
+Callables stored in dicts or ordered values can be invoked using method syntax:
 
 ```typescript
 const ctx = createRuntimeContext({

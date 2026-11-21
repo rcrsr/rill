@@ -315,12 +315,12 @@ describe('Rill Language: Anonymous Typed Closure Parameters', () => {
   });
 
   describe('Error: Named-Param Closure Body References Undefined $ (AC-3, AC-35, EC-6)', () => {
-    it('AC-3/EC-6: fn(x: string) { $ } body has $ undefined — throws RILL-R005', async () => {
+    it('rejects fn(x: string) { $ } at parse time with RILL-P029', async () => {
       const script = `
         fn(x: string) { $ } => $fn
         $fn("hello")
       `;
-      await expect(run(script)).rejects.toHaveProperty('errorId', 'RILL-R005');
+      await expect(run(script)).rejects.toHaveProperty('errorId', 'RILL-P029');
     });
   });
 

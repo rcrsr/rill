@@ -69,7 +69,8 @@ readable from any value.
 ## Interactions
 
 A function's annotations are read with `.^key` (`annotation-access`). Parameter and field
-annotations are read from the type (`introspection.annotations`).
+annotations are read from the type (`introspection.annotations`), and a tuple type has none to read
+(`introspection.annotations-tuple`).
 
 ## Errors
 

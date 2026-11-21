@@ -123,6 +123,13 @@ A selector of the key type that the map lacks MUST halt with RILL-R009.
 r[selection.map-default] A fallback replaces a missing map key {pending #599}
 `$m[#absent] ?? d` MUST yield `d` when the map lacks the key.
 
+r[selection.property] A host property function runs when selected or called from its collection
+A host function registered as a property MUST run when any selecting form selects it from a dict or ordered `$c`: `.name`, `.$k`, `[sel]`, dispatch, hierarchical dispatch, and destructure.
+The call form `$c.name()` with no argument, including `$c -> .name()`, MUST run it the same way.
+It MUST receive `$c`, the collection it is selected or called from, as its `self` argument, and the form MUST yield its result.
+It is the host counterpart of a held block (`code-block.access`).
+Any other function entry follows `dispatch.fn`.
+
 ## Interactions
 
 Element typing follows `carried-type.element`. The existence check `.?` is stated in `existence`. A pipe into a collection is stated in `dispatch`.

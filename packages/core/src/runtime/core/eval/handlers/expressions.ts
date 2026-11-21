@@ -416,7 +416,10 @@ export async function evaluateUnaryExpr(
  * Evaluate expression head, returning any RillValue.
  * Helper for binary and unary expression evaluation.
  */
-function evaluateExprHead(s: EvalState, node: ArithHead): Promise<RillValue> {
+export function evaluateExprHead(
+  s: EvalState,
+  node: ArithHead
+): Promise<RillValue> {
   switch (node.type) {
     case 'BinaryExpr':
       return evaluateBinaryExpr(s, node);

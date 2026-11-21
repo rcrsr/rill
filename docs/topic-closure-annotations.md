@@ -4,22 +4,22 @@
 
 ## Parameter Metadata
 
-Functions expose parameter metadata via the `.params` property. This enables runtime introspection of function signatures.
+A function's parameters are read from its type. `.^type.inner` lists each parameter and its type as an `ordered` value; `.^type.annotations` lists each parameter's annotations. The `.params` property was removed; reading it on a function halts `RILL-R008` and names `.^type.annotations` and `.^type.inner`.
 
 ### Basic Usage
 
 ```rill
 fn(x, y) { $x + $y } => $add
-$add.params
-# dict[x: dict[], y: dict[]]
+$add.^type.inner
+# Result: ordered[x: any, y: any]
 ```
 
 ### Typed Parameters
 
 ```rill
 fn(name: string, age: number) { "{$name}: {$age}" } => $format
-$format.params
-# dict[age: dict[type: "number"], name: dict[type: "string"]]
+$format.^type.inner
+# Result: ordered[name: string, age: number]
 ```
 
 ### Union Type Parameters
@@ -38,16 +38,16 @@ A function written as `fn { ... }` has an implicit `$` parameter:
 
 ```rill
 fn { $ * 2 } => $double
-$double.params
-# dict["$": dict[]]
+$double.^type.inner
+# Result: tuple[any]
 ```
 
 ### Zero-Parameter Functions
 
 ```rill
 fn() { 42 } => $constant
-$constant.params
-# dict[]
+$constant.^type.inner
+# Result: ordered[]
 ```
 
 ### Practical Use Cases
@@ -56,25 +56,13 @@ $constant.params
 
 ```rill
 fn(f) {
-  $f.params -> .keys -> .len => $count
+  $f.^type.inner -> .keys -> .len => $count
   "Function has {$count} parameter(s)"
 } => $describe
 
 fn(x, y) { $x + $y } => $add
-$describe($add)    # "Function has 2 parameter(s)"
-```
-
-**Validation:**
-
-```text
-fn(f) {
-  $f.params -> .entries -> seq({
-    $[1].type -> .empty ? "Missing type annotation: {$[0]}" ! ""
-  }) -> filter({ !$ -> .empty })
-} => $checkTypes
-
-fn(x, y: number) { $x + $y } => $partial
-$checkTypes($partial)    # ["Missing type annotation: x"]
+$describe($add)
+# Result: "Function has 2 parameter(s)"
 ```
 
 ---
@@ -106,110 +94,25 @@ fn(^(cache: true) count = 0) { $count } => $process
 true
 ```
 
-### Access Pattern
+### Reading Parameter Annotations
 
-Parameter annotations are accessed via `.params.paramName.__annotations.key`:
-
-```rill
-fn(^(min: 0, max: 100) x: number, y: string) { $x + $y } => $fn
-
-$fn.params
-# Returns:
-# [
-#   x: [type: "number", __annotations: [min: 0, max: 100]],
-#   y: [type: "string"]
-# ]
-
-$fn.params.x.__annotations.min  # 0
-$fn.params.x.__annotations.max  # 100
-$fn.params.y.?__annotations     # false (no annotations on y)
-```
-
-### Validation Metadata
-
-Use parameter annotations to specify constraints:
+Scripts read parameter annotations with `.^type.annotations`; host code reads them at `TypeStructure.params[index].annotations`. `.^type.inner` lists parameter types only. Declare constraints, caching hints, format specifications, and several annotations on one parameter with the same syntax:
 
 ```rill
 fn(^(min: 0, max: 100) value: number) { $value } => $bounded
-
-$bounded.params.value.__annotations.min  # 0
-$bounded.params.value.__annotations.max  # 100
-```
-
-**Generic validator pattern:**
-
-```text
-fn(f, arg) {
-  $f.params -> .entries -> .head -> destruct<$name, $meta>
-  $meta.?__annotations ? {
-    ($arg < $meta.__annotations.min) ? "Value {$arg} below min {$meta.__annotations.min}" !
-    ($arg > $meta.__annotations.max) ? "Value {$arg} above max {$meta.__annotations.max}" !
-    ""
-  } ! ""
-} => $validate
-
-fn(^(min: 0, max: 10) x: number) { $x } => $ranged
-$validate($ranged, 15)  # "Value 15 above max 10"
-```
-
-### Caching Hints
-
-Mark parameters that should trigger caching behavior:
-
-```rill
 fn(^(cache: true) key: string) { $key } => $fetch
-
-$fetch.params.key.__annotations.cache  # true
-```
-
-### Format Specifications
-
-Attach formatting metadata to parameters:
-
-```rill
 fn(^(format: "ISO8601") timestamp: string) { $timestamp } => $formatDate
-
-$formatDate.params.timestamp.__annotations.format  # "ISO8601"
-```
-
-### Multiple Annotations
-
-Parameters can have multiple annotations:
-
-```rill
 fn(^(required: true, pattern: ".*@.*", maxLength: 100) email: string) { $email } => $validateEmail
-
-$validateEmail.params.email.__annotations.required    # true
-$validateEmail.params.email.__annotations.pattern     # ".*@.*"
-$validateEmail.params.email.__annotations.maxLength   # 100
+$bounded.^type.annotations
+# Result: dict[value: dict[max: 100, min: 0]]
 ```
 
-### Annotation-Driven Logic
-
-Use parameter annotations to drive runtime behavior:
-
-```text
-fn(processor) {
-  $processor.params -> .entries -> seq({
-    $[1].?__annotations ? {
-      $[1].__annotations.?required ? "Parameter {$[0]} is required" ! ""
-    } ! ""
-  }) -> filter({ !$ -> .empty })
-} => $getRequiredParams
-
-fn(x, ^(required: true) y: string, z) { $x } => $fn
-$getRequiredParams($fn)  # ["Parameter y is required"]
-```
-
-### Checking for Annotations
-
-Use existence check `.?__annotations` to determine if a parameter has annotations:
+A parameter with no annotations is left out of the result. Read one annotation by chaining:
 
 ```rill
-fn(^(min: 0) x: number, y: string) { $x + $y } => $fn
-
-$fn.params.x.?__annotations  # true
-$fn.params.y.?__annotations  # false
+fn(^("label") x: string) { $x } => $fn
+$fn.^type.annotations.x.description
+# Result: "label"
 ```
 
 ---
@@ -449,21 +352,23 @@ dict(^("Full name") name: string, ^("User age") age: number) => $t
 $t
 ```
 
-The bare string shorthand expands to `description: value`. Access annotations from the host via `TypeStructure`:
+The bare string shorthand expands to `description: value`. Scripts read them with `.annotations`:
 
 ```rill
 dict(^(description: "status", enum: "active,inactive") status: string) => $t
-$t
+$t.annotations
+# Result: dict[status: dict[description: "status", enum: "active,inactive"]]
 ```
 
 ### Ordered Field Annotations
 
 ```rill
 ordered(^("First") a: string, ^("Second") b: number) => $t
-$t
+$t.annotations
+# Result: dict[a: dict[description: "First"], b: dict[description: "Second"]]
 ```
 
-`ordered` fields carry annotations at each index in `structure.fields[index].annotations`.
+`ordered` fields carry annotations at each index in `structure.fields[index].annotations`. Scripts read them with `.annotations`.
 
 ### Tuple Field Annotations
 
@@ -474,7 +379,7 @@ tuple(^("x") number, ^("y") number) => $t
 $t
 ```
 
-The host reads annotations via `structure.elements[index].annotations`.
+The host reads annotations via `structure.elements[index].annotations`. Scripts cannot read tuple position annotations: `.annotations` on a tuple type halts `RILL-R003`.
 
 ### Multi-Key Annotations
 
@@ -519,10 +424,11 @@ $t
 
 ```rill
 dict(^() flagged: string, age: number) => $t
-$t
+$t.annotations
+# Result: dict[]
 ```
 
-In TypeScript, `fields.flagged.annotations` equals `{}` while `fields.age.annotations` is `undefined`.
+In TypeScript, `fields.flagged.annotations` equals `{}` while `fields.age.annotations` is `undefined`. In a script, `$t.annotations` leaves an empty `^()` out, so the result above is `dict[]`.
 
 ### Restriction: `list` Does Not Support Field Annotations
 
@@ -545,18 +451,12 @@ All four positions use the same `^()` syntax and the same description shorthand.
 
 ### Function Parameter Annotations on the Type Structure
 
-`$fn.^type` keeps parameter annotations on its structure at `TypeStructure.params[i].annotations` for hosts. `.inner` lists parameter types only. Scripts read parameter annotations through `.params`:
+`$fn.^type.annotations` reads parameter annotations; hosts read the same data at `TypeStructure.params[i].annotations`. `.inner` lists parameter types only:
 
 ```rill
 fn(^("label") x: string) { $x } => $fn
-$fn.^type.inner
-# Result: ordered[x: string]
-```
-
-```rill
-fn(^("label") x: string) { $x } => $fn
-$fn.params.x.__annotations.description
-# Result: "label"
+$fn.^type.annotations
+# Result: dict[x: dict[description: "label"]]
 ```
 
 ### Annotations in Function Type Literals

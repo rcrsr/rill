@@ -25,10 +25,14 @@ import {
 } from '../../types/halt.js';
 import type { RillValue, TypeStructure } from '../../types/structures.js';
 import {
+  computedFieldArgs,
+  isComputedFieldReceiver,
   locateField,
   projectLocated,
   throwBracketMiss,
 } from './field-access.js';
+import { isPropertyCallable } from '../../callable.js';
+import { invokeCallable } from './closures.js';
 import { createOrdered, createTuple } from '../../types/constructors.js';
 import {
   isOrdered,
@@ -66,6 +70,7 @@ import {
  */
 async function pickDestructured(
   s: EvalState,
+  input: RillValue,
   located: Extract<ReturnType<typeof locateField>, { found: true }>,
   inputDeclared: TypeStructure | undefined,
   at: { readonly location: SourceLocation }
@@ -73,6 +78,18 @@ async function pickDestructured(
   readonly value: RillValue;
   readonly declared: TypeStructure | undefined;
 }> {
+  if (isComputedFieldReceiver(input) && isPropertyCallable(located.value)) {
+    // A host property function runs, with the destructured value as its `self`.
+    return {
+      value: await invokeCallable(
+        s,
+        located.value,
+        computedFieldArgs(located.value, input, []),
+        at.location
+      ),
+      declared: undefined,
+    };
+  }
   const resolved = await resolveSelected(
     s,
     located.value,
@@ -166,9 +183,15 @@ export async function evaluateDestructure(
         );
       }
 
-      const dictPicked = await pickDestructured(s, located, inputDeclared, {
-        location: elem.span.start,
-      });
+      const dictPicked = await pickDestructured(
+        s,
+        input,
+        located,
+        inputDeclared,
+        {
+          location: elem.span.start,
+        }
+      );
       const dictResolved =
         elem.typeRef !== null
           ? await resolveTypeRef(s, elem.typeRef, (name: string) =>
@@ -228,9 +251,15 @@ export async function evaluateDestructure(
       const located = locateField(input, i);
       if (!located.found) continue;
 
-      const listPicked = await pickDestructured(s, located, inputDeclared, {
-        location: elem.span.start,
-      });
+      const listPicked = await pickDestructured(
+        s,
+        input,
+        located,
+        inputDeclared,
+        {
+          location: elem.span.start,
+        }
+      );
 
       if (elem.kind === 'nested' && elem.nested) {
         await evaluateDestructure(

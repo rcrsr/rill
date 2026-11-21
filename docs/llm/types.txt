@@ -237,6 +237,8 @@ Read what a type holds with `.inner` and what a function or stream yields with `
     fn(x: number):string { $x } => $f
     $f.^type.outer                  # string
     dict(a: string = "x").defaults  # dict[a: "x"]
+    fn(^(min: 0) x: number) { $x } => $g
+    $g.^type.annotations            # dict[x: dict[min: 0]]; params with no annotations are left out
 
 Under a declared union, `.^type` reports the declaration and `.^effective` the own type:
 

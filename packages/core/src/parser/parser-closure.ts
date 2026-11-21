@@ -16,6 +16,7 @@ import {
   ParseError,
   TOKEN_TYPES,
   UNNAMED_PARAM_NAMES,
+  isUnnamedParamName,
   unnamedParamsRead,
 } from '../types.js';
 import { check, current, makeSpan, peek, previous } from './state.js';
@@ -134,7 +135,8 @@ function inferUnnamedParams(
  * Grammar: `fn-signature ( block | )`. The body `{` must sit on the same line
  * as the signature. A bare `fn { body }` or `fn:T { body }` takes the unnamed
  * params its body reads. The removed paren and bare-expression bodies raise
- * RILL-P012; an `fn()` body reading `$` or `$@` raises RILL-P029.
+ * RILL-P012; an `fn` body with a param list (named or empty) reading `$` or
+ * `$@` raises RILL-P029.
  */
 Parser.prototype.parseFnForm = function (
   this: Parser
@@ -151,10 +153,14 @@ Parser.prototype.parseFnForm = function (
       params = inferUnnamedParams(body, fnToken.span);
     } else {
       params = typeRef.params;
-      if (params.length === 0 && unnamedParamsRead(body) > 0) {
+      const bindsNoPipeParam =
+        params.length === 0 || !isUnnamedParamName(params[0]?.name ?? '');
+      if (bindsNoPipeParam && unnamedParamsRead(body) > 0) {
         throw new ParseError(
           ERROR_IDS.RILL_P029,
-          "fn() declares no params, so its body cannot read '$' or '$@'",
+          params.length === 0
+            ? "fn() declares no params, so its body cannot read '$' or '$@'"
+            : "fn with named params binds no '$' or '$@'; read the named param, or write fn { ... } to bind '$'",
           start
         );
       }

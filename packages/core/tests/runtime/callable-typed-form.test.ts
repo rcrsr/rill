@@ -183,7 +183,7 @@ describe('Rill Runtime: typed-only callable form', () => {
     it.each([
       ['a pipe into a call', '1 -> $f()'],
       ['a spread call', '$f(...list[1])'],
-      ['.params access', '$f.params'],
+      ['a plain call', '$f()'],
     ])('halts with a host-contract atom for %s', async (_label, source) => {
       await expectHalt(() => run(source, { variables: { f: undeclared } }), {
         code: 'RILL_R085',

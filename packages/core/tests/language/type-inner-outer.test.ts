@@ -1,6 +1,6 @@
 /* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
- * Rill Language Tests: type value properties (inner, outer, defaults)
+ * Rill Language Tests: type value properties (inner, outer, defaults, annotations)
  *
  * A type value exposes what it holds through `.inner`, what it yields through
  * `.outer`, and field defaults through `.defaults`. Presence depends on the
@@ -433,7 +433,14 @@ describe('type value inner', () => {
       ['union', 'union("a", "b")'],
       ['stream', `${STREAM_TYPE}`],
     ];
-    const properties = ['name', 'signature', 'inner', 'outer', 'defaults'];
+    const properties = [
+      'name',
+      'signature',
+      'inner',
+      'outer',
+      'defaults',
+      'annotations',
+    ];
 
     it.each(
       kinds.flatMap(([kind, source]) =>
@@ -454,7 +461,13 @@ describe('type value inner', () => {
     );
 
     it('probes a closure type the same way', async () => {
-      for (const p of ['inner', 'outer', 'defaults', 'missing']) {
+      for (const p of [
+        'inner',
+        'outer',
+        'defaults',
+        'annotations',
+        'missing',
+      ]) {
         const present = await run(
           `fn(x: number) { $x } => $f\n$f.^type => $t\n$t.?${p}`
         );
@@ -565,6 +578,95 @@ describe('stream type written as an expression', () => {
   it('keeps stream(T) without a resolution type unchanged', async () => {
     expect(await run('stream(number) => $t\n$t.signature')).toBe(
       'stream(number)'
+    );
+  });
+});
+
+describe('type value annotations', () => {
+  const { it: ruleIt } = rule('introspection.annotations');
+  const { it: positionIt } = rule('introspection.annotations-position');
+  const { it: innerIt } = rule('introspection.annotations-inner');
+  const { it: tupleIt } = rule('introspection.annotations-tuple');
+  const { it: haltIt } = rule('introspection.annotations-halt');
+
+  ruleIt('lists only the annotated fields of a dict type', async () => {
+    await expectEqual(
+      'dict(^(description: "d") a: number, b: string).annotations',
+      'dict[a: dict[description: "d"]]'
+    );
+  });
+
+  ruleIt('returns an empty dict when no field is annotated', async () => {
+    await expectEqual('dict(a: number).annotations', 'dict[]');
+  });
+
+  ruleIt('treats an empty annotation list as none', async () => {
+    await expectEqual('dict(^() a: number).annotations', 'dict[]');
+  });
+
+  ruleIt('lists the annotations of an ordered type', async () => {
+    await expectEqual(
+      'ordered(^(x: 1) a: number).annotations',
+      'dict[a: dict[x: 1]]'
+    );
+  });
+
+  ruleIt('lists the annotations of fn parameters', async () => {
+    await expectEqual(
+      'fn(^(description: "name", min: 1) x: string) { $x } => $f\n$f.^type.annotations',
+      'dict[x: dict[description: "name", min: 1]]'
+    );
+  });
+
+  ruleIt('merges repeated annotation lists on one parameter', async () => {
+    await expectEqual(
+      'fn(^(a: 1) ^(b: 2) x: number) { $x } => $f\n$f.^type.annotations',
+      'dict[x: dict[a: 1, b: 2]]'
+    );
+  });
+
+  positionIt('keys an unnamed parameter by its position', async () => {
+    await expectEqual(
+      'fn(^(label: "first") number, string) { "x" } => $f\n$f.^type.annotations',
+      'dict["0": dict[label: "first"]]'
+    );
+  });
+
+  innerIt('carries no annotations in inner', async () => {
+    await expectEqual('dict(^(d: 1) a: number).inner', 'dict[a: number]');
+  });
+
+  haltIt.each([
+    'list(number)',
+    'union("a", "b")',
+    STREAM_TYPE,
+    'number',
+    'string',
+  ])('halts RILL-R003 for annotations on %s', async (src) => {
+    await expectHalt(() => run(`${src} => $t\n$t.annotations`), {
+      code: 'RILL_R003',
+      messagePattern: 'annotations',
+    });
+  });
+
+  tupleIt.each(['tuple(number)', 'tuple(^(x: 1) number)'])(
+    'halts RILL-R003 for annotations on %s',
+    async (src) => {
+      await expectHalt(() => run(`${src}.annotations`), {
+        code: 'RILL_R003',
+        messagePattern: 'annotations',
+      });
+    }
+  );
+
+  tupleIt('recovers a missing annotations property with ??', async () => {
+    expect(await run('tuple(number).annotations ?? "none"')).toBe('none');
+  });
+
+  tupleIt('reports the missing property code through guard', async () => {
+    await expectEqual(
+      'guard { tuple(number).annotations } => $r\n$r.!code',
+      '#RILL_R003'
     );
   });
 });

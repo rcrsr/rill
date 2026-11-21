@@ -33,8 +33,8 @@ For design principles, see [Design Principles](topic-design-principles.md).
 | Comparison | `==`, `!=`, `<`, `>`, `<=`, `>=` |
 | Comparison | `.eq`, `.ne`, `.lt`, `.gt`, `.le`, `.ge` methods |
 | Logical | `!` (unary), `&&`, `\|\|` |
-| Pipe | `->` — auto-fill rule: no `$` in args → piped value prepended; explicit `$` rule: `$` in args → manual placement, no auto-prepend; zero-parameter callable → piped value is an excess argument, halts `RILL-R045`; block or string target must read `$` (`RILL-P031`); list or dict literal target must not read `$` at top level (`RILL-P030`) |
-| Capture | `=>` |
+| Pipe | `->` — evaluates its target by kind (type converts, data selects; block, string, function, method, call take the value); auto-fill rule: no `$` in args → piped value prepended; explicit `$` rule: `$` in args → manual placement, no auto-prepend; zero-parameter callable → piped value is an excess argument, halts `RILL-R045`; block or string target must read `$` (`RILL-P031`); list or dict literal target must not read `$` at top level (`RILL-P030`) |
+| Capture | `=>` — binds the value and passes it on unchanged; never converts, calls, or selects; `=> $x:T` asserts |
 | Spread | `...` (list/tuple spread), `ordered[...]` spread |
 | Extraction | `destruct<>` (destructure), `slice<>` (slice) |
 | Conversion | `-> type` (convert type) |
@@ -244,8 +244,8 @@ See [Variables](topic-variables.md) for detailed documentation.
 | Form | Reaches or halts |
 |------|------------------|
 | `.$k`, `[expr]`, `.?` | Dict data fields, list and tuple positions, ordered entries |
-| `.name`, `.?name`, and `-> .name` on a type value | `name`, `signature`, `inner`, `outer`, `defaults`, where the type has them; `.$k` and `[k]` halt RILL-R002 |
-| `.len`, `.keys`, function `.params` | Work only as a written `.name` or a pipe method |
+| `.name`, `.?name`, and `-> .name` on a type value | `name`, `signature`, `inner`, `outer`, `defaults`, `annotations`, where the type has them; `.$k` and `[k]` halt RILL-R002 |
+| `.len`, `.keys` | Work only as a written `.name` or a pipe method |
 | `.?len` | `false` |
 | `["len"]` | Halts RILL-R002 on a list, tuple, string, or function; RILL-R009 on a dict or ordered |
 | `.?k` | `true` exactly when `["k"]` does not halt |
@@ -508,7 +508,6 @@ The index must be an integer; a non-integer number halts with `#INVALID_INPUT` a
 | `.keys` | Dict | List | All keys |
 | `.values` | Dict | List | All values |
 | `.entries` | Dict | List | `tuple(string, V)` pairs |
-| `.params` | Function | Dict | Parameter metadata (type, __annotations) |
 
 `.keys`, `.values`, and `.entries` halt `RILL-R003` on a non-dict receiver (tuple, stream, string, number, and so on); `??` and `guard` do not recover the halt, so check the receiver first. `ordered` values are accepted.
 
@@ -674,6 +673,8 @@ The `name` key is not reserved on functions. On type values, `.name` is a dot-no
 | `$s.^chunk` | `$s.^type.inner` |
 | `$s.^output` | `$s.^type.outer` |
 
+`$f.params` on a function also halts RILL-R008, and its message names `.^type.annotations` and `.^type.inner`.
+
 The function halts are catchable: `$f.^input ?? "none"` gives `"none"`. The stream halts are not: `$s.^chunk ?? "x"` still halts RILL-R003 with the replacement hint.
 
 ```rill
@@ -715,7 +716,7 @@ Multiple `^()` blocks before any target merge into one annotation map.
 | Unclosed `^(` | RILL-P005 |
 | `^()` on `list(...)` field | RILL-P001 |
 
-See [Closure Annotations](topic-closure-annotations.md) for parameter annotations, the `.params` reflection API, the description shorthand, and dict/ordered/tuple field-annotation examples.
+See [Closure Annotations](topic-closure-annotations.md) for parameter annotations, parameter reflection with `.^type.inner`, the description shorthand, and dict/ordered/tuple field-annotation examples.
 
 ---
 

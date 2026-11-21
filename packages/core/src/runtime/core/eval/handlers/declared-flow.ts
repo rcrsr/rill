@@ -363,13 +363,20 @@ async function evaluatePostfixTargetCarried(
 /**
  * Whether a pipe target may carry a declaration, decided without awaiting so
  * the common non-carrying targets skip the carrying dispatch entirely. Must
- * list the same targets as the cases of `evaluateCarryingPipeTarget`.
+ * list the same targets as the cases of `evaluateCarryingPipeTarget`, except
+ * that a method call carries only when the input is declared.
  */
-export function isCarryingPipeTarget(target: PipeTargetNode): boolean {
+export function isCarryingPipeTarget(
+  target: PipeTargetNode,
+  input: Carried
+): boolean {
   switch (target.type) {
+    case 'MethodCall':
+      // A method reads its receiver's declaration only to project an own-field
+      // type, so an undeclared receiver takes the plain target switch.
+      return input.declared !== undefined;
     case 'TypeAssertion':
     case 'PassBlock':
-    case 'MethodCall':
     case 'GroupedExpr':
     case 'PostfixExpr':
     case 'Destructure':

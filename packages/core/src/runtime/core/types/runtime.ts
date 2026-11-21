@@ -6,15 +6,10 @@
  */
 
 import type { RillTypeName } from '../../../types.js';
-import type { RillCallable } from '../callable.js';
 import type { RillFunctionDefinition } from '../function-shorthand.js';
-import { isCallable } from '../callable.js';
-import { copyExtensionIdentity } from '../policy/identity.js';
 import type { TypeStructure, RillValue } from './structures.js';
 import type { DeclaredSlot } from './declared.js';
 import type { InvalidateMeta } from './status.js';
-import { setDictField } from './dict-keys.js';
-import { isDict } from './guards.js';
 
 export type { NativeArray, NativePlainObject, NativeValue } from '../values.js';
 
@@ -470,47 +465,4 @@ export interface ExecutionStepper {
   step(): Promise<StepResult>;
   /** Get final result (only valid after done=true) */
   getResult(): ExecutionResult;
-}
-
-/**
- * Bind callables in a dict to their containing dict.
- * This sets boundDict on each callable so they can access their container.
- */
-export function bindDictCallables(value: RillValue): RillValue {
-  if (
-    typeof value !== 'object' ||
-    value === null ||
-    Array.isArray(value) ||
-    '__type' in value ||
-    !isDict(value)
-  ) {
-    return value;
-  }
-
-  const dict = value;
-  let hasBoundCallables = false;
-
-  // Check if any values are callables that need binding
-  for (const v of Object.values(dict)) {
-    if (isCallable(v) && v.boundDict === undefined) {
-      hasBoundCallables = true;
-      break;
-    }
-  }
-
-  if (!hasBoundCallables) return value;
-
-  // Create a new dict with bound callables
-  const result: Record<string, RillValue> = {};
-  for (const [key, v] of Object.entries(dict)) {
-    if (isCallable(v) && v.boundDict === undefined) {
-      const bound: RillCallable = { ...v, boundDict: result };
-      copyExtensionIdentity(v, bound);
-      setDictField(result, key, bound);
-    } else {
-      setDictField(result, key, v);
-    }
-  }
-
-  return result;
 }

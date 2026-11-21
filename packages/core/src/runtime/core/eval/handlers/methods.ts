@@ -11,9 +11,9 @@ import type {
 } from '../../../../types.js';
 import type { ApplicationCallable } from '../../callable.js';
 import {
-  declaredParams,
   isCallable,
   isApplicationCallable,
+  isPropertyCallable,
   marshalArgs,
 } from '../../callable.js';
 import type {
@@ -29,19 +29,14 @@ import {
 } from '../../types/declared.js';
 import { inferType, inferTypeName } from '../../types/registrations.js';
 import { isTypeValue, isStream, isTuple } from '../../types/guards.js';
-import { inferStructure, formatStructure } from '../../types/operations.js';
+import { inferStructure } from '../../types/operations.js';
 import { structureToTypeValue } from '../../values.js';
 import type { EvalState } from '../state.js';
 import { appendTraceFrame } from '../../types/status.js';
 import { throwCatchableHostHalt, RuntimeHaltSignal } from '../../types/halt.js';
 import { createTraceFrame, TRACE_KINDS } from '../../types/trace.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import {
-  getNodeLocation,
-  checkAborted,
-  setDictField,
-  isFieldReceiver,
-} from '../shared.js';
+import { getNodeLocation, checkAborted } from '../shared.js';
 import {
   argumentsBinder,
   bindOrdered,
@@ -52,7 +47,13 @@ import {
 } from './closures.js';
 import { resolveSelected } from './code-block.js';
 import type { FieldLocation, FoundField } from './field-access.js';
-import { locateField, readField } from './field-access.js';
+import {
+  computedFieldArgs,
+  isComputedFieldReceiver,
+  locateField,
+  PARAMS_REMOVED_MESSAGE,
+  readField,
+} from './field-access.js';
 
 /**
  * Call a built-in type method with the receiver prepended. Arguments go
@@ -103,14 +104,16 @@ async function invokeTypeMethod(
 }
 
 /**
- * Own field a method-call node names on a dict or stream receiver, located
+ * Own field a method-call node names on a dict, ordered, or stream receiver, located
  * by locateField. Other receivers carry no own fields.
  */
 function locateMethodOwnField(
   receiver: RillValue,
   name: string
 ): FieldLocation | undefined {
-  return isFieldReceiver(receiver) ? locateField(receiver, name) : undefined;
+  return isComputedFieldReceiver(receiver)
+    ? locateField(receiver, name)
+    : undefined;
 }
 
 /**
@@ -152,6 +155,18 @@ export async function evaluateMethod(
 
   if (node.type === 'Invoke') {
     return evaluateInvoke(s, node, receiver);
+  }
+  if (isCallable(receiver) && node.name === 'params') {
+    throwCatchableHostHalt(
+      {
+        location: getNodeLocation(s, node),
+        sourceId: s.ctx.sourceId,
+        fn: 'evaluateMethod',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R008],
+      PARAMS_REMOVED_MESSAGE,
+      { field: 'params' }
+    );
   }
   if (isCallable(receiver)) {
     throwCatchableHostHalt(
@@ -220,9 +235,7 @@ export async function evaluateMethod(
       location
     );
     const isHostProperty =
-      selected.value === ownField &&
-      ownField.kind === 'application' &&
-      ownField.isProperty;
+      selected.value === ownField && isPropertyCallable(ownField);
     if (args.length === 0 && !node.hasParens && !isHostProperty) {
       return selected.value;
     }
@@ -235,7 +248,13 @@ export async function evaluateMethod(
         { name: node.name, actualType: inferType(callee) }
       );
     }
-    return invokeCallable(s, callee, args, location, node.name);
+    return invokeCallable(
+      s,
+      callee,
+      callee === ownField ? computedFieldArgs(callee, receiver, args) : args,
+      location,
+      node.name
+    );
   }
   if (args.length === 0 && !node.hasParens) {
     if (ownField !== undefined) return ownField;
@@ -287,8 +306,8 @@ export async function evaluateMethod(
       }
     }
   }
-  if (ownField === undefined && isFieldReceiver(receiver)) {
-    // A dict receiver with no field of this name at all (not merely a
+  if (ownField === undefined && isComputedFieldReceiver(receiver)) {
+    // A dict or ordered receiver with no field of this name at all (not merely a
     // non-callable one) routes through the same dict-field-access halt
     // used by `$d.bogus` (readField), so a literal-chain access
     // (`dict[a: 1].bogus`) and a variable access (`$d.bogus`) both halt
@@ -454,39 +473,4 @@ export async function evaluateAnnotationAccess(
   }
 
   return annotationValue;
-}
-
-/** Evaluate .params property access on callables; builds dict from parameter metadata. */
-// oxlint-disable-next-line require-await -- halt builders raise synchronously; the async boundary turns them into rejections
-export async function evaluateParamsProperty(
-  s: EvalState,
-  callable: RillValue,
-  location: SourceLocation | undefined
-): Promise<Record<string, RillValue>> {
-  if (!isCallable(callable)) {
-    throwCatchableHostHalt(
-      {
-        location,
-        sourceId: s.ctx.sourceId,
-        fn: 'evaluateParamsProperty',
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
-      `Cannot access .params on ${inferType(callable)}`,
-      { actualType: inferType(callable) }
-    );
-  }
-
-  const paramsDict: Record<string, RillValue> = {};
-  for (const param of declaredParams(callable, undefined, location)) {
-    const paramEntry: Record<string, RillValue> = {};
-    if (param.type !== undefined) {
-      paramEntry['type'] = formatStructure(param.type);
-    }
-    if (Object.keys(param.annotations).length > 0) {
-      paramEntry['__annotations'] = param.annotations;
-    }
-
-    setDictField(paramsDict, param.name, paramEntry);
-  }
-  return paramsDict;
 }

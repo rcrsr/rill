@@ -3,15 +3,15 @@ id: introspection
 title: Type introspection
 status: normative
 since: 0.24.0
-issues: [595, 633]
+issues: [595]
 errors: [RILL-R003]
-depends: [type-value, structural-typing, any, carried-type]
+depends: [type-value, structural-typing, any, carried-type, annotation]
 tests: [type-inner-outer.test.ts, type-values.test.ts, declared-types.test.ts, unspecified-type-args.test.ts]
 ---
 
 # Type introspection
 
-A script reads a value's type through `.^type`, and reads the structure of a type value through `.name`, `.signature`, `.inner`, `.outer`, and `.defaults`.
+A script reads a value's type through `.^type`, and reads the structure of a type value through `.name`, `.signature`, `.inner`, `.outer`, `.defaults`, and `.annotations`.
 
 ## Evaluation
 
@@ -89,9 +89,25 @@ tuple type with no defaults MUST return an empty map.
 r[introspection.defaults-halt] A type with no named fields has no defaults
 `.defaults` on a list, union, stream, or scalar type MUST halt with RILL-R003.
 
-r[introspection.annotations] .annotations lists field annotations {pending #633}
-`.annotations` MUST list the annotations of a type's fields, as a property parallel to
-`.defaults`. The entries of `.inner` stay plain types.
+r[introspection.annotations] .annotations lists field annotations
+`.annotations` on a `dict`, `ordered`, or function type MUST return a dict keyed by field or
+parameter name. The value at each key MUST be the annotation dict of that field or parameter. A
+field or parameter with no annotations MUST NOT appear, including one written with an empty
+`^()`, and a type with none MUST return an empty dict.
+
+r[introspection.annotations-position] An unnamed parameter is keyed by its position
+An unnamed parameter MUST be keyed by its zero-based position written as a string: the first
+unnamed parameter is `"0"`.
+
+r[introspection.annotations-inner] The entries of .inner carry no annotations
+`dict(^("x") a: string).inner` MUST equal `dict[a: string]`.
+
+r[introspection.annotations-tuple] .annotations on a tuple type halts
+`.annotations` on a tuple type MUST halt with RILL-R003.
+
+r[introspection.annotations-halt] .annotations on a type with no fields halts
+`.annotations` on any type other than a dict, ordered, function, or tuple type MUST halt with
+RILL-R003.
 
 ## Interactions
 
@@ -109,6 +125,7 @@ NOT recover any other halt.
 | `.inner` read on a leaf type | RILL-R003 | Yes |
 | `.outer` read on a type with no outer | RILL-R003 | Yes |
 | `.defaults` read on a type with no named fields | RILL-R003 | Yes |
+| `.annotations` read on a tuple type or a type with no fields | RILL-R003 | Yes |
 
 ## Examples
 
@@ -131,6 +148,17 @@ list[$t.inner, $t.outer] == list[string, number]
 ```rill
 dict(a: string = "x", b: number).defaults
 # Result: dict[a: "x"]
+```
+
+```rill
+dict(^("the name") a: string, b: number).annotations
+# Result: dict[a: dict[description: "the name"]]
+```
+
+```rill
+fn(^(unit: "ms") t: number, u: string) { $t } => $f
+$f.^type.annotations
+# Result: dict[t: dict[unit: "ms"]]
 ```
 
 ```rill

@@ -35,6 +35,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:tests": "tsc -p tsconfig.test.json",
     "lint": "oxlint --config ../../.oxlintrc.json --type-aware src/ tests/",
+    "bench": "tsx scripts/bench-eval.ts",
     "docs:errors": "tsx scripts/generate-error-docs.ts",
     "docs:llms-full": "tsx scripts/generate-llms-full.ts",
     "check": "pnpm run build && pnpm run typecheck:tests && pnpm run test && pnpm run test:examples && pnpm run lint"

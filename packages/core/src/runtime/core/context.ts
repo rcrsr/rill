@@ -23,7 +23,6 @@ import type {
   SchemeResolver,
   InvalidMeta,
 } from './types/runtime.js';
-import { bindDictCallables } from './types/runtime.js';
 import type { RillValue, TypeStructure } from './types/structures.js';
 import { declarationOf } from './types/declared.js';
 import { inferType } from './types/registrations.js';
@@ -480,13 +479,11 @@ export function createRuntimeContext(
   // Set initial variables (and infer their types)
   if (options.variables) {
     for (const [name, value] of Object.entries(options.variables)) {
-      // Bind callables in dicts to their containing dict
-      const boundValue = bindDictCallables(value);
-      variables.set(name, boundValue);
-      const inferred = inferType(boundValue);
+      variables.set(name, value);
+      const inferred = inferType(value);
       variableTypes.set(
         name,
-        isRillTypeName(inferred) ? inferLockType(boundValue) : 'any'
+        isRillTypeName(inferred) ? inferLockType(value) : 'any'
       );
     }
   }

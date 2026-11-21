@@ -19,7 +19,7 @@ Default context for any rill task. Covers the 7 critical differences, syntax, `$
     Wrong: x = 5         Mainstream: x = value
     Right: 5 => $x       rill:       value => $x
 
-`->` pipes a value to the next operation. `=>` captures a value AND continues the chain.
+`->` evaluates its target with the value, by the target's kind: a type converts, a list or dict selects, a block, string, function, method, or call takes the value. `=>` binds the value to a variable and passes it on; it never converts, calls, or selects.
 
     "hello" => $x -> .upper => $y    # $x="hello", $y="HELLO"
 
@@ -286,6 +286,9 @@ In rill, `{ ... }` is a block (function body, loop body, etc.), not a dict liter
     Right: $zero()
 
 ## Conversion versus assertion
+
+    Wrong: "5" => $n:number                # halts #TYPE_MISMATCH: a capture asserts, never converts
+    Right: "5" -> number => $n
 
     Wrong: $data -> dict(name: string)     # converts and fills, does not validate
     Right: $data -> :dict(name: string)    # asserts the shape
@@ -1245,6 +1248,8 @@ Read what a type holds with `.inner` and what a function or stream yields with `
     fn(x: number):string { $x } => $f
     $f.^type.outer                  # string
     dict(a: string = "x").defaults  # dict[a: "x"]
+    fn(^(min: 0) x: number) { $x } => $g
+    $g.^type.annotations            # dict[x: dict[min: 0]]; params with no annotations are left out
 
 Under a declared union, `.^type` reports the declaration and `.^effective` the own type:
 
@@ -1407,6 +1412,16 @@ Return type assertion (halts with `#TYPE_MISMATCH` on mismatch):
     $fn2.^type.outer                       # number
 
 `.^type.inner` returns an ordered of param names to types for named params, a tuple of types for unnamed params, and `ordered[]` for `fn()`. `.^type.outer` returns the declared return type (`any` if undeclared). `.^type.defaults` lists only the params that have a default. Works on script functions, built-ins, host functions.
+
+`.^type.annotations` returns a dict of param name to its annotations; params without annotations are left out. `.params` halts RILL-R008.
+
+    fn(^(min: 0) x: number, y: string) { $x } => $fn3
+    $fn3.^type.annotations                 # dict[x: dict[min: 0]]
+
+A function stored in a dict does not see the dict as `$`; pass it as an argument.
+
+    dict[n: 2, twice: fn(d) { $d.n * 2 }] => $d
+    $d.twice($d)                           # 4
 
 Description shorthand (bare string in `^(...)` expands to `description: <string>`):
 
