@@ -169,7 +169,9 @@ export function createVector(data: Float32Array, model: string): RillVector {
 
 /**
  * Create an empty collection value matching the given TypeStructure.
- * Assumes the type is dict, ordered, or tuple.
+ * Callers check `hasCollectionFields` first, so the type is dict, ordered, or
+ * tuple; the trailing `{}` for any other kind is unreachable from those
+ * callers.
  */
 export function emptyForType(type: TypeStructure): RillValue {
   if (type.kind === 'dict') return {};

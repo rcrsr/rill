@@ -7,7 +7,7 @@ issues: []
 grammar: []
 errors: [INVALID_INPUT, RILL-P027, RILL-R036, TYPE_MISMATCH]
 depends: [type-value, type-form, any, union, list, tuple, dict]
-tests: [map-type.test.ts, map-literal.test.ts, map-selection.test.ts, map-conversion.test.ts, map-iteration.test.ts]
+tests: [map-type.test.ts, map-literal.test.ts, map-selection.test.ts, map-conversion.test.ts, map-iteration.test.ts, map-defaults.test.ts]
 ---
 
 # Maps
