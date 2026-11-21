@@ -55,6 +55,8 @@ import './stream-pre-iteration.js';
 import './temporal-literal.js';
 import './throwaway-capture.js';
 import './tuple-one-position.js';
+import './map-missing-key.js';
+import './map-negative-index.js';
 import './type-extra-key.js';
 import './types-assertion.js';
 import './use-default-operator.js';

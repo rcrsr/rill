@@ -350,7 +350,7 @@ export function selectByBracketKey(
   receiverDeclared: TypeStructure | undefined,
   allowMissing: boolean
 ): Carried {
-  const key = bracketKey(receiver, indexValue, site);
+  const key = bracketKey(receiver, indexValue, site, receiverDeclared);
   const located = locateOrRecover(receiver, key, allowMissing, (miss) =>
     throwBracketMiss(receiver, key, miss, site)
   );
@@ -374,7 +374,8 @@ export async function evaluateExistenceCheck(
   s: EvalState,
   value: RillValue,
   existenceCheck: NonNullable<VariableNode['existenceCheck']>,
-  node: ASTNode
+  node: ASTNode,
+  receiverDeclared?: TypeStructure
 ): Promise<boolean> {
   const finalAccess = existenceCheck.finalAccess;
   const typeRef = existenceCheck.typeRef;
@@ -431,7 +432,8 @@ export async function evaluateExistenceCheck(
     key = bracketKey(
       value,
       await evaluatePipeChain(s, finalAccess.expression),
-      site
+      site,
+      receiverDeclared
     );
   } else if (finalAccess.kind === 'literal') {
     key = finalAccess.field;
@@ -447,7 +449,7 @@ export async function evaluateExistenceCheck(
         `Variable '${finalAccess.variableName ?? '$'}' is undefined`
       );
     }
-    key = bracketKey(value, keyValue, site);
+    key = bracketKey(value, keyValue, site, receiverDeclared);
   }
   // Locate without reading: a property-style callable is never invoked.
   const located = locateField(value, key);
@@ -726,7 +728,13 @@ export async function evaluateVariableCarried(
   if (node.existenceCheck) {
     // value now contains the result of the access chain (without the final field)
     return {
-      value: await evaluateExistenceCheck(s, value, node.existenceCheck, node),
+      value: await evaluateExistenceCheck(
+        s,
+        value,
+        node.existenceCheck,
+        node,
+        declared
+      ),
       declared: undefined,
     };
   }

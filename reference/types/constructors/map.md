@@ -31,13 +31,13 @@ r[map.value-type] A value type is any type
 
 r[map.key-kind] A key type is one scalar kind
 `K` MUST be `string`, `number`, `bool`, `atom`, `datetime`, `duration`, or `error_code`.
-`map(list, number)` MUST be rejected.
+`map(list, number)` MUST halt with `#INVALID_INPUT`.
 
 r[map.key-union] A key union has members of one kind
 `K` MAY be a union whose members share one kind, as in `union(#a, #b)`.
 
 r[map.key-union-mixed] A key union of two kinds is rejected
-`map(union(atom, string), number)` MUST be rejected.
+`map(union(atom, string), number)` MUST halt with `#INVALID_INPUT`.
 
 r[map.key-any] map(any, V) leaves the key kind open
 `map(any, V)` MUST be legal. Each map value still has exactly one key kind.
@@ -65,7 +65,8 @@ r[map.key-value] A literal key is a value
 A key in `map[...]` MUST be an expression: `map[1: "x"]` has the number key 1, `map[$k: 1]` the value of `$k`.
 
 r[map.key-multi] An entry MAY list several keys
-`map[[#a, #b]: 1]` MUST bind both keys to the value 1.
+`map[[#a, #b]: 1]` MUST bind both keys to the value 1. Only a list literal in key position is a
+multi-key. A variable holding a list is a non-scalar key (`map.key-scalar`).
 
 r[map.duplicate-run] A duplicate computed key halts
 Two keys equal by value in one literal, not both literals, MUST halt with `#INVALID_INPUT`.

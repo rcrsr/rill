@@ -7,7 +7,7 @@ issues: []
 grammar: [postfix-type-op, type-assertion, type-check, type-target]
 errors: [INVALID_INPUT, TYPE_MISMATCH]
 depends: [type-value, type-form, structural-typing, any]
-tests: [type-assertions.test.ts, structural-type-errors.test.ts, declared-types.test.ts]
+tests: [type-assertions.test.ts, structural-type-errors.test.ts, declared-types.test.ts, map-membership.test.ts]
 ---
 
 # Type assertions and checks
@@ -53,7 +53,8 @@ r[assertion.membership] The test is membership under structural typing
 for every `T`, so `list[] -> :?list(string)` is `true`.
 
 r[assertion.deep] A parameterized type checks every element and field
-`list(T)` MUST check each element, and a field-naming `dict`, `ordered`, or `tuple` type MUST
+`list(T)` MUST check each element, `map(K, V)` MUST check each key against `K` and each value
+against `V`, and a field-naming `dict`, `ordered`, or `tuple` type MUST
 check each named field or position, to any depth.
 
 r[assertion.once] The operand evaluates once

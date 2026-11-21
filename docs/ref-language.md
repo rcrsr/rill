@@ -511,7 +511,7 @@ The index must be an integer; a non-integer number halts with `#INVALID_INPUT` a
 | `.values` | Dict/Ordered/Map | List | All values |
 | `.entries` | Dict/Ordered/Map | List | `tuple(K, V)` pairs |
 
-`.keys`, `.values`, and `.entries` halt `RILL-R003` on a receiver that is not a dict, ordered, or map (tuple, stream, string, number, and so on); `??` and `guard` do not recover the halt, so check the receiver first. See [Maps](topic-types.md#maps) for map keys and selection.
+`.keys`, `.values`, and `.entries` halt `RILL-R003` on a receiver that is not a dict, ordered, or map (tuple, stream, string, number, and so on); `??` and `guard` do not recover the halt, so check the receiver first. See [Maps](topic-maps.md) for map keys and selection.
 
 See [Strings](topic-strings.md) for detailed string method documentation.
 
@@ -568,6 +568,7 @@ Methods marked "runtime checked" accept any receiver at parse time and halt at r
 | `now` | (none) | `datetime` | Current UTC instant |
 | `sort` | `list[T], key_fn?: (item: T) => Comparable` | `list[T]` | Sort list; stable, ascending by default |
 | `sort` | `dict[K, V], key_fn?: (entry: [key: K, value: V]) => Comparable` | `ordered[[key: K, value: V]]` | Sort dict entries; returns ordered key-value pairs |
+| `sort` | `map[K, V], key_fn?: (entry: dict[key: K, value: V]) => Comparable` | `map[K, V]` | Sort map entries by key, or by the key function result; returns a map |
 
 `json` halts `#INVALID_INPUT` on a function value, including a function held in a dict or list.
 

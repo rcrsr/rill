@@ -556,7 +556,9 @@ An empty stream returns `[]`.
 
 **Dict signature:** `sort(dict: dict[K, V], key_fn?: (entry: [key: K, value: V]) => Comparable) -> ordered[[key: K, value: V]]`
 
-`sort` orders a list or dict using a stable sort (`Array.prototype.sort`, ES2019+). Equal elements preserve their original relative order.
+**Map signature:** `sort(map: map(K, V), key_fn?: (entry: dict[key: K, value: V]) => Comparable) -> map(K, V)`
+
+`sort` orders a list, dict, or map using a stable sort (`Array.prototype.sort`, ES2019+). Equal elements preserve their original relative order.
 
 ### List Form
 
@@ -584,11 +586,16 @@ Dict sort returns an `ordered` collection. The default key is the entry key, a s
 # Result: ordered[a: 1, b: 2, c: 3]
 ```
 
-An ordered sorts the same way and returns an ordered. A tuple sorts to a list.
+An ordered sorts the same way and returns an ordered. A map sorts by key and returns a map; with a key function, `$` is the entry dict and the map is ordered by the returned key. A tuple sorts to a list.
 
 ```rill
 ordered[b: 2, a: 1] -> sort
 # Result: ordered[a: 1, b: 2]
+```
+
+```rill
+map["b": 2, "a": 1] -> sort
+# Result: map["a": 1, "b": 2]
 ```
 
 ### Multi-Key Sorting
@@ -856,7 +863,7 @@ ordered[b: 1, a: 2] -> seq({ $.key })
 
 ### Maps
 
-Iterates over entries with `key` and `value` fields, in insertion order. The key keeps its kind. `filter` keeps the entry dicts whose block returns true. See [Maps](topic-types.md#maps) for keys and selection.
+Iterates over entries with `key` and `value` fields, in insertion order. The key keeps its kind. `filter` keeps the entry dicts whose block returns true. See [Maps](topic-maps.md) for keys and selection.
 
 ```rill
 map[1: 10, 2: 20] -> seq({ $.key + $.value })

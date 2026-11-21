@@ -395,7 +395,7 @@ A value returned to the host that holds a code block reports the entry as the si
 
 `rillTypeName` and `rillTypeSignature` describe the own type of the value, never a declared type.
 
-A map converts to a JS `Map` (`NativeMap`); an atom key becomes its name string. A dict converts to a plain object with string keys; a single number or boolean key in the source literal is already the string of its spelling, and a multi-key list element is a string.
+A map converts to a JS `Map` (`NativeMap`); an atom key becomes its name string. A JS `Map` returned by a host function converts back to a rill map when its keys are scalars of one kind; keys of mixed kinds or a non-scalar key halt `RILL-R085`. A dict converts to a plain object with string keys; a single number or boolean key in the source literal is already the string of its spelling, and a multi-key list element is a string.
 
 ### Descriptor shapes for non-native types
 
@@ -480,7 +480,7 @@ for (const token of tokens) {
 
 The explicit-literal-syntax initiative (replacing sigil-based forms with keyword-prefixed forms) changed which tokens exist:
 
-**6 tokens added:**
+**7 tokens added:**
 
 | Token | Category | Syntax |
 |-------|----------|--------|
@@ -490,6 +490,9 @@ The explicit-literal-syntax initiative (replacing sigil-based forms with keyword
 | `ORDERED_LBRACKET` | `keyword` | `ordered[` |
 | `DESTRUCT_LANGLE` | `keyword` | `destruct<` |
 | `SLICE_LANGLE` | `keyword` | `slice<` |
+| `MAP_LBRACKET` | `keyword` | `map[` |
+
+`MAP_LBRACKET` arrived with the `map[...]` literal, not with the sigil replacement.
 
 **2 tokens removed:**
 
@@ -868,7 +871,7 @@ const greet: RillFunctionShorthand = {
 | Ordered type | `ordered(a: number)` |
 | Literal defaults | `n: number = -3`, `s: string = "x"`, `b: bool = true` |
 | Atom default | `k: atom = #A` |
-| Compound defaults | `list[1, 2]`, `dict[a: 1]`, `tuple[1, "x"]`, `ordered[a: 1]` |
+| Compound defaults | `list[1, 2]`, `dict[a: 1]`, `tuple[1, "x"]`, `ordered[a: 1]`, `map[#a: 1]` |
 | Field defaults | `d: dict(a: number, b: number = 0)`, `t: tuple(string, number = 0)` |
 | Parameter annotations | `^(description: "text") name: string` |
 | Annotation values | `^(retries: 3) fn(url: string):string`, any literal a script accepts |

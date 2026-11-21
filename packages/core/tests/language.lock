@@ -4,7 +4,7 @@
 # An entry changing here means the arbiter changed. That must be a language
 # spec change, never a fix to make an implementation change pass.
 #
-# 123 files.
+# 125 files.
 49952ceb33ddcc7695d90088af3ea143b2668676b490acb39d4ab282148945cd  packages/core/tests/language/access-halt.test.ts
 e5c359e2442488762ff6d23f787762a72e0a87281d80384db29be30504146107  packages/core/tests/language/annotations.test.ts
 e9429ce7f9f6b86135dbf7db16a8a3d3f05c85eb7b2841d1cdd72d57e20e8de5  packages/core/tests/language/anonymous-typed-closure-reflection.test.ts
@@ -77,7 +77,9 @@ a031e15a1a738511654b04c33703fb774f3c07c26cc32ab2f15bc161fc17295e  packages/core/
 275e24fdf1abffbf870d42a8e6d4b64ba24c7e5a4343ec50dbaaef2d5ba3ffd8  packages/core/tests/language/map-defaults.test.ts
 7894b71799ce9871f8a64cd5322a13dfd3bbe204f3b8ce01ccd261ebf2258070  packages/core/tests/language/map-iteration.test.ts
 41bcf5dcbb82b4599ec4975aaa2dc18fdb48a23ceaae5af7c5dd2ebbbdd4a62b  packages/core/tests/language/map-literal.test.ts
+a63b7c0a3837fb87bff8583bb17fb1fafb0d9c690490d934e5c55253c5a83e9f  packages/core/tests/language/map-membership.test.ts
 735e87aa6ea1fb5ede6f3ccbe1714f1f8ab814964c270244edcb3139850112c0  packages/core/tests/language/map-selection.test.ts
+9e1210f8e71f9e89ee16fbe02b84fae823527bc4efe4ee6447534c62f8c5fc85  packages/core/tests/language/map-sort.test.ts
 a694c511ea0ba5c9bdc44e3a02f5b7b6226978b0ad8f74801252d87c8c724b02  packages/core/tests/language/map-type.test.ts
 05276a2d744b6702f1d2821b733e7bd25141f32cbba12b3a56d6cbd2ba376e68  packages/core/tests/language/methods.test.ts
 d2e9e3a2226284cd71a5c0b678102c66c9656ca80f1bfd06ed5711d047553a64  packages/core/tests/language/no-implied-dollar.test.ts

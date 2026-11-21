@@ -2,6 +2,7 @@ import type { RillFunction } from '../../../core/callable.js';
 import { isDict } from '../../../core/callable.js';
 import {
   isIterator,
+  isMap,
   isOrdered,
   isPlainDict,
   isStream,
@@ -22,7 +23,7 @@ import type { TypeHaltSite } from '../../../core/types/halt.js';
 import { isInvalid, isVacant } from '../../../core/types/status.js';
 import type { RillValue } from '../../../core/types/structures.js';
 import { inferType } from '../../../core/types/registrations.js';
-import { createOrdered } from '../../../core/types/constructors.js';
+import { createMap, createOrdered } from '../../../core/types/constructors.js';
 import { resolvedCompareValue } from '../../../core/types/protocols/shared.js';
 import { anyTypeValue } from '../../../core/values.js';
 import { BreakSignal } from '../../../core/signals.js';
@@ -65,14 +66,14 @@ function haltOverCeiling(
 }
 
 /**
- * Element count of an in-memory source (list, tuple, ordered, plain dict)
+ * Element count of an in-memory source (list, tuple, ordered, map, plain dict)
  * known before any copy is allocated; undefined for strings, streams, and
  * iterators.
  */
 function sourceSize(input: RillValue): number | undefined {
   const positional = positionalElements(input);
   if (positional !== undefined) return positional.length;
-  if (isOrdered(input)) return input.entries.length;
+  if (isOrdered(input) || isMap(input)) return input.entries.length;
   if (isPlainDict(input) && !isIterator(input)) {
     return Object.keys(input).length;
   }
@@ -648,6 +649,8 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
    *            sort(list, key_fn) -> list[T] sorted by key_fn(element).
    * Keyed form (ordered or dict): sort(src) -> ordered sorted by key.
    *             sort(src, key_fn) -> ordered sorted by key_fn({key, value}).
+   * Map: sort(map) -> map sorted by key; sort(map, key_fn) -> map ordered
+   *      by key_fn({key, value}). Entries keep their own keys.
    * Tuple, string, stream, and iterator sources sort to a list.
    *
    * Error conditions:
@@ -689,7 +692,8 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       }
 
       const elements = await materializeSource('sort', input, ctx, location);
-      const keyedSource = isKeyedSource(input);
+      const mapSource = isMap(input);
+      const keyedSource = isKeyedSource(input) || mapSource;
 
       // Keyed sources yield { key, value } entries; the default key is the
       // entry key. Other sources sort by the element itself.
@@ -736,6 +740,14 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
 
       if (!keyedSource) {
         return keyed.map(({ el }) => el);
+      }
+      if (mapSource) {
+        return createMap(
+          keyed.map(({ el }): [RillValue, RillValue] => {
+            const entry = isDict(el) ? el : {};
+            return [entry['key'] ?? null, entry['value'] ?? null];
+          })
+        );
       }
       return createOrdered(
         keyed.map(({ el }): [string, RillValue] => {

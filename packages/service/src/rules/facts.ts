@@ -51,6 +51,7 @@ import type {
   DestructureNode,
   DictLiteralNode,
   DictNode,
+  MapLiteralNode,
   OrderedLiteralNode,
   PipeChainNode,
   PropertyAccess,
@@ -156,6 +157,8 @@ export interface ScriptFacts {
     string,
     DictNode | DictLiteralNode | OrderedLiteralNode
   >;
+  /** Variables captured exactly once from a bare map literal, never a closure parameter, mapped to that literal. */
+  readonly mapLiteralVars: ReadonlyMap<string, MapLiteralNode>;
   /** Variables captured exactly once from a naked code block whose result is provably not a function, never a closure parameter. */
   readonly blockCapturedVars: ReadonlySet<string>;
   /** First zero-accessChain ClosureCall per callee name, in source order. */
@@ -432,6 +435,7 @@ export function collectFacts(root: ASTNode): AstFacts {
     string,
     DictNode | DictLiteralNode | OrderedLiteralNode
   >();
+  const mapLiteralCandidates = new Map<string, MapLiteralNode>();
   const blockCandidates = new Set<string>();
   const firstClosureCall = new Map<string, ClosureCallNode>();
   const firstPipeIteration = new Map<string, ASTNode>();
@@ -576,6 +580,8 @@ export function collectFacts(root: ASTNode): AstFacts {
             literal.type === 'OrderedLiteral'
           ) {
             dictLiteralCandidates.set(onlyPipe.name, literal);
+          } else if (literal.type === 'MapLiteral') {
+            mapLiteralCandidates.set(onlyPipe.name, literal);
           }
         }
 
@@ -732,6 +738,10 @@ export function collectFacts(root: ASTNode): AstFacts {
     [...dictLiteralCandidates].filter(([name]) => qualifies(name))
   );
 
+  const mapLiteralVars = new Map(
+    [...mapLiteralCandidates].filter(([name]) => qualifies(name))
+  );
+
   const blockCapturedVars = new Set([...blockCandidates].filter(qualifies));
 
   const entriesVars = new Set([...entriesCandidates].filter(qualifies));
@@ -793,6 +803,7 @@ export function collectFacts(root: ASTNode): AstFacts {
       mixedListVars,
       mixedDictVars,
       dictLiteralVars,
+      mapLiteralVars,
       blockCapturedVars,
       firstClosureCall,
       firstPipeIteration,

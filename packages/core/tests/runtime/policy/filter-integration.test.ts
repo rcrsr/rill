@@ -19,6 +19,7 @@ import type { RillParam } from '../../../src/runtime/core/callable.js';
 import { expectHalt } from '../../helpers/halt.js';
 import {
   createConfigFilterResolver as publicCreateResolver,
+  createMap,
   createRillStream,
   createVector,
   getExtensionIdentity,
@@ -691,6 +692,38 @@ describe('filter integration: list-nested and tuple-nested members', () => {
     expect(getExtensionIdentity(purge as never)).toEqual({
       extension: 'kb',
       method: 'clients[2].purge',
+    });
+  });
+
+  it('brands a callable held in a map the same way as one in a dict', async () => {
+    const purge = method('purged');
+    const stop = method('stopped');
+    const ctx = createTestContext(
+      {
+        kb: { '*': { access: 'deny' }, 'clients.a.purge': { access: 'allow' } },
+      },
+      {
+        kb: {
+          clients: createMap([
+            ['a', { purge }],
+            ['b', { stop }],
+          ]),
+        },
+      }
+    );
+
+    const result = await execute(
+      parse('use<ext:kb> => $kb\n$kb.clients["a"].purge()'),
+      ctx
+    );
+    expect(result.result).toBe('purged');
+    expect(getExtensionIdentity(purge as never)).toEqual({
+      extension: 'kb',
+      method: 'clients.a.purge',
+    });
+    expect(getExtensionIdentity(stop as never)).toEqual({
+      extension: 'kb',
+      method: 'clients.b.stop',
     });
   });
 

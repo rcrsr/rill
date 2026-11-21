@@ -33,10 +33,12 @@ import {
   isDict,
   isDuration,
   isIterator,
+  isMap,
   isOrdered,
   isStream,
   isTuple,
   isVector,
+  mapKeyId,
 } from '../types/guards.js';
 import type { RillValue } from '../types/structures.js';
 import type { ExtensionIdentity } from './types.js';
@@ -309,6 +311,21 @@ function members(
     for (const [key, entryValue] of value.entries) {
       if (!isWalkable(entryValue)) continue;
       out.push({ value: entryValue, parent, segment: key, dotted: true });
+    }
+    return;
+  }
+
+  // Map values reach a callable the same way ordered values do. A non-string
+  // key's segment is its string form, since the path is only a label.
+  if (isMap(value)) {
+    for (const [key, entryValue] of value.entries) {
+      if (!isWalkable(entryValue)) continue;
+      out.push({
+        value: entryValue,
+        parent,
+        segment: typeof key === 'object' ? mapKeyId(key) : String(key),
+        dotted: true,
+      });
     }
     return;
   }

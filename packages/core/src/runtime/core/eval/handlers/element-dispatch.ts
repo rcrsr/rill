@@ -93,7 +93,7 @@ export async function selectElement(
   }
   // A wrong-typed key is not a missing one and halts ahead of the lookup,
   // with the bracket read's message.
-  const fieldKey: FieldKey = bracketKey(collection, key, site);
+  const fieldKey: FieldKey = bracketKey(collection, key, site, declared);
   const found = locateOrRecover(
     collection,
     fieldKey,

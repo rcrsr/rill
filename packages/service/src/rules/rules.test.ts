@@ -3,8 +3,8 @@ import { RULES } from './index.js';
 import type { RuleCategory } from './index.js';
 
 describe('RULES', () => {
-  it('registers exactly 62 rules', () => {
-    expect(RULES.length).toBe(62);
+  it('registers exactly 64 rules', () => {
+    expect(RULES.length).toBe(64);
   });
 
   it('has unique rule codes', () => {
@@ -66,6 +66,8 @@ const EXPECTED_CATEGORIES: Record<string, RuleCategory> = {
   PREFER_DO_WHILE: 'loops',
   USE_EACH: 'loops',
   METHOD_SHORTHAND: 'collections',
+  MAP_MISSING_KEY: 'types',
+  MAP_NEGATIVE_INDEX: 'types',
   MIXED_ELEMENT_TYPE_READ: 'types',
   NAMING_SNAKE_CASE: 'naming',
   PIPE_CONVERTS_INNER: 'types',

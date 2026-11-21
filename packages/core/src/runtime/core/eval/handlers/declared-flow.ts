@@ -258,7 +258,8 @@ export async function evaluatePostfixExprCarried(
         s,
         result.value,
         expr.existenceCheck,
-        expr
+        expr,
+        result.declared
       ),
       declared: undefined,
     };
@@ -349,7 +350,8 @@ async function evaluatePostfixTargetCarried(
         s,
         result.value,
         target.existenceCheck,
-        target
+        target,
+        result.declared
       ),
       declared: undefined,
     };

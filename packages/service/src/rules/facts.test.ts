@@ -408,6 +408,24 @@ describe('mixedListVars and mixedDictVars', () => {
 });
 
 // ============================================================
+// mapLiteralVars
+// ============================================================
+
+describe('mapLiteralVars', () => {
+  const facts = (source: string) => collectFacts(parse(source)).script;
+
+  it('collects a name captured once from a map literal', () => {
+    const script = facts('map[1: "x"] => $m\n');
+    expect([...script.mapLiteralVars.keys()]).toEqual(['m']);
+  });
+
+  it('skips a name captured twice', () => {
+    const script = facts('map[1: "x"] => $m\n5 => $m\n');
+    expect(script.mapLiteralVars.size).toBe(0);
+  });
+});
+
+// ============================================================
 // dictLiteralVars
 // ============================================================
 

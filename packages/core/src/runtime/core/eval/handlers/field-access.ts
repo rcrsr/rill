@@ -50,11 +50,13 @@ import {
   isMap,
   isMapKey,
   isOrdered,
+  isStructureKind,
   isTuple,
   isTypeValue,
   mapKeyId,
   scalarKindOf,
 } from '../../types/guards.js';
+import type { ScalarKind } from '../../types/guards.js';
 import { getVariable } from '../../context.js';
 import {
   nonIntegerIndexMessage,
@@ -166,7 +168,8 @@ export function dictSelectorKey(
  * Validate a bracket key against its receiver. Lists and tuples take a number,
  * ordered values a string or number, dicts a string, maps a scalar of the
  * kind their keys hold; every other receiver, and an iterator, cannot be
- * indexed.
+ * indexed. `receiverDeclared` is the receiver's declared type, if any; it
+ * supplies the key kind of an empty map.
  *
  * This is the one selector validator for a map: selection, dispatch and
  * existence checks all reach it, so a wrong selector halts the same way in
@@ -175,7 +178,8 @@ export function dictSelectorKey(
 export function bracketKey(
   receiver: RillValue,
   indexValue: RillValue,
-  site: TypeHaltSite
+  site: TypeHaltSite,
+  receiverDeclared?: TypeStructure
 ): FieldKey {
   const reject = (message: string): never =>
     throwCatchableHostHalt(site, ERROR_ATOMS[ERROR_IDS.RILL_R002], message);
@@ -195,7 +199,9 @@ export function bracketKey(
       ? indexValue
       : reject(`Tuple index must be number, got ${got()}`);
   }
-  if (isMap(receiver)) return mapSelectorKey(receiver, indexValue, site);
+  if (isMap(receiver)) {
+    return mapSelectorKey(receiver, indexValue, site, receiverDeclared);
+  }
   // Must precede the dict case: an iterator is structurally a dict.
   if (isIterator(receiver)) return reject('Cannot index iterator');
   if (isFieldReceiver(receiver)) return dictSelectorKey(indexValue, site);
@@ -203,18 +209,24 @@ export function bracketKey(
 }
 
 /**
- * Validate a map selector: a scalar of the kind the map's keys hold. An empty
- * map holds no kind and accepts any scalar; a non-scalar, or a scalar of
- * another kind, halts with a catchable type mismatch ahead of the lookup.
+ * Validate a map selector: a scalar of the kind the map's keys hold. A
+ * non-scalar, or a scalar of another kind, halts with a catchable type
+ * mismatch ahead of the lookup. An empty map holds no kind: with a declared
+ * map type it takes its key kind from that type, otherwise it accepts any
+ * scalar and the lookup is a miss.
  */
 function mapSelectorKey(
   receiver: RillMap,
   selector: RillValue,
-  site: TypeHaltSite
+  site: TypeHaltSite,
+  receiverDeclared: TypeStructure | undefined
 ): MapKeyRef {
   const actual = scalarKindOf(selector);
   const heldKey = receiver.entries[0]?.[0];
-  const expected = heldKey === undefined ? undefined : scalarKindOf(heldKey);
+  const expected =
+    heldKey === undefined
+      ? declaredKeyKind(receiverDeclared)
+      : scalarKindOf(heldKey);
   if (
     actual !== undefined &&
     isMapKey(selector) &&
@@ -230,6 +242,56 @@ function mapSelectorKey(
     'runtime',
     { expectedType: expected ?? 'scalar', actualType: got }
   );
+}
+
+const SCALAR_KIND_NAMES: readonly ScalarKind[] = [
+  'string',
+  'number',
+  'bool',
+  'atom',
+  'datetime',
+  'duration',
+];
+
+/** The scalar key kind a declared map type fixes, if it fixes one. */
+function declaredKeyKind(
+  declared: TypeStructure | undefined
+): ScalarKind | undefined {
+  if (declared === undefined || !isStructureKind(declared, 'map')) {
+    return undefined;
+  }
+  return declared.key === undefined ? undefined : keyKindOf(declared.key);
+}
+
+/**
+ * The scalar kind of a key type: a scalar, a literal, or a union whose members
+ * share one kind (construction rejects mixed kinds, so the first member's kind
+ * stands for all).
+ */
+function keyKindOf(key: TypeStructure): ScalarKind | undefined {
+  if (isStructureKind(key, 'literal')) return scalarKindOf(key.value);
+  if (isStructureKind(key, 'union')) {
+    const [first] = key.members;
+    return first === undefined ? undefined : keyKindOf(first);
+  }
+  return SCALAR_KIND_NAMES.find((kind) => kind === key.kind);
+}
+
+/**
+ * Lazily built key index per map. Maps are frozen (host-returned maps are
+ * frozen at the boundary), so an index never goes stale; the WeakMap drops it
+ * with the map.
+ */
+const MAP_INDEX = new WeakMap<RillMap, Map<string, RillValue>>();
+
+function mapIndexOf(map: RillMap): Map<string, RillValue> {
+  let index = MAP_INDEX.get(map);
+  if (index === undefined) {
+    index = new Map();
+    for (const [held, value] of map.entries) index.set(mapKeyId(held), value);
+    MAP_INDEX.set(map, index);
+  }
+  return index;
 }
 
 const NOT_FOUND = (miss: FieldMiss): FieldLocation => ({ found: false, miss });
@@ -269,11 +331,10 @@ export function locateField(receiver: RillValue, key: FieldKey): FieldLocation {
     // A map holds no named fields; only a wrapped key selects an entry.
     if (typeof key === 'string') return NOT_FOUND('no-fields');
     if (!isMapKeyRef(key)) return NOT_FOUND('not-indexable');
-    const id = mapKeyId(key.mapKey);
-    const entry = receiver.entries.find(([held]) => mapKeyId(held) === id);
-    return entry === undefined
+    const value = mapIndexOf(receiver).get(mapKeyId(key.mapKey));
+    return value === undefined
       ? NOT_FOUND('absent')
-      : { found: true, value: entry[1], key: undefined };
+      : { found: true, value, key: undefined };
   }
   if (isMapKeyRef(key)) return NOT_FOUND('not-indexable');
   if (isTypeValue(receiver)) {
@@ -622,7 +683,12 @@ export async function evaluateFieldAccessVariable(
     }
   }
 
-  const key = bracketKey(value, keyValue, siteFor(s, node, fn));
+  const key = bracketKey(
+    value,
+    keyValue,
+    siteFor(s, node, fn),
+    receiverDeclared
+  );
   return await readField(s, value, key, {
     allowMissing,
     location: getNodeLocation(s, node),

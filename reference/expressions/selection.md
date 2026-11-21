@@ -7,7 +7,7 @@ issues: []
 grammar: []
 errors: [INVALID_INPUT, TYPE_MISMATCH, RILL-P012, RILL-R002, RILL-R003, RILL-R005, RILL-R009]
 depends: [dict, ordered, list, tuple, map, string, carried-type]
-tests: [property-access.test.ts, dynamic-field-access.test.ts, list-dispatch.test.ts, unified-dispatch.test.ts, ordered-access.test.ts, access-halt.test.ts, default-value-operator.test.ts, map-selection.test.ts]
+tests: [property-access.test.ts, dynamic-field-access.test.ts, list-dispatch.test.ts, unified-dispatch.test.ts, ordered-access.test.ts, access-halt.test.ts, default-value-operator.test.ts, map-selection.test.ts, map-membership.test.ts]
 ---
 
 # Selection
@@ -24,7 +24,7 @@ $c[sel]       selector expression   sel -> $c    dispatch pipe
 ## Evaluation
 
 r[selection.forms] Each container accepts a fixed set of forms
-A container MUST accept only the forms its row allows, and dispatch is stated in `dispatch`. Any other form MUST halt. A dash marks a form that a pending rule below builds.
+A container MUST accept only the forms its row allows, and dispatch is stated in `dispatch`. Any other form MUST halt.
 
 | Container | `.name` | `.$k`, `[sel]` | Dispatch `sel -> $c` |
 |-----------|---------|----------------|----------------------|
@@ -32,7 +32,7 @@ A container MUST accept only the forms its row allows, and dispatch is stated in
 | ordered | yes | string key | yes |
 | list | no | number index | yes |
 | tuple | no | number index | yes |
-| map | no | - | - |
+| map | no | key of the map's key type | yes |
 | string | no | no; `.at(n)` reads a code point | no |
 
 r[selection.no-name] A list, tuple, or scalar has no named fields
@@ -109,7 +109,9 @@ r[selection.map-name] A map has no named fields
 `$m.a` MUST halt with RILL-R003, as `.name` does on any receiver that has no named fields.
 
 r[selection.map-type] A map selector has the key type
-A map selector that is not the key type MUST halt with `#TYPE_MISMATCH`.
+A map selector that is not the key type MUST halt with `#TYPE_MISMATCH`. An undeclared `map[]`
+has no key type, so any scalar selector is a missing key. A declared empty map checks the
+selector against its declared key type.
 
 r[selection.map-no-mask] A fallback does not mask a wrong map selector
 `??` MUST NOT mask the halt of a map selector that is not the key type.
@@ -155,12 +157,6 @@ dict[a: 1, b: 2] => $d
 list[$d.a, $d.$k, $d["a"], "b" -> $d] => $hits
 $hits
 # Result: list[1, 2, 1, 2]
-```
-
-```rill
-dict[a: 1] => $d
-list[$d["b"] ?? 0, $d.b ?? 0, list[1][5] ?? 0]
-# Result: list[0, 0, 0]
 ```
 
 ```rill

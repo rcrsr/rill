@@ -1627,12 +1627,20 @@ describe('Host function return-value validation (RILL-R085)', () => {
       expect(err.message).toContain('Date');
     });
 
-    it('a Map halts with RILL-R085', async () => {
+    it('a Map with mixed key kinds halts with RILL-R085', async () => {
       const err = await expectR085(
-        { badFn: badFn(() => new Map()) },
+        {
+          badFn: badFn(
+            () =>
+              new Map<unknown, unknown>([
+                [1, 'a'],
+                ['b', 'c'],
+              ])
+          ),
+        },
         'badFn()'
       );
-      expect(err.message).toContain('Map');
+      expect(err.message).toContain("'badFn'");
     });
 
     it('a Set halts with RILL-R085', async () => {

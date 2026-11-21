@@ -25,7 +25,7 @@ import {
   declaredParams,
   isCallable,
   marshalArgs,
-  validateHostResult,
+  normalizeHostResult,
 } from '../../callable.js';
 import { markExtensionThrow } from '../../extension-throw.js';
 import type { RuntimeContext } from '../../types/runtime.js';
@@ -574,7 +574,7 @@ async function invokeFnCallable(
     const dispatchPromise = raw instanceof Promise ? raw : Promise.resolve(raw);
     s.ctx.trackInflight(dispatchPromise);
     result = await dispatchPromise;
-    validateHostResult(result, functionName, callLocation);
+    result = normalizeHostResult(result, functionName, callLocation);
     if (!isInternalFn(callable.fn)) notifyActivity(s.ctx.activityListeners);
   } catch (e) {
     // Enrichment site 1: extension-dispatch boundary.
@@ -992,8 +992,7 @@ export async function invokeStream(
   // non-representable value must halt (RILL-R085) rather than leak into
   // `$s()`/`.len`.
   const resolution: unknown = await Reflect.apply(resolveFn, undefined, []);
-  validateHostResult(resolution, 'stream.resolve', callLocation);
-  return resolution;
+  return normalizeHostResult(resolution, 'stream.resolve', callLocation);
 }
 
 // Moved evaluators stay importable from this module.

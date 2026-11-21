@@ -42,7 +42,7 @@ import { getNodeLocation } from '../shared.js';
 import { evaluateExpression } from './core.js';
 import { evaluateVariableAsync } from './variables.js';
 import { assertTypeRefCarried } from './types.js';
-import { validateHostResult } from '../../callable.js';
+import { normalizeHostResult } from '../../callable.js';
 import { isObjectRecord } from '../../types/guards.js';
 import { ControlSignal } from '../../signals.js';
 import { brandExtensionValue } from '../../policy/identity.js';
@@ -225,11 +225,16 @@ async function resolveUseRaw(
         `Resolver error for '${key}': resolver result with kind 'value' is missing a 'value' field`
       );
     }
+    let normalizedValue: RillValue | undefined;
     if (kind === 'value') {
       // Deep-validate: a raw function, symbol, or bigint nested inside a
       // dict or list would otherwise reach script scope unchecked.
       try {
-        validateHostResult(result['value'], key, site.location);
+        normalizedValue = normalizeHostResult(
+          result['value'],
+          key,
+          site.location
+        );
       } catch (err) {
         if (err instanceof ControlSignal) throw err;
         const detail = err instanceof Error ? err.message : String(err);
@@ -254,8 +259,9 @@ async function resolveUseRaw(
       // `use<scheme:resource>` rather than on the capture variable the
       // script picks. Policy matches on this brand, so renaming the
       // variable cannot move a method out from under its rule.
-      brandExtensionValue(result.value, resource, site);
-      return { value: result.value, kind: 'value' };
+      const value = normalizedValue ?? result.value;
+      brandExtensionValue(value, resource, site);
+      return { value, kind: 'value' };
     }
 
     // source: parse and execute in child scope

@@ -302,6 +302,13 @@ $val -> :dict -> .keys        # assert dict, then get keys
 ["a", "b"] -> :list(number)            # ERROR: expected list(number), got list(string)
 ```
 
+A map assertion checks every key against the key type and every value against the value type. An empty map has every `map(K, V)`.
+
+```rill
+map[#a: 1] -> :?map(atom, number)
+# Result: true
+```
+
 #### Extra and Missing Dict Fields
 
 The table shows how each operation treats a dict value whose keys differ from the dict type.

@@ -19,6 +19,7 @@
 |-------|-------------|
 | [Architecture](topic-architecture.md) | How source text becomes a result |
 | [Types](topic-types.md) | Primitives, tuples, maps, dicts, collections |
+| [Maps](topic-maps.md) | `map(K, V)` keys, selection, assertion, conversion, and sorting |
 | [Type System](topic-type-system.md) | Structural types, type assertions, unions, type-locked variables |
 | [Variables](topic-variables.md) | Declaration, scope rules, `$` binding |
 | [Control Flow](topic-control-flow.md) | Conditionals, loops, break/return |

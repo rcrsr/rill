@@ -31,7 +31,12 @@ import {
   type TypeRefStep,
 } from './types/type-ref.js';
 import { resolveAtom, toAtomValue } from './types/atom-registry.js';
-import { createOrdered, createTuple } from './types/constructors.js';
+import {
+  createMap,
+  createOrdered,
+  createTuple,
+  mapEntryFault,
+} from './types/constructors.js';
 import { setDictField } from './types/dict-keys.js';
 import { isStructureKind } from './types/guards.js';
 import { isReservedBrandKey } from './values.js';
@@ -133,6 +138,27 @@ function createConstantReader(name: string): ConstantReader {
       }
       case 'OrderedLiteral':
         return createOrdered([...readEntries(primary.entries)]);
+      case 'MapLiteral': {
+        if (primary.defaultValue !== null) {
+          return reject('a default body', primary.span.start);
+        }
+        const pairs: [RillValue, RillValue][] = [];
+        for (const entry of primary.entries) {
+          const keys =
+            entry.key.type === 'ListLiteral'
+              ? entry.key.defaultValue === null
+                ? readItems(entry.key.elements)
+                : reject('a default body', entry.key.span.start)
+              : [readExpression(entry.key)];
+          const value = readExpression(entry.value);
+          for (const key of keys) pairs.push([key, value]);
+        }
+        const fault = mapEntryFault(pairs);
+        if (fault !== undefined) {
+          throw signatureError(name, fault.message, primary.span.start);
+        }
+        return createMap(pairs);
+      }
       default:
         return reject(`a ${primary.type} expression`, primary.span.start);
     }

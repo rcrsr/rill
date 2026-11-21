@@ -37,7 +37,7 @@
 | Target | What `->` does | Example |
 |--------|----------------|---------|
 | type `T` | converts; see [Conversion Operator](#conversion-operator---type) | `"5" -> number` |
-| list, dict, tuple, ordered | selects | `0 -> list["a", "b"]` |
+| list, dict, tuple, ordered, map | selects | `0 -> list["a", "b"]` |
 | code block | runs once with `$` bound | `3 -> { $ + 1 }` |
 | string | is built with `$` bound | `5 -> "x{$}"` |
 | function `$f` | calls it with the value as its one argument | `5 -> $double` |
@@ -1024,7 +1024,7 @@ A function, an iterator, or a vector has no `-> string` conversion, and neither 
 
 `-> list(T)`, `-> dict(...)`, `-> ordered(...)`, and `-> tuple(...)` convert every element, field, and position and halt `RILL-R036` or `RILL-R038` naming the part; see the [conversion table](topic-type-system.md#extra-and-missing-dict-fields).
 
-`-> map(string, V)` converts a dict, and `-> dict` converts a string-keyed map; every other source halts `RILL-R036`. See [Map Conversion](topic-types.md#map-conversion).
+`-> map(string, V)` converts a dict, and `-> dict` converts a string-keyed map; every other source halts `RILL-R036`. See [Map Conversion](topic-maps.md#map-conversion).
 
 `-> union(...)` returns a member unchanged and halts `RILL-R036` otherwise; see [Conversion into a Union](topic-type-system.md#conversion-into-a-union).
 

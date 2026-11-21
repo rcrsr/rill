@@ -7,7 +7,7 @@ issues: []
 grammar: []
 errors: [RILL-R009, INVALID_INPUT, TYPE_MISMATCH]
 depends: [selection]
-tests: [existence-check.test.ts, existence-check-dynamic.test.ts, map-selection.test.ts]
+tests: [existence-check.test.ts, existence-check-dynamic.test.ts, map-selection.test.ts, map-membership.test.ts]
 ---
 
 # Existence check
@@ -57,7 +57,9 @@ r[existence.map] A map existence check finds a key
 `$m.?[k]` MUST yield true when the map holds `k` and false otherwise, without halting. `$m.?name` (a spelled name) MUST yield false, because a map holds no named fields.
 
 r[existence.map-type] A map existence check needs the key type
-`$m.?[k]` with a selector that is not the key type MUST halt with `#TYPE_MISMATCH`.
+`$m.?[k]` with a selector that is not the key type MUST halt with `#TYPE_MISMATCH`. An empty
+undeclared `map[]` has no key type, so `.?[k]` with a scalar `k` MUST yield false. A declared
+empty map MUST check `k` against its declared key type.
 
 ## Errors
 

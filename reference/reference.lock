@@ -39,7 +39,7 @@ assertion.bare-fn ddccb3b2a613
 assertion.bare-kind ce7953cbeae7
 assertion.binding 7c2ca9c39f26
 assertion.check 2b9639133d91
-assertion.deep f2209f776e69
+assertion.deep 56088c63dfdc
 assertion.label 3f3d9e7eefa8
 assertion.leaf-args 7294a7079058
 assertion.membership 30f72df35afc
@@ -327,7 +327,7 @@ existence.index 2a5509ce5f92
 existence.integer 7852fe326328
 existence.key-type 7d9a40f81361 selection.key-type@29d9a1316d3a
 existence.map aa6b8859cef6
-existence.map-type 5a60bb339799
+existence.map-type a54f4832aa8e
 existence.missing 85ef8bf2308b existence.bracket@34f6bc46ea46 existence.variable@4c8cf41e5153
 existence.type 01f353140eb8
 existence.variable 4c8cf41e5153 selection.key-validation@ac6e7644d903
@@ -521,13 +521,13 @@ map.inner-unspecified ea4b9d5b0527 map.inner@b0cf898a678b
 map.iteration 2ea6aa6f3b16
 map.key-any 702f72c7402f
 map.key-bare d73b3f0a7eba
-map.key-kind 5fd0afdb4117
+map.key-kind 2a51aaa53894
 map.key-mixed 1164ae8a2efc
-map.key-multi 5c100dab7e8f
+map.key-multi 3826e0235b0f map.key-scalar@1147029c77c3
 map.key-pipe 5d51e2b27aac
 map.key-scalar 1147029c77c3
 map.key-union 4cff7195ab0e
-map.key-union-mixed 4b7223c62e26
+map.key-union-mixed 07535bea69bc
 map.key-value 9c474d1ab8ca
 map.keys a9b3c5ac04e5
 map.len 9b6954d66a58
@@ -626,7 +626,7 @@ selection.bracket-default e8f2ed920b52 selection.key-no-mask@95ef94de5628 select
 selection.computed 173483f7594b
 selection.default 40b9bbb857e8
 selection.default-last-step bd0009760a8c selection.key-no-mask@95ef94de5628
-selection.forms 39994787f2d5
+selection.forms 1f1b2ebc0806
 selection.index-integer c6a1fc84549e
 selection.index-type 299ce26a41f9
 selection.key-no-mask 95ef94de5628
@@ -638,7 +638,7 @@ selection.map-missing e37e7b4f01dc
 selection.map-name 8e82a547ad9f
 selection.map-negative b004da8fd2dd
 selection.map-no-mask c699b30d3ef3
-selection.map-type ac2bee9fffaf
+selection.map-type ea7db6488901
 selection.missing 73f450e78615
 selection.negative ddf7750ffc21
 selection.no-mask 64a407be7b4e
@@ -664,13 +664,14 @@ slice.negative 3a009d81e481
 slice.separator a6cbc69b9ff1
 slice.sources 89b31e045c6b
 slice.step-zero 41308f1e5ca4
-sort 946cfc44d0ea iteration.tuple@d651f9b75b66 pipe.call-operand@3a33d5a45012
+sort 57d16b65f294 iteration.tuple@d651f9b75b66 pipe.call-operand@3a33d5a45012
 sort.ascending 662284d77870
 sort.comparable 9998bd1e3b2d
 sort.dict abbf3f2fa53e
 sort.incomparable f026ff930d01
 sort.key-callable 0c230a881f88
 sort.key-fn c7f037af6928
+sort.map 428e36e274ca map.iteration@2ea6aa6f3b16
 sort.ordered-source debcf2259409 sort.dict@abbf3f2fa53e
 sort.stable fbea85ff9a18
 sort.to-list 90ec9e8ab5af iteration.string@89b1c92e7911
@@ -752,6 +753,7 @@ structural-typing.exact-dict edc7a049d7b0 structural-typing.bare-dict@47f054dbad
 structural-typing.exact-position cb3617c378f1
 structural-typing.function 68c5fdf04b11
 structural-typing.has c9a47b47ba3a
+structural-typing.map cfebb068a569
 structural-typing.missing 9f65eada49ab
 structural-typing.overlap-fields 10ec669ce02c
 structural-typing.overlap-kind 8188af254ccc

@@ -377,6 +377,7 @@ const NON_FUNCTION_TYPES: ReadonlySet<string> = new Set([
   'Dict',
   'TupleLiteral',
   'OrderedLiteral',
+  'MapLiteral',
 ]);
 
 /**

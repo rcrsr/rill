@@ -21,7 +21,10 @@ import {
   type RillAtomValue,
   type TypeStructure,
 } from '@rcrsr/rill';
-import { validateHostResult } from '../../src/runtime/core/callable.js';
+import {
+  normalizeHostResult,
+  validateHostResult,
+} from '../../src/runtime/core/callable.js';
 import { expectHaltSync } from '../helpers/halt.js';
 
 function atom(name: string): RillAtomValue {
@@ -282,7 +285,132 @@ describe('map host conversion', () => {
     );
   });
 
-  it('keeps rejecting a host JS Map', () => {
+  it('returns a frozen copy of a raw map the host still holds', () => {
+    const shared = { __rill_map: true, entries: [['a', 1]] };
+    const result = normalizeHostResult(shared, 'host_fn');
+    shared.entries.push(['b', 2]);
+    expect(isMap(result) ? result.entries : []).toHaveLength(1);
+    expect(Object.isFrozen(result)).toBe(true);
+  });
+
+  it('rejects a host JS Map in validation-only mode', () => {
     expect(() => validateHostResult(new Map(), 'host_fn')).toThrow(/Map/);
+  });
+
+  it('rejects a forged atom key with a host-result halt', () => {
+    const forged = { __rill_map: true, entries: [[{ __rill_atom: true }, 1]] };
+    expect(() => validateHostResult(forged, 'host_fn')).toThrow(
+      /malformed map brand/
+    );
+  });
+
+  it('rejects a forged datetime key that has no unix', () => {
+    const forged = {
+      __rill_map: true,
+      entries: [[{ __rill_datetime: true }, 1]],
+    };
+    expect(() => validateHostResult(forged, 'host_fn')).toThrow(
+      /malformed map brand/
+    );
+  });
+
+  it.each<[string, (v: unknown) => unknown]>([
+    ['map', (v) => ({ __rill_map: true, entries: [['a', v]] })],
+    ['ordered', (v) => ({ __rill_ordered: true, entries: [['a', v]] })],
+    ['tuple', (v) => ({ __rill_tuple: true, entries: [v] })],
+  ])('rejects an undefined or raw function value in a %s', (_n, build) => {
+    // oxlint-disable-next-line unicorn/no-useless-undefined -- the host value under test
+    expect(() => validateHostResult(build(undefined), 'host_fn')).toThrow(
+      /invalid value at/
+    );
+    expect(() =>
+      validateHostResult(
+        build(() => 1),
+        'host_fn'
+      )
+    ).toThrow(/invalid value at/);
+  });
+});
+
+describe('host JS Map conversion', () => {
+  it('converts a string-keyed Map to a rill map', () => {
+    const result = normalizeHostResult(
+      new Map<unknown, unknown>([
+        ['a', 1],
+        ['b', 'x'],
+      ]),
+      'host_fn'
+    );
+    expect(result).toEqual(
+      createMap([
+        ['a', 1],
+        ['b', 'x'],
+      ])
+    );
+  });
+
+  it('converts number-keyed and atom-keyed Maps', () => {
+    expect(isMap(normalizeHostResult(new Map([[1, 'x']]), 'host_fn'))).toBe(
+      true
+    );
+    expect(normalizeHostResult(new Map([[atom('a'), 1]]), 'host_fn')).toEqual(
+      createMap([[atom('a'), 1]])
+    );
+  });
+
+  it('converts a Map nested in a dict and a list', () => {
+    const result = normalizeHostResult(
+      { m: new Map([['a', 1]]), l: [new Map([[true, 2]])] },
+      'host_fn'
+    );
+    expect(result).toEqual({
+      m: createMap([['a', 1]]),
+      l: [createMap([[true, 2]])],
+    });
+  });
+
+  it('rejects mixed key kinds with the path', () => {
+    const mixed = new Map<unknown, unknown>([
+      ['a', 1],
+      [2, 1],
+    ]);
+    expect(() => normalizeHostResult({ m: mixed }, 'host_fn')).toThrow(
+      /invalid value at \.m/
+    );
+  });
+
+  it('rejects a non-scalar key', () => {
+    expect(() => normalizeHostResult(new Map([[[1], 'x']]), 'host_fn')).toThrow(
+      /scalar/
+    );
+  });
+
+  it('rejects an invalid value inside a Map with the key in the path', () => {
+    expect(() =>
+      // oxlint-disable-next-line no-useless-undefined -- the host value under test
+      normalizeHostResult(new Map([['a', undefined]]), 'host_fn')
+    ).toThrow(/at \.a/);
+  });
+
+  it('keeps rejecting Date and Set', () => {
+    expect(() => normalizeHostResult(new Date(), 'host_fn')).toThrow(/Date/);
+    expect(() => normalizeHostResult(new Set(), 'host_fn')).toThrow(/Set/);
+  });
+
+  it('exports a converted map through toNative as a tagged wrapper, not a Map', () => {
+    const map = normalizeHostResult(new Map([['a', 1]]), 'host_fn');
+    expect(toNative(map)).toEqual({
+      rillTypeName: 'map',
+      rillTypeSignature: 'map(string, number)',
+      value: new Map([['a', 1]]),
+    });
+  });
+
+  it('exports an atom-keyed map through toNative with the atom names as keys', () => {
+    expect(toNative(createMap([[atom('a'), 1]]))).toEqual({
+      rillTypeName: 'map',
+      rillTypeSignature: 'map(atom, number)',
+      value: new Map([['a', 1]]),
+    });
   });
 });
