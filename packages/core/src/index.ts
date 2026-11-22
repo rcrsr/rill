@@ -140,6 +140,7 @@ export {
 export {
   commonType,
   compareStructuredFields,
+  formatDefaultLiteral,
   formatRillLiteral,
   formatStructure,
   inferStructure,

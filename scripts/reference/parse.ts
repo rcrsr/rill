@@ -64,6 +64,8 @@ interface Fence {
   /** 1-based line of the closing fence; 0 while unclosed. */
   endLine: number;
   closed: boolean;
+  /** Issue number from a `rill pending=N` info string, or null. */
+  pending: number | null;
 }
 
 /** One row of the Errors table: the ids its Error cell names, without `#`. */
@@ -94,8 +96,15 @@ export interface ParsedFile {
 const KEY_RE = /^([A-Za-z_][\w-]*):(?:\s+(.*)|\s*)$/;
 const MARKER_RE = /^r\[([^\]\s]*)\](?:\s+(.*))?$/;
 const PENDING_RE = /\s*\{pending #(\d+)\}\s*$/;
+const PENDING_FENCE_RE = /^rill pending=(\d+)$/;
 const FENCE_RE = /^[ \t]*(`{3,}|~{3,})(.*)$/;
 const ERROR_ID_RE = /#[A-Z][A-Z0-9_]*|RILL-[A-Z]\d+/g;
+
+/** Issue number from a trimmed `rill pending=N` info string, else null. */
+export function parsePendingFence(info: string): number | null {
+  const m = info.match(PENDING_FENCE_RE);
+  return m ? Number(m[1]) : null;
+}
 
 /** Drops a trailing ` # comment`; a `#` inside quotes is kept. */
 function stripComment(value: string): string {
@@ -243,11 +252,13 @@ export function parseFile(
     if (fence) {
       inFence[i] = true;
       open = { char: fence[1]!.charAt(0), length: fence[1]!.length };
+      const info = fence[2]!.trim();
       openFence = {
-        info: fence[2]!.trim(),
+        info,
         line: i + 1,
         endLine: 0,
         closed: false,
+        pending: parsePendingFence(info),
       };
       fences.push(openFence);
       continue;

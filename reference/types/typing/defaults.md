@@ -26,7 +26,7 @@ r[defaults.param-form] A parameter default follows the parameter type in an fn t
 An `fn` type MUST accept `= literal` after a parameter type, as in `fn(x: number = 3):string { $x -> string }`.
 
 r[defaults.literal] A default is a literal, never an expression
-A default MUST be a string, number, bool, atom, or a list, dict, tuple, or ordered literal.
+A default MUST be a string, number, bool, atom, or a list, dict, tuple, ordered, or map literal.
 
 r[defaults.negative] A negative number is a literal default
 A default MUST accept a negative number literal, as in `b: number = -5`. `number.negative` owns

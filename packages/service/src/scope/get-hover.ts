@@ -6,8 +6,7 @@ import {
   BUILTIN_FUNCTIONS,
   BUILTIN_METHODS,
   introspectHandlerFromAST,
-  isAtom,
-  formatRillLiteral,
+  formatDefaultLiteral,
   formatTypeRef,
   KEYWORDS,
   isUnnamedParamName,
@@ -143,24 +142,14 @@ function formatClosureSignature(signature: HandlerMetadataStatic): string {
     .map((param) => {
       const unnamed = isUnnamedParamName(param.name);
       const base = unnamed ? param.type : `${param.name}: ${param.type}`;
-      const literal = formatDefault(param.defaultValue);
+      const literal =
+        param.defaultValue === undefined
+          ? undefined
+          : formatDefaultLiteral(param.defaultValue);
       return literal === undefined ? base : `${base} = ${literal}`;
     })
     .join(', ');
   return `fn(${paramList}):${signature.returnType ?? 'any'}`;
-}
-
-/** Source form of a scalar or atom default, or undefined when there is none. */
-function formatDefault(value: unknown): string | undefined {
-  if (
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean' ||
-    isAtom(value)
-  ) {
-    return formatRillLiteral(value);
-  }
-  return undefined;
 }
 
 function hoverForHostCall(name: string, span: SourceSpan): HoverInfo | null {

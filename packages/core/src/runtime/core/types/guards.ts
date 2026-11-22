@@ -61,8 +61,8 @@ export function isFieldDescriptor(
   );
 }
 
-/** Internal: object with a string `kind` (matches any TypeStructure member). */
-function isTypeStructure(value: unknown): value is TypeStructure {
+/** Object with a string `kind` (matches any TypeStructure member). */
+export function isTypeStructure(value: unknown): value is TypeStructure {
   return (
     typeof value === 'object' &&
     value !== null &&

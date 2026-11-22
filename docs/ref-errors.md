@@ -69,21 +69,21 @@ $x → "value"  # → is not valid, use ->
 
 **Description:** Invalid number format
 
-**Cause:** Number contains invalid characters, multiple decimal points, or unsupported notation.
+**Cause:** A number literal is followed by an exponent (1e3), a radix prefix (0x10), a digit separator (1_000), or identifier characters (12abc), or a digit follows the $ sigil ($1).
 
-**Resolution:** Use valid number format: integers (123), decimals (1.5), or scientific notation (1e5). No underscores, trailing dots, or multiple decimals allowed.
+**Resolution:** Write numbers as plain integers (123) or decimals (1.5). Exponent, radix-prefix, and digit-separator forms are not supported, a number cannot run straight into identifier characters, and a variable name after $ must start with a letter or _.
 
 **Example:**
 
 ```text
-# Multiple decimal points
-1.2.3
+# Digit separator underscore
+1_000
 
-# Trailing decimal point
-123.
+# Identifier characters directly after a number
+12abc
 
-# Leading zeros (octal notation not supported)
-0123
+# Digit directly after the $ sigil
+$1
 ```
 
 ---
@@ -144,8 +144,8 @@ Parse errors occur when token sequences violate rill syntax rules during AST con
 **Example:**
 
 ```text
-# Missing pipe operator between expressions
-"hello" "world"  # Missing -> between
+# Doubled pipe operator
+"hello" -> -> "world"
 
 # Statement starting with operator
 -> "value"  # Missing left side
@@ -167,14 +167,14 @@ Parse errors occur when token sequences violate rill syntax rules during AST con
 **Example:**
 
 ```text
-# Unclosed block
-{ "value"
+# error statement with no message inside a block
+{ error }
 
-# Pipe with no target
-"hello" ->
+# error statement with no message in a function body
+fn { error }
 
-# Incomplete conditional
-?($x > 0) "yes"  # Missing else branch
+# Error statement with no message
+error
 ```
 
 ---
@@ -191,10 +191,10 @@ Parse errors occur when token sequences violate rill syntax rules during AST con
 
 ```text
 # Uppercase type name
-$x => String  # Use "string" not "String"
+"a" => $x:String  # Use "string" not "String"
 
 # Invalid type name
-$x => int  # Use "number" for all numeric types
+"a" => $x:int  # Use "number" for all numeric types
 
 # Bare union without members
 "a" -> :union  # Write union(string, number)
@@ -213,11 +213,11 @@ $x => int  # Use "number" for all numeric types
 **Example:**
 
 ```text
-# Double operators
-$x + + $y
+# Negation with no operand
+$x -> !
 
-# Assignment operator (not supported)
-$x = 5  # Use "5 => $x" instead
+# Post-loop body without a trailing while
+0 -> do { $ + 1 }
 ```
 
 ---
@@ -236,11 +236,11 @@ $x = 5  # Use "5 => $x" instead
 # Missing closing parenthesis
 func($a, $b
 
-# Missing closing bracket in tuple
-[1, 2, 3
+# Missing closing bracket in a list
+list[1, 2, 3
 
 # Mismatched delimiters
-{ "value"]  # Opened with { but closed with ]
+list[1, 2}  # Opened with [ but closed with }
 ```
 
 ---
@@ -319,14 +319,14 @@ slice <0:2>  # Error: use slice<0:2>
 **Example:**
 
 ```text
-# Old tuple sigil *[
-*[1, 2]  # Error: use tuple[1, 2] or ordered[a: 1]
+# Removed tuple sigil
+*[1, 2]  # Error: use tuple[1, 2]
 
-# Old destruct sigil *<
-$ -> *<$a, $b>  # Error: use destruct<$a, $b>
+# Removed destructure sigil
+*<$a, $b>  # Error: use destruct<$a, $b>
 
-# Old slice sigil /<
-$ -> /<1:3>  # Error: use slice<1:3>
+# Removed slice sigil
+/<1:3>  # Error: use slice<1:3>
 ```
 
 ---
@@ -432,8 +432,8 @@ dict(key: string  # Error: expected )
 **Example:**
 
 ```text
-# Thousands of nested parentheses
-((((((((((1))))))))))  # Error when nesting exceeds the limit
+# Parentheses nested beyond the depth limit
+(((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((1)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
 ```
 
 ---
@@ -546,8 +546,8 @@ retry<limit: 3> { 1 }
 # Pass option in angle brackets
 pass<async: true> { 1 }
 
-# After (parenthesized options)
-retry(attempts: 3) { 1 }
+# Loop options in angle brackets
+do<limit: 10> { $ + 1 } while ($ < 3)
 ```
 
 ---
@@ -743,10 +743,10 @@ $s[0]  # Error: Cannot index string
 
 ```text
 # String method on number
-123 -> .upper()  # upper() is string method
+123 -> .upper()  # upper() is a string method
 
-# List method on string
-"hello" -> .first()  # first() is list method
+# String method on list
+list[1, 2] -> .trim()  # trim() is a string method
 
 # Property a type value does not define
 string => $t
@@ -811,8 +811,8 @@ fetch($url)  # Host must register fetch
 **Example:**
 
 ```text
-# Method not available on type
-123 -> .trim()  # trim() only on strings
+# Method not defined for the type
+list[1, 2] -> .push(3)  # lists have no push method
 
 # Misspelled method name
 "hello" -> .upcase()  # Should be .upper()
@@ -832,7 +832,8 @@ fetch($url)  # Host must register fetch
 
 ```text
 # Accessing undefined annotation
-$stmt.^timeout  # No ^(timeout: ...) set
+fn(x: number) { $x } => $f
+$f.^timeout  # No ^(timeout: ...) set
 ```
 
 ---
@@ -855,8 +856,8 @@ dict[name: "x"] -> .age  # age key not in dict
 list[1, 2, 3] => $items
 $items[5]  # Only 3 elements (0-2)
 
-# Safe alternative
-dict[name: "x"] -> .age ?? 0  # Returns 0 if missing
+# Out-of-range index through .at
+list[1, 2] -> .at(9)  # Only 2 elements (0-1)
 ```
 
 ---
@@ -892,11 +893,11 @@ range(0, 20000) -> seq({ $ })  # May exceed default limit
 **Example:**
 
 ```text
-# Unclosed group
-"test" -> .match("(abc")  # Missing closing )
+# Unclosed group in an autoExceptions pattern
+# createRuntimeContext({ autoExceptions: ["(abc"] })  # Missing closing )
 
-# Invalid quantifier
-"test" -> .match("a{,5}")  # Empty min in range
+# Unclosed character class in an autoExceptions pattern
+# createRuntimeContext({ autoExceptions: ["[a"] })  # Missing closing ]
 ```
 
 ---
@@ -912,11 +913,8 @@ range(0, 20000) -> seq({ $ })  # May exceed default limit
 **Example:**
 
 ```text
-# Slow host function
-$app.slow_api()  # Times out if exceeds limit
-
-# Setting higher timeout
-^(timeout: 30000) $app.slow_api()  # 30 seconds
+# Slow host function exceeds the host timeout
+slow_api()  # Times out if the host timeout elapses first
 ```
 
 ---
@@ -940,17 +938,17 @@ $app.slow_api()  # Times out if exceeds limit
 
 ### rill-r014
 
-**Description:** Auto-exception triggered
+**Description:** Retired: auto-exception triggered
 
-**Cause:** Value matched auto-exception pattern (configured to halt on specific error patterns in output).
+**Cause:** This error was raised when a value matched an auto-exception pattern configured by the host.
 
-**Resolution:** Handle error condition that produced the matched pattern, or adjust auto-exception configuration.
+**Resolution:** This error code is no longer thrown. A string pipe value that matches an autoExceptions pattern now halts with the non-catchable #R999 atom. Handle the condition that produced the matched pattern, or adjust the autoExceptions configuration.
 
 **Example:**
 
 ```text
-# API error response
-# API returned "ERROR:" prefix, auto-exception configured to catch this
+# Output matching an autoExceptions pattern (no longer raised; now a #R999 halt)
+"ERROR: upstream failed"  # Host configured autoExceptions: ["^ERROR:"]
 ```
 
 ---
@@ -967,9 +965,11 @@ $app.slow_api()  # Times out if exceeds limit
 
 ```text
 # Basic assertion
-assert $count > 0  # Fails if $count <= 0
+0 => $count
+assert $count > 0  # Fails because $count is 0
 
 # Assertion with message
+17 => $age
 assert $age >= 18 "Must be adult"
 ```
 
@@ -990,6 +990,7 @@ assert $age >= 18 "Must be adult"
 error "Invalid configuration"
 
 # Conditional error
+"failed" => $status
 ($status == "failed") ? { error "Process failed" } ! "ok"
 ```
 
@@ -1007,10 +1008,8 @@ error "Invalid configuration"
 
 ```text
 # Unknown mount
+use<ext:fs> => $fs
 $fs.read("unknown", "file.txt")  # Mount "unknown" not in config
-
-# Invalid mount path
-# createFsExtension({ mounts: { data: { path: "/nonexistent", mode: "read" } } })
 ```
 
 ---
@@ -1027,9 +1026,11 @@ $fs.read("unknown", "file.txt")  # Mount "unknown" not in config
 
 ```text
 # Path traversal with ..
+use<ext:fs> => $fs
 $fs.read("data", "../../etc/passwd")  # Attempts escape
 
 # Symlink escape
+use<ext:fs> => $fs
 $fs.read("data", "symlink_to_root")  # Symlink points outside mount
 ```
 
@@ -1047,9 +1048,11 @@ $fs.read("data", "symlink_to_root")  # Symlink points outside mount
 
 ```text
 # Glob mismatch
+use<ext:fs> => $fs
 $fs.read("csv_only", "data.json")  # Mount configured with glob: "*.csv"
 
 # Multiple extensions
+use<ext:fs> => $fs
 $fs.read("configs", "app.ini")  # Mount glob: "*.{json,yaml}"
 ```
 
@@ -1067,9 +1070,11 @@ $fs.read("configs", "app.ini")  # Mount glob: "*.{json,yaml}"
 
 ```text
 # Write to read-only mount
+use<ext:fs> => $fs
 $fs.write("readonly", "file.txt", "data")  # Mount mode: "read"
 
 # Read from write-only mount
+use<ext:fs> => $fs
 $fs.read("writeonly", "file.txt")  # Mount mode: "write"
 ```
 
@@ -1087,9 +1092,11 @@ $fs.read("writeonly", "file.txt")  # Mount mode: "write"
 
 ```text
 # Permission denied
+use<ext:fs> => $fs
 $fs.read("data", "protected.txt")  # File exists but no read permission
 
 # File not found
+use<ext:fs> => $fs
 $fs.read("data", "missing.txt")  # File does not exist
 ```
 
@@ -1107,10 +1114,12 @@ $fs.read("data", "missing.txt")  # File does not exist
 
 ```text
 # HTTP 404 Not Found
+use<ext:fetch> => $fetch
 $fetch.get("api", "/nonexistent")  # Returns 404
 
 # HTTP 400 Bad Request
-$fetch.post("api", "/users", [invalid: "data"])  # Returns 400
+use<ext:fetch> => $fetch
+$fetch.post("api", "/users", dict[invalid: "data"])  # Returns 400
 ```
 
 ---
@@ -1127,6 +1136,7 @@ $fetch.post("api", "/users", [invalid: "data"])  # Returns 400
 
 ```text
 # HTTP 503 Service Unavailable
+use<ext:fetch> => $fetch
 $fetch.get("api", "/resource")  # Server returns 503
 ```
 
@@ -1144,6 +1154,7 @@ $fetch.get("api", "/resource")  # Server returns 503
 
 ```text
 # Slow API endpoint
+use<ext:fetch> => $fetch
 $fetch.get("api", "/slow")  # Times out if exceeds limit
 ```
 
@@ -1161,7 +1172,8 @@ $fetch.get("api", "/slow")  # Times out if exceeds limit
 
 ```text
 # Connection refused
-$fetch.get("api", "/endpoint")  # Server not running
+use<ext:fetch> => $fetch
+$fetch.get("api", "/down")  # Server not running
 ```
 
 ---
@@ -1178,7 +1190,8 @@ $fetch.get("api", "/endpoint")  # Server not running
 
 ```text
 # HTML error page returned as JSON
-$fetch.get("api", "/endpoint")  # Server returns HTML instead of JSON
+use<ext:fetch> => $fetch
+$fetch.get("api", "/html")  # Server returns HTML instead of JSON
 ```
 
 ---
@@ -1195,7 +1208,8 @@ $fetch.get("api", "/endpoint")  # Server returns HTML instead of JSON
 
 ```text
 # Missing required parameter
-$ahi.parser([])  # Agent expects a non-empty params dict
+use<ext:ahi> => $ahi
+$ahi.parser(dict[])  # Agent expects a non-empty params dict
 ```
 
 ---
@@ -1212,7 +1226,8 @@ $ahi.parser([])  # Agent expects a non-empty params dict
 
 ```text
 # Wrong agent path
-# Agent configured with stale URL pointing to removed route
+use<ext:ahi> => $ahi
+$ahi.removed(dict[input: "x"])  # Agent URL points at a removed route
 ```
 
 ---
@@ -1229,7 +1244,8 @@ $ahi.parser([])  # Agent expects a non-empty params dict
 
 ```text
 # Unhandled error in downstream agent
-$ahi.parser([input: $text])  # Downstream agent crashes
+use<ext:ahi> => $ahi
+$ahi.crashing(dict[input: "x"])  # Downstream agent crashes
 ```
 
 ---
@@ -1246,7 +1262,8 @@ $ahi.parser([input: $text])  # Downstream agent crashes
 
 ```text
 # Slow downstream agent
-# createAhiExtension({ agents: { slow: { url: "..." } }, timeout: 5000 })
+use<ext:ahi> => $ahi
+$ahi.slow(dict[input: "x"])  # Agent exceeds the configured timeout
 ```
 
 ---
@@ -1263,7 +1280,8 @@ $ahi.parser([input: $text])  # Downstream agent crashes
 
 ```text
 # Agent not running
-# Agent configured with http://localhost:4001 but service is down
+use<ext:ahi> => $ahi
+$ahi.offline(dict[input: "x"])  # Agent service is down
 ```
 
 ---
@@ -1280,7 +1298,8 @@ $ahi.parser([input: $text])  # Downstream agent crashes
 
 ```text
 # Too many concurrent requests
-$ahi.parser([input: $text])  # Agent enforces per-second request quota
+use<ext:ahi> => $ahi
+$ahi.busy(dict[input: "x"])  # Agent enforces per-second request quota
 ```
 
 ---
@@ -1297,7 +1316,8 @@ $ahi.parser([input: $text])  # Agent enforces per-second request quota
 
 ```text
 # Call after dispose
-# Host called extension.dispose() then continued running script
+use<ext:ahi> => $ahi
+$ahi.disposed(dict[input: "x"])  # Host disposed the extension before this call
 ```
 
 ---
@@ -1314,7 +1334,8 @@ $ahi.parser([input: $text])  # Agent enforces per-second request quota
 
 ```text
 # HTTP 503 Service Unavailable
-$ahi.parser([input: $text])  # Downstream returns 503
+use<ext:ahi> => $ahi
+$ahi.flaky(dict[input: "x"])  # Downstream returns 503
 ```
 
 ---
@@ -1331,8 +1352,8 @@ $ahi.parser([input: $text])  # Downstream returns 503
 
 ```text
 # Agent not registered
-# createAhiExtension({ agents: ["parser"], registry: "http://registry:8080" })
-# Registry has no entry for "parser"
+use<ext:ahi> => $ahi
+$ahi.unregistered(dict[input: "x"])  # Registry has no entry for the agent
 ```
 
 ---
@@ -1366,7 +1387,7 @@ $ahi.parser([input: $text])  # Downstream returns 503
 
 ```text
 # Missing structural signature
-$dict -> ordered  # Ambiguous field order
+dict[a: 1] -> ordered  # Ambiguous field order
 ```
 
 ---
@@ -1472,7 +1493,8 @@ list[1, 2, 3] -> start_when(42)  # 42 is not a function
 
 ```text
 # Empty function body
-fn(x: number) { }  # No value produced
+fn(x: number) { } => $f
+$f(1)  # No value produced
 
 # Script with only comments
 # just a comment  # No value produced
@@ -1522,15 +1544,15 @@ $add(1, 2, 3)  # 3 args, 2 params
 
 **Description:** Module not found in resolver config
 
-**Cause:** The module ID is absent from the moduleResolver config map.
+**Cause:** The module ID is absent from the moduleResolver config map. Under use<...> the failure surfaces wrapped as RILL-R056.
 
 **Resolution:** Add an entry for the module ID to the moduleResolver config object.
 
 **Example:**
 
 ```text
-# Missing module entry
-# moduleResolver config lacks key for the requested module
+# Module absent from the resolver config
+# moduleResolver("greetings", {})  # "greetings" is not a key of the config
 ```
 
 ---
@@ -1539,15 +1561,15 @@ $add(1, 2, 3)  # 3 args, 2 params
 
 **Description:** Module file read failure
 
-**Cause:** The file path mapped to the module ID could not be read.
+**Cause:** The file path mapped to the module ID could not be read. Under use<...> the failure surfaces wrapped as RILL-R056.
 
 **Resolution:** Verify the file path exists and the process has read permission.
 
 **Example:**
 
 ```text
-# File does not exist
-# Path in moduleResolver config points to a missing file
+# Module file does not exist
+# moduleResolver("greetings", { greetings: "/nonexistent/greetings.rill" })  # Path is missing
 ```
 
 ---
@@ -1556,15 +1578,15 @@ $add(1, 2, 3)  # 3 args, 2 params
 
 **Description:** Extension not found in resolver config
 
-**Cause:** The extension name is absent from the extResolver config map.
+**Cause:** The extension name is absent from the extResolver config map. Under use<...> the failure surfaces wrapped as RILL-R056.
 
 **Resolution:** Add an entry for the extension name to the extResolver config object.
 
 **Example:**
 
 ```text
-# Missing extension entry
-# extResolver config lacks key for the requested extension
+# Extension absent from the resolver config
+# extResolver("missing", {})  # "missing" is not a key of the config
 ```
 
 ---
@@ -1573,7 +1595,7 @@ $add(1, 2, 3)  # 3 args, 2 params
 
 **Description:** Member path not found in extension
 
-**Cause:** The dot-path member does not exist in the extension value, or the path descends into a value that is not a plain dict (a callable, tuple, ordered, vector, or stream), which is never traversed.
+**Cause:** The dot-path member does not exist in the extension value, or the path descends into a value that is not a plain dict (a callable, tuple, ordered, vector, or stream), which is never traversed. Under use<...> the failure surfaces wrapped as RILL-R056.
 
 **Resolution:** Verify the member path matches the structure of the extension dict, and that every segment before the last names a dict.
 
@@ -1581,7 +1603,7 @@ $add(1, 2, 3)  # 3 args, 2 params
 
 ```text
 # Nonexistent member
-use<ext:qdrant.missing>  # "missing" key not in qdrant extension
+# extResolver("app.missing", { app: { ... } })  # "missing" key not in the app extension
 ```
 
 ---
@@ -1615,7 +1637,7 @@ use<db:users>  # no resolver registered for "db"
 
 ```text
 # Self-referencing module
-# module:a source contains use<module:a>
+use<module:a>  # module:a source contains use<module:a>
 ```
 
 ---
@@ -1632,7 +1654,7 @@ use<db:users>  # no resolver registered for "db"
 
 ```text
 # Network error in resolver
-# resolver throws "connection refused"
+use<module:remote>  # resolver throws "connection refused"
 ```
 
 ---
@@ -1677,7 +1699,7 @@ use<$id>  # missing : separator
 
 **Description:** moduleResolver config is not a plain object
 
-**Cause:** The config passed to moduleResolver is not a plain object.
+**Cause:** The config passed to moduleResolver is not a plain object. Under use<...> the failure surfaces wrapped as RILL-R056.
 
 **Resolution:** Pass a plain object as the moduleResolver config (e.g., { myModule: "/app/mod.rill" }). Paths must be absolute; resolve them before passing in.
 
@@ -1685,7 +1707,7 @@ use<$id>  # missing : separator
 
 ```text
 # Non-object config
-# moduleResolver config was null or an array
+# moduleResolver("greetings", null)  # Config is null, not a plain object
 ```
 
 ---
@@ -1730,7 +1752,7 @@ export:
 
 ```text
 # Missing parseSource option
-# resolver returns { kind: "source", text: "..." } but host did not pass parseSource
+use<module:greetings>  # resolver returns { kind: "source", text: "..." } but host did not pass parseSource
 ```
 
 ---
@@ -1739,7 +1761,7 @@ export:
 
 **Description:** Context key not found
 
-**Cause:** The requested dot-path key does not exist in the context config.
+**Cause:** The requested dot-path key does not exist in the context config. Under use<...> the failure surfaces wrapped as RILL-R056.
 
 **Resolution:** Ensure the key is present in the context configuration passed to contextResolver.
 
@@ -1747,7 +1769,7 @@ export:
 
 ```text
 # Missing top-level key
-# use<context:timeout> but "timeout" is not in context config
+# contextResolver("timeout", {})  # "timeout" is not in the context config
 ```
 
 ---
@@ -1756,7 +1778,7 @@ export:
 
 **Description:** Context path segment is not a dict
 
-**Cause:** A dot-path segment resolves to a non-dict value, so traversal cannot continue.
+**Cause:** A dot-path segment resolves to a non-dict value, so traversal cannot continue. Under use<...> the failure surfaces wrapped as RILL-R056.
 
 **Resolution:** Ensure each intermediate segment in the dot-path is a nested dict in the context config.
 
@@ -1764,75 +1786,76 @@ export:
 
 ```text
 # Non-dict intermediate segment
-# use<context:limits.max_tokens> but "limits" is a string, not a dict
+# contextResolver("limits.max_tokens", { limits: "text" })  # "limits" is a string, not a dict
 ```
 
 ---
 
 ### rill-r064
 
-**Description:** Cannot convert string to number
+**Description:** Retired: cannot convert string to number
 
-**Cause:** The string value is not a valid numeric representation or is empty/whitespace.
+**Cause:** This error was raised when a string that is not a valid number was converted with number.
 
-**Resolution:** Ensure the string contains a valid number before converting. Use as(number) only on numeric strings.
+**Resolution:** This error code is no longer thrown. Converting a non-numeric string with number now raises RILL-R038. Ensure the string holds a valid number before converting.
 
 **Example:**
 
 ```text
-# Non-numeric string conversion
-"hello" -> as(number)  # Error: not a valid number
+# Non-numeric string conversion (no longer raised; now RILL-R038)
+"hello" -> number  # Not a valid number
 ```
 
 ---
 
 ### rill-r065
 
-**Description:** Cannot convert string to bool
+**Description:** Retired: cannot convert string to bool
 
-**Cause:** Only the strings "true" and "false" can convert to bool.
+**Cause:** This error was raised when a string other than "true" or "false" was converted with bool.
 
-**Resolution:** Use the exact strings "true" or "false" for bool conversion.
+**Resolution:** This error code is no longer thrown. Converting such a string with bool now raises RILL-R036. Use the exact strings "true" or "false".
 
 **Example:**
 
 ```text
-# Invalid bool string
-"yes" -> as(bool)  # Error: only "true"/"false" allowed
+# Invalid bool string (no longer raised; now RILL-R036)
+"yes" -> bool  # Only "true"/"false" convert
 ```
 
 ---
 
 ### rill-r066
 
-**Description:** Cannot convert number to bool
+**Description:** Retired: cannot convert number to bool
 
-**Cause:** Only the numbers 0 and 1 can convert to bool. Other numeric values have no bool equivalent.
+**Cause:** This error was raised when a number other than 0 or 1 was converted with bool.
 
-**Resolution:** Use 0 (false) or 1 (true) for number-to-bool conversion.
+**Resolution:** This error code is no longer thrown. Converting such a number with bool now raises RILL-R036. Use 0 (false) or 1 (true).
 
 **Example:**
 
 ```text
-# Non-binary number conversion
-42 -> as(bool)  # Error: only 0 and 1 allowed
+# Non-binary number conversion (no longer raised; now RILL-R036)
+42 -> bool  # Only 0 and 1 convert
 ```
 
 ---
 
 ### rill-r067
 
-**Description:** Value is not JSON-serializable
+**Description:** Retired: value is not JSON-serializable
 
-**Cause:** The value type cannot be represented in JSON. Only strings, numbers, bools, lists, and dicts serialize.
+**Cause:** This error was raised when a value that cannot be represented in JSON, such as a function, was serialized.
 
-**Resolution:** Convert the value to a serializable type before JSON operations. Extract data from functions or iterators first.
+**Resolution:** This error code is no longer thrown. Serializing such a value now halts with #INVALID_INPUT. Convert the value to a serializable type (string, number, bool, list, or dict) before serializing; extract data from functions or iterators first.
 
 **Example:**
 
 ```text
-# Function in JSON context
-fn(x) { $x + 1 } -> as(string)  # Error: functions not serializable
+# Function in JSON context (no longer raised; now #INVALID_INPUT)
+fn(x) { $x + 1 } => $f
+$f -> json  # Functions are not serializable
 ```
 
 ---
@@ -1951,7 +1974,7 @@ fn(x) { $x + 1 } -> as(string)  # Error: functions not serializable
 
 ```text
 # Zero-dimension vector
-# createVector(new Float32Array([]), "model") fails
+# createVector(new Float32Array([]), "model")  # No dimensions
 ```
 
 ---
@@ -1968,7 +1991,7 @@ fn(x) { $x + 1 } -> as(string)  # Error: functions not serializable
 
 ```text
 # Empty event field
-# emitExtensionEvent(ctx, { event: "" }) fails
+# emitExtensionEvent(ctx, { event: "" })  # Empty event name
 ```
 
 ---
@@ -1977,7 +2000,7 @@ fn(x) { $x + 1 } -> as(string)  # Error: functions not serializable
 
 **Description:** Unknown module resource
 
-**Cause:** The module resolver received a resource identifier it does not recognize.
+**Cause:** The module resolver received a resource identifier it does not recognize. Under use<...> the failure surfaces wrapped as RILL-R056.
 
 **Resolution:** Use a valid module resource. The ext module resolver only handles the "ext" resource.
 
@@ -1985,7 +2008,7 @@ fn(x) { $x + 1 } -> as(string)  # Error: functions not serializable
 
 ```text
 # Invalid module resource
-use<module:unknown>  # Error: unknown module
+# The resolver of a createTestContext() context receives "unknown"  # Only "ext" is served
 ```
 
 ---
@@ -1994,15 +2017,15 @@ use<module:unknown>  # Error: unknown module
 
 **Description:** Invalid parameter default value
 
-**Cause:** The default value type does not match the declared parameter type.
+**Cause:** The default value type does not match the declared parameter type. Explicit host registration checks nested field defaults and return-type defaults too; a nested mismatch reads "Default value for field 'a' must be X, got Y".
 
-**Resolution:** Ensure the defaultValue matches the parameter type in the function definition.
+**Resolution:** Ensure every defaultValue, including nested field defaults and return-type defaults, matches its declared type in the function definition.
 
 **Example:**
 
 ```text
 # Type mismatch in default
-# param { name: "x", type: "number", defaultValue: "hello" }
+# param { name: "x", type: "number", defaultValue: "hello" }  # String default for a number
 ```
 
 ---
@@ -2018,15 +2041,10 @@ use<module:unknown>  # Error: unknown module
 **Example:**
 
 ```text
-# Before (legacy syntax triggers RILL-R078)
+# Legacy conversion syntax
 42 -> :>string
 "3.14" -> :>number
 list[1, 2] -> :>tuple
-
-# After (current syntax)
-42 -> string
-"3.14" -> number
-list[1, 2] -> tuple
 ```
 
 ---
@@ -2042,11 +2060,8 @@ list[1, 2] -> tuple
 **Example:**
 
 ```text
-# Before (legacy syntax triggers RILL-R079)
+# Legacy pre-loop syntax
 0 -> ($ < 3) @ { $ + 1 }
-
-# After (current syntax)
-0 -> while ($ < 3) do { $ + 1 }
 ```
 
 ---
@@ -2062,11 +2077,8 @@ list[1, 2] -> tuple
 **Example:**
 
 ```text
-# Before (legacy syntax triggers RILL-R080)
+# Legacy post-loop syntax
 0 -> @ { $ + 1 } ? ($ < 3)
-
-# After (current syntax)
-0 -> do { $ + 1 } while ($ < 3)
 ```
 
 ---
@@ -2082,11 +2094,8 @@ list[1, 2] -> tuple
 **Example:**
 
 ```text
-# Before (legacy syntax triggers RILL-R081)
-0 -> ^(limit: 10) @ { $ + 1 } ? ($ < 3)
-
-# After (current syntax)
-0 -> do(limit: 10) { $ + 1 } while ($ < 3)
+# Legacy limit annotation in expression position
+(^(limit: 10) 0)
 ```
 
 ---
@@ -2102,8 +2111,9 @@ list[1, 2] -> tuple
 **Example:**
 
 ```text
-# Total timeout with guard recovery
-guard { timeout(total: duration("500ms")) { $app.slow() } } ?? "fallback"
+# Total timeout expires
+use<ext:app> => $app
+timeout(total: duration("500ms")) { $app.slow() }
 ```
 
 ---
@@ -2119,8 +2129,9 @@ guard { timeout(total: duration("500ms")) { $app.slow() } } ?? "fallback"
 **Example:**
 
 ```text
-# Idle timeout with guard recovery
-guard { timeout(idle: duration("200ms")) { $stream } } ?? "fallback"
+# Idle timeout expires
+use<ext:app> => $app
+timeout(idle: duration("200ms")) { $app.hang() }
 ```
 
 ---
@@ -2137,10 +2148,10 @@ guard { timeout(idle: duration("200ms")) { $stream } } ?? "fallback"
 
 ```text
 # Host attempts to invalidate with the reserved "ok" code
-# Host code: ctx.invalidate({ code: "ok" })  # rejected
+# Host code: ctx.invalidate(error, { code: "ok", provider: "host" })  # rejected
 
 # Host attempts to invalidate with a code it invented
-# Host code: ctx.invalidate({ code: "PAYMENT_FAILED" })  # rejected
+# Host code: ctx.invalidate(error, { code: "PAYMENT_FAILED", provider: "host" })  # rejected
 ```
 
 ---
@@ -2149,7 +2160,7 @@ guard { timeout(idle: duration("200ms")) { $stream } } ?? "fallback"
 
 **Description:** Host function broke the host contract
 
-**Cause:** Two causes share the message template, each supplying its own {detail}. First, a host callable has no usable parameter declaration (missing, not an array, or holding a non-object entry) because it was built by hand instead of with callable() or toCallable; the detail reads "has no parameter declaration; build callables with toCallable or callable()" or "declares a malformed parameter at index N; ...". Second, a host function returned a JavaScript value that has no representation in the rill value model, such as undefined, null, a symbol, a bigint, a plain function, a Date, a Map, a Set, or a non-plain class instance. The value may have been nested inside a returned array or plain object.
+**Cause:** Two causes share the message template, each supplying its own {detail}. First, a host callable has no usable parameter declaration (missing, not an array, or holding a non-object entry) because it was built by hand instead of with callable() or toCallable; the detail reads "has no parameter declaration; build callables with toCallable or callable()" or "declares a malformed parameter at index N; ...". Second, a host function returned a JavaScript value that has no representation in the rill value model, such as undefined, null, a symbol, a bigint, a plain function, a Date, a Set, or a non-plain class instance. The value may have been nested inside a returned array or plain object.
 
 **Resolution:** Build every callable with callable() or toCallable, or register it with the { signature, fn } shorthand, so it carries a parameter declaration. For an invalid return value, convert the returned value to a rill-representable shape (primitive, dict, list, tuple, atom, datetime, duration, or callable) before returning it from the host function.
 
@@ -2157,10 +2168,10 @@ guard { timeout(idle: duration("200ms")) { $stream } } ?? "fallback"
 
 ```text
 # Host function returns an unsupported JavaScript value
-# Host code: registerFunction("bad", () => new Map())  # rejected
+returns_date()  # The host function returned a Date
 
 # Hand-built callable without a parameter declaration
-# Host code: { __type: "callable", kind: "application", fn }  # rejected; use callable(fn)
+$hand_built()  # Built by hand instead of with callable()
 ```
 
 ---
@@ -2176,8 +2187,8 @@ guard { timeout(idle: duration("200ms")) { $stream } } ?? "fallback"
 **Example:**
 
 ```text
-# Wildcard restricted to an access decision
-# policy: { "kb": { "*": { "access": "deny" } } }
+# Wildcard rule declares an out transform
+# policy: { "kb": { "*": { "access": "deny", "out": ["filter.redact"] } } }
 ```
 
 ---
@@ -2193,8 +2204,8 @@ guard { timeout(idle: duration("200ms")) { $stream } } ?? "fallback"
 **Example:**
 
 ```text
-# Transform reference naming a mounted callable
-# policy: { "kb": { "search": { "access": "allow", "out": ["filter.redact"] } } }
+# Transform reference naming an unmounted extension
+# policy: { "kb": { "search": { "access": "allow", "out": ["filter.redact"] } } }  # No "filter" extension mounted
 ```
 
 ---
@@ -2210,9 +2221,9 @@ guard { timeout(idle: duration("200ms")) { $stream } } ?? "fallback"
 **Example:**
 
 ```text
-# Denied call recovered with guard
-guard { $kb.delete() } => $r
-$r.! ? "not permitted" ! $r
+# Denied call
+use<ext:kb> => $kb
+$kb.delete()  # Policy denies kb.delete
 ```
 
 ---
@@ -2229,7 +2240,8 @@ $r.! ? "not permitted" ! $r
 
 ```text
 # Transform that must not call back into its own method
-# policy: { "kb": { "search": { "access": "allow", "out": ["filter.redact"] } } }
+use<ext:kb> => $kb
+$kb.search()  # The out transform filter.redact calls kb.search again
 ```
 
 ---
@@ -2245,8 +2257,8 @@ $r.! ? "not permitted" ! $r
 **Example:**
 
 ```text
-# Resolver returning an extension of ordinary size
-# Host code: registerResolver("ext", () => ({ kind: "value", value: kb }))
+# Extension with more members than the policy walk visits
+use<ext:kb> => $kb  # The kb extension has 10001 members and kb is policed
 ```
 
 ---

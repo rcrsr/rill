@@ -39,12 +39,12 @@ Without a declaration the lock is the full inferred type: `list[1] => $x` then `
 
 A dict lock is exact (`dict[a: 1] => $x` rejects `dict[a: 1, b: 2]`), a tuple lock is positional (`tuple[1] => $x` rejects `tuple[1, 2]`), and a function locks to its full signature (`fn(n: number) { $n } => $f` rejects `fn(s: string) { $s }`), each halting RILL-R001.
 
-### 5. No variable shadowing
+### 5. No rebinding
 
-Child scopes can READ parent variables but cannot WRITE or redeclare. Loop bodies cannot mutate outer state.
+Child scopes can READ parent variables but cannot WRITE or redeclare them. Loop bodies cannot mutate outer state. A function parameter may reuse an outer name and reads the argument.
 
     Wrong: 0 => $count
-           list[1, 2, 3] -> seq({ $count + 1 => $count })   # runtime error
+           list[1, 2, 3] -> seq({ $count + $ => $count })   # runtime error
 
     Right: list[1, 2, 3] -> fold(0, { $@ + $ })             # 6
 

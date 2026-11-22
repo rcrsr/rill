@@ -971,8 +971,7 @@ function checkIssues(
       if (r.pending !== null) verify(f, r.line, r.pending);
     }
     for (const fence of f.fences) {
-      const m = fence.info.match(/^rill pending=(\d+)$/);
-      if (m) verify(f, fence.line, Number(m[1]));
+      if (fence.pending !== null) verify(f, fence.line, fence.pending);
     }
   }
 }

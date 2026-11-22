@@ -66,7 +66,7 @@ fn(x: any):any { $x }   # passes
 fn(x) { $x }            # fails: the parameter type is not written
 ```
 
-```rill pending=629
+```rill
 list(number)[1, 2] == [1, 2]
 # Result: true
 ```

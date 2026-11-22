@@ -279,7 +279,7 @@ Review this specification for issues:
 Output APPROVED if ready, or REVISION REQUIRED with feedback.
   """ -> $app.prompt() => $review
 
-  $review -> ?(.contains("APPROVED")) { break }
+  ($review -> .contains("APPROVED")) ? break
 
   """
 Update the specification based on this feedback:
@@ -299,7 +299,7 @@ Create the necessary files and tests.
 
 $app.prompt("Run tests and verify implementation") => $verification
 
-$verification -> ?(.contains("PASS")) {
+$verification -> .contains("PASS") ? {
   [0, "Workflow complete"]
 } ! {
   [1, "Verification failed: {$verification}"]
@@ -358,7 +358,7 @@ Make minimal changes. Then run tests again and report results.
   """ -> $app.prompt()
 } => $final
 
-$final -> ?(.contains("PASS")) {
+$final -> .contains("PASS") ? {
   "All tests passing"
 } ! {
   error "Could not fix all tests"
@@ -405,7 +405,7 @@ $performance -> .contains("FAIL") -> ? {
 
 ## Environment-Aware Deployment
 
-Deploys based on environment configuration.
+Deploys based on environment configuration. This example assumes a host that binds `$ENV`.
 
 ```text
 args: service: string
@@ -413,7 +413,7 @@ args: service: string
 use<ext:app> => $app
 
 # Validate environment
-$ENV.DEPLOY_ENV -> ?(.empty()) {
+$ENV.DEPLOY_ENV -> .empty ? {
   error "DEPLOY_ENV not set"
 }
 
@@ -511,7 +511,7 @@ use<ext:app> => $app
 
 # Define a typed helper fn
 fn(input: string) {
-  $app.prompt("Validate: {$input}") -> ?(.contains("VALID")) { true } ! { false }
+  $app.prompt("Validate: {$input}") -> .contains("VALID")
 } => $validate:fn
 
 # Capture with explicit type locks the variable
@@ -523,14 +523,14 @@ fn(input: string) {
 # "oops" => $validate                  # ERROR: cannot assign string to fn
 
 # Inline type annotation in pipe chain
-$app.prompt("Check {$file}") => $result:string -> log -> ?(.contains("ERROR")) {
+$app.prompt("Check {$file}") => $result:string -> log -> .contains("ERROR") ? {
   error $result
 }
 
 # Type annotations catch mistakes early
 $app.prompt("Analyze {$file}") => $analysis:string
 
-?(.contains("FAIL")) {
+$analysis -> .contains("FAIL") ? {
   error "Analysis failed: {$analysis}"
 }
 

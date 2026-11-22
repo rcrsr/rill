@@ -139,6 +139,25 @@ describe('parseFile', () => {
     expect(f.rules[1]?.pending).toBe(7);
     expect(f.rules[1]?.fullForm).toBe('Second rule');
   });
+
+  it('reads the issue from a strict rill pending=N fence info and nothing looser', () => {
+    const pendingOf = (info: string): number | null | undefined =>
+      parseFile(
+        concept(
+          'thing',
+          '',
+          `r[thing.one] First rule\n\n\`\`\`${info}\nx\n\`\`\`\n`
+        ),
+        'p.md',
+        '/p.md',
+        'one'
+      ).fences[0]?.pending;
+    expect(pendingOf('rill pending=3')).toBe(3);
+    expect(pendingOf('rill')).toBeNull();
+    expect(pendingOf('rill  pending=3')).toBeNull();
+    expect(pendingOf('rill pending=x')).toBeNull();
+    expect(pendingOf('rill pending=3 x')).toBeNull();
+  });
 });
 
 describe('lintFile', () => {
@@ -248,6 +267,9 @@ describe('lintFile', () => {
     );
     expect(lintText(ok + '\n```\nx\n```\n')).toContain('error:fence-info');
     expect(lintText(ok.replace('```rill', '```rill pending=3'))).not.toContain(
+      'error:fence-info'
+    );
+    expect(lintText(ok.replace('```rill', '```rill  pending=3'))).toContain(
       'error:fence-info'
     );
   });
@@ -437,6 +459,19 @@ describe('checkCorpus', () => {
       'issue-closed'
     );
     expect(checkRepo(files, { issueState: () => 'OPEN' })).toEqual([]);
+  });
+
+  it('flags a pending fence on a closed issue when issue lookup is on', () => {
+    const pendingFence = one
+      .replace('grammar:', 'issues: [5]\ngrammar:')
+      .replace('## Errors', '```rill pending=5\n1\n```\n\n## Errors');
+    const files = { 'reference/one/alpha.md': pendingFence };
+    expect(checkRepo(files, { issueState: () => 'CLOSED' })).toContain(
+      'issue-closed'
+    );
+    expect(checkRepo(files, { issueState: () => 'OPEN' })).not.toContain(
+      'issue-closed'
+    );
   });
 });
 

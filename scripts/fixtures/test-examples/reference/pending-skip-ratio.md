@@ -1,7 +1,7 @@
 # pending fences and the skip-ratio guard
 
-Three comment-only blocks trip the guard. The two pending fences add skips
-that the guard ignores, so its counts stay 3 of 4.
+Three comment-only blocks trip the guard. The two pending fences fail as
+required and count in the total, so the guard sees 3 of 6.
 
 ```rill
 # comment only
@@ -20,9 +20,9 @@ that the guard ignores, so its counts stay 3 of 4.
 ```
 
 ```rill pending=1
-1 + 1
+this is not valid rill (
 ```
 
 ```rill pending=2
-1 + 1
+this is not valid rill (
 ```

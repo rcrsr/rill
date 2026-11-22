@@ -83,8 +83,3 @@ list[1, 2] -> seq({ $ -> return })
 # Error: break not supported in fan
 list[1, 2] -> fan({ break })
 ```
-
-## Notes
-
-`docs/topic-control-flow.md` shows `("found {$}" -> break)` in `seq` yielding `"found 4"`.
-`seq` discards the break value and yields `list[1, 2, 3]` (#611).

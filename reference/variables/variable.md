@@ -90,4 +90,4 @@ $missing
 ## Notes
 
 `$ENV` and `$ARGS` are not built in. They exist only when a host binds them, as any host
-variable is bound. `docs/topic-variables.md` lists them as special variables (#610).
+variable is bound.

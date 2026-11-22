@@ -89,13 +89,13 @@ yaml-char     = letter | digit | ":" | " " | "-" | "_" | "." | "[" | "]" | "," |
    is not a continuation token, it begins a new statement.
    No lookahead beyond one token is needed. *)
 
-(* Parsing note: "->" capture vs "->" pipe-target is unambiguous because
-   capture ("$" identifier) and pipe-target are disjoint sets. Parsers
-   should greedily consume pipe-chain, then check for trailing "-> $id". *)
+(* Parsing note: "->" always introduces a pipe-target; a "$" identifier
+   after "->" is a variable target, never a capture. Only "=>" captures.
+   Parsers should greedily consume pipe-chain, then check for a trailing
+   chain-terminator. *)
 
 (* Capture operators:
    - "=>" (capture-arrow) captures value and continues chain
-   - "->" to "$var" (terminal) captures value and ends chain
 
    "=>" is preferred for most captures because it's clearer:
    "hello" => $x -> .upper       -- capture "hello", chain continues, result is "HELLO"
@@ -103,14 +103,12 @@ yaml-char     = letter | digit | ":" | " " | "-" | "_" | "." | "[" | "]" | "," |
 
    Chain terminators: break and return terminate pipe chains.
 
-   "hello" -> $x                 -- terminal capture (ends chain)
-   "hello" -> $x -> .len         -- inline capture (-> $x ->, value flows through)
    "hello" => $x -> .len         -- capture arrow (clearer, same effect)
    [1,2,3] -> seq({ break }) -- break terminates (exits seq body)
    "result" -> return            -- return terminates (exits function) *)
 
 statement     = [ annotation ] , ( pipe-chain | assert-statement | error-statement ) ;
-              (* pipe-chain includes optional terminator: capture | "break" | "return" *)
+              (* pipe-chain includes optional terminator: "break" | "return" *)
 
 (* Annotations: ^(key: value, ...) placed at statement or expression level to attach metadata.
    Loop iteration limits use the do(limit: N) construct option, not annotations.
@@ -129,7 +127,7 @@ annotation-arg = identifier , ":" , literal ;
 expression    = pipe-chain ;
 
 pipe-chain    = value-expr , [ "?" , body , [ "!" , body ] ]
-              , { ( "->" , ( pipe-target | capture ) ) | ( "=>" , capture ) }
+              , { ( "->" , pipe-target ) | ( "=>" , capture ) }
               , [ "->" , chain-terminator ] ;
               (* Expression head can include arithmetic, comparisons, and logical ops.
                  5 + 3                    -- standalone arithmetic
@@ -159,7 +157,7 @@ unary         = [ "-" | "!" ] , postfix-expr ;
 comparison-op = "==" | "!=" | "<" | ">" | "<=" | ">=" ;
 
 chain-terminator = "break" | "return" | "yield" ;
-              (* Note: capture can appear mid-chain or at end; handled in pipe-chain.
+              (* Note: capture ("=>") can appear mid-chain or at end; handled in pipe-chain.
                  "yield" is only valid inside a function declared with a stream return type
                  (e.g. fn(x):stream(T):R { ... }). RILL-P006 raised on misuse. *)
 
@@ -602,8 +600,8 @@ map-key       = string | number | "-" , number | bool | atom-literal
 
 variable      = "$" , identifier , { property-access } , [ default-value ] , [ existence-check ]
               | "$" , { property-access } , [ default-value ] , [ existence-check ] ;
-              (* $ARGS and $ENV are outer-scope variables provided by the runtime,
-                 not grammar-level constructs. Same scoping rules apply. *)
+              (* $ARGS and $ENV are not built in; a host may bind them as outer-scope
+                 variables. Same scoping rules apply. *)
 
 (* Function calls invoke functions stored in variables:
    $strlen("hello")     -- call function with string arg
@@ -777,16 +775,12 @@ method-name   = "contains" | "match" | "is_match"     (* pattern: 1 arg *)
 
 (* pipe-chain is defined in EXPRESSIONS section *)
 
-(* Capture: stores value in a variable and terminates the pipe chain.
+(* Capture: "=>" stores the value in a variable and the chain continues.
    The stored value also becomes the expression result.
 
-   Example: fetch("url") -> $result
-   The value is stored in $result and returned.
-
-   Note: Unlike earlier versions, capture ALWAYS terminates the chain.
-   Use explicit chaining for multi-step operations:
-   fetch("url") -> $result
-   $result -> log -> ?(.contains("x")) { } *)
+   Example: "text" => $result -> log
+   The value is stored in $result and flows on to log.
+   $result -> .contains("x") ? { "found" } *)
 
 (* Pipe targets: bare host names allowed without parens.
    "$ -> greet" ≡ "greet($)" — piped value becomes implicit first arg. *)
@@ -1292,7 +1286,7 @@ block         = "{" , statement , { statement } , "}" ;
    (2 + 3 * 4)               -> 14
    ((2 + 3) * 4)             -> 20
    10 -> ($ + 5)             -> 15  ($ is pipe value)
-   3 -> $x ($ * 2)           -> 6   (variables in expressions)
+   3 => $x -> ($x * 2)       -> 6   (variables in expressions)
    (10 / 0)                  -> ERROR (division by zero)
 
    Type constraint: all operands must be numbers.

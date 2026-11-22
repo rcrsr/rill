@@ -4,10 +4,10 @@
  *
  * A map behaves like a list. An omitted field of map type, an omitted tuple
  * element of map type, and an omitted map parameter all halt RILL-R044; none
- * is filled with an empty map.
+ * is filled with an empty map. A map literal is a literal default.
  */
 
-import { describe } from 'vitest';
+import { describe, expect } from 'vitest';
 
 import { expectHalt, expectRuntimeError } from '../helpers/halt.js';
 import { rule } from '../helpers/rule.js';
@@ -75,4 +75,26 @@ describe('map defaults', () => {
       }
     );
   });
+
+  rule('defaults.literal').it(
+    'fills a dict field default written as a map literal',
+    async () => {
+      expect(
+        await run(
+          'dict[] -> dict(m: map(string, number) = map["x": 1]) -> .m["x"]'
+        )
+      ).toBe(1);
+    }
+  );
+
+  rule('defaults.literal').it(
+    'binds a parameter default written as a map literal when omitted',
+    async () => {
+      expect(
+        await run(
+          'fn(m: map(string, number) = map["x": 1]) { $m["x"] } => $f\n$f()'
+        )
+      ).toBe(1);
+    }
+  );
 });

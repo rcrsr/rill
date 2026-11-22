@@ -324,13 +324,13 @@ do(limit: 5) {
 
 ## Break
 
-Exit a loop early. Returns the value piped to `break`, or current `$` if bare.
+Exit a loop early. A `while` or `do` loop yields the value piped to `break`, or the current `$` if `break` is bare. `seq` and `acc` yield the results collected before the breaking element and discard the piped value.
 
 ### Syntax
 
 ```text
 break                    # exit with current $
-$value -> break          # exit with value
+$value -> break          # exit with value (while/do; seq and acc discard it)
 ```
 
 ### In seq Loop
@@ -340,8 +340,10 @@ $value -> break          # exit with value
   ($ > 3) ? ("found {$}" -> break)
   $
 })
-# Returns "found 4"
+# Result: list[1, 2, 3]
 ```
+
+`seq` discards the piped `"found 4"` string and yields the results collected before the break.
 
 ### In While Loop
 
@@ -349,7 +351,7 @@ $value -> break          # exit with value
 0 -> while (true) do {
   ($ + 1) -> ($ > 3) ? break ! $
 }
-# Returns 4
+# Result: 4
 ```
 
 ### Break Value
@@ -361,7 +363,7 @@ In `seq`, break returns partial results collected before the break:
   ($ == "STOP") ? break
   $
 })
-# Returns ["a", "b"] (partial results before break)
+# Result: list["a", "b"]
 ```
 
 `acc` also catches `break` and returns the partial results list collected up to that point.
@@ -393,16 +395,17 @@ $value -> return         # exit with value
 5 => $x
 ($x > 3) ? ("big" -> return)
 "small"
-# Returns "big"
+# Result: "big"
 ```
 
 ### Multi-Phase Pipeline
 
 ```rill
 "content" => $content
+# "Read failed" when $content contains ERROR
 $content -> .contains("ERROR") ? ("Read failed" -> return)
 "processed: {$content}"
-# Returns "processed: content" or "Read failed"
+# Result: "processed: content"
 ```
 
 ---
@@ -424,7 +427,9 @@ $value -> assert condition
 Assert halts execution when the condition evaluates to `false`. If the condition is `true`, the piped value passes through unchanged.
 
 ```rill
-5 -> assert ($ > 0)              # Returns 5 (condition true)
+# Passes: the condition is true
+5 -> assert ($ > 0)
+# Result: 5
 ```
 
 ```text
@@ -442,7 +447,7 @@ Provide a descriptive message as the second argument:
 
 ```rill
 [1, 2, 3] -> assert (.len > 0) "List cannot be empty"
-# Returns [1, 2, 3] (assertion passes)
+# Result: list[1, 2, 3]
 ```
 
 ### Type Assertions
@@ -450,7 +455,9 @@ Provide a descriptive message as the second argument:
 Combine with type checks to validate input:
 
 ```rill
-"hello" -> assert $:?string      # Returns "hello" (type check passes)
+# Passes: the type check succeeds
+"hello" -> assert $:?string
+# Result: "hello"
 ```
 
 ```text
@@ -465,7 +472,7 @@ Assert validates each iteration. The loop halts on the first failing assertion:
 [1, 2, 3] -> seq({
   assert ($ > 0) "Must be positive"
 })
-# Returns [1, 2, 3] (all elements valid)
+# Result: list[1, 2, 3]
 ```
 
 ```text
@@ -485,7 +492,7 @@ $input
   -> assert !.empty "Input required"
   -> .upper
   -> assert (.len > 0) "Processed value required"
-# Returns "DATA"
+# Result: "DATA"
 ```
 
 ### Error Behavior
@@ -607,7 +614,7 @@ Combine `error` with conditionals for guard clauses:
 ```rill
 5 => $x
 ($x < 0) ? { error "Number must be non-negative" } ! $x
-# Returns 5 (condition false, proceeds with else branch)
+# Result: 5
 ```
 
 ```rill
@@ -686,12 +693,12 @@ Use `pass` when one branch should preserve the piped value:
 
 ```rill
 "input" -> .contains("in") ? pass ! "fallback"
-# Returns "input" (condition true, pass preserves $)
+# Result: "input"
 ```
 
 ```rill
 "data" -> .empty ? { error "Empty input" } ! pass
-# Returns "data" (condition false, pass preserves $)
+# Result: "data"
 ```
 
 ### In Dict Values
@@ -700,7 +707,7 @@ Use `pass` to include the piped value in dict construction:
 
 ```rill
 "success" -> { [status: pass, code: 0] }
-# Returns [status: "success", code: 0]
+# Result: dict[code: 0, status: "success"]
 ```
 
 ### In Collection Operators
@@ -709,7 +716,7 @@ Preserve elements conditionally:
 
 ```rill
 [1, -2, 3, -4] -> fan({ ($ > 0) ? pass ! 0 })
-# Returns [1, 0, 3, 0]
+# Result: list[1, 0, 3, 0]
 ```
 
 ### Why Use Pass?
@@ -901,8 +908,8 @@ When the outer timer fires before the inner body completes, the outer expiry tak
 
 | Statement | Scope | Effect |
 |-----------|-------|--------|
-| `break` | Loop | Exit loop with current `$` |
-| `$val -> break` | Loop | Exit loop with value |
+| `break` | Loop | Exit loop; while/do yield current `$`, seq/acc yield results so far |
+| `$val -> break` | Loop | Exit loop; while/do yield `$val`, seq/acc discard it |
 | `return` | Block/Script | Exit block or script with current `$` |
 | `$val -> return` | Block/Script | Exit block or script with value |
 | `pass` | Any | Returns current `$` unchanged |
@@ -957,12 +964,11 @@ do(limit: 3) {
 
 ### Find First Match
 
+`seq` discards the value piped to `break`, so it cannot return the match. Filter, then take the head.
+
 ```rill
-[1, 2, 3, 4, 5] -> seq({
-  ($ > 3) ? ($ -> break)
-  $
-})
-# Returns 4 (first element > 3)
+list[1, 2, 3, 4, 5] -> filter({ $ > 3 }) -> .head
+# Result: 4
 ```
 
 ---

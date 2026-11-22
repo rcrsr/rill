@@ -106,9 +106,3 @@ list[1, 2] -> seq({ $count + 1 => $count })
 1 -> { 2 => $t }
 $t
 ```
-
-## Notes
-
-`docs/topic-variables.md` says a loop that captures into an outer name creates a local
-variable and leaves the outer one at 0. The runtime halts RILL-R001 instead, as
-`scope.no-rebind` states (#610).

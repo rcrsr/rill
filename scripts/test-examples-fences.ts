@@ -6,13 +6,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { RillValue } from '@rcrsr/rill';
+import { parsePendingFence } from './reference/parse.js';
 
 export interface CodeBlock {
   code: string;
   lineNumber: number;
   file: string;
   expectedResult?: string;
-  /** Issue number from a `rill pending=N` info string; the block is skipped. */
+  /** Issue number from a `rill pending=N` info string; the block runs and must fail. */
   pendingIssue?: number;
 }
 
@@ -32,8 +33,8 @@ export function extractRillBlocks(
 
     if (line.trim().startsWith('```rill')) {
       inBlock = true;
-      const pendingMatch = line.trim().match(/^```rill\s+pending=(\d+)\s*$/);
-      pendingIssue = pendingMatch ? Number(pendingMatch[1]) : undefined;
+      const info = line.trim().replace(/^`+/, '').trim();
+      pendingIssue = parsePendingFence(info) ?? undefined;
       blockStart = i + 1; // 1-indexed line number
       blockLines = [];
     } else if (inBlock && line.trim() === '```') {

@@ -5,7 +5,15 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { introspectHandlerFromAST, parse } from '@rcrsr/rill';
+import {
+  createMap,
+  createOrdered,
+  createTuple,
+  formatStructure,
+  introspectHandlerFromAST,
+  parse,
+} from '@rcrsr/rill';
+import type { RillValue } from '@rcrsr/rill';
 
 describe('introspectHandlerFromAST', () => {
   describe('handler discovery', () => {
@@ -210,6 +218,95 @@ describe('introspectHandlerFromAST', () => {
       expect(result).not.toBeNull();
       expect(result!.returnType).toBeUndefined();
       expect('returnType' in result!).toBe(false);
+    });
+  });
+
+  describe('compound defaults', () => {
+    const any = { kind: 'any' } as const;
+    const cases: [string, RillValue][] = [
+      ['list[1, "a"]', [1, 'a']],
+      ['dict[a: 1, b: list[-2]]', { a: 1, b: [-2] }],
+      ['tuple[1, true]', createTuple([1, true])],
+      ['ordered[a: 1]', createOrdered([['a', 1]])],
+      ['map["x": 1]', createMap([['x', 1]])],
+    ];
+    it.each(cases)(
+      'prints a %s default like the host-registered one',
+      (literal, value) => {
+        const ast = parse(
+          `fn(p: dict(q: any = ${literal}), f: fn(m: any = ${literal}):any) { $p } => $run`
+        );
+        const params = introspectHandlerFromAST(ast, 'run')!.params;
+        const field = { type: any, defaultValue: value };
+        expect(params[0]!.type).toBe(
+          formatStructure({ kind: 'dict', fields: { q: field } })
+        );
+        expect(params[1]!.type).toBe(
+          formatStructure({
+            kind: 'fn',
+            params: [{ name: 'm', ...field }],
+          })
+        );
+      }
+    );
+
+    const printed = (literal: string): string => {
+      const ast = parse(`fn(p: dict(q: any = ${literal})) { $p } => $run`);
+      return introspectHandlerFromAST(ast, 'run')!.params[0]!.type;
+    };
+
+    it('leaves out a compound default holding a non-literal element', () => {
+      expect(printed('list[$x]')).toBe('dict(q: any)');
+    });
+
+    it('fans a list key out to one entry per key', () => {
+      expect(printed('map[list["a", "b"]: 1]')).toBe(
+        formatStructure({
+          kind: 'dict',
+          fields: {
+            q: {
+              type: any,
+              defaultValue: createMap([
+                ['a', 1],
+                ['b', 1],
+              ]),
+            },
+          },
+        })
+      );
+    });
+
+    it('fans a dict list key out to one field per name', () => {
+      expect(printed('dict[list["a", "b"]: 1]')).toBe(
+        formatStructure({
+          kind: 'dict',
+          fields: { q: { type: any, defaultValue: { a: 1, b: 1 } } },
+        })
+      );
+    });
+
+    it('leaves out a dict default whose list key holds a non-string', () => {
+      expect(printed('dict[list["a", $k]: 1]')).toBe('dict(q: any)');
+    });
+
+    it('leaves out a map default mixing key kinds', () => {
+      expect(printed('map["a": 1, 2: 2]')).toBe('dict(q: any)');
+    });
+
+    it('leaves out a map default with an empty multi-key list', () => {
+      expect(printed('map[list[]: 1]')).toBe('dict(q: any)');
+    });
+
+    it('leaves out a default nesting a non-literal in a literal compound', () => {
+      expect(printed('dict[a: list[1, $x]]')).toBe('dict(q: any)');
+      expect(printed('dict[a: list[1, 2]]')).toBe(
+        formatStructure({
+          kind: 'dict',
+          fields: {
+            q: { type: any, defaultValue: { a: [1, 2] } },
+          },
+        })
+      );
     });
   });
 });

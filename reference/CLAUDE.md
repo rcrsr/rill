@@ -15,12 +15,13 @@ Run all four after every change. Each must end with 0 errors.
 ```bash
 pnpm ref lint           # per-file format
 pnpm ref check          # cross-file ids, depends, xrefs, grammar, errors, lock, open decisions
-pnpm test:examples      # runs every ```rill fence; pending fences are skipped
+pnpm test:examples      # runs every ```rill fence; pending fences run and must fail
 pnpm vitest run scripts/reference   # only when scripts/reference/ changed
 ```
 
 `pnpm ref check --issues` confirms every pending issue is still open. It calls `gh`, so run it
-before a PR and before a release, not in CI.
+before a PR and before a release, not in CI. CI verifies pending fences through `pnpm test:examples`
+and pending rules only through `--issues`, which the release SOP runs.
 
 Length warnings (over 150 lines) are allowed but tracked. A file over 200 lines is an error:
 split it into two concepts, never into "part 1" and "part 2".
@@ -78,7 +79,9 @@ An unfiled defect is lost.
 - When a decision is made, replace the Notes line with a pending rule, and remove the concept from
   the README row. Remove the row when no concept remains.
 - When a pending rule's issue closes, remove the tag, cite the rule from a locked test, and change
-  any example fence from ```` ```rill pending=N ```` to ```` ```rill ````.
+  any example fence from ```` ```rill pending=N ```` to ```` ```rill ````. A pending fence that
+  starts passing before its issue closes fails `pnpm test:examples`; remove the fence tag then.
+  Rules keep their tags until the issue closes.
 - Frontmatter `issues` lists exactly the issues that some pending rule or pending fence in the file
   uses. Lint fails a missing one and warns on a stale one.
 - An inconsistency the owner chooses to collect rather than file goes in the README Known

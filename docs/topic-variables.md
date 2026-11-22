@@ -9,7 +9,7 @@ rill uses capture (`=>`) instead of assignment. Variables are type-locked after 
 **Key principles:**
 - **Capture, not assign**: Use `=>` to capture values into variables
 - **Type-locked**: Variables lock type on first assignment
-- **No shadowing**: Cannot redeclare a variable name from outer scope
+- **No rebinding**: A capture cannot rebind an outer variable; a function parameter may shadow one
 - **No leakage**: Variables created inside blocks don't exist outside
 
 ---
@@ -275,7 +275,7 @@ Blocks, loops, conditionals, grouped expressions, and string interpolations crea
 ### Three Rules
 
 1. **Read from parent:** Variables from outer scopes are accessible (read-only)
-2. **No shadowing:** Cannot assign to a variable name that exists in an outer scope
+2. **No rebinding:** A capture cannot rebind a variable an outer scope binds; it halts `RILL-R001`. A function parameter may reuse an outer name and reads the argument; see [Parameter Shadowing](topic-closures.md#parameter-shadowing).
 3. **No leakage:** Variables created inside don't exist outside
 
 ```rill
@@ -288,10 +288,11 @@ Blocks, loops, conditionals, grouped expressions, and string interpolations crea
 # $temp not accessible here
 ```
 
-```text
+```rill
+# Error: RILL-R001
 "context" => $ctx
 "check" -> .contains("c") ? {
-  "new" => $ctx                  # ERROR: cannot shadow outer $ctx
+  "new" => $ctx                  # halts: cannot rebind outer $ctx
 }
 ```
 
@@ -311,15 +312,15 @@ While loops use `$` as the accumulator since named variables in the body don't p
 # $temp not accessible here
 ```
 
-> **Common Mistake:** Attempting to modify outer-scope variables from inside loops. This pattern NEVER works:
->
-> ```text
-> 0 => $count
-> [1, 2, 3] -> seq({ $count + 1 => $count })  # Creates LOCAL $count!
-> $count                                       # Still 0!
-> ```
->
-> Use `fold` for reductions, or pack multiple values into `$` as a dict. See [Collections](topic-collections.md) for accumulator patterns.
+**Common mistake:** capturing into an outer variable from inside a loop body halts with `RILL-R001`. The body cannot rebind a name an enclosing scope owns.
+
+```rill
+# Error: RILL-R001 Cannot reassign outer variable
+0 => $count
+list[1, 2, 3] -> seq({ $count + $ => $count })
+```
+
+Use `fold` for reductions, or pack multiple values into `$` as a dict. See [Collections](topic-collections.md) for accumulator patterns.
 
 ### Reading Outer Variables
 
@@ -338,15 +339,22 @@ While loops use `$` as the accumulator since named variables in the body don't p
 | Variable | Contains | Source |
 |----------|----------|--------|
 | `$` | Piped value (current block scope) | Grammar |
-| `$ARGS` | CLI positional args (list) | Runtime |
-| `$ENV.NAME` | Environment variable | Runtime |
-| `$name` | Named variable | Runtime |
+| `$ARGS` | Positional args (list) | Host, when bound |
+| `$ENV.NAME` | Environment variable | Host, when bound |
+| `$name` | Named variable | Capture or host |
 
-`$` is a grammar-level construct. All other variables are runtime-provided with the same scoping rules as user-defined variables.
+`$` is a grammar-level construct. Every other variable is bound either by a capture in the script or by the host before the script runs. A host variable behaves as if the outermost scope had bound it.
 
 ### `$ARGS`
 
-Access CLI positional arguments:
+rill binds neither `$ARGS` nor `$ENV`. They exist only when the host binds them, for example a CLI host passing positional arguments and the environment. Reading one that is unbound halts with `RILL-R005`.
+
+```rill
+# Error: RILL-R005
+$ENV.HOME
+```
+
+When the host binds `$ARGS`:
 
 ```text
 $ARGS[0]                     # first argument
@@ -356,7 +364,7 @@ $ARGS -> seq({ log($) })     # iterate all arguments
 
 ### `$ENV`
 
-Access environment variables:
+When the host binds `$ENV`:
 
 ```text
 $ENV.HOME                    # /home/user

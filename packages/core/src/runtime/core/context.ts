@@ -27,6 +27,7 @@ import type { RillValue, TypeStructure } from './types/structures.js';
 import { declarationOf } from './types/declared.js';
 import { inferType } from './types/registrations.js';
 import { setDictField } from './types/dict-keys.js';
+import { isTypeStructure } from './types/guards.js';
 import {
   invalidate as invalidateStatus,
   formatHalt,
@@ -47,6 +48,7 @@ import {
   type RillFunction,
 } from './callable.js';
 import { ERROR_IDS } from '../../error-registry.js';
+import { nestedDefaultFault } from './types/nested-defaults.js';
 import { normalizeFunctionDefinition } from './function-shorthand.js';
 import {
   inheritPolicyState,
@@ -116,6 +118,21 @@ export function markDeferredHalt(reason: unknown): unknown {
     }
   }
   return reason;
+}
+
+/**
+ * The return-type structure of a host definition. Hosts written in plain JS
+ * may omit the return type or its structure, so each level is checked.
+ */
+function declaredReturnStructure(
+  definition: object
+): TypeStructure | undefined {
+  if (!('returnType' in definition)) return undefined;
+  const returnType = definition.returnType;
+  if (typeof returnType !== 'object' || returnType === null) return undefined;
+  if (!('structure' in returnType)) return undefined;
+  const structure = returnType.structure;
+  return isTypeStructure(structure) ? structure : undefined;
 }
 
 /**
@@ -509,6 +526,27 @@ export function createRuntimeContext(
       // Validate default values at registration time
       for (const param of definition.params) {
         validateDefaultValueType(param, name);
+        const nested = isTypeStructure(param.type)
+          ? nestedDefaultFault(param.type)
+          : undefined;
+        if (nested !== undefined) {
+          throw new RuntimeError(
+            ERROR_IDS.RILL_R077,
+            `Invalid defaultValue for parameter '${param.name}': ${nested}`
+          );
+        }
+      }
+      // Hosts written in plain JS may omit the return type or its structure.
+      const returnStructure = declaredReturnStructure(definition);
+      const returnFault =
+        returnStructure === undefined
+          ? undefined
+          : nestedDefaultFault(returnStructure);
+      if (returnFault !== undefined) {
+        throw new RuntimeError(
+          ERROR_IDS.RILL_R077,
+          `Invalid defaultValue in return type of function '${name}': ${returnFault}`
+        );
       }
 
       // Validate descriptions when requireDescriptions enabled
