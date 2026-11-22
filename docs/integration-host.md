@@ -661,7 +661,7 @@ Example output for a context with `greet` and `repeat` functions:
 ]
 ```
 
-A parameter or field default prints as `= literal` after its type. A default with no literal form (datetime, duration, map, function, vector, iterator, stream, type values, non-finite or exponent-form numbers) is left out, so that parameter or field is required when the entry is registered again.
+A parameter or field default prints as `= literal` after its type. A default with no literal form (datetime, duration, function, vector, iterator, stream, type values, non-finite or exponent-form numbers) is left out, so that parameter or field is required when the entry is registered again.
 
 An empty function map produces:
 

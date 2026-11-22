@@ -213,7 +213,7 @@ defaults.fill 1c3e396558aa assertion.unchanged@d5063326e3a7
 defaults.hydrated-type 7e897e168814
 defaults.hydration-tie 30b8fe06af36
 defaults.hydration-union 8d0580dfa977
-defaults.literal 7e2ff50ce07b
+defaults.literal 5b0f7420817b
 defaults.negative f90e21b0849a number.negative@28b80927e50e
 defaults.nested 4308e8623b6a
 defaults.non-literal aa98fbcbe35c

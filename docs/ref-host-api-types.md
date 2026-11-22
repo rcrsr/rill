@@ -120,6 +120,7 @@ export {
   structureMatches,
   formatStructure,
   formatFieldKey,
+  formatDefaultLiteral,
   buildFieldDescriptor,
   paramsToStructuralType,
   structureToTypeValue,
@@ -250,6 +251,22 @@ Formats a dict or ordered field key the way `formatStructure` prints it. A key s
 | `'true'` | `"true"` |
 | `'1'` | `"1"` |
 | `'a b'` | `"a b"` |
+
+### `formatDefaultLiteral`
+
+```typescript
+formatDefaultLiteral(value: RillValue): string | undefined
+```
+
+Returns the source text of a default value, or `undefined` when the value has no rill literal form. A value has one when it is a string, a finite number that prints without an exponent, a bool, an atom, or a list, dict, tuple, ordered, or map holding only such values. Datetime, duration, function, vector, iterator, stream, and type values have none. `.signature`, hover, `getFunctions`, error messages, and `generateManifest` print ` = <literal>` through this rule and leave out a default for which it returns `undefined`.
+
+| Input | Output |
+|-------|--------|
+| `'a'` | `"a"` |
+| `5` | `5` |
+| `[1, 2]` | `list[1, 2]` |
+| `1e23` | `undefined` |
+| a duration | `undefined` |
 
 ### `buildFieldDescriptor`
 

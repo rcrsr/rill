@@ -365,21 +365,21 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Invalid number format',
     messageTemplate: 'Invalid number format: {value}',
     cause:
-      'Number contains invalid characters, multiple decimal points, or unsupported notation.',
+      'A number literal is followed by an exponent (1e3), a radix prefix (0x10), a digit separator (1_000), or identifier characters (12abc), or a digit follows the $ sigil ($1).',
     resolution:
-      'Use valid number format: integers (123), decimals (1.5), or scientific notation (1e5). No underscores, trailing dots, or multiple decimals allowed.',
+      'Write numbers as plain integers (123) or decimals (1.5). Exponent, radix-prefix, and digit-separator forms are not supported, a number cannot run straight into identifier characters, and a variable name after $ must start with a letter or _.',
     examples: [
       {
-        description: 'Multiple decimal points',
-        code: '1.2.3',
+        description: 'Digit separator underscore',
+        code: '1_000',
       },
       {
-        description: 'Trailing decimal point',
-        code: '123.',
+        description: 'Identifier characters directly after a number',
+        code: '12abc',
       },
       {
-        description: 'Leading zeros (octal notation not supported)',
-        code: '0123',
+        description: 'Digit directly after the $ sigil',
+        code: '$1',
       },
     ],
   },
@@ -433,8 +433,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       'Check syntax at the indicated position. Common causes: missing operators, mismatched delimiters, or keywords in wrong context.',
     examples: [
       {
-        description: 'Missing pipe operator between expressions',
-        code: '"hello" "world"  # Missing -> between',
+        description: 'Doubled pipe operator',
+        code: '"hello" -> -> "world"',
       },
       {
         description: 'Statement starting with operator',
@@ -457,12 +457,12 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       'Complete the incomplete construct. Common causes: unclosed blocks, incomplete pipe chains, or missing expression after operator.',
     examples: [
       {
-        description: 'Unclosed block',
-        code: '{ "value"',
+        description: 'error statement with no message inside a block',
+        code: '{ error }',
       },
       {
-        description: 'Pipe with no target',
-        code: '"hello" ->',
+        description: 'error statement with no message in a function body',
+        code: 'fn { error }',
       },
       {
         description: 'Error statement with no message',
@@ -482,11 +482,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Uppercase type name',
-        code: '$x => String  # Use "string" not "String"',
+        code: '"a" => $x:String  # Use "string" not "String"',
       },
       {
         description: 'Invalid type name',
-        code: '$x => int  # Use "number" for all numeric types',
+        code: '"a" => $x:int  # Use "number" for all numeric types',
       },
       {
         description: 'Bare union without members',
@@ -505,12 +505,12 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       'Check expression syntax. Common causes: invalid operator combinations, malformed literals, or unsupported language features.',
     examples: [
       {
-        description: 'Double operators',
-        code: '$x + + $y',
+        description: 'Negation with no operand',
+        code: '$x -> !',
       },
       {
-        description: 'Assignment operator (not supported)',
-        code: '$x = 5  # Use "5 => $x" instead',
+        description: 'Post-loop body without a trailing while',
+        code: '0 -> do { $ + 1 }',
       },
     ],
   },
@@ -529,12 +529,12 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
         code: 'func($a, $b',
       },
       {
-        description: 'Missing closing bracket in tuple',
-        code: '[1, 2, 3',
+        description: 'Missing closing bracket in a list',
+        code: 'list[1, 2, 3',
       },
       {
         description: 'Mismatched delimiters',
-        code: '{ "value"]  # Opened with { but closed with ]',
+        code: 'list[1, 2}  # Opened with [ but closed with }',
       },
     ],
   },
@@ -614,16 +614,16 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       'Replace the sigil form with the keyword-prefixed equivalent. See examples for specific replacements.',
     examples: [
       {
-        description: 'Old tuple sigil *[',
-        code: '*[1, 2]  # Error: use tuple[1, 2] or ordered[a: 1]',
+        description: 'Removed tuple sigil',
+        code: '*[1, 2]  # Error: use tuple[1, 2]',
       },
       {
-        description: 'Old destruct sigil *<',
-        code: '$ -> *<$a, $b>  # Error: use destruct<$a, $b>',
+        description: 'Removed destructure sigil',
+        code: '*<$a, $b>  # Error: use destruct<$a, $b>',
       },
       {
-        description: 'Old slice sigil /<',
-        code: '$ -> /<1:3>  # Error: use slice<1:3>',
+        description: 'Removed slice sigil',
+        code: '/<1:3>  # Error: use slice<1:3>',
       },
     ],
   },
@@ -730,8 +730,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       'Reduce the nesting depth of the expression, e.g. by extracting sub-expressions into variables.',
     examples: [
       {
-        description: 'Thousands of nested parentheses',
-        code: '((((((((((1))))))))))  # Error when nesting exceeds the limit',
+        description: 'Parentheses nested beyond the depth limit',
+        code: '('.repeat(151) + '1' + ')'.repeat(151),
       },
     ],
   },
@@ -838,8 +838,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
         code: 'pass<async: true> { 1 }',
       },
       {
-        description: 'After (parenthesized options)',
-        code: 'retry(attempts: 3) { 1 }',
+        description: 'Loop options in angle brackets',
+        code: 'do<limit: 10> { $ + 1 } while ($ < 3)',
       },
     ],
   },
@@ -1038,11 +1038,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'String method on number',
-        code: '123 -> .upper()  # upper() is string method',
+        code: '123 -> .upper()  # upper() is a string method',
       },
       {
-        description: 'List method on string',
-        code: '"hello" -> .first()  # first() is list method',
+        description: 'String method on list',
+        code: 'list[1, 2] -> .trim()  # trim() is a string method',
       },
       {
         description: 'Property a type value does not define',
@@ -1105,8 +1105,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       'Check method documentation for the type. Verify method name spelling and that it exists for this type.',
     examples: [
       {
-        description: 'Method not available on type',
-        code: '123 -> .trim()  # trim() only on strings',
+        description: 'Method not defined for the type',
+        code: 'list[1, 2] -> .push(3)  # lists have no push method',
       },
       {
         description: 'Misspelled method name',
@@ -1125,7 +1125,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Accessing undefined annotation',
-        code: '$stmt.^timeout  # No ^(timeout: ...) set',
+        code: 'fn(x: number) { $x } => $f\n$f.^timeout  # No ^(timeout: ...) set',
       },
     ],
   },
@@ -1148,8 +1148,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
         code: 'list[1, 2, 3] => $items\n$items[5]  # Only 3 elements (0-2)',
       },
       {
-        description: 'Safe alternative',
-        code: 'dict[name: "x"] -> .age ?? 0  # Returns 0 if missing',
+        description: 'Out-of-range index through .at',
+        code: 'list[1, 2] -> .at(9)  # Only 2 elements (0-1)',
       },
     ],
   },
@@ -1184,12 +1184,12 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       'Fix regex syntax errors. Check for unescaped special characters, unclosed groups, or invalid quantifiers.',
     examples: [
       {
-        description: 'Unclosed group',
-        code: '"test" -> .match("(abc")  # Missing closing )',
+        description: 'Unclosed group in an autoExceptions pattern',
+        code: '# createRuntimeContext({ autoExceptions: ["(abc"] })  # Missing closing )',
       },
       {
-        description: 'Invalid quantifier',
-        code: '"test" -> .match("a{,5}")  # Empty min in range',
+        description: 'Unclosed character class in an autoExceptions pattern',
+        code: '# createRuntimeContext({ autoExceptions: ["[a"] })  # Missing closing ]',
       },
     ],
   },
@@ -1203,12 +1203,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       'Increase timeout via RuntimeOptions, optimize slow operations, or add ^(timeout: ms) annotation to specific calls.',
     examples: [
       {
-        description: 'Slow host function',
-        code: '$app.slow_api()  # Times out if exceeds limit',
-      },
-      {
-        description: 'Setting higher timeout',
-        code: '^(timeout: 30000) $app.slow_api()  # 30 seconds',
+        description: 'Slow host function exceeds the host timeout',
+        code: 'slow_api()  # Times out if the host timeout elapses first',
       },
     ],
   },
@@ -1231,16 +1227,17 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_R014,
     category: 'runtime',
-    description: 'Auto-exception triggered',
+    description: 'Retired: auto-exception triggered',
     messageTemplate: 'Auto-exception triggered: pattern {pattern} matched',
     cause:
-      'Value matched auto-exception pattern (configured to halt on specific error patterns in output).',
+      'This error was raised when a value matched an auto-exception pattern configured by the host.',
     resolution:
-      'Handle error condition that produced the matched pattern, or adjust auto-exception configuration.',
+      'This error code is no longer thrown. A string pipe value that matches an autoExceptions pattern now halts with the non-catchable #R999 atom. Handle the condition that produced the matched pattern, or adjust the autoExceptions configuration.',
     examples: [
       {
-        description: 'API error response',
-        code: '# API returned "ERROR:" prefix, auto-exception configured to catch this',
+        description:
+          'Output matching an autoExceptions pattern (no longer raised; now a #R999 halt)',
+        code: '"ERROR: upstream failed"  # Host configured autoExceptions: ["^ERROR:"]',
       },
     ],
   },
@@ -1255,11 +1252,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Basic assertion',
-        code: 'assert $count > 0  # Fails if $count <= 0',
+        code: '0 => $count\nassert $count > 0  # Fails because $count is 0',
       },
       {
         description: 'Assertion with message',
-        code: 'assert $age >= 18 "Must be adult"',
+        code: '17 => $age\nassert $age >= 18 "Must be adult"',
       },
     ],
   },
@@ -1278,7 +1275,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       },
       {
         description: 'Conditional error',
-        code: '($status == "failed") ? { error "Process failed" } ! "ok"',
+        code: '"failed" => $status\n($status == "failed") ? { error "Process failed" } ! "ok"',
       },
     ],
   },
@@ -1294,11 +1291,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Unknown mount',
-        code: '$fs.read("unknown", "file.txt")  # Mount "unknown" not in config',
-      },
-      {
-        description: 'Invalid mount path',
-        code: '# createFsExtension({ mounts: { data: { path: "/nonexistent", mode: "read" } } })',
+        code: 'use<ext:fs> => $fs\n$fs.read("unknown", "file.txt")  # Mount "unknown" not in config',
       },
     ],
   },
@@ -1314,11 +1307,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Path traversal with ..',
-        code: '$fs.read("data", "../../etc/passwd")  # Attempts escape',
+        code: 'use<ext:fs> => $fs\n$fs.read("data", "../../etc/passwd")  # Attempts escape',
       },
       {
         description: 'Symlink escape',
-        code: '$fs.read("data", "symlink_to_root")  # Symlink points outside mount',
+        code: 'use<ext:fs> => $fs\n$fs.read("data", "symlink_to_root")  # Symlink points outside mount',
       },
     ],
   },
@@ -1334,11 +1327,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Glob mismatch',
-        code: '$fs.read("csv_only", "data.json")  # Mount configured with glob: "*.csv"',
+        code: 'use<ext:fs> => $fs\n$fs.read("csv_only", "data.json")  # Mount configured with glob: "*.csv"',
       },
       {
         description: 'Multiple extensions',
-        code: '$fs.read("configs", "app.ini")  # Mount glob: "*.{json,yaml}"',
+        code: 'use<ext:fs> => $fs\n$fs.read("configs", "app.ini")  # Mount glob: "*.{json,yaml}"',
       },
     ],
   },
@@ -1354,11 +1347,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Write to read-only mount',
-        code: '$fs.write("readonly", "file.txt", "data")  # Mount mode: "read"',
+        code: 'use<ext:fs> => $fs\n$fs.write("readonly", "file.txt", "data")  # Mount mode: "read"',
       },
       {
         description: 'Read from write-only mount',
-        code: '$fs.read("writeonly", "file.txt")  # Mount mode: "write"',
+        code: 'use<ext:fs> => $fs\n$fs.read("writeonly", "file.txt")  # Mount mode: "write"',
       },
     ],
   },
@@ -1374,11 +1367,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Permission denied',
-        code: '$fs.read("data", "protected.txt")  # File exists but no read permission',
+        code: 'use<ext:fs> => $fs\n$fs.read("data", "protected.txt")  # File exists but no read permission',
       },
       {
         description: 'File not found',
-        code: '$fs.read("data", "missing.txt")  # File does not exist',
+        code: 'use<ext:fs> => $fs\n$fs.read("data", "missing.txt")  # File does not exist',
       },
     ],
   },
@@ -1393,11 +1386,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'HTTP 404 Not Found',
-        code: '$fetch.get("api", "/nonexistent")  # Returns 404',
+        code: 'use<ext:fetch> => $fetch\n$fetch.get("api", "/nonexistent")  # Returns 404',
       },
       {
         description: 'HTTP 400 Bad Request',
-        code: '$fetch.post("api", "/users", [invalid: "data"])  # Returns 400',
+        code: 'use<ext:fetch> => $fetch\n$fetch.post("api", "/users", dict[invalid: "data"])  # Returns 400',
       },
     ],
   },
@@ -1412,7 +1405,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'HTTP 503 Service Unavailable',
-        code: '$fetch.get("api", "/resource")  # Server returns 503',
+        code: 'use<ext:fetch> => $fetch\n$fetch.get("api", "/resource")  # Server returns 503',
       },
     ],
   },
@@ -1427,7 +1420,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Slow API endpoint',
-        code: '$fetch.get("api", "/slow")  # Times out if exceeds limit',
+        code: 'use<ext:fetch> => $fetch\n$fetch.get("api", "/slow")  # Times out if exceeds limit',
       },
     ],
   },
@@ -1443,7 +1436,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Connection refused',
-        code: '$fetch.get("api", "/endpoint")  # Server not running',
+        code: 'use<ext:fetch> => $fetch\n$fetch.get("api", "/down")  # Server not running',
       },
     ],
   },
@@ -1458,7 +1451,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'HTML error page returned as JSON',
-        code: '$fetch.get("api", "/endpoint")  # Server returns HTML instead of JSON',
+        code: 'use<ext:fetch> => $fetch\n$fetch.get("api", "/html")  # Server returns HTML instead of JSON',
       },
     ],
   },
@@ -1474,7 +1467,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Missing required parameter',
-        code: '$ahi.parser([])  # Agent expects a non-empty params dict',
+        code: 'use<ext:ahi> => $ahi\n$ahi.parser(dict[])  # Agent expects a non-empty params dict',
       },
     ],
   },
@@ -1488,7 +1481,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Wrong agent path',
-        code: '# Agent configured with stale URL pointing to removed route',
+        code: 'use<ext:ahi> => $ahi\n$ahi.removed(dict[input: "x"])  # Agent URL points at a removed route',
       },
     ],
   },
@@ -1502,7 +1495,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Unhandled error in downstream agent',
-        code: '$ahi.parser([input: $text])  # Downstream agent crashes',
+        code: 'use<ext:ahi> => $ahi\n$ahi.crashing(dict[input: "x"])  # Downstream agent crashes',
       },
     ],
   },
@@ -1517,7 +1510,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Slow downstream agent',
-        code: '# createAhiExtension({ agents: { slow: { url: "..." } }, timeout: 5000 })',
+        code: 'use<ext:ahi> => $ahi\n$ahi.slow(dict[input: "x"])  # Agent exceeds the configured timeout',
       },
     ],
   },
@@ -1533,7 +1526,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Agent not running',
-        code: '# Agent configured with http://localhost:4001 but service is down',
+        code: 'use<ext:ahi> => $ahi\n$ahi.offline(dict[input: "x"])  # Agent service is down',
       },
     ],
   },
@@ -1548,7 +1541,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Too many concurrent requests',
-        code: '$ahi.parser([input: $text])  # Agent enforces per-second request quota',
+        code: 'use<ext:ahi> => $ahi\n$ahi.busy(dict[input: "x"])  # Agent enforces per-second request quota',
       },
     ],
   },
@@ -1563,7 +1556,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Call after dispose',
-        code: '# Host called extension.dispose() then continued running script',
+        code: 'use<ext:ahi> => $ahi\n$ahi.disposed(dict[input: "x"])  # Host disposed the extension before this call',
       },
     ],
   },
@@ -1578,7 +1571,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'HTTP 503 Service Unavailable',
-        code: '$ahi.parser([input: $text])  # Downstream returns 503',
+        code: 'use<ext:ahi> => $ahi\n$ahi.flaky(dict[input: "x"])  # Downstream returns 503',
       },
     ],
   },
@@ -1594,7 +1587,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Agent not registered',
-        code: '# createAhiExtension({ agents: ["parser"], registry: "http://registry:8080" })\n# Registry has no entry for "parser"',
+        code: 'use<ext:ahi> => $ahi\n$ahi.unregistered(dict[input: "x"])  # Registry has no entry for the agent',
       },
     ],
   },
@@ -1629,7 +1622,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Missing structural signature',
-        code: '$dict -> ordered  # Ambiguous field order',
+        code: 'dict[a: 1] -> ordered  # Ambiguous field order',
       },
     ],
   },
@@ -1730,7 +1723,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Empty function body',
-        code: 'fn(x: number) { }  # No value produced',
+        code: 'fn(x: number) { } => $f\n$f(1)  # No value produced',
       },
       {
         description: 'Script with only comments',
@@ -1784,13 +1777,14 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     category: 'runtime',
     description: 'Module not found in resolver config',
     messageTemplate: "Module '{resource}' not found in resolver config",
-    cause: 'The module ID is absent from the moduleResolver config map.',
+    cause:
+      'The module ID is absent from the moduleResolver config map. Under use<...> the failure surfaces wrapped as RILL-R056.',
     resolution:
       'Add an entry for the module ID to the moduleResolver config object.',
     examples: [
       {
-        description: 'Missing module entry',
-        code: '# moduleResolver config lacks key for the requested module',
+        description: 'Module absent from the resolver config',
+        code: '# moduleResolver("greetings", {})  # "greetings" is not a key of the config',
       },
     ],
   },
@@ -1799,13 +1793,14 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     category: 'runtime',
     description: 'Module file read failure',
     messageTemplate: "Failed to read module '{resource}': {reason}",
-    cause: 'The file path mapped to the module ID could not be read.',
+    cause:
+      'The file path mapped to the module ID could not be read. Under use<...> the failure surfaces wrapped as RILL-R056.',
     resolution:
       'Verify the file path exists and the process has read permission.',
     examples: [
       {
-        description: 'File does not exist',
-        code: '# Path in moduleResolver config points to a missing file',
+        description: 'Module file does not exist',
+        code: '# moduleResolver("greetings", { greetings: "/nonexistent/greetings.rill" })  # Path is missing',
       },
     ],
   },
@@ -1814,13 +1809,14 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     category: 'runtime',
     description: 'Extension not found in resolver config',
     messageTemplate: "Extension '{name}' not found in resolver config",
-    cause: 'The extension name is absent from the extResolver config map.',
+    cause:
+      'The extension name is absent from the extResolver config map. Under use<...> the failure surfaces wrapped as RILL-R056.',
     resolution:
       'Add an entry for the extension name to the extResolver config object.',
     examples: [
       {
-        description: 'Missing extension entry',
-        code: '# extResolver config lacks key for the requested extension',
+        description: 'Extension absent from the resolver config',
+        code: '# extResolver("missing", {})  # "missing" is not a key of the config',
       },
     ],
   },
@@ -1830,13 +1826,13 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Member path not found in extension',
     messageTemplate: "Member '{path}' not found in extension '{name}'",
     cause:
-      'The dot-path member does not exist in the extension value, or the path descends into a value that is not a plain dict (a callable, tuple, ordered, vector, or stream), which is never traversed.',
+      'The dot-path member does not exist in the extension value, or the path descends into a value that is not a plain dict (a callable, tuple, ordered, vector, or stream), which is never traversed. Under use<...> the failure surfaces wrapped as RILL-R056.',
     resolution:
       'Verify the member path matches the structure of the extension dict, and that every segment before the last names a dict.',
     examples: [
       {
         description: 'Nonexistent member',
-        code: 'use<ext:qdrant.missing>  # "missing" key not in qdrant extension',
+        code: '# extResolver("app.missing", { app: { ... } })  # "missing" key not in the app extension',
       },
     ],
   },
@@ -1869,7 +1865,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Self-referencing module',
-        code: '# module:a source contains use<module:a>',
+        code: 'use<module:a>  # module:a source contains use<module:a>',
       },
     ],
   },
@@ -1885,7 +1881,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Network error in resolver',
-        code: '# resolver throws "connection refused"',
+        code: 'use<module:remote>  # resolver throws "connection refused"',
       },
     ],
   },
@@ -1926,13 +1922,14 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     category: 'runtime',
     description: 'moduleResolver config is not a plain object',
     messageTemplate: 'moduleResolver config must be a plain object',
-    cause: 'The config passed to moduleResolver is not a plain object.',
+    cause:
+      'The config passed to moduleResolver is not a plain object. Under use<...> the failure surfaces wrapped as RILL-R056.',
     resolution:
       'Pass a plain object as the moduleResolver config (e.g., { myModule: "/app/mod.rill" }). Paths must be absolute; resolve them before passing in.',
     examples: [
       {
         description: 'Non-object config',
-        code: '# moduleResolver config was null or an array',
+        code: '# moduleResolver("greetings", null)  # Config is null, not a plain object',
       },
     ],
   },
@@ -1972,7 +1969,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Missing parseSource option',
-        code: '# resolver returns { kind: "source", text: "..." } but host did not pass parseSource',
+        code: 'use<module:greetings>  # resolver returns { kind: "source", text: "..." } but host did not pass parseSource',
       },
     ],
   },
@@ -1983,13 +1980,14 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     category: 'runtime',
     description: 'Context key not found',
     messageTemplate: "Context key '{key}' not found",
-    cause: 'The requested dot-path key does not exist in the context config.',
+    cause:
+      'The requested dot-path key does not exist in the context config. Under use<...> the failure surfaces wrapped as RILL-R056.',
     resolution:
       'Ensure the key is present in the context configuration passed to contextResolver.',
     examples: [
       {
         description: 'Missing top-level key',
-        code: '# use<context:timeout> but "timeout" is not in context config',
+        code: '# contextResolver("timeout", {})  # "timeout" is not in the context config',
       },
     ],
   },
@@ -2001,13 +1999,13 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Context path segment is not a dict',
     messageTemplate: "Context path '{path}': '{segment}' is not a dict",
     cause:
-      'A dot-path segment resolves to a non-dict value, so traversal cannot continue.',
+      'A dot-path segment resolves to a non-dict value, so traversal cannot continue. Under use<...> the failure surfaces wrapped as RILL-R056.',
     resolution:
       'Ensure each intermediate segment in the dot-path is a nested dict in the context config.',
     examples: [
       {
         description: 'Non-dict intermediate segment',
-        code: '# use<context:limits.max_tokens> but "limits" is a string, not a dict',
+        code: '# contextResolver("limits.max_tokens", { limits: "text" })  # "limits" is a string, not a dict',
       },
     ],
   },
@@ -2016,16 +2014,17 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_R064,
     category: 'runtime',
-    description: 'Cannot convert string to number',
+    description: 'Retired: cannot convert string to number',
     messageTemplate: 'Cannot convert string "{value}" to number',
     cause:
-      'The string value is not a valid numeric representation or is empty/whitespace.',
+      'This error was raised when a string that is not a valid number was converted with number.',
     resolution:
-      'Ensure the string contains a valid number before converting. Use as(number) only on numeric strings.',
+      'This error code is no longer thrown. Converting a non-numeric string with number now raises RILL-R038. Ensure the string holds a valid number before converting.',
     examples: [
       {
-        description: 'Non-numeric string conversion',
-        code: '"hello" -> as(number)  # Error: not a valid number',
+        description:
+          'Non-numeric string conversion (no longer raised; now RILL-R038)',
+        code: '"hello" -> number  # Not a valid number',
       },
     ],
   },
@@ -2034,14 +2033,16 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_R065,
     category: 'runtime',
-    description: 'Cannot convert string to bool',
+    description: 'Retired: cannot convert string to bool',
     messageTemplate: 'Cannot convert string "{value}" to bool',
-    cause: 'Only the strings "true" and "false" can convert to bool.',
-    resolution: 'Use the exact strings "true" or "false" for bool conversion.',
+    cause:
+      'This error was raised when a string other than "true" or "false" was converted with bool.',
+    resolution:
+      'This error code is no longer thrown. Converting such a string with bool now raises RILL-R036. Use the exact strings "true" or "false".',
     examples: [
       {
-        description: 'Invalid bool string',
-        code: '"yes" -> as(bool)  # Error: only "true"/"false" allowed',
+        description: 'Invalid bool string (no longer raised; now RILL-R036)',
+        code: '"yes" -> bool  # Only "true"/"false" convert',
       },
     ],
   },
@@ -2050,15 +2051,17 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_R066,
     category: 'runtime',
-    description: 'Cannot convert number to bool',
+    description: 'Retired: cannot convert number to bool',
     messageTemplate: 'Cannot convert number {value} to bool',
     cause:
-      'Only the numbers 0 and 1 can convert to bool. Other numeric values have no bool equivalent.',
-    resolution: 'Use 0 (false) or 1 (true) for number-to-bool conversion.',
+      'This error was raised when a number other than 0 or 1 was converted with bool.',
+    resolution:
+      'This error code is no longer thrown. Converting such a number with bool now raises RILL-R036. Use 0 (false) or 1 (true).',
     examples: [
       {
-        description: 'Non-binary number conversion',
-        code: '42 -> as(bool)  # Error: only 0 and 1 allowed',
+        description:
+          'Non-binary number conversion (no longer raised; now RILL-R036)',
+        code: '42 -> bool  # Only 0 and 1 convert',
       },
     ],
   },
@@ -2067,16 +2070,17 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_R067,
     category: 'runtime',
-    description: 'Value is not JSON-serializable',
+    description: 'Retired: value is not JSON-serializable',
     messageTemplate: '{typeName} are not JSON-serializable',
     cause:
-      'The value type cannot be represented in JSON. Only strings, numbers, bools, lists, and dicts serialize.',
+      'This error was raised when a value that cannot be represented in JSON, such as a function, was serialized.',
     resolution:
-      'Convert the value to a serializable type before JSON operations. Extract data from functions or iterators first.',
+      'This error code is no longer thrown. Serializing such a value now halts with #INVALID_INPUT. Convert the value to a serializable type (string, number, bool, list, or dict) before serializing; extract data from functions or iterators first.',
     examples: [
       {
-        description: 'Function in JSON context',
-        code: 'fn(x) { $x + 1 } -> as(string)  # Error: functions not serializable',
+        description:
+          'Function in JSON context (no longer raised; now #INVALID_INPUT)',
+        code: 'fn(x) { $x + 1 } => $f\n$f -> json  # Functions are not serializable',
       },
     ],
   },
@@ -2201,7 +2205,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Zero-dimension vector',
-        code: '# createVector(new Float32Array([]), "model") fails',
+        code: '# createVector(new Float32Array([]), "model")  # No dimensions',
       },
     ],
   },
@@ -2218,7 +2222,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Empty event field',
-        code: '# emitExtensionEvent(ctx, { event: "" }) fails',
+        code: '# emitExtensionEvent(ctx, { event: "" })  # Empty event name',
       },
     ],
   },
@@ -2230,13 +2234,13 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Unknown module resource',
     messageTemplate: "Unknown module '{resource}'",
     cause:
-      'The module resolver received a resource identifier it does not recognize.',
+      'The module resolver received a resource identifier it does not recognize. Under use<...> the failure surfaces wrapped as RILL-R056.',
     resolution:
       'Use a valid module resource. The ext module resolver only handles the "ext" resource.',
     examples: [
       {
         description: 'Invalid module resource',
-        code: 'use<module:unknown>  # Error: unknown module',
+        code: '# The resolver of a createTestContext() context receives "unknown"  # Only "ext" is served',
       },
     ],
   },
@@ -2248,13 +2252,14 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Invalid parameter default value',
     messageTemplate:
       "Invalid defaultValue for parameter '{paramName}': expected {expectedType}, got {actualType}",
-    cause: 'The default value type does not match the declared parameter type.',
+    cause:
+      'The default value type does not match the declared parameter type. Explicit host registration checks nested field defaults and return-type defaults too; a nested mismatch reads "Default value for field \'a\' must be X, got Y".',
     resolution:
-      'Ensure the defaultValue matches the parameter type in the function definition.',
+      'Ensure every defaultValue, including nested field defaults and return-type defaults, matches its declared type in the function definition.',
     examples: [
       {
         description: 'Type mismatch in default',
-        code: '# param { name: "x", type: "number", defaultValue: "hello" }',
+        code: '# param { name: "x", type: "number", defaultValue: "hello" }  # String default for a number',
       },
     ],
   },
@@ -2273,12 +2278,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       "Replace ':>type' with '-> type'. The target type keyword follows the pipe directly: '-> :>string' becomes '-> string', '-> :>ordered(...)' becomes '-> ordered(...)'.",
     examples: [
       {
-        description: 'Before (legacy syntax triggers RILL-R078)',
+        description: 'Legacy conversion syntax',
         code: '42 -> :>string\n"3.14" -> :>number\nlist[1, 2] -> :>tuple',
-      },
-      {
-        description: 'After (current syntax)',
-        code: '42 -> string\n"3.14" -> number\nlist[1, 2] -> tuple',
       },
     ],
   },
@@ -2295,12 +2296,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       "Replace '(cond) @ { body }' with 'while (cond) do { body }'. For bounded loops, use 'do(limit: N) { body } while (cond)'.",
     examples: [
       {
-        description: 'Before (legacy syntax triggers RILL-R079)',
+        description: 'Legacy pre-loop syntax',
         code: '0 -> ($ < 3) @ { $ + 1 }',
-      },
-      {
-        description: 'After (current syntax)',
-        code: '0 -> while ($ < 3) do { $ + 1 }',
       },
     ],
   },
@@ -2317,12 +2314,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       "Replace '@ { body } ? (cond)' with 'do { body } while (cond)'. For seeded loops, pipe the seed: 'seed -> do { body } while (cond)'.",
     examples: [
       {
-        description: 'Before (legacy syntax triggers RILL-R080)',
+        description: 'Legacy post-loop syntax',
         code: '0 -> @ { $ + 1 } ? ($ < 3)',
-      },
-      {
-        description: 'After (current syntax)',
-        code: '0 -> do { $ + 1 } while ($ < 3)',
       },
     ],
   },
@@ -2339,12 +2332,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       "Replace '^(limit: N) @ { body }' with 'do(limit: N) { body } while (cond)' or 'while (cond) do(limit: N) { body }'.",
     examples: [
       {
-        description: 'Before (legacy syntax triggers RILL-R081)',
-        code: '0 -> ^(limit: 10) @ { $ + 1 } ? ($ < 3)',
-      },
-      {
-        description: 'After (current syntax)',
-        code: '0 -> do(limit: 10) { $ + 1 } while ($ < 3)',
+        description: 'Legacy limit annotation in expression position',
+        code: '(^(limit: 10) 0)',
       },
     ],
   },
@@ -2361,8 +2350,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       'Recover via guard { timeout(total: d) { body } } ?? fallback. Increase duration or optimize body.',
     examples: [
       {
-        description: 'Total timeout with guard recovery',
-        code: 'guard { timeout(total: duration("500ms")) { $app.slow() } } ?? "fallback"',
+        description: 'Total timeout expires',
+        code: 'use<ext:app> => $app\ntimeout(total: duration("500ms")) { $app.slow() }',
       },
     ],
   },
@@ -2377,8 +2366,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       'Recover via guard { timeout(idle: d) { body } } ?? fallback. Increase the idle duration, or make the body read stream chunks or call the host more often.',
     examples: [
       {
-        description: 'Idle timeout with guard recovery',
-        code: 'guard { timeout(idle: duration("200ms")) { $stream } } ?? "fallback"',
+        description: 'Idle timeout expires',
+        code: 'use<ext:app> => $app\ntimeout(idle: duration("200ms")) { $app.hang() }',
       },
     ],
   },
@@ -2395,11 +2384,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Host attempts to invalidate with the reserved "ok" code',
-        code: '# Host code: ctx.invalidate({ code: "ok" })  # rejected',
+        code: '# Host code: ctx.invalidate(error, { code: "ok", provider: "host" })  # rejected',
       },
       {
         description: 'Host attempts to invalidate with a code it invented',
-        code: '# Host code: ctx.invalidate({ code: "PAYMENT_FAILED" })  # rejected',
+        code: '# Host code: ctx.invalidate(error, { code: "PAYMENT_FAILED", provider: "host" })  # rejected',
       },
     ],
   },
@@ -2410,17 +2399,17 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Host function broke the host contract',
     messageTemplate: "Host function '{functionName}' {detail}",
     cause:
-      'Two causes share the message template, each supplying its own {detail}. First, a host callable has no usable parameter declaration (missing, not an array, or holding a non-object entry) because it was built by hand instead of with callable() or toCallable; the detail reads "has no parameter declaration; build callables with toCallable or callable()" or "declares a malformed parameter at index N; ...". Second, a host function returned a JavaScript value that has no representation in the rill value model, such as undefined, null, a symbol, a bigint, a plain function, a Date, a Map, a Set, or a non-plain class instance. The value may have been nested inside a returned array or plain object.',
+      'Two causes share the message template, each supplying its own {detail}. First, a host callable has no usable parameter declaration (missing, not an array, or holding a non-object entry) because it was built by hand instead of with callable() or toCallable; the detail reads "has no parameter declaration; build callables with toCallable or callable()" or "declares a malformed parameter at index N; ...". Second, a host function returned a JavaScript value that has no representation in the rill value model, such as undefined, null, a symbol, a bigint, a plain function, a Date, a Set, or a non-plain class instance. The value may have been nested inside a returned array or plain object.',
     resolution:
       'Build every callable with callable() or toCallable, or register it with the { signature, fn } shorthand, so it carries a parameter declaration. For an invalid return value, convert the returned value to a rill-representable shape (primitive, dict, list, tuple, atom, datetime, duration, or callable) before returning it from the host function.',
     examples: [
       {
         description: 'Host function returns an unsupported JavaScript value',
-        code: '# Host code: registerFunction("bad", () => new Map())  # rejected',
+        code: 'returns_date()  # The host function returned a Date',
       },
       {
         description: 'Hand-built callable without a parameter declaration',
-        code: '# Host code: { __type: "callable", kind: "application", fn }  # rejected; use callable(fn)',
+        code: '$hand_built()  # Built by hand instead of with callable()',
       },
     ],
   },
@@ -2437,8 +2426,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       'Drop the in/out entries from the "*" rule and declare transforms on the specific methods that need them.',
     examples: [
       {
-        description: 'Wildcard restricted to an access decision',
-        code: '# policy: { "kb": { "*": { "access": "deny" } } }',
+        description: 'Wildcard rule declares an out transform',
+        code: '# policy: { "kb": { "*": { "access": "deny", "out": ["filter.redact"] } } }',
       },
     ],
   },
@@ -2454,8 +2443,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       'Write the reference as "extension.method", mount the extension that provides it, and confirm the named member is a callable.',
     examples: [
       {
-        description: 'Transform reference naming a mounted callable',
-        code: '# policy: { "kb": { "search": { "access": "allow", "out": ["filter.redact"] } } }',
+        description: 'Transform reference naming an unmounted extension',
+        code: '# policy: { "kb": { "search": { "access": "allow", "out": ["filter.redact"] } } }  # No "filter" extension mounted',
       },
     ],
   },
@@ -2470,8 +2459,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       'Recover via guard { ... } or a ?? fallback, or grant the method an "access": "allow" rule in the host policy.',
     examples: [
       {
-        description: 'Denied call recovered with guard',
-        code: 'guard { $kb.delete() } => $r\n$r.! ? "not permitted" ! $r',
+        description: 'Denied call',
+        code: 'use<ext:kb> => $kb\n$kb.delete()  # Policy denies kb.delete',
       },
     ],
   },
@@ -2488,7 +2477,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Transform that must not call back into its own method',
-        code: '# policy: { "kb": { "search": { "access": "allow", "out": ["filter.redact"] } } }',
+        code: 'use<ext:kb> => $kb\n$kb.search()  # The out transform filter.redact calls kb.search again',
       },
     ],
   },
@@ -2504,8 +2493,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       'Return a smaller extension value from the resolver, or split the extension across several resources that are resolved separately.',
     examples: [
       {
-        description: 'Resolver returning an extension of ordinary size',
-        code: '# Host code: registerResolver("ext", () => ({ kind: "value", value: kb }))',
+        description: 'Extension with more members than the policy walk visits',
+        code: 'use<ext:kb> => $kb  # The kb extension has 10001 members and kb is policed',
       },
     ],
   },

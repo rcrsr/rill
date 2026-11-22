@@ -15,7 +15,6 @@ import {
   appendDefault,
   formatRillLiteral,
   formatStructure,
-  formatSignatureStructure,
 } from './types/operations.js';
 import { resolveAtom, toAtomValue } from './types/atom-registry.js';
 import {
@@ -28,12 +27,25 @@ import type { RillParam } from './callable.js';
 import { LANGUAGE_REFERENCE } from '../../generated/introspection-data.js';
 import { getBuiltinFunctionCache } from './builtin-registry.js';
 import { anyTypeValue } from './types/any-type.js';
+import {
+  createMap,
+  createOrdered,
+  createTuple,
+  mapEntryFault,
+} from './types/constructors.js';
+import { setDictField } from './types/dict-keys.js';
 import type {
   AnnotationArg,
   ClosureNode,
   ClosureParamNode,
+  DictEntryNode,
+  ExpressionNode,
+  ListSpreadNode,
   LiteralNode,
+  MapEntryNode,
   PipeChainNode,
+  PostfixExprNode,
+  PrimaryNode,
   ScriptNode,
   StatementNode,
 } from '../../types.js';
@@ -212,7 +224,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
  * - Type defaults to `any` when param.type is undefined.
  *
  * A default prints as `= literal` after the type. A default with no literal
- * form (datetime, duration, map, function, vector, iterator, stream, type
+ * form (datetime, duration, function, vector, iterator, stream, type
  * value, non-finite or exponent number) is left out, so that parameter is
  * required when the entry is registered again. The type text stays.
  */
@@ -226,9 +238,8 @@ function serializeParam(p: RillParam): string {
   }
 
   // Name and type
-  const typeName =
-    p.type !== undefined ? formatSignatureStructure(p.type) : 'any';
-  parts.push(appendDefault(`${p.name}: ${typeName}`, p.defaultValue, true));
+  const typeName = p.type !== undefined ? formatStructure(p.type) : 'any';
+  parts.push(appendDefault(`${p.name}: ${typeName}`, p.defaultValue));
 
   return parts.join('');
 }
@@ -255,7 +266,7 @@ function serializeClosureSignature(
     parts.push(`^(description: "${escapeRillStringBody(description)}") `);
   }
 
-  const retStr = formatSignatureStructure(returnType);
+  const retStr = formatStructure(returnType);
   const paramStr = params.map(serializeParam).join(', ');
 
   parts.push(`fn(${paramStr})`);
@@ -403,7 +414,7 @@ export interface HandlerParamStatic {
   /** Description from parameter annotation, when present */
   readonly description?: string;
   /** Literal default value (undefined for non-literal or complex expressions) */
-  readonly defaultValue?: unknown;
+  readonly defaultValue?: RillValue | undefined;
 }
 
 /**
@@ -435,9 +446,7 @@ function fieldArgToString(arg: FieldArg): string {
     arg.defaultValue !== undefined
       ? extractLiteralValue(arg.defaultValue)
       : undefined;
-  return literal === undefined
-    ? named
-    : `${named} = ${formatRillLiteral(literal)}`;
+  return appendDefault(named, literal);
 }
 
 /** True for an unnamed `any` argument with no default: an unspecified slot. */
@@ -511,7 +520,7 @@ export function formatTypeRef(ref: TypeRef | null): string {
   );
 }
 
-/** Print a scalar or atom literal in source form, or undefined for any other literal. */
+/** Print a literal type-ref value in source form, or undefined when it has none. */
 function formatLiteral(node: LiteralNode): string | undefined {
   const literal = extractLiteralValue(node);
   return literal === undefined ? undefined : formatRillLiteral(literal);
@@ -527,8 +536,7 @@ function formatFnParam(param: ClosureParamNode): string {
   const unnamed = isUnnamedParam(param);
   const base = unnamed ? type : `${param.name}: ${type}`;
   if (param.defaultValue === null) return base;
-  const literal = formatLiteral(param.defaultValue);
-  return literal === undefined ? base : `${base} = ${literal}`;
+  return appendDefault(base, extractLiteralValue(param.defaultValue));
 }
 
 /**
@@ -543,8 +551,100 @@ function formatReturnTypeTarget(
   return formatTypeRef(target);
 }
 
-/** Extract a primitive value from a literal AST node. Returns undefined for complex literals. */
-function extractLiteralValue(node: LiteralNode): RillValue | undefined {
+/** The literal a bare expression node holds, or undefined when it is anything else. */
+function literalOfExpression(node: ExpressionNode): RillValue | undefined {
+  if (!isPipeChainNode(node)) return undefined;
+  if (node.pipes.length > 0 || node.terminator !== null) return undefined;
+  const head = node.head;
+  if (head.type === 'UnaryExpr') {
+    if (head.op !== '-' || head.operand.type !== 'PostfixExpr') {
+      return undefined;
+    }
+    const inner = literalOfPostfix(head.operand);
+    return typeof inner === 'number' ? -inner : undefined;
+  }
+  return head.type === 'PostfixExpr' ? literalOfPostfix(head) : undefined;
+}
+
+function literalOfPostfix(node: PostfixExprNode): RillValue | undefined {
+  if (node.methods.length > 0 || node.defaultValue !== null) return undefined;
+  if (node.existenceCheck !== undefined && node.existenceCheck !== null) {
+    return undefined;
+  }
+  return extractLiteralValue(node.primary);
+}
+
+/** Values of literal-only expressions, or undefined when any is not a literal or is a spread. */
+function literalElements(
+  elements: readonly (ExpressionNode | ListSpreadNode)[]
+): RillValue[] | undefined {
+  const values: RillValue[] = [];
+  for (const element of elements) {
+    if (element.type === 'ListSpread') return undefined;
+    const value = literalOfExpression(element);
+    if (value === undefined) return undefined;
+    values.push(value);
+  }
+  return values;
+}
+
+/** Literal-only name/value entries of a dict or ordered literal, or undefined. */
+function literalNamedEntries(
+  entries: readonly DictEntryNode[]
+): [string, RillValue][] | undefined {
+  const out: [string, RillValue][] = [];
+  for (const entry of entries) {
+    const value = literalOfExpression(entry.value);
+    if (value === undefined) return undefined;
+    const keys = literalNamedKeys(entry.key);
+    if (keys === undefined) return undefined;
+    for (const key of keys) out.push([key, value]);
+  }
+  return out;
+}
+
+/** A dict entry's literal keys: a name, or a non-empty list of strings that fans out; undefined otherwise. */
+function literalNamedKeys(key: DictEntryNode['key']): string[] | undefined {
+  if (typeof key === 'string') return [key];
+  if (!('type' in key) || key.defaultValue !== null) return undefined;
+  const keys = literalElements(key.elements);
+  if (keys === undefined || keys.length === 0) return undefined;
+  return keys.every((k): k is string => typeof k === 'string')
+    ? keys
+    : undefined;
+}
+
+/** Literal-only map entries (a list key fans out to one entry per key), or undefined. */
+function literalMapEntries(
+  entries: readonly MapEntryNode[]
+): [RillValue, RillValue][] | undefined {
+  const out: [RillValue, RillValue][] = [];
+  for (const entry of entries) {
+    const value = literalOfExpression(entry.value);
+    if (value === undefined) return undefined;
+    let keys: RillValue[] | undefined;
+    if (entry.key.type === 'ListLiteral') {
+      // The runtime halts on an empty multi-key list, so it has no default.
+      keys =
+        entry.key.defaultValue === null && entry.key.elements.length > 0
+          ? literalElements(entry.key.elements)
+          : undefined;
+    } else {
+      const key = literalOfExpression(entry.key);
+      keys = key === undefined ? undefined : [key];
+    }
+    if (keys === undefined) return undefined;
+    for (const key of keys) out.push([key, value]);
+  }
+  return mapEntryFault(out) === undefined ? out : undefined;
+}
+
+/**
+ * The value a literal AST node denotes: scalars, atoms, and list, dict,
+ * tuple, ordered, and map literals holding only such values. Undefined for
+ * any other node, so a default that is not a literal is left out.
+ */
+function extractLiteralValue(node: PrimaryNode): RillValue | undefined {
   switch (node.type) {
     case 'AtomLiteral':
       return toAtomValue(resolveAtom(node.name));
@@ -553,12 +653,35 @@ function extractLiteralValue(node: LiteralNode): RillValue | undefined {
     case 'BoolLiteral':
       return node.value;
     case 'StringLiteral': {
-      const strNode = node;
       // Skip strings with interpolations
-      if (!strNode.parts.every((p): p is string => typeof p === 'string')) {
+      if (!node.parts.every((p): p is string => typeof p === 'string')) {
         return undefined;
       }
-      return strNode.parts.join('');
+      return node.parts.join('');
+    }
+    case 'ListLiteral':
+      return node.defaultValue === null
+        ? literalElements(node.elements)
+        : undefined;
+    case 'TupleLiteral': {
+      const values = literalElements(node.elements);
+      return values === undefined ? undefined : createTuple(values);
+    }
+    case 'DictLiteral': {
+      const entries = literalNamedEntries(node.entries);
+      if (entries === undefined) return undefined;
+      const dict: Record<string, RillValue> = {};
+      for (const [key, value] of entries) setDictField(dict, key, value);
+      return dict;
+    }
+    case 'OrderedLiteral': {
+      const entries = literalNamedEntries(node.entries);
+      return entries === undefined ? undefined : createOrdered(entries);
+    }
+    case 'MapLiteral': {
+      if (node.defaultValue !== null) return undefined;
+      const entries = literalMapEntries(node.entries);
+      return entries === undefined ? undefined : createMap(entries);
     }
     default:
       return undefined;

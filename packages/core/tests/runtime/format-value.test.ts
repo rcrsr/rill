@@ -33,6 +33,7 @@ import {
   anyTypeValue,
   callable,
   createOrdered,
+  createMap,
   createVector,
   formatFieldKey,
   formatRillLiteral,
@@ -290,6 +291,34 @@ describe('formatRillLiteral', () => {
     expect(formatRillLiteral({ z: { y: 1, x: 2 }, a: 0 })).toBe(
       'dict[a: 0, z: dict[x: 2, y: 1]]'
     );
+  });
+
+  it('prints an empty map as map[]', () => {
+    expect(formatRillLiteral(createMap([]))).toBe('map[]');
+  });
+
+  it('prints a bool map key', () => {
+    expect(formatRillLiteral(createMap([[true, 1]]))).toBe('map[true: 1]');
+  });
+
+  it('prints a negative number map key', () => {
+    expect(formatRillLiteral(createMap([[-1, 'a']]))).toBe('map[-1: "a"]');
+  });
+
+  it('escapes a string map key', () => {
+    expect(formatRillLiteral(createMap([['a "q" {x}\\\n', 1]]))).toBe(
+      'map["a \\"q\\" {{x}}\\\\\\n": 1]'
+    );
+  });
+
+  it('prints a nested map value', () => {
+    expect(formatRillLiteral(createMap([['a', createMap([[1, 2]])]]))).toBe(
+      'map["a": map[1: 2]]'
+    );
+  });
+
+  it('prints an atom map key', async () => {
+    expect(formatRillLiteral(await run('map[#a: 1]'))).toBe('map[#a: 1]');
   });
 
   it('prints dict defaults in a signature in sorted order', async () => {

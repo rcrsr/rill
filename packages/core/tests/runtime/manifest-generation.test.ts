@@ -45,6 +45,7 @@ import type {
 import {
   anyTypeValue,
   callable,
+  createMap,
   createOrdered,
   createRuntimeContext,
   createTuple,
@@ -931,7 +932,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       expect(() => parse(manifest)).not.toThrow();
     });
 
-    it('a dict field default with no literal form is left out of the manifest but still shown by getFunctions', () => {
+    it('a dict field default with no literal form is left out of the manifest and of getFunctions', () => {
       const ctx = createRuntimeContext({
         functions: {
           fn: {
@@ -962,7 +963,8 @@ describe('Rill Runtime: Manifest Generation', () => {
       expect(manifest).not.toContain('cb: fn =');
       expect(() => parse(manifest)).not.toThrow();
       const shown = getFunctions(ctx).find((f) => f.name === 'fn');
-      expect(shown?.params[0]?.type).toContain('cb: fn = ');
+      expect(shown?.params[0]?.type).toContain('cb: fn');
+      expect(shown?.params[0]?.type).not.toContain('cb: fn =');
     });
 
     it('a tuple element default value is printed and does not break parsing', () => {
@@ -1252,6 +1254,7 @@ describe('round-trips defaults through re-registration', () => {
           param('d', { kind: 'dict' }, { k: 'v' }),
           param('t', { kind: 'tuple' }, createTuple([1, 'x'])),
           param('o', { kind: 'ordered' }, createOrdered([['k', 1]])),
+          param('m', { kind: 'map' }, createMap([['x', 1]])),
         ],
         returnType: anyTypeValue,
         fn: capture('scalars'),
@@ -1362,6 +1365,37 @@ describe('defaults without a literal form', () => {
     expect(entry).not.toContain('cb: fn =');
     expect(entry).toContain('k: number = 1');
     expect(entry).not.toMatch(/(?:at: datetime|big: number) =/);
+  });
+
+  it('leaves out a map default holding a non-literal value and keeps a literal sibling', () => {
+    const entry = manifestSignatures(
+      createRuntimeContext({
+        functions: {
+          f: {
+            params: [
+              {
+                name: 'timed',
+                type: { kind: 'map' },
+                defaultValue: createMap([['wait', duration]]),
+                annotations: {},
+              },
+              {
+                name: 'plain',
+                type: { kind: 'map' },
+                defaultValue: createMap([['k', 1]]),
+                annotations: {},
+              },
+            ],
+            returnType: anyTypeValue,
+            fn: (): RillValue => 1,
+          },
+        },
+      })
+    )['f']!;
+    expect(entry).toContain('timed: map');
+    expect(entry).not.toContain('timed: map(');
+    expect(entry).not.toMatch(/timed: map[^,]*=/);
+    expect(entry).toContain('plain: map = map["k": 1]');
   });
 
   it('re-registers without throwing and requires the dropped parameter', async () => {

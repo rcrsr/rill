@@ -17,7 +17,7 @@ A pipe `v -> target` evaluates its target with the incoming value `v`, by the ki
 ## Syntax
 
 ```ebnf
-pipe-chain = value-expr , [ "?" , body , [ "!" , body ] ] , { ( "->" , ( pipe-target | capture ) ) | ( "=>" , capture ) } , [ "->" , chain-terminator ] ;
+pipe-chain = value-expr , [ "?" , body , [ "!" , body ] ] , { ( "->" , pipe-target ) | ( "=>" , capture ) } , [ "->" , chain-terminator ] ;
 ```
 
 ```text

@@ -177,6 +177,18 @@ $unnamed(1, 2) => $b
     expect(unnamed?.type).toBe('fn(any, any):number');
   });
 
+  it('leaves out a number default that has no literal form', () => {
+    const source = `fn(n: number = 100000000000000000000000, m: number = 5):number { $n } => $f
+$f() => $r
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const hover = getHover(parsed, source.indexOf('$f()') + 1);
+
+    expect(hover?.type).toBe('fn(n: number, m: number = 5):number');
+  });
+
   it('prints an atom default in the fn form', () => {
     const source = `fn(a: string = #A):string { $a } => $f
 $f() => $r

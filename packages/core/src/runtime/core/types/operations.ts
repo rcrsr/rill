@@ -177,6 +177,14 @@ export function formatRillLiteral(value: RillValue): string {
     return `ordered[${inner}]`;
   }
 
+  // Map: map[key: val, ...]; map[] for empty
+  if (isMap(value)) {
+    const inner = value.entries
+      .map(([k, v]) => `${formatRillLiteral(k)}: ${formatRillLiteral(v)}`)
+      .join(', ');
+    return `map[${inner}]`;
+  }
+
   // Non-literal compound types: fall through to display format
   if (
     isVector(value) ||
@@ -578,8 +586,8 @@ export function structureMatches(
 /**
  * True when a default value has a rill literal form that re-parses to the
  * same value: string, finite number printed without an exponent, bool, atom,
- * and list, tuple, ordered, or dict holding only such values. Datetime,
- * duration, map, callables, vectors, iterators, streams, and type values have
+ * and list, tuple, ordered, dict, or map holding only such values. Datetime,
+ * duration, callables, vectors, iterators, streams, and type values have
  * none.
  */
 function hasLiteralForm(value: RillValue): boolean {
@@ -608,35 +616,44 @@ function hasLiteralForm(value: RillValue): boolean {
         !Object.keys(value).some(isReservedBrandKey) &&
         orderedDictEntries(value).every(({ value: v }) => hasLiteralForm(v))
       );
+    case 'map':
+      return (
+        isMap(value) &&
+        value.entries.every(([k, v]) => hasLiteralForm(k) && hasLiteralForm(v))
+      );
     default:
       return false;
   }
 }
 
 /**
- * Append ` = <literal>` to a printed slot. With `literalOnly`, a default
- * without a literal form is left out. The only place a default is printed.
+ * Source text of a default value, or undefined when it has no rill literal
+ * form (see `hasLiteralForm`). The single gate every default display passes.
+ */
+export function formatDefaultLiteral(value: RillValue): string | undefined {
+  return hasLiteralForm(value) ? formatRillLiteral(value) : undefined;
+}
+
+/**
+ * Append ` = <literal>` to a printed slot. A default without a literal form is
+ * left out. The only place a default is printed.
  * @internal
  */
 export function appendDefault(
   base: string,
-  value: RillValue | undefined,
-  literalOnly: boolean
+  value: RillValue | undefined
 ): string {
   if (value === undefined) return base;
-  if (literalOnly && !hasLiteralForm(value)) return base;
-  return `${base} = ${formatRillLiteral(value)}`;
+  const literal = formatDefaultLiteral(value);
+  return literal === undefined ? base : `${base} = ${literal}`;
 }
 
 /**
- * Format callbacks for compareStructuredFields. `literalOnly` is threaded to
- * every nested type and default.
+ * Format callbacks for compareStructuredFields.
  * Returns `null` for bare types (no fields) so the caller
  * can distinguish "fields: undefined" from "fields: {}".
  */
-function createFormatCallbacks(
-  literalOnly: boolean
-): FieldComparisonCallbacks<string | null> {
+function createFormatCallbacks(): FieldComparisonCallbacks<string | null> {
   return {
     onBothEmpty: () => null,
     onFieldPresenceMismatch: () => null,
@@ -645,29 +662,23 @@ function createFormatCallbacks(
         .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
         .map(([k, field]) =>
           appendDefault(
-            `${formatFieldKey(k)}: ${formatStructureImpl(field.type, literalOnly)}`,
-            field.defaultValue,
-            literalOnly
+            `${formatFieldKey(k)}: ${formatStructure(field.type)}`,
+            field.defaultValue
           )
         );
       return parts.join(', ');
     },
     onTupleElements(elements) {
       const parts = elements.map((field) =>
-        appendDefault(
-          formatStructureImpl(field.type, literalOnly),
-          field.defaultValue,
-          literalOnly
-        )
+        appendDefault(formatStructure(field.type), field.defaultValue)
       );
       return parts.join(', ');
     },
     onOrderedFields(fields) {
       const parts = fields.map((field) =>
         appendDefault(
-          `${formatFieldKey(field.name ?? '')}: ${formatStructureImpl(field.type, literalOnly)}`,
-          field.defaultValue,
-          literalOnly
+          `${formatFieldKey(field.name ?? '')}: ${formatStructure(field.type)}`,
+          field.defaultValue
         )
       );
       return parts.join(', ');
@@ -694,25 +705,12 @@ function isUnspecified(
   return slot === undefined || slot.kind === 'any';
 }
 
-/** Format a structural type descriptor as a human-readable string. */
-export function formatStructure(type: TypeStructure): string {
-  return formatStructureImpl(type, false);
-}
-
 /**
- * Format a type for a registrable signature: a default with no literal form
- * is left out wherever it sits in the type.
- * @internal
+ * Format a structural type descriptor as a human-readable string. A default
+ * without a literal form is left out wherever it sits in the type.
  */
-export function formatSignatureStructure(type: TypeStructure): string {
-  return formatStructureImpl(type, true);
-}
-
-function formatStructureImpl(
-  type: TypeStructure,
-  literalOnly: boolean
-): string {
-  const fmt = (t: TypeStructure): string => formatStructureImpl(t, literalOnly);
+export function formatStructure(type: TypeStructure): string {
+  const fmt = formatStructure;
   if (
     type.kind === 'any' ||
     type.kind === 'number' ||
@@ -744,7 +742,7 @@ function formatStructureImpl(
     const inner = compareStructuredFields(
       type,
       type,
-      createFormatCallbacks(literalOnly),
+      createFormatCallbacks(),
       null
     );
     // Bare type (no fields): null signals undefined fields
@@ -778,7 +776,7 @@ function formatStructureImpl(
           field.name === undefined
             ? fieldType
             : `${formatFieldKey(field.name)}: ${fieldType}`;
-        return appendDefault(base, field.defaultValue, literalOnly);
+        return appendDefault(base, field.defaultValue);
       })
       .join(', ');
     return `fn(${params}):${outer}`;
