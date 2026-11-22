@@ -47,10 +47,12 @@ always held exactly equal to core.
 ```bash
 pnpm check:versions
 pnpm check:standards
+pnpm ref check --issues
 ```
 
 `check:versions` confirms core shares root's major.minor and service exactly equals core.
 `check:standards` confirms `packages/dev/baseline.json` matches the bumped versions.
+`ref check --issues` needs `gh` auth and fails on a pending tag whose issue is closed.
 
 ### Changelog to stamp
 

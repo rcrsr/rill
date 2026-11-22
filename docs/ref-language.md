@@ -208,9 +208,9 @@ See [Functions and Code Blocks](topic-closures.md) for detailed documentation.
 | Variable | Contains | Source |
 |----------|----------|--------|
 | `$` | Piped value (current scope) | Grammar |
-| `$ARGS` | CLI positional args (list) | Runtime |
-| `$ENV.NAME` | Environment variable | Runtime |
-| `$name` | Named variable | Runtime |
+| `$ARGS` | Positional args (list) | Host, when bound |
+| `$ENV.NAME` | Environment variable | Host, when bound |
+| `$name` | Named variable | Capture or host |
 
 See [Variables](topic-variables.md) for detailed documentation.
 

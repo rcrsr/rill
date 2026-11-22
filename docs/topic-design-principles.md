@@ -97,24 +97,35 @@ $response -> .contains("ERROR") ? error "Failed: {$response}"
 
 ### 5. Scopes Are Sealed
 
-Inner scopes cannot read or modify outer variables created after the scope opens. Loop bodies cannot mutate variables from the enclosing scope.
+Inner scopes read outer variables but never rebind them. Capturing into an outer name from a loop body halts `RILL-R001`.
 
-```text
-# This does NOT work — inner => creates a local:
+```rill
+# Error: RILL-R001
 0 => $count
-[1, 2, 3] -> seq({ $count + 1 => $count })
-$count  # Still 0
-
-# Use accumulators instead:
-[1, 2, 3] -> fold(0, { $@ + 1 })            # Final: 3
-[1, 2, 3] -> acc(0, { $@ + $ })            # Running: list[1, 3, 6]
-0 -> while ($ < 5) do { $ + 1 }                 # While: 5
-[result: "", done: false] -> while (!.done) do {  # While: "aaaaa"
-  [result: "a{.result}", done: (.result.len == 5)]
-}
+list[1, 2, 3] -> seq({ $count + $ => $count })
 ```
 
-**Mainstream habit to break:** Mutating a counter or accumulator variable from inside a loop. In rill, `$` carries state forward through iterations, and `$@` holds the accumulator in fold/each(init).
+Carry state through the loop with an accumulator instead:
+
+```rill
+list[1, 2, 3] -> fold(0, { $@ + $ })
+# Result: 6
+```
+
+```rill
+list[1, 2, 3] -> acc(0, { $@ + $ })
+# Result: list[1, 3, 6]
+```
+
+```rill
+dict[result: "", done: false] -> while (!$.done) do {
+  "a{$.result}" => $r
+  dict[result: $r, done: ($r.len == 5)]
+}
+# Result: dict[done: true, result: "aaaaa"]
+```
+
+**Mainstream habit to break:** Mutating a counter or accumulator variable from inside a loop. In rill, `$` carries state forward through iterations, and `$@` holds the accumulator in `fold` and `acc`.
 
 ### 6. Everything Is a Value
 

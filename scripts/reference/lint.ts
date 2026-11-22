@@ -38,7 +38,7 @@ const SECTION_ORDER: readonly string[] = [
   'Notes',
 ];
 const INFORMATIVE_SECTIONS: readonly string[] = ['Examples', 'Notes'];
-const FENCE_INFOS = /^(rill|rill pending=\d+|text|ebnf|yaml|markdown|ts)$/;
+const FENCE_INFOS = /^(rill|text|ebnf|yaml|markdown|ts)$/;
 const KEBAB = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const BUILTIN_METHOD = /^[a-z][a-z0-9_]*$/;
 const ERRORS_HEADER = /^\|\s*Condition\s*\|\s*Error\s*\|\s*Catchable\s*\|/;
@@ -213,8 +213,7 @@ function lintFrontmatter(file: ParsedFile, add: Add): void {
     if (r.pending !== null) used.add(String(r.pending));
   }
   for (const f of file.fences) {
-    const m = f.info.match(/^rill pending=(\d+)$/);
-    if (m) used.add(m[1]!);
+    if (f.pending !== null) used.add(String(f.pending));
   }
   for (const n of used) {
     if (!listed.has(n)) {
@@ -469,7 +468,7 @@ function lintMarker(r: RuleMarker, fileId: string | undefined, add: Add): void {
 
 function lintFences(file: ParsedFile, add: Add): void {
   for (const f of file.fences) {
-    if (!FENCE_INFOS.test(f.info)) {
+    if (!FENCE_INFOS.test(f.info) && f.pending === null) {
       add(
         f.line,
         'error',
@@ -480,7 +479,7 @@ function lintFences(file: ParsedFile, add: Add): void {
     if (!f.closed) {
       add(f.line, 'error', 'fence-unclosed', 'Fence is never closed');
     }
-    if (f.info === 'rill' || f.info.startsWith('rill pending=')) {
+    if (f.info === 'rill' || f.pending !== null) {
       const code = file.lines
         .slice(f.line, f.closed ? f.endLine - 1 : file.lines.length)
         .map((l) => l.trim())

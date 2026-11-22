@@ -22,9 +22,10 @@ Iterators provide lazy sequence generation in rill. They produce values on deman
 - Composable: Work with all collection operators (`seq`, `fan`, `filter`, `fold`, `acc`)
 
 ```rill
-range(0, 5) -> seq({ $ * 2 })           # [0, 2, 4, 6, 8]
-repeat("x", 3) -> seq({ $ })            # ["x", "x", "x"]
-[1, 2, 3] -> .first() -> seq({ $ }) # list[1, 2, 3]
+range(0, 5) -> seq({ $ * 2 })           # list[0, 2, 4, 6, 8]
+repeat("x", 3) -> seq({ $ })            # list["x", "x", "x"]
+[1, 2, 3] -> .first() -> seq({ $ })
+# Result: list[1, 2, 3]
 ```
 
 ---
@@ -51,9 +52,10 @@ Iterators are dicts with three fields:
 Collection operators automatically recognize and expand iterators:
 
 ```rill
-range(1, 4) -> fan({ $ * 10 })     # [10, 20, 30]
-range(0, 10) -> filter({ $ > 5 })  # [6, 7, 8, 9]
-range(1, 6) -> fold(0, { $@ + $ }) # 15
+range(1, 4) -> fan({ $ * 10 })     # list[10, 20, 30]
+range(0, 10) -> filter({ $ > 5 })  # list[6, 7, 8, 9]
+range(1, 6) -> fold(0, { $@ + $ })
+# Result: 15
 ```
 
 ---
@@ -232,7 +234,8 @@ true
 
 ```rill
 [1, 2, 3] -> .first() -> seq({ $ * 2 })    # list[2, 4, 6]
-"hello" -> .first() -> seq({ $ })              # ["h", "e", "l", "l", "o"]
+"hello" -> .first() -> seq({ $ })
+# Result: list["h", "e", "l", "l", "o"]
 ```
 
 ---
@@ -252,7 +255,8 @@ $it.value                    # 1
 
 # Advance to next position
 $it.next() => $it
-$it.value                    # 2
+$it.value
+# Result: 2
 ```
 
 **Loop pattern (using $ as accumulator):**
@@ -314,7 +318,8 @@ fn(start, max) { [
   next: fn() { $counter($start + 1, $max) }
 ] } => $counter
 
-$counter(1, 5) -> seq({ $ })    # [1, 2, 3, 4, 5]
+$counter(1, 5) -> seq({ $ })
+# Result: list[1, 2, 3, 4, 5]
 ```
 
 **Fibonacci sequence:**
@@ -338,13 +343,7 @@ fn(n) { [
   next: fn() { $naturals($n + 1) }
 ] } => $naturals
 
-# Take first 5 using fold with compound accumulator
-$naturals(1) -> .first() -> fold([list: [], it: $], {
-  ($@.list -> .len >= 5) ? $@ -> break ! [
-    list: [...$@.list, $@.it.value],
-    it: $@.it.next()
-  ]
-}) -> $.list    # [1, 2, 3, 4, 5]
+$naturals(1) -> take(5)    # list[1, 2, 3, 4, 5]
 ```
 
 ---
@@ -362,7 +361,8 @@ For direct element access (not iteration), use `.head` and `.tail`:
 [1, 2, 3] -> .head    # 1
 [1, 2, 3] -> .tail    # 3
 "hello" -> .head          # "h"
-"hello" -> .tail          # "o"
+"hello" -> .tail
+# Result: "o"
 ```
 
 **Empty collections error** (no null in rill):
@@ -401,39 +401,41 @@ range(0, 5) -> seq({ $ })[2]
 
 ```rill
 range(1, 11) -> fan({ $ * $ }) -> fold(0, { $@ + $ })
-# 385 (1 + 4 + 9 + ... + 100)
+# Result: 385 (1 + 4 + 9 + ... + 100)
 ```
 
 ### Generate index markers
 
 ```rill
 range(0, 5) -> seq({ "Item {$}" })
-# ["Item 0", "Item 1", "Item 2", "Item 3", "Item 4"]
+# Result: list["Item 0", "Item 1", "Item 2", "Item 3", "Item 4"]
 ```
 
 ### Retry pattern
 
 ```text
-repeat(1, 3) -> seq({
+do(limit: 3) {
   attempt() => $result
-  ($result.success == true) ? ($result -> break)
   pause("00:00:01")
   $result
-})
+} while ($.success != true)
 ```
 
 ### Filter even numbers
 
 ```rill
 range(0, 20) -> filter({ ($ % 2) == 0 })
-# [0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
+# Result: list[0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
 ```
 
 ### Nested iteration
 
 ```rill
-range(1, 4) -> seq({ $ => $row -> range(1, 4) -> seq({ $row * $ }) })
-# [list[1, 2, 3], list[2, 4, 6], list[3, 6, 9]]
+range(1, 4) -> seq({
+  $ => $row
+  range(1, 4) -> seq({ $row * $ })
+})
+# Result: list[list[1, 2, 3], list[2, 4, 6], list[3, 6, 9]]
 ```
 
 ---

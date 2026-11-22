@@ -602,8 +602,8 @@ map-key       = string | number | "-" , number | bool | atom-literal
 
 variable      = "$" , identifier , { property-access } , [ default-value ] , [ existence-check ]
               | "$" , { property-access } , [ default-value ] , [ existence-check ] ;
-              (* $ARGS and $ENV are outer-scope variables provided by the runtime,
-                 not grammar-level constructs. Same scoping rules apply. *)
+              (* $ARGS and $ENV are not built in; a host may bind them as outer-scope
+                 variables. Same scoping rules apply. *)
 
 (* Function calls invoke functions stored in variables:
    $strlen("hello")     -- call function with string arg
@@ -777,16 +777,12 @@ method-name   = "contains" | "match" | "is_match"     (* pattern: 1 arg *)
 
 (* pipe-chain is defined in EXPRESSIONS section *)
 
-(* Capture: stores value in a variable and terminates the pipe chain.
+(* Capture: "=>" stores the value in a variable and the chain continues.
    The stored value also becomes the expression result.
 
-   Example: fetch("url") -> $result
-   The value is stored in $result and returned.
-
-   Note: Unlike earlier versions, capture ALWAYS terminates the chain.
-   Use explicit chaining for multi-step operations:
-   fetch("url") -> $result
-   $result -> log -> ?(.contains("x")) { } *)
+   Example: "text" => $result -> log
+   The value is stored in $result and flows on to log.
+   $result -> .contains("x") ? { "found" } *)
 
 (* Pipe targets: bare host names allowed without parens.
    "$ -> greet" ≡ "greet($)" — piped value becomes implicit first arg. *)

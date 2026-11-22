@@ -52,17 +52,17 @@ The runtime walks the AST and evaluates each node. It manages:
 
 | Responsibility | Description |
 |---------------|-------------|
-| Variable scope | `$` pipe value, `$name` captures, `$ENV` environment |
+| Variable scope | `$` pipe value, `$name` captures, host-bound variables |
 | Type checking | Validates operand types for every operation |
 | Pipe threading | Passes each result as `$` to the next pipe stage |
 | Built-in methods | `.len`, `.trim`, `.keys`, collection operators |
 | Host functions | Invokes host extensions hoisted via `use<ext:name> => $var`, then called as `$var.fn()` |
-| Control flow | Conditionals (`?`), loops (`@`), `break`, `return` |
+| Control flow | Conditionals (`cond ? a ! b`), loops (`while ... do`, `do ... while`), `break`, `return` |
 | Limits | Iteration caps, timeouts, abort signals |
 
 The runtime enforces rill's type safety rules: no implicit coercion, no null values, no truthiness. Every type mismatch produces a `RuntimeError` with a specific error code.
 
-**Error category:** `RILL-R001` through `RILL-R083` (non-contiguous; type errors, undefined variables, limit violations).
+**Error category:** `RILL-R001` through `RILL-R091` (non-contiguous; type errors, undefined variables, limit violations).
 
 ## Host Integration Point
 

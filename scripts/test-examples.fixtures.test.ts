@@ -48,10 +48,11 @@ function parseSummary(run: CliRun): {
   passed: number;
   failed: number;
   skipped: number;
+  pending: number;
   total: number;
 } {
   const match = run.stdout.match(
-    /(\d+) passed, (\d+) failed, (\d+) skipped, (\d+) total/
+    /(\d+) passed, (\d+) failed, (\d+) skipped, (\d+) pending, (\d+) total/
   );
   if (!match) {
     throw new Error(
@@ -66,7 +67,8 @@ function parseSummary(run: CliRun): {
     passed: Number(match[1]),
     failed: Number(match[2]),
     skipped: Number(match[3]),
-    total: Number(match[4]),
+    pending: Number(match[4]),
+    total: Number(match[5]),
   };
 }
 
@@ -91,7 +93,13 @@ describe('test-examples.ts fixture: marker-and-callable.md', () => {
     // halt satisfies the marker's expectation), Case B fails on the
     // unapplied callable, Case C passes.
     const summary = parseSummary(run);
-    expect(summary).toEqual({ passed: 2, failed: 1, skipped: 0, total: 3 });
+    expect(summary).toEqual({
+      passed: 2,
+      failed: 1,
+      skipped: 0,
+      pending: 0,
+      total: 3,
+    });
   });
 
   it('reports exactly the Case B failure with an unapplied-callable message in --json output', () => {
@@ -115,7 +123,13 @@ describe('test-examples.ts fixture: expected-halt.md', () => {
     expect(run.status).toBe(1);
 
     const summary = parseSummary(run);
-    expect(summary).toEqual({ passed: 1, failed: 1, skipped: 0, total: 2 });
+    expect(summary).toEqual({
+      passed: 1,
+      failed: 1,
+      skipped: 0,
+      pending: 0,
+      total: 2,
+    });
   });
 
   it('reports the non-halting block with an expected-execution-to-halt message in --json output', () => {
@@ -137,7 +151,13 @@ describe('test-examples.ts fixture: atom-leading.md', () => {
     const run = runCli([fixture]);
 
     const summary = parseSummary(run);
-    expect(summary).toEqual({ passed: 2, failed: 0, skipped: 1, total: 3 });
+    expect(summary).toEqual({
+      passed: 2,
+      failed: 0,
+      skipped: 1,
+      pending: 0,
+      total: 3,
+    });
   });
 });
 
@@ -150,7 +170,13 @@ describe('test-examples.ts fixture: skip-ratio-guard.md', () => {
     expect(run.status).toBe(1);
 
     const summary = parseSummary(run);
-    expect(summary).toEqual({ passed: 1, failed: 0, skipped: 3, total: 4 });
+    expect(summary).toEqual({
+      passed: 1,
+      failed: 0,
+      skipped: 3,
+      pending: 0,
+      total: 4,
+    });
     expect(run.stdout).toMatch(/Skip ratio guard/);
   });
 
@@ -171,32 +197,49 @@ describe('test-examples.ts fixture: skip-ratio-guard.md', () => {
 });
 
 describe('test-examples.ts fixture: pending fences', () => {
-  it('leaves pending skips out of the skip-ratio guard counts in --json output', () => {
+  const refDir = path.join(fixturesDir, 'reference');
+
+  it('counts pending fences in the skip-ratio guard total in --json output', () => {
     const { status, stdout } = runCli([
       '--json',
-      path.join(fixturesDir, 'reference', 'pending-skip-ratio.md'),
+      path.join(refDir, 'pending-skip-ratio.md'),
     ]);
 
     expect(status).toBe(1);
     expect(parseJsonLines(stdout)[0]).toMatchObject({
       kind: 'skip-ratio-exceeded',
       skipped: 3,
-      total: 4,
+      total: 6,
     });
   });
 
-  it('skips a rill pending=N fence under reference/ and runs the plain fence', () => {
-    const run = runCli([
-      path.join(fixturesDir, 'reference', 'pending-fence.md'),
-    ]);
+  it('treats pending fences that fail as expected and runs the plain fence', () => {
+    const run = runCli([path.join(refDir, 'pending-fence.md')]);
 
     expect(run.status).toBe(0);
     expect(parseSummary(run)).toEqual({
       passed: 1,
       failed: 0,
-      skipped: 1,
-      total: 2,
+      skipped: 0,
+      pending: 3,
+      total: 4,
     });
+    expect(run.stdout).toMatch(/Pending \(expected to fail\)/);
+  });
+
+  it('fails a pending fence that passes and one with nothing executable', () => {
+    const { status, stdout } = runCli([
+      '--json',
+      path.join(refDir, 'pending-violations.md'),
+    ]);
+
+    expect(status).toBe(1);
+    const failures = parseJsonLines(stdout);
+    expect(failures).toHaveLength(2);
+    expect(failures[0]?.['message']).toMatch(
+      /pending #\d+ now passes; remove the tag/
+    );
+    expect(failures[1]?.['message']).toMatch(/nothing executable/);
   });
 
   it('fails a rill pending=N fence outside reference/', () => {

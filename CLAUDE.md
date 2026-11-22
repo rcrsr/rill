@@ -314,6 +314,7 @@ To add a new section:
 **Harness behavior:**
 - A `rill` block carrying `# Error:` runs and must halt; it fails if it completes.
 - A trailing run of `# ...` continuation lines is skipped.
+- A `rill pending=N` fence (reference/ only) runs and must fail; once it passes, the run fails until the tag is removed.
 
 After editing docs, run `pnpm test:examples`. It compares the last `# Result:` in each block to the block's final value and fails a stale one as "Result drift". Check earlier `# Result:` annotations and prose claims about behavior by hand.
 

@@ -93,7 +93,8 @@ $result -> .contains("OK") ? {
 | Keep matching elements | `filter` | Parallel predicate filter |
 | Reduce to single value | `fold` | Final result only |
 | Running totals | `acc` | All intermediate accumulator values |
-| Find first match | `seq` + `break` | Early termination |
+| Find first match | `filter` + `.head` | First passing element |
+| Stop at a condition | `seq` + `break` | Early termination; yields elements before the break |
 
 ### Use block bodies in collection operators
 

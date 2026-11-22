@@ -173,8 +173,8 @@ Parse errors occur when token sequences violate rill syntax rules during AST con
 # Pipe with no target
 "hello" ->
 
-# Incomplete conditional
-?($x > 0) "yes"  # Missing else branch
+# Error statement with no message
+error
 ```
 
 ---

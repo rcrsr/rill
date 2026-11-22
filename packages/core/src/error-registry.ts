@@ -465,8 +465,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
         code: '"hello" ->',
       },
       {
-        description: 'Incomplete conditional',
-        code: '?($x > 0) "yes"  # Missing else branch',
+        description: 'Error statement with no message',
+        code: 'error',
       },
     ],
   },

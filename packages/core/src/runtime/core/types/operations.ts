@@ -41,7 +41,11 @@ import {
 import type { RillFieldDef, RillValue, TypeStructure } from './structures.js';
 import type { DefaultMismatch } from './field-defaults.js';
 import { formatFieldKey, quoteRillString } from './format-string.js';
-import { orderedDictEntries, setDictField } from './dict-keys.js';
+import {
+  isReservedBrandKey,
+  orderedDictEntries,
+  setDictField,
+} from './dict-keys.js';
 import { formatUnion } from './error-code.js';
 import { paramsToFieldDefs } from './fn-params.js';
 // oxlint-disable-next-line import/no-cycle -- unions.ts imports this file; the edge is used only at call time, never at module init
@@ -572,40 +576,104 @@ export function structureMatches(
 // ============================================================
 
 /**
- * Format callbacks for compareStructuredFields.
+ * True when a default value has a rill literal form that re-parses to the
+ * same value: string, finite number printed without an exponent, bool, atom,
+ * and list, tuple, ordered, or dict holding only such values. Datetime,
+ * duration, map, callables, vectors, iterators, streams, and type values have
+ * none.
+ */
+function hasLiteralForm(value: RillValue): boolean {
+  switch (registryInferType(value)) {
+    case 'string':
+    case 'bool':
+    case 'atom':
+      return true;
+    case 'number':
+      return (
+        typeof value === 'number' &&
+        Number.isFinite(value) &&
+        !formatRillLiteral(value).includes('e')
+      );
+    case 'list':
+      return Array.isArray(value) && value.every(hasLiteralForm);
+    case 'tuple':
+      return isTuple(value) && value.entries.every(hasLiteralForm);
+    case 'ordered':
+      return (
+        isOrdered(value) && value.entries.every(([, v]) => hasLiteralForm(v))
+      );
+    case 'dict':
+      return (
+        isDict(value) &&
+        !Object.keys(value).some(isReservedBrandKey) &&
+        orderedDictEntries(value).every(({ value: v }) => hasLiteralForm(v))
+      );
+    default:
+      return false;
+  }
+}
+
+/**
+ * Append ` = <literal>` to a printed slot. With `literalOnly`, a default
+ * without a literal form is left out. The only place a default is printed.
+ * @internal
+ */
+export function appendDefault(
+  base: string,
+  value: RillValue | undefined,
+  literalOnly: boolean
+): string {
+  if (value === undefined) return base;
+  if (literalOnly && !hasLiteralForm(value)) return base;
+  return `${base} = ${formatRillLiteral(value)}`;
+}
+
+/**
+ * Format callbacks for compareStructuredFields. `literalOnly` is threaded to
+ * every nested type and default.
  * Returns `null` for bare types (no fields) so the caller
  * can distinguish "fields: undefined" from "fields: {}".
  */
-const formatCallbacks: FieldComparisonCallbacks<string | null> = {
-  onBothEmpty: () => null,
-  onFieldPresenceMismatch: () => null,
-  onDictFields(fields) {
-    const parts = Object.entries(fields)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-      .map(([k, field]) => {
-        const base = `${formatFieldKey(k)}: ${formatStructure(field.type)}`;
-        if (field.defaultValue === undefined) return base;
-        return `${base} = ${formatRillLiteral(field.defaultValue)}`;
-      });
-    return parts.join(', ');
-  },
-  onTupleElements(elements) {
-    const parts = elements.map((field) => {
-      const base = formatStructure(field.type);
-      if (field.defaultValue === undefined) return base;
-      return `${base} = ${formatRillLiteral(field.defaultValue)}`;
-    });
-    return parts.join(', ');
-  },
-  onOrderedFields(fields) {
-    const parts = fields.map((field) => {
-      const base = `${formatFieldKey(field.name ?? '')}: ${formatStructure(field.type)}`;
-      if (field.defaultValue === undefined) return base;
-      return `${base} = ${formatRillLiteral(field.defaultValue)}`;
-    });
-    return parts.join(', ');
-  },
-};
+function createFormatCallbacks(
+  literalOnly: boolean
+): FieldComparisonCallbacks<string | null> {
+  return {
+    onBothEmpty: () => null,
+    onFieldPresenceMismatch: () => null,
+    onDictFields(fields) {
+      const parts = Object.entries(fields)
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([k, field]) =>
+          appendDefault(
+            `${formatFieldKey(k)}: ${formatStructureImpl(field.type, literalOnly)}`,
+            field.defaultValue,
+            literalOnly
+          )
+        );
+      return parts.join(', ');
+    },
+    onTupleElements(elements) {
+      const parts = elements.map((field) =>
+        appendDefault(
+          formatStructureImpl(field.type, literalOnly),
+          field.defaultValue,
+          literalOnly
+        )
+      );
+      return parts.join(', ');
+    },
+    onOrderedFields(fields) {
+      const parts = fields.map((field) =>
+        appendDefault(
+          `${formatFieldKey(field.name ?? '')}: ${formatStructureImpl(field.type, literalOnly)}`,
+          field.defaultValue,
+          literalOnly
+        )
+      );
+      return parts.join(', ');
+    },
+  };
+}
 
 /** Describe the mismatch between a default value and its declared type, or null when it matches. */
 export function defaultMismatch(
@@ -628,6 +696,23 @@ function isUnspecified(
 
 /** Format a structural type descriptor as a human-readable string. */
 export function formatStructure(type: TypeStructure): string {
+  return formatStructureImpl(type, false);
+}
+
+/**
+ * Format a type for a registrable signature: a default with no literal form
+ * is left out wherever it sits in the type.
+ * @internal
+ */
+export function formatSignatureStructure(type: TypeStructure): string {
+  return formatStructureImpl(type, true);
+}
+
+function formatStructureImpl(
+  type: TypeStructure,
+  literalOnly: boolean
+): string {
+  const fmt = (t: TypeStructure): string => formatStructureImpl(t, literalOnly);
   if (
     type.kind === 'any' ||
     type.kind === 'number' ||
@@ -647,7 +732,7 @@ export function formatStructure(type: TypeStructure): string {
   // alike: list, list(), and list(any) all print `list`.
   if (isStructureKind(type, 'list')) {
     if (isUnspecified(type.element)) return 'list';
-    return `list(${formatStructure(type.element)})`;
+    return `list(${fmt(type.element)})`;
   }
 
   // Delegate dict/tuple/ordered to compareStructuredFields
@@ -656,7 +741,12 @@ export function formatStructure(type: TypeStructure): string {
     type.kind === 'tuple' ||
     type.kind === 'ordered'
   ) {
-    const inner = compareStructuredFields(type, type, formatCallbacks, null);
+    const inner = compareStructuredFields(
+      type,
+      type,
+      createFormatCallbacks(literalOnly),
+      null
+    );
     // Bare type (no fields): null signals undefined fields
     if (inner === null) return type.kind;
     return `${type.kind}(${inner})`;
@@ -665,41 +755,37 @@ export function formatStructure(type: TypeStructure): string {
   if (isStructureKind(type, 'map')) {
     if (isUnspecified(type.key) && isUnspecified(type.value)) return 'map';
     const slot = (s: TypeStructure | undefined): string =>
-      isUnspecified(s) ? 'any' : formatStructure(s);
+      isUnspecified(s) ? 'any' : fmt(s);
     return `map(${slot(type.key)}, ${slot(type.value)})`;
   }
 
   if (isStructureKind(type, 'stream')) {
     if (isUnspecified(type.chunk) && isUnspecified(type.ret)) return 'stream';
-    const chunkStr =
-      type.chunk !== undefined ? formatStructure(type.chunk) : 'any';
-    const retStr = isUnspecified(type.ret)
-      ? ''
-      : `:${formatStructure(type.ret)}`;
+    const chunkStr = type.chunk !== undefined ? fmt(type.chunk) : 'any';
+    const retStr = isUnspecified(type.ret) ? '' : `:${fmt(type.ret)}`;
     return `stream(${chunkStr})${retStr}`;
   }
 
   if (isStructureKind(type, 'fn')) {
-    const outer = isUnspecified(type.ret) ? 'any' : formatStructure(type.ret);
+    const outer = isUnspecified(type.ret) ? 'any' : fmt(type.ret);
     if (type.params === undefined) {
       return isUnspecified(type.ret) ? 'fn' : `fn:${outer}`;
     }
     const params = type.params
       .map((field) => {
-        const fieldType = formatStructure(field.type);
+        const fieldType = fmt(field.type);
         const base =
           field.name === undefined
             ? fieldType
             : `${formatFieldKey(field.name)}: ${fieldType}`;
-        if (field.defaultValue === undefined) return base;
-        return `${base} = ${formatRillLiteral(field.defaultValue)}`;
+        return appendDefault(base, field.defaultValue, literalOnly);
       })
       .join(', ');
     return `fn(${params}):${outer}`;
   }
 
   if (isStructureKind(type, 'union')) {
-    return formatUnion(type.members, formatStructure);
+    return formatUnion(type.members, fmt);
   }
 
   if (isStructureKind(type, 'literal')) {

@@ -45,6 +45,8 @@ interface TestResult {
   errorColumn?: number | undefined;
   skipped?: boolean;
   skipReason?: string;
+  /** True for a pending fence that fails as required; `error` holds why. */
+  pending?: boolean;
 }
 
 // Track unknown functions across all tests
@@ -94,25 +96,47 @@ function isReferencePath(file: string): boolean {
 }
 
 async function testBlock(block: CodeBlock): Promise<TestResult> {
-  const location = `${block.file}:${block.lineNumber}`;
+  const issue = block.pendingIssue;
+  if (issue === undefined) return runBlock(block, true);
 
-  if (block.pendingIssue !== undefined) {
-    // Only reference/ states rules that may be unbuilt; elsewhere a pending
-    // fence is a mistake that must not skip silently.
-    if (!isReferencePath(block.file)) {
-      return {
-        block,
-        success: false,
-        error: `\`rill pending=${block.pendingIssue}\` fences are allowed only under reference/`,
-      };
-    }
+  // Only reference/ states rules that may be unbuilt; elsewhere a pending
+  // fence is a mistake that must not skip silently.
+  if (!isReferencePath(block.file)) {
     return {
       block,
-      success: true,
-      skipped: true,
-      skipReason: `pending #${block.pendingIssue}`,
+      success: false,
+      error: `\`rill pending=${issue}\` fences are allowed only under reference/`,
     };
   }
+  // A pending fence runs exactly as a plain fence and is expected to fail.
+  const plain = await runBlock(block, false);
+  if (plain.skipped) {
+    return {
+      block,
+      success: false,
+      error: `\`rill pending=${issue}\` fence has nothing executable (${plain.skipReason}); a pending fence must run`,
+    };
+  }
+  if (plain.success) {
+    return {
+      block,
+      success: false,
+      error: `pending #${issue} now passes; remove the tag`,
+    };
+  }
+  return {
+    block,
+    success: true,
+    pending: true,
+    error: plain.error ?? 'failed',
+  };
+}
+
+async function runBlock(
+  block: CodeBlock,
+  trackUnknown: boolean
+): Promise<TestResult> {
+  const location = `${block.file}:${block.lineNumber}`;
 
   // Process frontmatter first
   const { code, variables: frontmatterVars } = processFrontmatter(block.code);
@@ -215,7 +239,7 @@ async function testBlock(block: CodeBlock): Promise<TestResult> {
 
     // Track unknown functions
     const unknownMatch = errorMessage.match(/Unknown function: (\w+)/);
-    if (unknownMatch) {
+    if (unknownMatch && trackUnknown) {
       trackUnknownFunction(unknownMatch[1]!, location);
     }
 
@@ -308,6 +332,8 @@ async function main(): Promise<void> {
     if (!jsonFlag) {
       if (result.skipped) {
         process.stdout.write('s');
+      } else if (result.pending) {
+        process.stdout.write('p');
       } else if (result.success) {
         process.stdout.write('.');
       } else {
@@ -317,23 +343,22 @@ async function main(): Promise<void> {
   }
 
   const failures = results.filter((r) => !r.success && !r.skipped);
-  const passes = results.filter((r) => r.success && !r.skipped);
+  const passes = results.filter((r) => r.success && !r.skipped && !r.pending);
   const skipped = results.filter((r) => r.skipped);
+  const pending = results.filter((r) => r.pending);
 
   // Skip-ratio guard: a spike in skipped rill fences usually means the marker
   // detection in analyzeBlock() is over-matching again (e.g. back to treating
   // any block that merely contains "# Error:" or "# ..." anywhere as fully
   // skippable, instead of only a trailing run of marker lines). The threshold
-  // is pinned just below one skip in the current corpus (about 943 guarded
-  // fences, none skipped outside pending reference fences, so one skip is
-  // about 0.106%), so a single additional skip trips the guard instead of
+  // is pinned just below one skip in the current corpus (about 943 fences
+  // in the guard total, none skipped, so one skip is about 0.106%; pending
+  // fences run and count in the total, never as skips), so a single
+  // additional skip trips the guard instead of
   // requiring the count to multiply first. Re-pin when the corpus grows.
   const SKIP_RATIO_THRESHOLD = 0.001; // 0.10%
-  // Pending reference fences skip by design and stay out of the guard.
-  const isPendingSkip = (r: TestResult): boolean =>
-    r.skipped === true && r.block.pendingIssue !== undefined;
-  const guardedSkips = skipped.filter((r) => !isPendingSkip(r)).length;
-  const guardedTotal = results.filter((r) => !isPendingSkip(r)).length;
+  const guardedSkips = skipped.length;
+  const guardedTotal = results.length;
   const skipRatio = guardedTotal > 0 ? guardedSkips / guardedTotal : 0;
   const skipRatioExceeded = skipRatio > SKIP_RATIO_THRESHOLD;
 
@@ -393,8 +418,19 @@ async function main(): Promise<void> {
       console.log('');
     }
 
+    if (pending.length > 0) {
+      console.log('Pending (expected to fail):\n');
+      for (const result of pending) {
+        console.log(
+          `  ${formatLocation(result.block)} #${result.block.pendingIssue}`
+        );
+        console.log(`    ${result.error}`);
+      }
+      console.log('');
+    }
+
     console.log(
-      `${passes.length} passed, ${failures.length} failed, ${skipped.length} skipped, ${allBlocks.length} total`
+      `${passes.length} passed, ${failures.length} failed, ${skipped.length} skipped, ${pending.length} pending, ${allBlocks.length} total`
     );
 
     if (skipRatioExceeded) {

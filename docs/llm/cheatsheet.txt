@@ -44,7 +44,7 @@ A dict lock is exact (`dict[a: 1] => $x` rejects `dict[a: 1, b: 2]`), a tuple lo
 Child scopes can READ parent variables but cannot WRITE or redeclare. Loop bodies cannot mutate outer state.
 
     Wrong: 0 => $count
-           list[1, 2, 3] -> seq({ $count + 1 => $count })   # runtime error
+           list[1, 2, 3] -> seq({ $count + $ => $count })   # runtime error
 
     Right: list[1, 2, 3] -> fold(0, { $@ + $ })             # 6
 

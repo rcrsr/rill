@@ -11,7 +11,12 @@ import type {
   RillValue,
   TypeStructure,
 } from './types/structures.js';
-import { formatStructure, formatRillLiteral } from './types/operations.js';
+import {
+  appendDefault,
+  formatRillLiteral,
+  formatStructure,
+  formatSignatureStructure,
+} from './types/operations.js';
 import { resolveAtom, toAtomValue } from './types/atom-registry.js';
 import {
   escapeRillStringBody,
@@ -206,11 +211,10 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
  * - Annotation prefix included only when annotations.description is present.
  * - Type defaults to `any` when param.type is undefined.
  *
- * Default values are intentionally not emitted: not every `RillValue`
- * (e.g. datetime, atom) round-trips through a rill literal, so appending
- * `= <value>` risked emitting a manifest entry that could not be parsed
- * back. The manifest is a type signature, not a call site — omitting
- * defaults keeps every entry guaranteed-parseable.
+ * A default prints as `= literal` after the type. A default with no literal
+ * form (datetime, duration, map, function, vector, iterator, stream, type
+ * value, non-finite or exponent number) is left out, so that parameter is
+ * required when the entry is registered again. The type text stays.
  */
 function serializeParam(p: RillParam): string {
   const parts: string[] = [];
@@ -222,8 +226,9 @@ function serializeParam(p: RillParam): string {
   }
 
   // Name and type
-  const typeName = p.type !== undefined ? formatStructure(p.type) : 'any';
-  parts.push(`${p.name}: ${typeName}`);
+  const typeName =
+    p.type !== undefined ? formatSignatureStructure(p.type) : 'any';
+  parts.push(appendDefault(`${p.name}: ${typeName}`, p.defaultValue, true));
 
   return parts.join('');
 }
@@ -250,7 +255,7 @@ function serializeClosureSignature(
     parts.push(`^(description: "${escapeRillStringBody(description)}") `);
   }
 
-  const retStr = formatStructure(returnType);
+  const retStr = formatSignatureStructure(returnType);
   const paramStr = params.map(serializeParam).join(', ');
 
   parts.push(`fn(${paramStr})`);
@@ -262,13 +267,13 @@ function serializeClosureSignature(
 /**
  * Generate a rill manifest file from the registered host functions in ctx.
  *
- * Returns a string containing a valid rill file: a dict literal of
- * string-keyed fn type signatures followed by `-> export`.
+ * Returns a bracketed list of `"name": fn(...)` signature entries, one per
+ * registered function, each registrable as a host function signature.
  *
  * Every registered host function is included. Built-in functions (by registered
  * builtin name) are excluded.
  *
- * Empty function map produces `[:]` followed by `-> export`.
+ * Empty function map produces `[:]`.
  *
  * @param ctx Runtime context
  * @returns Rill manifest file content as a string

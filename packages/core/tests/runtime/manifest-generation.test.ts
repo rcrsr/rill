@@ -33,18 +33,31 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { RillAtomValue, RillDatetime, RillValue } from '@rcrsr/rill';
+import type {
+  RillAtomValue,
+  RillDatetime,
+  RillFunctionDefinition,
+  RillParam,
+  RillValue,
+  RuntimeContext,
+  TypeStructure,
+} from '@rcrsr/rill';
 import {
   anyTypeValue,
+  callable,
+  createOrdered,
   createRuntimeContext,
+  createTuple,
   execute,
   generateManifest,
+  getFunctions,
   isTypeValue,
   parse,
   resolveAtom,
   structureToTypeValue,
 } from '@rcrsr/rill';
 
+import { expectRuntimeError } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 import { parseSignatureRegistration } from '../../src/runtime/core/signature-registration.js';
 
@@ -230,7 +243,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       expect(() => parse(manifest)).not.toThrow();
     });
 
-    it('omits default values from the manifest entry (not every RillValue round-trips through a rill literal)', () => {
+    it('prints a parameter default as = literal', () => {
       const ctx = createRuntimeContext({
         functions: {
           greet: {
@@ -248,10 +261,7 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      // Default values are intentionally not serialized into the manifest;
-      // the signature carries name and type only.
-      expect(manifest).toContain('name: string');
-      expect(manifest).not.toContain('= "world"');
+      expect(manifest).toContain('name: string = "world"');
       expect(() => parse(manifest)).not.toThrow();
     });
 
@@ -593,7 +603,7 @@ describe('Rill Runtime: Manifest Generation', () => {
   });
 
   describe('Bug #278: descriptions are emitted as valid rill; default values never break parsing', () => {
-    it('drops a string default value from the manifest entry rather than emitting a bare word', () => {
+    it('prints a string default as a quoted literal rather than a bare word', () => {
       const ctx = createRuntimeContext({
         functions: {
           greet: {
@@ -611,16 +621,12 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      // Previously emitted `= World` (a bare identifier) which failed to parse
-      // with "Expected literal, got: World". Default values are now omitted
-      // entirely, so the failure mode cannot recur.
-      expect(manifest).toContain('name: string');
-      expect(manifest).not.toContain('= "World"');
+      expect(manifest).toContain('name: string = "World"');
       expect(manifest).not.toMatch(/=\s+World\b/);
       expect(() => parse(manifest)).not.toThrow();
     });
 
-    it('a default value containing quotes and backslashes does not appear in the manifest and does not break parsing', () => {
+    it('escapes quotes and backslashes in a string default and still parses', () => {
       const ctx = createRuntimeContext({
         functions: {
           fn: {
@@ -638,8 +644,7 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      expect(manifest).toContain('q: string');
-      expect(manifest).not.toContain('quoted');
+      expect(manifest).toContain('q: string = "a \\"quoted\\" \\\\ value"');
       expect(() => parse(manifest)).not.toThrow();
     });
 
@@ -730,7 +735,7 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      expect(manifest).toContain('flag: bool');
+      expect(manifest).toContain('flag: bool = true');
       expect(() => parse(manifest)).not.toThrow();
     });
 
@@ -753,6 +758,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       });
       const manifest = generateManifest(ctx);
       expect(manifest).toContain('n: number');
+      expect(manifest).not.toMatch(/n: number =/);
       expect(() => parse(manifest)).not.toThrow();
     });
 
@@ -778,7 +784,7 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      expect(manifest).toContain('code: atom');
+      expect(manifest).toContain('code: atom = #TIMEOUT');
       expect(() => parse(manifest)).not.toThrow();
     });
 
@@ -805,6 +811,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       });
       const manifest = generateManifest(ctx);
       expect(manifest).toContain('at: datetime');
+      expect(manifest).not.toMatch(/at: datetime =/);
       expect(() => parse(manifest)).not.toThrow();
     });
 
@@ -924,7 +931,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       expect(() => parse(manifest)).not.toThrow();
     });
 
-    it('a dict field default value is printed and does not break parsing', () => {
+    it('a dict field default with no literal form is left out of the manifest but still shown by getFunctions', () => {
       const ctx = createRuntimeContext({
         functions: {
           fn: {
@@ -937,9 +944,7 @@ describe('Rill Runtime: Manifest Generation', () => {
                     cb: {
                       name: 'cb',
                       type: { kind: 'fn' },
-                      defaultValue: {
-                        __rill_closure: true,
-                      } as unknown as RillValue,
+                      defaultValue: callable(() => 1),
                     },
                   },
                 } as never,
@@ -953,8 +958,11 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      expect(manifest).toContain('opts: dict(cb: fn = ');
+      expect(manifest).toContain('opts: dict(cb: fn)');
+      expect(manifest).not.toContain('cb: fn =');
       expect(() => parse(manifest)).not.toThrow();
+      const shown = getFunctions(ctx).find((f) => f.name === 'fn');
+      expect(shown?.params[0]?.type).toContain('cb: fn = ');
     });
 
     it('a tuple element default value is printed and does not break parsing', () => {
@@ -1190,5 +1198,178 @@ describe('Rill Runtime: Manifest field keys', () => {
     for (const [, name, signature] of entries) {
       expect(() => parseSignatureRegistration(signature!, name!)).not.toThrow();
     }
+  });
+});
+
+/** Signature text of each manifest entry, keyed by function name. */
+function manifestSignatures(ctx: RuntimeContext): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const line of generateManifest(ctx).split('\n')) {
+    const m = /^\s*"([^"]+)": (.*?),?$/.exec(line);
+    if (m !== null) out[m[1]!] = m[2]!;
+  }
+  return out;
+}
+
+type Captured = Record<string, RillValue>;
+
+describe('round-trips defaults through re-registration', () => {
+  const atom: RillAtomValue = {
+    __rill_atom: true,
+    atom: resolveAtom('TIMEOUT'),
+  };
+  const noDefault = { annotations: {}, defaultValue: undefined } as const;
+  const dictType = (b: number): TypeStructure => ({
+    kind: 'dict',
+    fields: {
+      a: { name: 'a', type: { kind: 'number' }, defaultValue: undefined },
+      b: { name: 'b', type: { kind: 'number' }, defaultValue: b },
+    },
+  });
+
+  function build(
+    seen: Record<string, Captured>
+  ): Record<string, RillFunctionDefinition> {
+    const capture =
+      (key: string) =>
+      (args: Captured): RillValue => {
+        seen[key] = args;
+        return 1;
+      };
+    const param = (
+      name: string,
+      type: TypeStructure,
+      defaultValue: RillValue
+    ): RillParam => ({ name, type, defaultValue, annotations: {} });
+    return {
+      scalars: {
+        params: [
+          param('s', { kind: 'string' }, 'a "q" {x} \\ b\nc'),
+          param('n', { kind: 'number' }, -3),
+          param('f', { kind: 'bool' }, false),
+          param('at', { kind: 'atom' }, atom),
+          param('l', { kind: 'list' }, [1, 2]),
+          param('d', { kind: 'dict' }, { k: 'v' }),
+          param('t', { kind: 'tuple' }, createTuple([1, 'x'])),
+          param('o', { kind: 'ordered' }, createOrdered([['k', 1]])),
+        ],
+        returnType: anyTypeValue,
+        fn: capture('scalars'),
+      },
+      shaped: {
+        params: [{ name: 'v', type: dictType(9), ...noDefault }],
+        returnType: anyTypeValue,
+        fn: capture('shaped'),
+      },
+      unioned: {
+        params: [
+          {
+            name: 'v',
+            type: {
+              kind: 'union',
+              members: [dictType(1), dictType(2)],
+            },
+            ...noDefault,
+          },
+        ],
+        returnType: anyTypeValue,
+        fn: capture('unioned'),
+      },
+    } as never;
+  }
+
+  const script = 'scalars()\nshaped(dict[a: 1])\nunioned(dict[a: 1])';
+
+  it('re-registers every printed default so the host sees the same arguments', async () => {
+    const originalSeen: Record<string, Captured> = {};
+    const originalFns = build(originalSeen);
+    const original = createRuntimeContext({ functions: originalFns });
+    await run(script, { functions: originalFns });
+
+    const signatures = manifestSignatures(original);
+    expect(Object.keys(signatures)).toEqual(['scalars', 'shaped', 'unioned']);
+    const reSeen: Record<string, Captured> = {};
+    const reFns: Record<string, RillFunctionDefinition> = {};
+    const capture = build(reSeen);
+    for (const [name, signature] of Object.entries(signatures)) {
+      reFns[name] = { signature, fn: capture[name]!.fn };
+    }
+    const reregistered = createRuntimeContext({ functions: reFns });
+    await run(script, { functions: reFns });
+
+    expect(Object.keys(originalSeen)).toEqual(['scalars', 'shaped', 'unioned']);
+    expect(reSeen).toEqual(originalSeen);
+    expect(reSeen['unioned']).toEqual({ v: { a: 1, b: 1 } });
+    expect(generateManifest(reregistered)).toBe(generateManifest(original));
+  });
+});
+
+describe('defaults without a literal form', () => {
+  const duration: RillValue = {
+    __rill_duration: true,
+    months: 0,
+    ms: 1000,
+  };
+  const functions = {
+    f: {
+      params: [
+        {
+          name: 'at',
+          type: { kind: 'datetime' },
+          defaultValue: { __rill_datetime: true, unix: 0 } as RillDatetime,
+          annotations: {},
+        },
+        {
+          name: 'big',
+          type: { kind: 'number' },
+          defaultValue: 1e23,
+          annotations: {},
+        },
+        {
+          name: 'cfg',
+          type: {
+            kind: 'dict',
+            fields: {
+              wait: {
+                name: 'wait',
+                type: { kind: 'duration' },
+                defaultValue: duration,
+              },
+              cb: {
+                name: 'cb',
+                type: { kind: 'fn' },
+                defaultValue: callable(() => 1),
+              },
+              k: { name: 'k', type: { kind: 'number' }, defaultValue: 1 },
+            },
+          },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ],
+      returnType: anyTypeValue,
+      fn: (): RillValue => 1,
+    },
+  } as never;
+
+  it('leaves each such default out and keeps the rest', () => {
+    const entry = manifestSignatures(createRuntimeContext({ functions }))['f']!;
+    expect(entry).toContain('at: datetime,');
+    expect(entry).toContain('big: number,');
+    expect(entry).toContain('wait: duration');
+    expect(entry).not.toContain('wait: duration =');
+    expect(entry).toContain('cb: fn');
+    expect(entry).not.toContain('cb: fn =');
+    expect(entry).toContain('k: number = 1');
+    expect(entry).not.toMatch(/(?:at: datetime|big: number) =/);
+  });
+
+  it('re-registers without throwing and requires the dropped parameter', async () => {
+    const entry = manifestSignatures(createRuntimeContext({ functions }))['f']!;
+    const reFns = { f: { signature: entry, fn: (): RillValue => 1 } };
+    expect(() => createRuntimeContext({ functions: reFns })).not.toThrow();
+    await expectRuntimeError(() => run('f()', { functions: reFns }), {
+      code: 'RILL-R044',
+    });
   });
 });

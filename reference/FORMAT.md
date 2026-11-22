@@ -143,7 +143,7 @@ rule, and of each rule those owners cite. Whitespace changes do not change a has
 - A `{pending #N}` rule needs no test. The PR that builds it removes the tag, adds the citing test,
   and removes any locked test that pinned the old behavior.
 - `pnpm ref check --issues` confirms every pending issue is still open. It calls `gh`, so it runs
-  locally and before a release, not in CI.
+  locally and before a release (and in the release SOP), not in CI.
 - A decision not yet made is never a rule. The file names it in Notes as "Open decision: #N", and
   `README.md` lists it under Open decisions in a row that names the concept. `pnpm ref check`
   fails a note without such a row (`open-decision-unlisted`) and a row naming a concept whose
@@ -182,8 +182,8 @@ The owning rule carries the normative text.
 
 - A ` ```rill ` fence runs in the examples harness. End it with `# Result: <value>`.
 - A fence that must halt carries `# Error:` on its first line.
-- A fence that needs an unbuilt rule is ` ```rill pending=600 `. The harness skips it until the
-  issue closes, and the checker then fails it until the tag is removed.
+- A fence that needs an unbuilt rule is ` ```rill pending=600 `. The harness runs it and expects it
+  to fail as a plain fence would. A pass fails the run, and `--issues` (local) reports closed issues.
 - A block that spans lines opens with `{` at the end of a line, indents each statement two
   spaces, and closes with `}` on its own line. A one-statement block stays on one line.
 - A ` ```text ` fence never runs. Use it for syntax shapes, not for code that should run.

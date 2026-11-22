@@ -1037,7 +1037,7 @@ The output format is a rill dict literal. The dict is the last expression and be
 
 ```text
 [
-  "greet": fn(^("who") name: string):string,
+  "greet": fn(^("who") name: string = "world"):string,
   "fetch": fn(url: string):dict,
   "now": fn():number
 ]
@@ -1047,7 +1047,7 @@ An empty function map returns `[:]`. Functions created via `callable(fn)` appear
 
 Every entry is an fn type literal that evaluates to a type value, never a real function body. This holds for zero-param functions (`"now"`) and functions with annotated params (`"greet"`) alike.
 
-Manifest names are quoted and escaped, so a name that is not an identifier still parses. Parameter defaults are never emitted, because not every `RillValue` round-trips through a rill literal; every signature carries an explicit return type (`:any` when unset) so the generated manifest always parses.
+Manifest names are quoted and escaped, so a name that is not an identifier still parses. A parameter or field default prints as `= literal` after its type, so an entry registered again keeps it. A default with no literal form is left out: datetime, duration, map, function, vector, iterator, stream, type values, and non-finite or exponent-form numbers. That parameter or field is then required when the entry is registered again, and every other default in the entry still prints. Every signature carries an explicit return type (`:any` when unset) so the generated manifest always parses.
 
 ---
 
