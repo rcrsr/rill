@@ -64,6 +64,9 @@ synced, or checked for drift.
 pnpm add -D @rcrsr/rill-dev
 ```
 
+The lint rules read source through `context.sourceCode`, which oxlint's JS
+plugin API provides. They are tested against oxlint `^1.91.0`.
+
 ## Wiring it up
 
 1. **Point `.oxlintrc.json` at the plugin, and enable the rules.** Loading the
