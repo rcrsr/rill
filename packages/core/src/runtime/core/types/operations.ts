@@ -42,7 +42,7 @@ import type { RillFieldDef, RillValue, TypeStructure } from './structures.js';
 import type { DefaultMismatch } from './field-defaults.js';
 import { formatFieldKey, quoteRillString } from './format-string.js';
 import {
-  isReservedBrandKey,
+  isReservedDictKey,
   orderedDictEntries,
   setDictField,
 } from './dict-keys.js';
@@ -613,7 +613,7 @@ function hasLiteralForm(value: RillValue): boolean {
     case 'dict':
       return (
         isDict(value) &&
-        !Object.keys(value).some(isReservedBrandKey) &&
+        !Object.keys(value).some(isReservedDictKey) &&
         orderedDictEntries(value).every(({ value: v }) => hasLiteralForm(v))
       );
     case 'map':
@@ -636,7 +636,8 @@ export function formatDefaultLiteral(value: RillValue): string | undefined {
 
 /**
  * Append ` = <literal>` to a printed slot. A default without a literal form is
- * left out. The only place a default is printed.
+ * left out. Every display of a default passes `formatDefaultLiteral`; this
+ * helper appends its result for the runtime's type printers.
  * @internal
  */
 export function appendDefault(

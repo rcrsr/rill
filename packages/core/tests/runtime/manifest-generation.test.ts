@@ -50,6 +50,7 @@ import {
   createRuntimeContext,
   createTuple,
   execute,
+  formatDefaultLiteral,
   generateManifest,
   getFunctions,
   isTypeValue,
@@ -1404,6 +1405,20 @@ describe('defaults without a literal form', () => {
     expect(() => createRuntimeContext({ functions: reFns })).not.toThrow();
     await expectRuntimeError(() => run('f()', { functions: reFns }), {
       code: 'RILL-R044',
+    });
+  });
+
+  describe('formatDefaultLiteral and reserved dict keys', () => {
+    it('leaves out a dict default whose key is a reserved method name', () => {
+      // dict[len: 1] halts when parsed, so it has no literal form.
+      expect(formatDefaultLiteral({ len: 1 })).toBeUndefined();
+      expect(formatDefaultLiteral({ keys: 'a' })).toBeUndefined();
+    });
+
+    it('prints a dict default whose keys are all usable', () => {
+      const text = formatDefaultLiteral({ a: 1, b: 'x' });
+      expect(text).toBe('dict[a: 1, b: "x"]');
+      expect(() => parse(`fn(d: dict = ${text}) { $d }`)).not.toThrow();
     });
   });
 });

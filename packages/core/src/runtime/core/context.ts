@@ -27,6 +27,7 @@ import type { RillValue, TypeStructure } from './types/structures.js';
 import { declarationOf } from './types/declared.js';
 import { inferType } from './types/registrations.js';
 import { setDictField } from './types/dict-keys.js';
+import { isTypeStructure } from './types/guards.js';
 import {
   invalidate as invalidateStatus,
   formatHalt,
@@ -117,11 +118,6 @@ export function markDeferredHalt(reason: unknown): unknown {
     }
   }
   return reason;
-}
-
-/** True when a value is an object carrying a structure `kind`. */
-function isTypeStructure(value: unknown): value is TypeStructure {
-  return typeof value === 'object' && value !== null && 'kind' in value;
 }
 
 /**

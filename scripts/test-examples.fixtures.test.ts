@@ -191,7 +191,7 @@ describe('test-examples.ts fixture: skip-ratio-guard.md', () => {
       kind: 'skip-ratio-exceeded',
       skipped: 3,
       total: 4,
-      threshold: 0.001,
+      threshold: 0.0008,
     });
   });
 });

@@ -351,12 +351,12 @@ async function main(): Promise<void> {
   // detection in analyzeBlock() is over-matching again (e.g. back to treating
   // any block that merely contains "# Error:" or "# ..." anywhere as fully
   // skippable, instead of only a trailing run of marker lines). The threshold
-  // is pinned just below one skip in the current corpus (about 943 fences
-  // in the guard total, none skipped, so one skip is about 0.106%; pending
+  // is pinned just below one skip in the current corpus (about 1187 fences
+  // in the guard total, none skipped, so one skip is about 0.084%; pending
   // fences run and count in the total, never as skips), so a single
   // additional skip trips the guard instead of
   // requiring the count to multiply first. Re-pin when the corpus grows.
-  const SKIP_RATIO_THRESHOLD = 0.001; // 0.10%
+  const SKIP_RATIO_THRESHOLD = 0.0008; // 0.08%
   const guardedSkips = skipped.length;
   const guardedTotal = results.length;
   const skipRatio = guardedTotal > 0 ? guardedSkips / guardedTotal : 0;
