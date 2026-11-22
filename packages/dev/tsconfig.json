@@ -1,0 +1,15 @@
+{
+  // Type information for `oxlint --type-aware` only. The rule files stay
+  // plain CommonJS with JSDoc types; nothing here is compiled or emitted.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "rootDir": ".",
+    "paths": {}
+  },
+  "include": ["lint-rules/**/*"]
+}

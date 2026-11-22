@@ -19,39 +19,58 @@
 
 'use strict';
 
-const path = require('path');
+const noDuplicateErrorId = require('./no-duplicate-error-id.cjs');
+const noSpecIdReference = require('./no-spec-id-reference.cjs');
+const noBannedSyntax = require('./no-banned-syntax.cjs');
+const noDictBracketAssign = require('./no-dict-bracket-assign.cjs');
+const rethrowControlSignal = require('./rethrow-control-signal.cjs');
+const noNewRuntimeError = require('./no-new-runtime-error.cjs');
+const useHaltHelpers = require('./use-halt-helpers.cjs');
 
-const noDuplicateErrorId = require(
-  path.join(__dirname, 'no-duplicate-error-id.cjs')
-);
-const noSpecIdReference = require(
-  path.join(__dirname, 'no-spec-id-reference.cjs')
-);
-const noBannedSyntax = require(path.join(__dirname, 'no-banned-syntax.cjs'));
-const noDictBracketAssign = require(
-  path.join(__dirname, 'no-dict-bracket-assign.cjs')
-);
-const rethrowControlSignal = require(
-  path.join(__dirname, 'rethrow-control-signal.cjs')
-);
-const noNewRuntimeError = require(
-  path.join(__dirname, 'no-new-runtime-error.cjs')
-);
-const useHaltHelpers = require(path.join(__dirname, 'use-halt-helpers.cjs'));
+/**
+ * Fixtures are hand-built ESTree fragments, so they are typed loosely: a
+ * `type` tag, an optional source range, and whatever else a rule reads.
+ *
+ * @typedef {[number, number]} Range
+ * @typedef {{ line: number, column: number }} Position
+ * @typedef {{ type?: string, range?: Range, [key: string]: unknown }} FixtureNode
+ * @typedef {{ range: Range, text: string }} Edit
+ * @typedef {{ node: FixtureNode, end: number }} Located
+ * @typedef {{ label: string, source: string, visitorKey: 'NewExpression' | 'CallExpression', build: (source: string) => FixtureNode }} ValidCase
+ * @typedef {ValidCase & { expectedOutput: string, errorId: string }} InvalidCase
+ * @typedef {{ replaceText: (node: FixtureNode, text: string) => Edit }} Fixer
+ * @typedef {{ node?: FixtureNode, messageId?: string, data?: Record<string, string>, loc?: { start: Position, end: Position }, fix?: (fixer: Fixer) => Edit | null }} Report
+ * @typedef {{ reports: Report[], options: unknown[], filename?: string, report: (descriptor: Report) => void, sourceCode: object }} MockContext
+ */
 
 const stats = { pass: 0, fail: 0 };
 
+/**
+ * @param {string} label
+ * @param {string} [detail]
+ * @returns {void}
+ */
 function fail(label, detail) {
   stats.fail++;
   console.error(`FAIL: ${label}`);
   if (detail !== undefined) console.error(`  ${detail}`);
 }
 
+/**
+ * @param {string} label
+ * @returns {void}
+ */
 function pass(label) {
   stats.pass++;
   void label;
 }
 
+/**
+ * @param {boolean} condition
+ * @param {string} label
+ * @param {string} [detail]
+ * @returns {void}
+ */
 function check(condition, label, detail) {
   if (condition) {
     pass(label);
@@ -65,6 +84,12 @@ function check(condition, label, detail) {
 // their literal text within the fixture source string.
 // ============================================================
 
+/**
+ * @param {string} source
+ * @param {string} text
+ * @param {number} [from]
+ * @returns {Range}
+ */
 function findRange(source, text, from) {
   const start = source.indexOf(text, from ?? 0);
   if (start === -1) {
@@ -77,6 +102,12 @@ function findRange(source, text, from) {
 
 // String literal fixture. `quoted` includes the surrounding quote chars,
 // e.g. "'RILL-R001'".
+/**
+ * @param {string} source
+ * @param {string} quoted
+ * @param {number} [from]
+ * @returns {Located}
+ */
 function literalNode(source, quoted, from) {
   const range = findRange(source, quoted, from);
   return {
@@ -85,6 +116,12 @@ function literalNode(source, quoted, from) {
   };
 }
 
+/**
+ * @param {string} source
+ * @param {string} name
+ * @param {number} [from]
+ * @returns {Located}
+ */
 function identifierNode(source, name, from) {
   const range = findRange(source, name, from);
   return { node: { type: 'Identifier', name, range }, end: range[1] };
@@ -92,6 +129,13 @@ function identifierNode(source, name, from) {
 
 // Template literal fixture. `raw` is the full backtick-delimited text;
 // `firstQuasiCooked` is the literal prefix before the first `${`.
+/**
+ * @param {string} source
+ * @param {string} raw
+ * @param {string} firstQuasiCooked
+ * @param {number} [from]
+ * @returns {Located}
+ */
 function templateLiteralNode(source, raw, firstQuasiCooked, from) {
   const range = findRange(source, raw, from);
   return {
@@ -104,6 +148,11 @@ function templateLiteralNode(source, raw, firstQuasiCooked, from) {
   };
 }
 
+/**
+ * @param {FixtureNode} objectNode
+ * @param {FixtureNode} propertyNode
+ * @returns {FixtureNode}
+ */
 function memberExpressionNode(objectNode, propertyNode) {
   return {
     type: 'MemberExpression',
@@ -120,24 +169,36 @@ function memberExpressionNode(objectNode, propertyNode) {
 // `comments` is the fixture comment list for rules that sweep them; rules that
 // only walk the AST never call getAllComments and can omit it. `options` is
 // the rule-options array (`context.options`), e.g. `[{ ignore: [...] }]`.
+/**
+ * @param {string} source
+ * @param {FixtureNode[]} [comments]
+ * @param {unknown[]} [options]
+ * @returns {MockContext}
+ */
 function makeContext(source, comments, options) {
+  /** @type {Report[]} */
   const reports = [];
   return {
     reports,
     options: options ?? [],
+    /** @param {Report} descriptor */
     report(descriptor) {
       reports.push(descriptor);
     },
     sourceCode: {
       text: source,
+      /** @param {FixtureNode} node */
       getText(node) {
-        return source.slice(node.range[0], node.range[1]);
+        const range = node.range;
+        if (range === undefined) throw new Error('fixture node has no range');
+        return source.slice(range[0], range[1]);
       },
       getAllComments() {
         return comments ?? [];
       },
       // Real line/column arithmetic, so a rule reporting by `loc` is checked
       // against positions a reader can look up in the fixture source.
+      /** @param {number} index */
       getLocFromIndex(index) {
         const before = source.slice(0, index);
         const line = before.split('\n').length;
@@ -147,12 +208,18 @@ function makeContext(source, comments, options) {
   };
 }
 
+/** @type {Fixer} */
 const fixer = {
   replaceText(node, text) {
     return { range: node.range, text };
   },
 };
 
+/**
+ * @param {string} source
+ * @param {Edit[]} edits
+ * @returns {string}
+ */
 function applyFixes(source, edits) {
   const sorted = [...edits].sort((a, b) => b.range[0] - a.range[0]);
   let out = source;
@@ -172,6 +239,7 @@ function runDuplicateErrorIdTests() {
 
   // ---- valid cases (no report expected) ----
 
+  /** @type {ValidCase[]} */
   const validCases = [
     {
       label: 'valid: new RuntimeError with clean message',
@@ -326,6 +394,7 @@ function runDuplicateErrorIdTests() {
 
   // ---- invalid cases (report + auto-fix output expected) ----
 
+  /** @type {InvalidCase[]} */
   const invalidCases = [
     {
       label: 'invalid: new RuntimeError string-literal duplicate ID auto-fixed',
@@ -492,6 +561,12 @@ function runDuplicateErrorIdTests() {
 
 // Comment fixture: `raw` is the full comment text including `//` or the block
 // delimiters, matching the range oxlint hands the rule.
+/**
+ * @param {string} source
+ * @param {string} raw
+ * @param {number} [from]
+ * @returns {FixtureNode}
+ */
 function commentNode(source, raw, from) {
   const range = findRange(source, raw, from);
   return { type: raw.startsWith('//') ? 'Line' : 'Block', range };
@@ -500,6 +575,7 @@ function commentNode(source, raw, from) {
 function runSpecIdReferenceTests() {
   // ---- comments ----
 
+  /** @type {Array<{ label: string, source: string, raw: string, expected: string[] }>} */
   const commentCases = [
     {
       label: 'comment: bare EC id is reported',
@@ -793,6 +869,12 @@ function runSpecIdReferenceTests() {
 
 function runBannedSyntaxTests() {
   // `filename` drives the allowExportAll suffix match.
+  /**
+   * @param {string} filename
+   * @param {'TSEnumDeclaration' | 'ExportDefaultDeclaration' | 'ExportAllDeclaration'} visitorKey
+   * @param {unknown[]} [options]
+   * @returns {Array<string | undefined>}
+   */
   function reportsFor(filename, visitorKey, options) {
     const context = makeContext('', undefined, options);
     context.filename = filename;
@@ -836,7 +918,9 @@ function runBannedSyntaxTests() {
 // ============================================================
 
 function runDictBracketAssignTests() {
+  /** @param {string} name @returns {FixtureNode} */
   const id = (name) => ({ type: 'Identifier', name });
+  /** @param {string} method @returns {FixtureNode} */
   function objectCall(method) {
     return {
       type: 'CallExpression',
@@ -849,6 +933,7 @@ function runDictBracketAssignTests() {
       arguments: [id('src')],
     };
   }
+  /** @param {string} method @param {FixtureNode} binding @returns {FixtureNode} */
   function forOf(method, binding) {
     return {
       type: 'ForOfStatement',
@@ -859,6 +944,7 @@ function runDictBracketAssignTests() {
       right: objectCall(method),
     };
   }
+  /** @param {string} key @param {string} [operator] @param {boolean} [computed] @returns {FixtureNode} */
   function assign(key, operator, computed) {
     return {
       type: 'AssignmentExpression',
@@ -872,6 +958,7 @@ function runDictBracketAssignTests() {
     };
   }
   // Drives enter → assignment → exit, then an assignment after the loop.
+  /** @param {FixtureNode} loop @param {FixtureNode} inside @param {FixtureNode} [after] @returns {Report[]} */
   function run(loop, inside, after) {
     const context = makeContext('');
     const v = noDictBracketAssign.create(context);
@@ -920,6 +1007,7 @@ function runDictBracketAssignTests() {
 function runRethrowControlSignalTests() {
   // `tryText` and `catchText` are the brace-delimited block texts; the rule
   // reads them through getText, and reads `bodyStatements` structurally.
+  /** @param {string} tryText @param {string} catchText @param {string | null} param @param {FixtureNode[]} [bodyStatements] @param {unknown[]} [options] @returns {number} */
   function run(tryText, catchText, param, bodyStatements, options) {
     const source = `try ${tryText} catch ${catchText}`;
     const tryRange = findRange(source, tryText);
@@ -930,7 +1018,7 @@ function runRethrowControlSignalTests() {
       block: { type: 'BlockStatement', range: tryRange },
       handler: {
         type: 'CatchClause',
-        param: param ? { type: 'Identifier', name: param } : null,
+        param: param !== null ? { type: 'Identifier', name: param } : null,
         body: {
           type: 'BlockStatement',
           range: catchRange,
@@ -940,6 +1028,7 @@ function runRethrowControlSignalTests() {
     });
     return context.reports.length;
   }
+  /** @param {string} name @returns {FixtureNode} */
   const rethrow = (name) => ({
     type: 'ThrowStatement',
     argument: { type: 'Identifier', name },
@@ -1027,12 +1116,15 @@ function runRethrowControlSignalTests() {
 // ============================================================
 
 function runNewRuntimeErrorTests() {
+  /** @param {string} name @returns {FixtureNode} */
   const id = (name) => ({ type: 'Identifier', name });
+  /** @param {'NewExpression' | 'CallExpression'} visitorKey @param {FixtureNode} node @returns {number} */
   function reports(visitorKey, node) {
     const context = makeContext('');
     noNewRuntimeError.create(context)[visitorKey](node);
     return context.reports.length;
   }
+  /** @param {string} object @param {boolean} [computed] @returns {FixtureNode} */
   const fromNode = (object, computed) => ({
     type: 'CallExpression',
     callee: {
@@ -1066,13 +1158,16 @@ function runNewRuntimeErrorTests() {
 // ============================================================
 
 function runHaltHelpersTests() {
+  /** @param {string} name @returns {FixtureNode} */
   const id = (name) => ({ type: 'Identifier', name });
+  /** @param {FixtureNode} object @param {string} property @returns {FixtureNode} */
   const member = (object, property) => ({
     type: 'MemberExpression',
     computed: false,
     object,
     property: id(property),
   });
+  /** @param {FixtureNode} node @returns {Array<string | undefined>} */
   function reports(node) {
     const context = makeContext('');
     useHaltHelpers.create(context).MemberExpression(node);

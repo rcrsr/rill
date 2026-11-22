@@ -12,6 +12,11 @@ the language version. Language changes are recorded in the
 
 ## Unreleased
 
+### Changed
+
+- **The rule files are linted with type-aware rules.** `packages/dev` lints with `oxlint --type-aware` against a new `tsconfig.json`. Each rule file carries JSDoc types derived from oxlint's `RuleTester` in `lint-rules/types.cjs`, so the type-aware rules resolve real types. This is not a type check: `checkJs` stays off and the package has no `typecheck` script. The package stays plain CommonJS with no build step. ([#665](https://github.com/rcrsr/rill/pull/665))
+- **Rules read source through `context.sourceCode`.** `no-duplicate-error-id` and `no-spec-id-reference` drop the `context.getSourceCode()` fallback, matching `rethrow-control-signal`. oxlint provides `context.sourceCode`, so rule behavior is unchanged under oxlint. The plugin's oxlint floor does not move, because `rethrow-control-signal` already required `context.sourceCode`. The rules are tested against oxlint `^1.91.0`. ([#665](https://github.com/rcrsr/rill/pull/665))
+
 ## 0.3.0 - 2026-11-06
 
 ### Changed

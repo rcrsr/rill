@@ -10,6 +10,12 @@
  * Auto-fixable: Strips 'RILL-RXXX: ' prefix from message argument.
  */
 
+/**
+ * @typedef {import('./types.cjs').NodeOf<'CallExpression'>
+ *   | import('./types.cjs').NodeOf<'NewExpression'>} CallLike
+ */
+
+/** @type {import('./types.cjs').Rule} */
 module.exports = {
   meta: {
     type: 'problem',
@@ -29,7 +35,7 @@ module.exports = {
   create(context) {
     /**
      * Extracts error ID from first argument if it's a string literal.
-     * @param {object} node - CallExpression or NewExpression node
+     * @param {CallLike} node - CallExpression or NewExpression node
      * @returns {string|null} Error ID string or null if not a literal
      */
     function getErrorId(node) {
@@ -37,8 +43,9 @@ module.exports = {
       const firstArg = node.arguments[0];
 
       // Only handle string literals (not variables or expressions)
-      if (firstArg.type === 'Literal' && typeof firstArg.value === 'string') {
-        return firstArg.value;
+      if (firstArg.type === 'Literal') {
+        const value = /** @type {unknown} */ (firstArg.value);
+        if (typeof value === 'string') return value;
       }
 
       return null;
@@ -47,7 +54,7 @@ module.exports = {
     /**
      * Extracts message prefix from second argument.
      * Handles string literals and template literals with literal prefix.
-     * @param {object} node - CallExpression or NewExpression node
+     * @param {CallLike} node - CallExpression or NewExpression node
      * @returns {string|null} Message prefix or null if cannot determine
      */
     function getMessagePrefix(node) {
@@ -55,16 +62,18 @@ module.exports = {
       const secondArg = node.arguments[1];
 
       // String literal: check full value
-      if (secondArg.type === 'Literal' && typeof secondArg.value === 'string') {
-        return secondArg.value;
+      if (secondArg.type === 'Literal') {
+        const value = /** @type {unknown} */ (secondArg.value);
+        if (typeof value === 'string') return value;
       }
 
       // Template literal: check first quasi (literal part before first expression)
       if (secondArg.type === 'TemplateLiteral' && secondArg.quasis.length > 0) {
         // Only check if first quasi is literal (no complex expression at start)
-        return (
-          secondArg.quasis[0].value.cooked || secondArg.quasis[0].value.raw
-        );
+        const quasi = secondArg.quasis[0].value;
+        return quasi.cooked !== null && quasi.cooked !== ''
+          ? quasi.cooked
+          : quasi.raw;
       }
 
       return null;
@@ -72,7 +81,7 @@ module.exports = {
 
     /**
      * Checks if callee is RuntimeError constructor or fromNode factory.
-     * @param {object} callee - Callee node
+     * @param {CallLike['callee']} callee - Callee node
      * @returns {boolean} True if matches RuntimeError or RuntimeError.fromNode
      */
     function isRuntimeErrorCall(callee) {
@@ -97,7 +106,7 @@ module.exports = {
 
     /**
      * Reports violation and provides auto-fix.
-     * @param {object} node - CallExpression or NewExpression node
+     * @param {CallLike} node - CallExpression or NewExpression node
      * @param {string} errorId - Error ID string
      */
     function reportViolation(node, errorId) {
@@ -110,7 +119,7 @@ module.exports = {
           errorId,
         },
         fix(fixer) {
-          const sourceCode = context.sourceCode || context.getSourceCode();
+          const sourceCode = context.sourceCode;
           const originalText = sourceCode.getText(secondArg);
 
           // Handle string literals
@@ -144,16 +153,16 @@ module.exports = {
 
     /**
      * Checks a RuntimeError call node for duplicate error ID.
-     * @param {object} node - CallExpression or NewExpression node
+     * @param {CallLike} node - CallExpression or NewExpression node
      */
     function checkRuntimeError(node) {
       // Skip when the error ID is not a string literal (variable case).
       const errorId = getErrorId(node);
-      if (!errorId) return;
+      if (errorId === null || errorId === '') return;
 
       // Skip when the message is not determinable (complex expression case).
       const messageText = getMessagePrefix(node);
-      if (!messageText) return;
+      if (messageText === null || messageText === '') return;
 
       // Check if message starts with "errorId: "
       const expectedPrefix = `${errorId}: `;

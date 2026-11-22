@@ -92,8 +92,8 @@
 
     // Type-aware rules. These run through oxlint-tsgolint and only fire when
     // oxlint is given --type-aware; without the flag they are inert and
-    // report nothing, so the package `lint` scripts for core, service and
-    // fiddle pass it. packages/dev is untyped CommonJS and stays without it.
+    // report nothing, so every package with a `lint` script passes it. packages/dev
+    // is CommonJS typed through JSDoc, against packages/dev/tsconfig.json.
     // The flag ignores --tsconfig and discovers the nearest tsconfig.json per
     // file, which is why each tests/ tree carries its own tsconfig.json.
     // Pre-commit does not run them (see lefthook.yml).

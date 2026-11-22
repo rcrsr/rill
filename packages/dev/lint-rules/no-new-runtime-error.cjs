@@ -10,6 +10,7 @@
  * Not auto-fixable: the halt builder and its site depend on the error.
  */
 
+/** @type {import('./types.cjs').Rule} */
 module.exports = {
   meta: {
     type: 'suggestion',

@@ -59,6 +59,7 @@ const PREFIX =
 // out: the character before the prefix must be a non-word character.
 const SPEC_ID = new RegExp(`\\b${PREFIX}-[A-Z0-9][A-Z0-9-]*\\b`, 'g');
 
+/** @type {import('./types.cjs').Rule} */
 module.exports = {
   meta: {
     type: 'problem',
@@ -83,9 +84,11 @@ module.exports = {
   },
 
   create(context) {
-    const sourceCode = context.sourceCode || context.getSourceCode();
-    const options = (context.options && context.options[0]) || {};
-    const ignoreSet = new Set(options.ignore || []);
+    const sourceCode = context.sourceCode;
+    const options = /** @type {{ ignore?: string[] }} */ (
+      context.options[0] ?? {}
+    );
+    const ignoreSet = new Set(options.ignore ?? []);
 
     /**
      * Reports every spec-ID match inside the source range [start, end).
