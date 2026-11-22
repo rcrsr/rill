@@ -132,7 +132,7 @@ export async function resolveTypeRef(
  * Determine whether a TypeStructure carries sub-fields that require
  * deep structural matching (via structureMatches) rather than a bare
  * type-name comparison. Covers collection shapes (element, fields,
- * elements, members, valueType, map key and value) as well as fn shapes
+ * elements, members, map key and value) as well as fn shapes
  * (params, ret) and stream shapes (chunk, ret).
  */
 function hasStructuralSubFields(structure: TypeStructure): boolean {
@@ -144,7 +144,6 @@ function hasStructuralSubFields(structure: TypeStructure): boolean {
     'fields' in structure ||
     'elements' in structure ||
     'members' in structure ||
-    'valueType' in structure ||
     'params' in structure ||
     'ret' in structure ||
     'chunk' in structure

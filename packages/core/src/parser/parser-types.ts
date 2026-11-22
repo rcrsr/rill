@@ -362,6 +362,38 @@ function readKeyAtCursor(state: ParserState): string {
   return read.key;
 }
 
+/**
+ * Raise RILL-P012 for the removed uniform `dict(V)` / `ordered(V)` forms.
+ * Call with the cursor just past the first positional type. One positional
+ * type names `map(string, V)`; a second positional type names `map(K, V)`.
+ * @internal
+ */
+function throwRemovedUniformForm(
+  state: ParserState,
+  keyedCollection: 'dict type' | 'ordered type',
+  at: SourceLocation
+): never {
+  const name = keyedCollection === 'dict type' ? 'dict' : 'ordered';
+  const source = state.source.slice(at.offset, previous(state).span.end.offset);
+  let replacement = `map(string, ${source})`;
+  if (check(state, TOKEN_TYPES.COMMA)) {
+    advance(state);
+    skipNewlines(state);
+    const keyWidth = staticKeyWidth(state);
+    const isNamed =
+      keyWidth > 0 &&
+      state.tokens[state.pos + keyWidth]?.type === TOKEN_TYPES.COLON;
+    if (!check(state, TOKEN_TYPES.RPAREN) && !isNamed) {
+      replacement = 'map(K, V)';
+    }
+  }
+  throw new ParseError(
+    ERROR_IDS.RILL_P012,
+    `Syntax removed: ${name}(V) takes no uniform value type; write ${replacement} for keyed data, or name the fields as in ${name}(a: number)`,
+    at
+  );
+}
+
 export function parseFieldArgList(
   state: ParserState,
   opts?: TypeRefOpts & {
@@ -435,8 +467,12 @@ export function parseFieldArgList(
       args.push(arg);
     } else {
       // Positional arg: type-ref
+      const argStart = current(state).span.start;
       const typeRefOpts = buildTypeRefOpts(opts);
       const value = parseTypeRef(state, typeRefOpts);
+      if (opts?.keyedCollection) {
+        throwRemovedUniformForm(state, opts.keyedCollection, argStart);
+      }
       const arg: FieldArg = { value };
       if (annotations) {
         arg.annotations = annotations;

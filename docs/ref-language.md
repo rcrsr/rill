@@ -55,19 +55,21 @@ See [Operators](topic-operators.md) for detailed documentation.
 | `$val -> ? then ! else` | Piped conditional ($ as condition, supports multi-line) |
 | `while (cond) do { body }` | While loop (condition checked before each iteration) |
 | `do { body } while (cond)` | Do-while (body runs at least once, condition checked after) |
-| `do<limit: N> { body }` | Construct option: set maximum iterations |
+| `do(limit: N) { body }` | Construct option: set maximum iterations; `N` is a written positive integer literal |
 | `break` / `$val -> break` | Exit loop |
 | `return` / `$val -> return` | Exit block or script |
 | `pass` | Returns current `$` unchanged (use in conditionals, dicts) |
 | `pass { body }` | Run body for side effects; pipe value flows through unchanged; halts propagate |
-| `pass<on_error: #IGNORE> { body }` | Same as `pass { body }` but suppresses catchable halts in the body |
-| `pass<async: true> { body }` | Fire-and-forget: dispatches body without blocking; pipe value flows through immediately |
-| `pass<async: true, on_error: #IGNORE> { body }` | Fire-and-forget with error suppression in the body |
-| `timeout<total: d, idle: d> { body }` | Bound body by a wall-time limit, an inactivity limit, or both; the first to fire halts with `#RILL_R082` (total) or `#RILL_R083` (idle), catchable |
+| `pass(ignore_halts: true) { body }` | Same as `pass { body }` but suppresses catchable halts in the body |
+| `pass(async: true) { body }` | Fire-and-forget: dispatches body without blocking; pipe value flows through immediately |
+| `pass(async: true, ignore_halts: true) { body }` | Fire-and-forget with error suppression in the body |
+| `timeout(total: d, idle: d) { body }` | Bound body by a wall-time limit, an inactivity limit, or both; the first to fire halts with `#RILL_R082` (total) or `#RILL_R083` (idle), catchable |
 | `assert cond` / `assert cond "msg"` | Validate condition, halt on failure |
 | `error "msg"` / `$val -> error` | Halt execution with error message |
 | `guard { body }` | Run body; replace halt with invalid value |
-| `retry<limit: N> { body }` | Retry body up to N times on caught halt |
+| `retry(attempts: N) { body }` | Retry body up to N times on caught halt; `N` is a written positive integer literal |
+
+Options written in angle brackets, such as `retry<limit: 3>`, halt with RILL-P025. Write `retry(attempts: 3)`. `limit` and `attempts` must be written positive integer literals, and a spread in `retry`, `do`, or `while ... do` options is RILL-P004. An unknown, missing, or wrong-typed option halts `#TYPE_MISMATCH`.
 
 See [Control Flow](topic-control-flow.md) for detailed documentation. Script-level exit functions must be host-provided.
 
@@ -176,7 +178,6 @@ Atom literals use `#NAME` syntax. They produce a `:atom` value identifying a nam
 |------|---------|----------|
 | `#NAME` | `#TIMEOUT` | `:atom` value |
 | `#NAME` in invalid value | `#NOT_FOUND` | status code on invalid result |
-| `#IGNORE` sentinel | `pass<on_error: #IGNORE> { body }` | Marks `pass` body for catchable-halt suppression |
 
 `#TIMEOUT -> string` converts a `:atom` value to its string name. `"TIMEOUT" -> atom` converts a string name to a `:atom` value. See [Types](topic-types.md) for `:atom` documentation and [Built-in Atoms and the Core Error Set](topic-error-handling.md#built-in-atoms-and-the-core-error-set) for the atoms that serve as error codes.
 
@@ -323,8 +324,6 @@ Type constructors are primary expressions that produce structural type values. T
 |-------------|--------|---------|
 | List type | `list(T)` | `list(number)`, `list(list(string))` |
 | Unspecified inner | `list()` | `list()` equals `list(any)`; `dict()` equals `dict` |
-| Dict type (uniform) | `dict(T)` | `dict(number)` |
-| Ordered type (uniform) | `ordered(T)` | `ordered(string)` |
 | Dict type | `dict(k: T [= literal], ...)` | `dict(a: number, b: string = "x")` |
 | Dict field, quoted/number/bool key | `dict("k": T, ...)` | `dict("a b": number)` |
 | Tuple type | `tuple(T, T2 [= literal], ...)` | `tuple(number, string = "x")` |
@@ -773,12 +772,12 @@ See [Types](topic-types.md) for detailed ordered and tuple documentation.
 
 ## Operator-Level Annotations
 
-Place `^(...)` at the statement level to attach metadata to a statement. For loops, use the `do<limit: N>` construct option to set an iteration ceiling.
+Place `^(...)` at the statement level to attach metadata to a statement. For loops, use the `do(limit: N)` construct option to set an iteration ceiling.
 
 **Loops:**
 
 ```rill
-0 -> while ($ < 50) do<limit: 100> { $ + 1 }
+0 -> while ($ < 50) do(limit: 100) { $ + 1 }
 ```
 
 **Collection operators** do not accept `^(limit: N)` inside the call. The parser rejects this form (RILL-R081). Collection operators (`seq`, `fan`, `filter`, `fold`, `acc`, `sort`) enforce a built-in 10,000-chunk iteration ceiling; use `break` to stop a stream or iterator early in `seq` or `acc`, and bound other sources with `take(n)`.
@@ -802,16 +801,16 @@ See [Control Flow](topic-control-flow.md) and [Collections](topic-collections.md
 
 ### Iteration Limits
 
-Loops have a default maximum of **10,000 iterations**. Use `do<limit: N>` as the construct option:
+Loops have a default maximum of **10,000 iterations**. Use `do(limit: N)` as the construct option:
 
 ```rill
-0 -> while ($ < 50) do<limit: 100> { $ + 1 }
+0 -> while ($ < 50) do(limit: 100) { $ + 1 }
 ```
 
 For do-while loops, the same construct option applies:
 
 ```rill
-0 -> do<limit: 100> { $ + 1 } while ($ < 50)
+0 -> do(limit: 100) { $ + 1 } while ($ < 50)
 ```
 
 ### Concurrency Limits

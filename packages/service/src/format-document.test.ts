@@ -28,8 +28,8 @@ describe('formatDocument', () => {
 
     it('leaves single-atom and list on-forms unchanged', () => {
       const sources = [
-        'guard<on: #TIMEOUT> { 1 }\n',
-        'retry<limit: 2, on: #TIMEOUT> { 1 }\n',
+        'guard(on: #TIMEOUT) { 1 }\n',
+        'retry(attempts: 2, on: #TIMEOUT) { 1 }\n',
       ];
 
       for (const source of sources) {
@@ -162,9 +162,9 @@ describe('formatDocument', () => {
         'foo(1\nbar(2\n\n"after"\n',
         'error()',
         'error(1 + 2))\n"after"',
-        'guard<on: list[#X_bad]> { "ok" }',
-        'guard<on: list[]> { 1 }',
-        'guard<on: #NOT_A_CODE> { 1 }',
+        'guard(on: list[#X_bad]) { "ok" }',
+        'guard(on: list[]) { 1 }',
+        'guard(on: #NOT_A_CODE) { 1 }',
       ];
 
       for (const source of corpus) {

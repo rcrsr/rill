@@ -1100,8 +1100,8 @@ describe('ref-llms-full: Iterators', () => {
 // ============================================================
 
 describe('ref-llms-full: Iteration Limits', () => {
-  it('do<limit: N> overrides default', async () => {
-    expect(await run('0 -> while ($ < 50) do<limit: 100> { $ + 1 }')).toBe(50);
+  it('do(limit: N) overrides default', async () => {
+    expect(await run('0 -> while ($ < 50) do(limit: 100) { $ + 1 }')).toBe(50);
   });
 });
 

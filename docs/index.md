@@ -33,7 +33,7 @@
 | Topic | Description |
 |-------|-------------|
 | [Collections](topic-collections.md) | `seq`, `fan`, `filter`, `fold`, `acc`, `sort` operators and stream iteration |
-| [Collection Slicing](topic-collection-slicing.md) | `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `pass<>` — slicing and restructuring streams |
+| [Collection Slicing](topic-collection-slicing.md) | `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `pass` body form — slicing and restructuring streams |
 | [Iterators](topic-iterators.md) | Lazy sequences with `range`, `repeat`, `.first()`; iterator vs stream comparison |
 
 ## Reference

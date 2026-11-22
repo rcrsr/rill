@@ -314,6 +314,21 @@ describe('Rill Runtime: Highlight Map Completeness', () => {
     });
   });
 
+  describe('Removed option-bracket tokens are absent from TOKEN_HIGHLIGHT_MAP', () => {
+    it.each(['RETRY_LANGLE', 'DO_LANGLE', 'PASS_LANGLE', 'TIMEOUT_LANGLE'])(
+      '%s is not in TOKEN_HIGHLIGHT_MAP',
+      (name) => {
+        expect(TOKEN_HIGHLIGHT_MAP.has(name as TokenType)).toBe(false);
+      }
+    );
+
+    it('maps the keyword tokens that open a control statement', () => {
+      for (const token of ['GUARD', 'RETRY', 'PASS', 'DO', 'GUARD_LBRACE']) {
+        expect(TOKEN_HIGHLIGHT_MAP.get(token as TokenType)).toBe('keyword');
+      }
+    });
+  });
+
   describe('AC-38: Removed sigil tokens are absent from TOKEN_HIGHLIGHT_MAP', () => {
     it('STAR_LT is not in TOKEN_HIGHLIGHT_MAP', () => {
       // AC-38: *[ sigil token was removed and must not appear in the map

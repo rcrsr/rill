@@ -45,7 +45,7 @@ import {
 // REPLAY HELPERS
 // ============================================================
 
-// Fire-and-forget pass<async> bodies run on microtasks only, with no host
+// Fire-and-forget pass(async) bodies run on microtasks only, with no host
 // completion signal, and dispose() aborts a body still running. One macrotask
 // turn drains every pending microtask, so the body has halted by then.
 function settleMicrotasks(): Promise<void> {
@@ -55,7 +55,7 @@ function settleMicrotasks(): Promise<void> {
 }
 
 // Completion of every delay_then_head body, so a test can wait for work that
-// outlives its timeout<> scope instead of sleeping.
+// outlives its timeout() scope instead of sleeping.
 const lateWork: Promise<void>[] = [];
 
 async function drainLateWork(): Promise<void> {
@@ -527,7 +527,7 @@ describe('halt migration parity', () => {
           expect(events).toEqual([entry.logText]);
           // The line-only run emits one line; the event run routes to onLogEvent.
           expect(lines).toEqual([
-            `runtime: pass<async> body halted: ${entry.logText}`,
+            `runtime: pass(async) body halted: ${entry.logText}`,
           ]);
 
           // The suffix appears only for sites that carry a location.
@@ -613,7 +613,7 @@ describe('halt migration parity', () => {
         scheduler: 'fast-expiry',
       } as const;
       const source =
-        'guard { timeout<total: duration("1d")> { delay_then_head() } } => $r\n($r.!code == #RILL_R082)';
+        'guard { timeout(total: duration("1d")) { delay_then_head() } } => $r\n($r.!code == #RILL_R082)';
       const result = await runScriptValue(source, options);
       expect(result).toBe(true);
       // Let the late site finish so it cannot leak into a later test.
@@ -746,7 +746,7 @@ describe('halt migration parity', () => {
 
     it('propagates its own error when a site fires inside timeout before expiry', async () => {
       const result = await captureScript(
-        'timeout<total: duration("1d")> { 5 -> .head }',
+        'timeout(total: duration("1d")) { 5 -> .head }',
         { scheduler: 'fast-expiry' }
       );
       expect(result.threw).toBe(true);

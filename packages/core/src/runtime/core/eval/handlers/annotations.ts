@@ -2,12 +2,11 @@
  * Annotated Statement Execution
  *
  * Provides statement execution wrapper with annotation handling.
- * Annotations modify execution behavior (e.g., iteration limits).
+ * Annotations modify execution behavior.
  *
  * Interface requirements:
  * - executeStatement(stmt) -> Promise<RillValue>
  * - getAnnotation(key) -> RillValue | undefined
- * - getIterationLimit() -> number
  *
  * Error Handling:
  * - Annotated statement execution errors propagate
@@ -29,11 +28,7 @@ import { isReservedBrandKey } from '../../values.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { evaluateExpression } from './core.js';
-import {
-  checkAutoExceptions,
-  setDictField,
-  DEFAULT_MAX_ITERATIONS,
-} from '../shared.js';
+import { checkAutoExceptions, setDictField } from '../shared.js';
 
 /**
  * Execute statement with annotation handling.
@@ -195,24 +190,4 @@ export function getAnnotation(
   key: string
 ): RillValue | undefined {
   return s.ctx.annotationStack.at(-1)?.[key];
-}
-
-/**
- * Get the iteration limit for loops from operator-level annotations.
- *
- * Reads from the provided operator-level annotations dict when given.
- * Falls back to DEFAULT_MAX_ITERATIONS when no valid positive number is found.
- * Statement-level annotationStack is NOT consulted.
- *
- * @param operatorAnnotations - Evaluated operator-level annotations (from node.annotations)
- */
-export function getIterationLimit(
-  _s: EvalState,
-  operatorAnnotations?: Record<string, RillValue>
-): number {
-  const limit = operatorAnnotations?.['limit'];
-  if (typeof limit === 'number' && limit > 0) {
-    return Math.floor(limit);
-  }
-  return DEFAULT_MAX_ITERATIONS;
 }

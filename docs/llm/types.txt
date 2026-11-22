@@ -181,7 +181,7 @@ To validate a shape write `-> :dict(a: string)`, never `-> dict(a: string)`. To 
 
     dict[b: "b"] -> dict(b: string, a: string = "a")   # dict[a: "a", b: "b"]
 
-A list element type, a uniform dict or ordered value type, and a stream chunk or return type carry no default. `list(number = 1)`, `dict(number = 1)`, `ordered(number = 1)`, and `stream(number = 1)` halt #INVALID_INPUT when built. A host signature string fails RILL-R091.
+A list element type and a stream chunk or return type carry no default. `list(number = 1)` and `stream(number = 1)` halt #INVALID_INPUT when built. A host signature string fails RILL-R091. `dict(number = 1)` and `ordered(number = 1)` are RILL-P012: dict and ordered take named fields only, and keyed data of one value type is `map(string, V)`.
 
 Only `-> type` conversion fills defaults. `:` assertion does NOT hydrate defaults. Nested fields recurse.
 A union first drops members a wider member accepts, unless the dropped member keeps a default. Among survivors the narrowest matching member fills a parameter's defaults whatever the order. A pipe into a union fills nothing unless the union reduces to one member.

@@ -284,7 +284,7 @@ export interface ControlFlowContext {
    */
   readonly callsInFlight: { value: number; tripped: boolean };
   /**
-   * Restart callbacks of the active `timeout<idle:>` blocks, shared by
+   * Restart callbacks of the active `timeout(idle: ...)` blocks, shared by
    * reference with every child context. Notified when a stream chunk arrives
    * or a host function returns; see `core/activity.ts`.
    */

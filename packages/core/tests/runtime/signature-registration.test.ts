@@ -708,12 +708,17 @@ describe('Rill Runtime: Signature Registration', () => {
       });
     });
 
-    it('parses a dict with one positional argument as a uniform dict', () => {
-      const parsed = parseSignatureRegistration('fn(a: dict(string))', 'fn');
-      expect(parsed.params[0]?.type).toEqual({
-        kind: 'dict',
-        valueType: { kind: 'string' },
-      });
+    it('rejects a dict with one positional argument naming map(string, V)', () => {
+      let caught: unknown;
+      try {
+        parseSignatureRegistration('fn(a: dict(string))', 'fn');
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(Error);
+      const err = caught as Error;
+      expect(err.cause).toMatchObject({ errorId: 'RILL-P012' });
+      expect(err.message).toContain('map(string, string)');
     });
 
     it('rejects a tuple with a named element', () => {

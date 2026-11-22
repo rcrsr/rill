@@ -67,8 +67,8 @@ describe('AST keyForm metadata', () => {
     }
   );
 
-  it('synthesized pass<> option entry has keyForm identifier', () => {
-    const ast = parse('42 -> pass<on_error: #IGNORE> { 1 }');
+  it('synthesized pass() option entry has keyForm identifier', () => {
+    const ast = parse('42 -> pass(ignore_halts: true) { 1 }');
     const passBlock = findFirst(ast, 'PassBlock') as {
       options: { entries: DictEntryNode[] };
     };

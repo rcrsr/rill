@@ -32,7 +32,6 @@ function isBareStructure(ts: TypeStructure): boolean {
   return (
     parts['fields'] === undefined &&
     parts['elements'] === undefined &&
-    parts['valueType'] === undefined &&
     parts['params'] === undefined &&
     parts['ret'] === undefined &&
     parts['chunk'] === undefined &&
@@ -301,11 +300,9 @@ function scanMember(ts: TypeStructure, scan: MemberScan): void {
   }
   if (isStructureKind(ts, 'dict')) {
     if (ts.fields !== undefined) fieldLists.push(Object.values(ts.fields));
-    if (ts.valueType !== undefined) children.push(ts.valueType);
   }
   if (isStructureKind(ts, 'ordered')) {
     if (ts.fields !== undefined) fieldLists.push(ts.fields);
-    if (ts.valueType !== undefined) children.push(ts.valueType);
   }
   if (isStructureKind(ts, 'tuple') && ts.elements !== undefined) {
     fieldLists.push(ts.elements);

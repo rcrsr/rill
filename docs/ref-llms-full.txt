@@ -62,7 +62,7 @@ Child scopes can READ parent variables but cannot WRITE or redeclare. Loop bodie
 
 ### 6. Errors halt — recover with `guard`
 
-No try/catch. Failures throw runtime errors (uncatchable) or produce **invalid values** that halt on access. Recover access halts with `guard { }` or `retry<limit: N> { }`. Inspect with `.!`, `.!code`, `.!message`.
+No try/catch. Failures throw runtime errors (uncatchable) or produce **invalid values** that halt on access. Recover access halts with `guard { }` or `retry(attempts: N) { }`. Inspect with `.!`, `.!code`, `.!message`.
 
 ### 7. Value semantics
 
@@ -185,7 +185,7 @@ Use parentheses to override.
 | `start_when` | `start_when(list, predicate: fn) -> stream[T]` | Yield from first match onward; predicate must return `bool` |
 | `stop_when` | `stop_when(list, predicate: fn) -> stream[T]` | Yield through first match (inclusive); predicate must return `bool` |
 | `pass { body }` | `pass { body }` | Side-effect block; pipe value flows through unchanged; halts in body propagate |
-| `pass<on_error: #IGNORE>` | `pass<on_error: #IGNORE> { body }` | Side-effect block; suppresses catchable halts in body; `on_error: #IGNORE` is the only valid option (else RILL-P004) |
+| `pass(ignore_halts: true)` | `pass(ignore_halts: true) { body }` | Side-effect block; suppresses catchable halts in body; options `ignore_halts` and `async` are bools (an unknown option halts #TYPE_MISMATCH); angle-bracket options are RILL-P025 |
 
 ## Script return values
 
@@ -305,8 +305,11 @@ In rill, `{ ... }` is a block (function body, loop body, etc.), not a dict liter
     Wrong: list[1] -> list(number = 1)         # halts #INVALID_INPUT: an element type carries no default
     Right: list[1] -> list(number)
 
-    Wrong: dict[a: 1] -> dict(number = 0)      # halts #INVALID_INPUT: same for a uniform value type
+    Wrong: dict[a: 1] -> dict(number = 0)      # RILL-P012: dict takes no uniform value type
     Right: dict[a: 1] -> dict(a: number = 0)   # a named field may carry a default
+
+    Wrong: dict[a: 1] -> dict(number)          # RILL-P012: removed uniform form
+    Right: map["a": 1] -> map(string, number)  # keyed data of one value type is a map
 
     Wrong: stream(string, number = 1)          # halts #INVALID_INPUT: stream types carry no default
     Right: stream(string, number)
@@ -453,8 +456,11 @@ A written type before a literal on the same line declares that literal. A newlin
 ## Try/catch
 
     Wrong: try { fetch(url) } catch (e) { fallback }
-    Right: retry<limit: 3> { $app.fetch($url) } => $r
+    Right: retry(attempts: 3) { $app.fetch($url) } => $r
            $r ?? "fallback"
+
+    Wrong: retry<limit: 3> { $app.fetch($url) } => $r   # RILL-P025: options go in parentheses, and limit is now attempts
+    Right: retry(attempts: 3) { $app.fetch($url) } => $r
 
     Wrong: try { JSON.parse(s) } catch { null }
     Right: guard { $app.parse_json($s) } => $out   # JSON parsing is host-provided; rill has no built-in parser
@@ -572,6 +578,10 @@ The `|params| body` literal is removed (RILL-P012 names the fn form). The body o
     Right: use<ext:app> => $app
            $app.fetch($url)
 
+    Wrong: $f(b: 1, a: 5)                  # RILL-P001: a call takes no name: value arguments
+    Right: $f(5, 1)                        # positional, in parameter order
+    Right: $f(...dict[b: 1, a: 5])         # spread a dict to bind by name
+
 ## Callable reflection
 
     Wrong: $fn.^input                      # removed; halts naming the replacement
@@ -602,6 +612,7 @@ info level. Write them tight anyway.
 
     use <ext:app>     # ERROR (RILL-P007): keyword and `<` must be adjacent
     list [1, 2, 3]    # SPACING_DECLARATION: keyword must touch its [
+    retry (attempts: 3)  # SPACING_OPTIONS: keyword must touch its (
     $obj. field       # SPACING_MEMBER: dot must touch the field name
     $obj .field       # SPACING_MEMBER: same, on the other side
     $x->.upper        # SPACING_OPERATOR: pipe needs spaces both sides
@@ -641,9 +652,9 @@ Post-condition (`do ... while`, body runs at least once):
 
     init -> do { $ + 1 } while ($ < 10)
 
-Iteration limit (default 10,000):
+Iteration limit (default 10,000). `limit` is a written positive integer literal; a variable or any spread is `RILL-P004`; the old `do<limit: N>` form is `RILL-P025`:
 
-    0 -> while ($ < 50) do<limit: 100> { $ + 1 }
+    0 -> while ($ < 50) do(limit: 100) { $ + 1 }
     $items -> fan({ slow($) }, dict[concurrency: 3])
 
 Invalid annotation keys produce a runtime error.
@@ -689,7 +700,7 @@ Invalid annotation keys produce a runtime error.
 | Suppress rapid stream emissions | `-> debounce(duration)` |
 | Limit to one per interval | `-> throttle(duration)` |
 | Latest at fixed interval | `-> sample(duration)` |
-| Bound body by wall-time and/or inactivity limit | `timeout<total: d, idle: d> { body }` |
+| Bound body by wall-time and/or inactivity limit | `timeout(total: d, idle: d) { body }` |
 
 | Operator | Execution | Returns | Catches `break`? |
 |---|---|---|---|
@@ -785,7 +796,7 @@ Example:
     list[1, 2, 5, 3, 4] -> start_when({ $ > 3 })   # stream[5, 3, 4]
     list[1, 2, 5, 3, 4] -> stop_when({ $ > 3 })    # stream[1, 2, 5]
 
-## `timeout<>` blocks
+## `timeout` blocks
 
 Bound a body to a time limit. On expiry, the block produces an invalid value carrying a timeout atom.
 
@@ -794,34 +805,34 @@ Bound a body to a time limit. On expiry, the block produces an invalid value car
 | `total: duration` | `#RILL_R082` | Wall-time from block entry |
 | `idle: duration` | `#RILL_R083` | Inactivity: no stream chunk or host call return within duration; restarts every enclosing idle limit |
 
-Either, both, or neither option may appear. With both, the first limit to fire ends the body and the halt carries that limit's atom. `timeout<>` with neither arms nothing (checker rule `TIMEOUT_TRIVIAL`). The duration must be a `duration` value with no months part and at most 2147483647 ms (about 24.8 days); anything else halts with `#INVALID_INPUT`.
+Either, both, or neither option may appear. With both, the first limit to fire ends the body and the halt carries that limit's atom. `timeout()` with neither arms nothing (checker rule `TIMEOUT_TRIVIAL`). A non-duration value or an unknown option halts `#TYPE_MISMATCH`. A duration with a months part, or one over 2147483647 ms (about 24.8 days), halts `#INVALID_INPUT`. The old `timeout<total: d>` form is `RILL-P025`.
 
 Expiry produces a catchable halt. See the errors fragment for `guard` and `??` recovery.
 
 ## `pass` body forms
 
-`pass` runs a side-effect block and returns the pipe value unchanged. The body form has two surfaces: with and without `<...>` options. Suppression of catchable halts requires `on_error: #IGNORE` explicitly; a bare `pass { body }` does NOT suppress halts.
+`pass` runs a side-effect block and returns the pipe value unchanged. The body form has two surfaces: with and without `(...)` options. Suppression of catchable halts requires `ignore_halts: true` explicitly; a bare `pass { body }` does NOT suppress halts.
 
-Note: `pass<>` (empty angle brackets) is a parse error (RILL-P004). Always use `pass { body }` or `pass<on_error: #IGNORE> { body }`.
+Note: the old angle-bracket form `pass<on_error: #IGNORE>` is a parse error (RILL-P025). Empty `pass()` is legal and equals `pass { body }`. An unknown option or a non-bool value halts `#TYPE_MISMATCH`.
 
 | Form | Purpose |
 |---|---|
 | `pass` | References current piped value `$`; halts #RILL_R005 if unbound |
 | `pass { body }` | Runs body for side effects; pipe value unchanged; does NOT suppress catchable halts |
-| `pass<on_error: #IGNORE> { body }` | Runs body for side effects; pipe value unchanged; suppresses catchable halts in body |
-| `pass<async: true> { body }` | Fire-and-forget; body dispatched without blocking; pipe value returned immediately |
-| `pass<async: true, on_error: #IGNORE> { body }` | Fire-and-forget; body halt suppressed |
+| `pass(ignore_halts: true) { body }` | Runs body for side effects; pipe value unchanged; suppresses catchable halts in body |
+| `pass(async: true) { body }` | Fire-and-forget; body dispatched without blocking; pipe value returned immediately |
+| `pass(async: true, ignore_halts: true) { body }` | Fire-and-forget; body halt suppressed |
 
-`on_error: #IGNORE` suppresses catchable halts inside the body. Non-catchable halts (for example `error` and `assert`) and `ControlSignal` (`break`, `return`) still propagate.
+`ignore_halts: true` suppresses catchable halts inside the body. Non-catchable halts (for example `error` and `assert`) and `ControlSignal` (`break`, `return`) still propagate.
 
-`pass<async: true>` bodies may complete after downstream operators run. Scripts must not depend on body completion order relative to downstream execution.
+`pass(async: true)` bodies may complete after downstream operators run. Scripts must not depend on body completion order relative to downstream execution.
 
 Example:
 
     5 -> pass { log($) }                                          # logs 5, yields 5
-    5 -> pass<on_error: #IGNORE> { log($) }                      # logs 5, yields 5; body halts suppressed
-    "data" -> pass<on_error: #IGNORE> { audit($) } -> .upper     # "DATA"
-    42 -> pass<async: true, on_error: #IGNORE> { $app.log($) }   # fire-and-forget; yields 42
+    5 -> pass(ignore_halts: true) { log($) }                      # logs 5, yields 5; body halts suppressed
+    "data" -> pass(ignore_halts: true) { audit($) } -> .upper     # "DATA"
+    42 -> pass(async: true, ignore_halts: true) { $app.log($) }   # fire-and-forget; yields 42
 
 Do NOT use `pass { body }` when you need the body result — the body result is always discarded.
 
@@ -838,7 +849,7 @@ Atoms, status sidecars, `guard`, `retry`, vacancy, and recovery patterns.
 | Failure | Caused by | Caught by |
 |---|---|---|
 | Runtime error (uncatchable) | `error`, `assert`, parameter type mismatch, any halt inside a source module loaded by `use<>` | nothing — propagates |
-| Access halt (catchable) | Accessing an **invalid value** (status sidecar populated, e.g. failed `:type` assertion, extension `ctx.invalidate`, divide-by-zero (`RILL-R002`), OOB index or missing field (`RILL-R009`), or failed conversion (`RILL-R038`)) | `guard { }`, `retry<limit: N> { }` |
+| Access halt (catchable) | Accessing an **invalid value** (status sidecar populated, e.g. failed `:type` assertion, extension `ctx.invalidate`, divide-by-zero (`RILL-R002`), OOB index or missing field (`RILL-R009`), or failed conversion (`RILL-R038`)) | `guard { }`, `retry(attempts: N) { }` |
 
 ## Assert and error
 
@@ -880,7 +891,7 @@ Named symbols, compared by name. Names are case-sensitive; error codes are upper
     #timeout == #TIMEOUT           # false (case-sensitive)
     #TIMEOUT:?atom                 # true
 
-Built-in atom literals. The core error set is every built-in atom except #ok and #IGNORE:
+Built-in atom literals. The core error set is every built-in atom except #ok:
 
     #RILL_R###                     # 36 atoms, one per halting registry error (e.g. #RILL_R002); see BUILTIN_ATOMS
     #R001                          # parse-recovery node, host-built retry node
@@ -918,11 +929,10 @@ Built-in atom literals. The core error set is every built-in atom except #ok and
                                    #       non-dict options for fan/filter,
                                    #       non-number concurrency for fan/filter,
                                    #       filter predicate returns non-bool
-    #IGNORE                        # sentinel for `pass<on_error: #IGNORE> { body }`
 
 `.!code` reports `#ok` on valid values. `#ok` is a sentinel, not an error code, but it is writable as a literal. `$v.!code == #ok` tests for a valid value; `.!` is shorter.
 
-The core error set is closed: every built-in atom except `#ok` and `#IGNORE`. Hosts cannot add codes; they report a domain failure with the nearest core code and put the detail in `raw`. `error_code` is the type of that set. Comparing `.!code` with an atom outside the set halts `#TYPE_MISMATCH`, so a misspelled code fails loudly instead of yielding `false`.
+The core error set is closed: every built-in atom except `#ok`. Hosts cannot add codes; they report a domain failure with the nearest core code and put the detail in `raw`. `error_code` is the type of that set. Comparing `.!code` with an atom outside the set halts `#TYPE_MISMATCH`, so a misspelled code fails loudly instead of yielding `false`.
 
 ## Guard
 
@@ -938,35 +948,35 @@ Runs the body once. If body halts with a catchable signal, returns the invalid v
 
 Filtered form (catches only matching codes):
 
-    guard<on: #TIMEOUT> {
+    guard(on: #TIMEOUT) {
       $app.fetch($url)
     }
 
-    guard<on: list[#TIMEOUT, #UNAVAILABLE]> {
+    guard(on: list[#TIMEOUT, #UNAVAILABLE]) {
       $app.fetch($url)
     }
 
-Every `on:` name must be in the core error set. A name outside it, and `on: list[]`, are parse errors (`RILL-P004`). A bare `guard { ... }` catches every catchable halt.
+Every written `on:` name must be in the core error set. A written name outside it, and a written `on: list[]`, are parse errors (`RILL-P004`). A computed `on` is checked when the guard runs: an empty list halts `#INVALID_INPUT`, a code outside the set halts `#TYPE_MISMATCH`. Options in angle brackets (`guard<on: #X>`) are `RILL-P025`. A bare `guard { ... }` catches every catchable halt.
 
 `guard` does NOT catch halts from `error`, `assert`, a parameter type mismatch, or a source module loaded by `use<>`. Those propagate; a guard around `use<>` catches resolution failures (`RILL-R054`, `RILL-R056`, `RILL-R057`, `RILL-R058`) only, never `RILL-R055`. `guard` DOES catch divide-by-zero (`RILL-R002`), out-of-bounds index or missing field access (`RILL-R009`), failed conversion (`RILL-R038`), and a `filter` predicate that returns an invalid value (`RILL-R001`) — these behave like any other access halt.
 
 ## Retry
 
-Re-enters body up to N times. `limit:` is required and must be a positive integer.
+Re-enters body up to N times. `attempts:` is required and must be a written positive integer literal; a variable, a computed value, or any spread is `RILL-P004`. A missing `attempts` halts `#TYPE_MISMATCH`.
 
-    retry<limit: 3> {
+    retry(attempts: 3) {
       $app.fetch($url)
     } => $result
 
-    retry<limit: 3, on: #UNAVAILABLE> {
+    retry(attempts: 3, on: #UNAVAILABLE) {
       $app.fetch($url)
     }
 
-    retry<limit: 3, on: list[#UNAVAILABLE, #TIMEOUT]> {
+    retry(attempts: 3, on: list[#UNAVAILABLE, #TIMEOUT]) {
       $app.fetch($url)
     }
 
-Each failed attempt appends a `guard-caught` trace frame. Bare `retry<3>` is a parse error.
+Each failed attempt appends a `guard-caught` trace frame. Bare `retry(3)` is a parse error, and the old `retry<limit: 3>` form is `RILL-P025`.
 
 ## Vacancy and `??`
 
@@ -989,19 +999,19 @@ A value is **vacant** when empty (`""`, `0`, `false`, `list[]`, `dict[]`) or inv
 
 | Atom | Cause | Recovery |
 |---|---|---|
-| `#RILL_R082` | `timeout<total:>` wall-time expired | `guard { timeout<total:...> { ... } } ?? fallback` |
-| `#RILL_R083` | `timeout<idle:>` inactivity window expired | `guard { timeout<idle:...> { ... } } ?? fallback` |
+| `#RILL_R082` | `timeout(total)` wall-time expired | `guard { timeout(total:...) { ... } } ?? fallback` |
+| `#RILL_R083` | `timeout(idle)` inactivity window expired | `guard { timeout(idle:...) { ... } } ?? fallback` |
 
-Expiry produces a catchable halt. Wrap `timeout<>` in `guard` to catch it as an invalid value; use `??` for a one-liner fallback. Direct `??` on a bare `timeout<>` expression does NOT intercept expiry halts.
+Expiry produces a catchable halt. Wrap `timeout()` in `guard` to catch it as an invalid value; use `??` for a one-liner fallback. Direct `??` on a bare `timeout()` expression does NOT intercept expiry halts.
 
-    guard { timeout<total: duration("500ms")> { $app.fetch($url) } } => $r
+    guard { timeout(total: duration("500ms")) { $app.fetch($url) } } => $r
     $r ?? "cached"
 
     ($r.!code == #RILL_R082) ? "timed out" ! $r
 
 One head takes both limits, in either order; the first to fire halts with its own atom:
 
-    guard { timeout<total: duration("5s"), idle: duration("500ms")> { $app.fetch($url) } } => $r
+    guard { timeout(total: duration("5s"), idle: duration("500ms")) { $app.fetch($url) } } => $r
 
 ## Recovery patterns
 
@@ -1021,7 +1031,7 @@ Guard then inspect:
 
 Retry with fallback:
 
-    retry<limit: 3> { $app.fetch($url) } => $result
+    retry(attempts: 3) { $app.fetch($url) } => $result
     $result ?? "fallback"
 
 Branch on error atom (flat chain, each comparison parenthesized):
@@ -1219,7 +1229,7 @@ To validate a shape write `-> :dict(a: string)`, never `-> dict(a: string)`. To 
 
     dict[b: "b"] -> dict(b: string, a: string = "a")   # dict[a: "a", b: "b"]
 
-A list element type, a uniform dict or ordered value type, and a stream chunk or return type carry no default. `list(number = 1)`, `dict(number = 1)`, `ordered(number = 1)`, and `stream(number = 1)` halt #INVALID_INPUT when built. A host signature string fails RILL-R091.
+A list element type and a stream chunk or return type carry no default. `list(number = 1)` and `stream(number = 1)` halt #INVALID_INPUT when built. A host signature string fails RILL-R091. `dict(number = 1)` and `ordered(number = 1)` are RILL-P012: dict and ordered take named fields only, and keyed data of one value type is `map(string, V)`.
 
 Only `-> type` conversion fills defaults. `:` assertion does NOT hydrate defaults. Nested fields recurse.
 A union first drops members a wider member accepts, unless the dropped member keeps a default. Among survivors the narrowest matching member fills a parameter's defaults whatever the order. A pipe into a union fills nothing unless the union reduces to one member.
@@ -1864,13 +1874,13 @@ Three distinct surfaces:
 
 `pass { body }` — pipe stage that runs `body` for side effects. Pipe value flows through unchanged. Halts in `body` propagate.
 
-`pass<on_error: #IGNORE> { body }` — same as `pass { body }` but suppresses catchable halts that occur inside `body`. Non-catchable halts (for example `error` and `assert`) and `ControlSignal` (`break`, `return`) still propagate.
+`pass(ignore_halts: true) { body }` — same as `pass { body }` but suppresses catchable halts that occur inside `body`. Non-catchable halts (for example `error` and `assert`) and `ControlSignal` (`break`, `return`) still propagate.
 
-`on_error: #IGNORE` is the only recognized option. Empty `pass<>`, unknown option keys, and any other `on_error` value raise `RILL-P004` at parse time.
+`ignore_halts` and `async` are the recognized options, both bools defaulting to `false`. An unknown option or a non-bool value halts `#TYPE_MISMATCH`. The old form `pass<on_error: #IGNORE>` is a parse error (`RILL-P025`).
 
     5 -> pass { log($) }                        # logs 5, yields 5; halts in body propagate
-    5 -> pass<on_error: #IGNORE> { log($) }     # logs 5, yields 5; body halts suppressed
-    10 -> pass<on_error: #IGNORE> { 1 / 0 }     # yields 10; body halt suppressed
+    5 -> pass(ignore_halts: true) { log($) }     # logs 5, yields 5; body halts suppressed
+    10 -> pass(ignore_halts: true) { 1 / 0 }     # yields 10; body halt suppressed
 
 ---
 
@@ -1962,8 +1972,10 @@ Discouraged (style only; parses and runs):
 
 ### Retry an extension call with fallback
 
-    retry<limit: 3, on: list[#UNAVAILABLE, #TIMEOUT]> { $app.fetch($url) } => $res
+    retry(attempts: 3, on: list[#UNAVAILABLE, #TIMEOUT]) { $app.fetch($url) } => $res
     $res ?? "fallback"
+
+Options go in parentheses. `retry<limit: 3>` is RILL-P025.
 
 ### Reduce with running state
 

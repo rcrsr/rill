@@ -5,7 +5,7 @@
  * form lets the invalid flow through untouched. The tests parse the smallest
  * possible source that drives each form and verify:
  *   - Access forms: guard catches the halt; result is invalid (#R001 for the
- *     `guard<on: list[#NOT_A_CODE]> { 1 }` parse-recovery source).
+ *     `guard(on: list[#NOT_A_CODE]) { 1 }` parse-recovery source).
  *   - Non-access forms: script proceeds without halting; the invalid value
  *     survives intact and `.!` reports it invalid.
  *
@@ -15,7 +15,7 @@
  *   - SM5  : 11 rows of access-vs-bypass behaviour.
  *
  * The tests use `parseWithRecovery` to materialise an invalid via a
- * guard selector outside the core error set (`guard<on: list[#NOT_A_CODE]> { 1 }`), same technique used by `guard-retry.test.ts`.
+ * guard selector outside the core error set (`guard(on: list[#NOT_A_CODE]) { 1 }`), same technique used by `guard-retry.test.ts`.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -48,7 +48,7 @@ describe('Access-halt gate (FR-ERR-14)', () => {
   describe('AC-E1 / EC-7: Access forms halt on invalid values', () => {
     it('AC-E1: field read `$x.field` halts and appends an `access` frame', async () => {
       const src = `
-        guard<on: list[#NOT_A_CODE]> { 1 } => $x
+        guard(on: list[#NOT_A_CODE]) { 1 } => $x
         guard { $x.field }
       `;
       const result = await runRecovered(src);
@@ -62,7 +62,7 @@ describe('Access-halt gate (FR-ERR-14)', () => {
 
     it('EC-7: method call `$x.upper` halts on invalid', async () => {
       const src = `
-        guard<on: list[#NOT_A_CODE]> { 1 } => $x
+        guard(on: list[#NOT_A_CODE]) { 1 } => $x
         guard { $x.upper }
       `;
       const result = await runRecovered(src);
@@ -74,7 +74,7 @@ describe('Access-halt gate (FR-ERR-14)', () => {
       // still counts as access because the pipe target binds $x to the
       // input slot.
       const src = `
-        guard<on: list[#NOT_A_CODE]> { 1 } => $x
+        guard(on: list[#NOT_A_CODE]) { 1 } => $x
         guard { $x -> identity }
       `;
       const result = await runRecovered(src);
@@ -83,7 +83,7 @@ describe('Access-halt gate (FR-ERR-14)', () => {
 
     it('EC-7: arithmetic `$x + 1` halts on invalid', async () => {
       const src = `
-        guard<on: list[#NOT_A_CODE]> { 1 } => $x
+        guard(on: list[#NOT_A_CODE]) { 1 } => $x
         guard { $x + 1 }
       `;
       const result = await runRecovered(src);
@@ -94,7 +94,7 @@ describe('Access-halt gate (FR-ERR-14)', () => {
       // Type operators treat the operand as data; an invalid operand
       // routes through the access-halt gate.
       const src = `
-        guard<on: list[#NOT_A_CODE]> { 1 } => $x
+        guard(on: list[#NOT_A_CODE]) { 1 } => $x
         guard { $x :? :num }
       `;
       const result = await runRecovered(src);
@@ -116,7 +116,7 @@ describe('Access-halt gate (FR-ERR-14)', () => {
       // Running the capture alone (no access after) must complete with
       // no thrown signal.
       const src = `
-        guard<on: list[#NOT_A_CODE]> { 1 } => $x
+        guard(on: list[#NOT_A_CODE]) { 1 } => $x
       `;
       const result = await runRecovered(src);
       // Last statement result is the invalid value itself (capture returns
@@ -126,7 +126,7 @@ describe('Access-halt gate (FR-ERR-14)', () => {
 
     it('status probe `.!` on invalid returns true and never halts', async () => {
       const src = `
-        guard<on: list[#NOT_A_CODE]> { 1 } => $x
+        guard(on: list[#NOT_A_CODE]) { 1 } => $x
         $x.!
       `;
       const result = await runRecovered(src);
@@ -135,7 +135,7 @@ describe('Access-halt gate (FR-ERR-14)', () => {
 
     it('status probe `.!code` reads atom from sidecar without halting', async () => {
       const src = `
-        guard<on: list[#NOT_A_CODE]> { 1 } => $x
+        guard(on: list[#NOT_A_CODE]) { 1 } => $x
         $x.!code
       `;
       const result = (await runRecovered(src)) as { atom: unknown };
@@ -150,7 +150,7 @@ describe('Access-halt gate (FR-ERR-14)', () => {
       // evaluating the coerce must not throw; it materialises the fallback
       // instead of halting.
       const src = `
-        guard<on: list[#NOT_A_CODE]> { 1 } => $x
+        guard(on: list[#NOT_A_CODE]) { 1 } => $x
         $x ?? "fallback"
       `;
       const result = await runRecovered(src);
@@ -159,7 +159,7 @@ describe('Access-halt gate (FR-ERR-14)', () => {
 
     it('list inclusion halts with the held code of the invalid element', async () => {
       const src = `
-        guard<on: list[#NOT_A_CODE]> { 1 } => $x
+        guard(on: list[#NOT_A_CODE]) { 1 } => $x
         list[$x]
       `;
       await expectHalt(() => runRecovered(src), { code: 'R001' });

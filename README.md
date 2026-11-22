@@ -217,13 +217,13 @@ $app.prompt("analyze code") -> .contains("ERROR") ? $app.flag($) ! $app.process(
 
 ### Bounded Loops
 
-The `do<limit: N>` construct option caps loop iterations. `seq` and `fan` enforce a built-in 10,000-iteration ceiling. The host stays in control.
+The `do(limit: N)` construct option caps loop iterations. `seq` and `fan` enforce a built-in 10,000-iteration ceiling. The host stays in control.
 
 ```rill
 # Retry until non-empty, bail after 5 attempts
 use<ext:app> => $app
 
-"" -> do<limit: 5> {
+"" -> do(limit: 5) {
   $app.prompt("Generate a summary")
 } while ($ == "")
 ```
@@ -326,7 +326,7 @@ We asked LLMs to review rill. They had opinions.
 | `cond ? a ! b` | Conditional |
 | `while (cond) do { }` | While loop |
 | `do { } while (cond)` | Do-while loop |
-| `do<limit: N> { }` | Bounded loop construct option |
+| `do(limit: N) { }` | Bounded loop construct option |
 | `seq`, `fan`, `filter` | Collection operator callables |
 | `fold(init, body)` | Reduction |
 | `acc(init, body)` | Scan (intermediate accumulator values) |
@@ -337,7 +337,7 @@ We asked LLMs to review rill. They had opinions.
 - **User-defined workflows.** Let power users script automation without exposing arbitrary code execution.
 - **Multi-phase pipelines.** Chain LLM calls with review gates between each step.
 - **Parallel agent fan-out.** Launch specialist agents concurrently, collect structured results.
-- **Edit-review loops.** Iterate until approval or `do<limit: N>` max attempts.
+- **Edit-review loops.** Iterate until approval or `do(limit: N)` max attempts.
 
 See [Examples](docs/guide-examples.md) for complete workflow patterns.
 

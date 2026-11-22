@@ -48,7 +48,7 @@ The `createRuntimeContext()` function accepts these options:
 | `configurations` | `{ resolvers?: Record<string, unknown> } \| undefined` | Per-scheme config data passed to each resolver |
 | `filterResolver` | `FilterResolver \| undefined` | Access control and transforms for extension method calls; see [Dispatch-Boundary Policy](#dispatch-boundary-policy) |
 | `checkerMode` | `'strict' \| 'permissive' \| undefined` | Type checker mode; default `'permissive'` |
-| `scheduler` | `TimeoutScheduler \| undefined` | Replaces the global `setTimeout`/`clearTimeout` for `timeout<total:>` and `timeout<idle:>` block timers and for the per-call `timeout` option, for example to drive them from fake timers in tests. Defaults to the global functions |
+| `scheduler` | `TimeoutScheduler \| undefined` | Replaces the global `setTimeout`/`clearTimeout` for `timeout(total)` and `timeout(idle)` block timers and for the per-call `timeout` option, for example to drive them from fake timers in tests. Defaults to the global functions |
 
 ## Host Function Contract
 
@@ -847,7 +847,7 @@ Abort is checked at:
 - Before each loop iteration
 - In the stepper's `step()` method
 
-A signal only changes when the code that aborts it runs: host timers, `AbortSignal.timeout`, I/O callbacks, and `timeout<>` timers all need the host event loop. During long evaluation the runtime periodically yields to the host event loop so those fire. Cancellation is noticed within roughly the yield interval plus the current step. The interval is not configurable. As a side effect, other host timers and I/O callbacks run between evaluation steps, and `pass<async: true>` bodies and host streams progress.
+A signal only changes when the code that aborts it runs: host timers, `AbortSignal.timeout`, I/O callbacks, and `timeout()` timers all need the host event loop. During long evaluation the runtime periodically yields to the host event loop so those fire. Cancellation is noticed within roughly the yield interval plus the current step. The interval is not configurable. As a side effect, other host timers and I/O callbacks run between evaluation steps, and `pass(async: true)` bodies and host streams progress.
 
 One synchronous built-in operation, such as a regex match or building a very large string or list, runs to completion and cannot be interrupted. To hard-bound those, run rill in a worker thread or child process the host can terminate.
 
@@ -871,7 +871,7 @@ functions: {
 
 **Required contract:** Host functions must check `ctx.signal.aborted` or pass `ctx.signal` to any awaitable they call. Functions that ignore the signal will run to completion even after the runtime aborts, because rill uses cooperative (not forced) termination.
 
-`timeout<total:>` and `timeout<idle:>` blocks in scripts create a scoped `AbortController` and chain its signal to `ctx.signal` via `AbortSignal.any`. When a timeout fires:
+`timeout(total)` and `timeout(idle)` blocks in scripts create a scoped `AbortController` and chain its signal to `ctx.signal` via `AbortSignal.any`. When a timeout fires:
 
 1. The scoped controller aborts.
 2. `ctx.signal` becomes aborted for the duration of that body.

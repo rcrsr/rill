@@ -3,9 +3,9 @@ id: loop
 title: Loops
 status: normative
 since: 0.24.0
-issues: [578]
+issues: []
 grammar: []
-errors: [RILL-P004, RILL-R002, RILL-R005, RILL-R010]
+errors: [RILL-P004, RILL-P025, RILL-R002, RILL-R005, RILL-R010]
 depends: [conditional]
 tests: [loops.test.ts]
 ---
@@ -30,9 +30,9 @@ A newline between `while (cond)` and `{` stands for `do`.
 r[loop.do-required] A while body follows do
 `while (cond) { body }` on one line MUST be rejected with RILL-P004.
 
-r[loop.limit-literal] The limit is a positive integer literal {pending #578}
-`limit` MUST be written as a positive integer literal. A computed value or a spread MUST be
-rejected.
+r[loop.limit-literal] The limit is a positive integer literal
+`limit` MUST be written as a positive integer literal. A computed value or zero MUST be rejected
+with RILL-P004, and so MUST a spread (`construct-options.literal-bound`).
 
 ## Evaluation
 
@@ -76,6 +76,8 @@ carries only through `$`.
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | `while (cond) { ... }` on one line | RILL-P004 | No |
+| `limit` is not a written positive integer literal, or the options hold a spread | RILL-P004 | No |
+| The options are written in angle brackets | RILL-P025 | No |
 | The condition is not a bool | RILL-R002 | Yes |
 | No seed and no enclosing `$` | RILL-R005 | Yes |
 | The body would run past the limit | RILL-R010 | No |
@@ -102,12 +104,12 @@ carries only through `$`.
 # Result: "xxx"
 ```
 
-```rill pending=578
-# Error: exceeded 3 iterations
+```rill
+# Error: RILL-R010
 0 -> while ($ < 10) do(limit: 3) { $ + 1 }
 ```
 
 ## Notes
 
-On 0.23.0 the limit is written `do<limit: N>`, and exceeding it halts RILL-R010 "While loop
-exceeded N iterations".
+On 0.23.0 the limit is written `do<limit: N>`, and that form now halts RILL-P025. Exceeding the
+limit halts RILL-R010 "While loop exceeded N iterations".

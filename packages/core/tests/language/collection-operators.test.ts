@@ -15,7 +15,6 @@ import {
   anyTypeValue,
   createRillStream,
   createVector,
-  ParseError,
   RuntimeHaltSignal,
   type RillStream,
   type RillParam,
@@ -707,9 +706,9 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     });
   });
 
-  // ── Phase 1: take, skip, cycle, pass<> ───────────────────────────────────
+  // ── Phase 1: take, skip, cycle, pass() ───────────────────────────────────
 
-  describe('Phase 1 slicing operators and pass<> body', () => {
+  describe('Phase 1 slicing operators and pass() body', () => {
     // ── take ────────────────────────────────────────────────────────────────
 
     it('AC-TAKE-1: range(1,101) -> take(5) yields [1,2,3,4,5]', async () => {
@@ -760,12 +759,12 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       expect(await run('list[] -> cycle -> take(5)')).toEqual([]);
     });
 
-    // ── pass<> body ──────────────────────────────────────────────────────────
+    // ── pass() body ──────────────────────────────────────────────────────────
 
-    it('AC-PASSBODY-1: pass<on_error: #IGNORE> body executes; pipe value unchanged', async () => {
-      // Inject a log function that captures its argument. The pass<> body
+    it('AC-PASSBODY-1: pass(ignore_halts: true) body executes; pipe value unchanged', async () => {
+      // Inject a log function that captures its argument. The pass() body
       // invokes log($) (host call), which records the pipe value, then the
-      // pipe value (5) is returned unchanged by pass<>.
+      // pipe value (5) is returned unchanged by pass().
       const captured: RillValue[] = [];
       const log_fn = {
         params: [
@@ -782,7 +781,7 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
           return '';
         },
       };
-      const result = await run('5 -> pass<on_error: #IGNORE> { log($) }', {
+      const result = await run('5 -> pass(ignore_halts: true) { log($) }', {
         functions: { log: log_fn },
       });
       expect(result).toBe(5);
@@ -834,12 +833,12 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       });
     });
 
-    it('AC-ERR-10: pass<on_error: #IGNORE> suppresses catchable halt; pipe value preserved', async () => {
+    it('AC-ERR-10: pass(ignore_halts: true) suppresses catchable halt; pipe value preserved', async () => {
       // A type assertion failure (e.g. :number on a string) produces a
       // catchable RuntimeHaltSignal. With on_error: #IGNORE the halt is
       // swallowed and the pipe value before the block (5) is returned.
       const result = await run(
-        '5 -> pass<on_error: #IGNORE> { "not_a_number":number }'
+        '5 -> pass(ignore_halts: true) { "not_a_number":number }'
       );
       expect(result).toBe(5);
     });
@@ -869,9 +868,9 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       );
     });
 
-    it('AC-BND-6: pass<on_error: #IGNORE> re-throws non-catchable halt', async () => {
+    it('AC-BND-6: pass(ignore_halts: true) re-throws non-catchable halt', async () => {
       // A host function that throws a RuntimeHaltSignal with catchable:false
-      // simulates a #DISPOSED-style non-catchable halt. The pass<> block must
+      // simulates a #DISPOSED-style non-catchable halt. The pass() block must
       // not suppress it even when on_error: #IGNORE is set.
       const throw_noncatchable = {
         params: [] as RillParam[],
@@ -881,7 +880,7 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
         },
       };
       await expect(
-        run('5 -> pass<on_error: #IGNORE> { throw_noncatchable() }', {
+        run('5 -> pass(ignore_halts: true) { throw_noncatchable() }', {
           functions: { throw_noncatchable },
         })
       ).rejects.toBeInstanceOf(RuntimeHaltSignal);
@@ -898,51 +897,40 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     });
   });
 
-  // ── pass<...> parser validation ──────────────────────────────────────────
+  // ── pass(...) parser validation ──────────────────────────────────────────
 
-  describe('pass<...> parser validation (RILL_P004)', () => {
-    it('AC-PASSPARSE-1: pass<> with empty options is a parse error (RILL-P004)', async () => {
-      try {
-        await run('5 -> pass<> { log($) }', {
-          functions: {
-            log: { params: [], returnType: anyTypeValue, fn: () => '' },
-          },
-        });
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        expect((err as ParseError).errorId).toBe('RILL-P004');
-      }
+  describe('pass(...) options type (#TYPE_MISMATCH)', () => {
+    const logHost = {
+      functions: {
+        log: { params: [], returnType: anyTypeValue, fn: () => '' },
+      },
+    };
+
+    it('AC-PASSPARSE-1: pass() with empty options is legal', async () => {
+      expect(await run('5 -> pass() { "x" }')).toBe(5);
     });
 
-    it('AC-PASSPARSE-2: pass<unknown_key: #IGNORE> rejects unknown option key', async () => {
-      await expect(
-        run('5 -> pass<bad_key: #IGNORE> { log($) }', {
-          functions: {
-            log: { params: [], returnType: anyTypeValue, fn: () => '' },
-          },
-        })
-      ).rejects.toBeInstanceOf(ParseError);
+    it('AC-PASSPARSE-2: pass(unknown_key: true) halts on an unknown option', async () => {
+      await expectHalt(
+        () => run('5 -> pass(bad_key: true) { log($) }', logHost),
+        {
+          code: 'TYPE_MISMATCH',
+        }
+      );
     });
 
-    it('AC-PASSPARSE-3: pass<on_error: 42> rejects non-atom value', async () => {
-      await expect(
-        run('5 -> pass<on_error: 42> { log($) }', {
-          functions: {
-            log: { params: [], returnType: anyTypeValue, fn: () => '' },
-          },
-        })
-      ).rejects.toBeInstanceOf(ParseError);
+    it('AC-PASSPARSE-3: pass(ignore_halts: 42) halts on a non-bool value', async () => {
+      await expectHalt(
+        () => run('5 -> pass(ignore_halts: 42) { log($) }', logHost),
+        { code: 'TYPE_MISMATCH' }
+      );
     });
 
-    it('AC-PASSPARSE-4: pass<on_error: #INVALID_INPUT> rejects atom other than #IGNORE', async () => {
-      await expect(
-        run('5 -> pass<on_error: #INVALID_INPUT> { log($) }', {
-          functions: {
-            log: { params: [], returnType: anyTypeValue, fn: () => '' },
-          },
-        })
-      ).rejects.toBeInstanceOf(ParseError);
+    it('AC-PASSPARSE-4: the removed option name halts as unknown', async () => {
+      await expectHalt(
+        () => run('5 -> pass(on_error: #INVALID_INPUT) { "x" }'),
+        { code: 'TYPE_MISMATCH' }
+      );
     });
   });
 

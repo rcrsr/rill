@@ -1,7 +1,7 @@
 /**
  * Child contexts created for block/loop/closure/each bodies must inherit
  * the parent's virtual-clock (nowMs), timezone, and scheduler fields so
- * now(), timezone-aware datetime methods, and timeout<> behave the same
+ * now(), timezone-aware datetime methods, and timeout() behave the same
  * inside a nested body as they do at the top level.
  */
 import { describe, expect, it } from 'vitest';
@@ -55,7 +55,7 @@ describe('child context time-field inheritance', () => {
     expect(value as string).toContain('2026-03-13T09:00:00');
   });
 
-  it('timeout<> inside a seq body uses the parent-injected scheduler', async () => {
+  it('timeout() inside a seq body uses the parent-injected scheduler', async () => {
     // The fake scheduler fires on the next timer turn regardless of the
     // requested duration, proving it (not the real global scheduler)
     // is the one servicing the timer. The host body stays pending until
@@ -88,7 +88,7 @@ describe('child context time-field inheritance', () => {
     };
 
     const result = await run(
-      'list[1] -> seq(fn(x) { guard { timeout<total: duration("1d")> { slow() } } => $r\n$r.! ? "timed_out" ! "completed" })',
+      'list[1] -> seq(fn(x) { guard { timeout(total: duration("1d")) { slow() } } => $r\n$r.! ? "timed_out" ! "completed" })',
       {
         scheduler: fakeScheduler,
         functions: { slow },

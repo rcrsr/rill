@@ -174,11 +174,11 @@ describe('executeRill', () => {
     describe('execution timeout', () => {
       it('triggers iteration limit error for infinite loop', async () => {
         // Create while loop that exceeds iteration limit
-        // Syntax: while (cond) do<limit: N> { body }
+        // Syntax: while (cond) do(limit: N) { body }
         // Explicit limit of 1,000 is exceeded by 20,000-iteration target
         const infiniteLoop = `
           0 => $counter
-          $counter -> while ($ < 20000) do<limit: 1000> {
+          $counter -> while ($ < 20000) do(limit: 1000) {
             $ + 1
           }
         `;

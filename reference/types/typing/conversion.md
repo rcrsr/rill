@@ -7,7 +7,7 @@ issues: []
 grammar: []
 errors: [RILL-R036, RILL-R037, RILL-R038, RILL-R044]
 depends: [type-value, structural-typing, any, union, defaults, carried-type, inference, list, dict, tuple, ordered]
-tests: [conversion.test.ts, structural-type-defaults.test.ts, vectors.test.ts, uniform-value-type.test.ts, type-assertions.test.ts, union-types.test.ts]
+tests: [conversion.test.ts, structural-type-defaults.test.ts, vectors.test.ts, type-assertions.test.ts, union-types.test.ts]
 ---
 
 # Conversion

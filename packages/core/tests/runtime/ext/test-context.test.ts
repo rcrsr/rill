@@ -285,7 +285,7 @@ describe('createTestContext', () => {
       (ctx.callbacks as { onLog: (message: string) => void }).onLog = () => {
         throw new Error('runtime dispose failed');
       };
-      await execInContext('pass<async: true> { error "boom" }', ctx);
+      await execInContext('pass(async: true) { error "boom" }', ctx);
 
       await expectThrowMessage(() => ctx.dispose(), 'runtime dispose failed');
       expect(hookRan).toBe(1);

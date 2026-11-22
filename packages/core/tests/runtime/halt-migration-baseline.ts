@@ -91,7 +91,7 @@ export type BaselineHostFunctionName =
  *   capture the log text. The script itself completes without throwing.
  *   Install `onLogEvent` and read the single event's `detail`; in a second
  *   run install only `onLog` and expect the single line to equal
- *   `runtime: pass<async> body halted: ` followed by `logText`.
+ *   `runtime: pass(async) body halted: ` followed by `logText`.
  */
 export interface BaselineScriptOptions {
   readonly hostFunctions?: readonly BaselineHostFunctionName[] | undefined;
@@ -1782,7 +1782,7 @@ export const HALT_MIGRATION_BASELINE: readonly BaselineEntry[] = [
     path: 'timeout-expired',
     trigger: {
       kind: 'script',
-      source: 'timeout<total: duration("1d")> { delay_then_head() }',
+      source: 'timeout(total: duration("1d")) { delay_then_head() }',
       options: {
         hostFunctions: ['delay_then_head'],
         scheduler: 'fast-expiry',
@@ -1790,8 +1790,8 @@ export const HALT_MIGRATION_BASELINE: readonly BaselineEntry[] = [
     },
     thrownClass: 'RuntimeError',
     errorId: 'RILL-R082',
-    message: 'timeout<total:> exceeded after 86400000ms at 1:1',
-    rawMessage: 'timeout<total:> exceeded after 86400000ms',
+    message: 'timeout(total) exceeded after 86400000ms at 1:1',
+    rawMessage: 'timeout(total) exceeded after 86400000ms',
     location: {
       line: 1,
       column: 1,
@@ -1823,7 +1823,7 @@ export const HALT_MIGRATION_BASELINE: readonly BaselineEntry[] = [
     path: 'async-pass-log',
     trigger: {
       kind: 'script',
-      source: '"x" -> pass<async: true> { 5 -> .head }',
+      source: '"x" -> pass(async: true) { 5 -> .head }',
       options: {
         captureDisposeLog: true,
       },

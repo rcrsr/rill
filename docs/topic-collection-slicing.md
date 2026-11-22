@@ -20,8 +20,8 @@ rill provides operators for slicing, restructuring, gating, and time-domain filt
 | `sample(duration)` | stream of `T` | Emit latest chunk at fixed duration intervals |
 | `pass` | pipe value unchanged | Reference current piped value `$` |
 | `pass { body }` | pipe value unchanged | Side-effect block, no suppression |
-| `pass<on_error: #IGNORE> { body }` | pipe value unchanged | Side-effect block with suppressed errors |
-| `pass<async: true> { body }` | pipe value unchanged | Fire-and-forget side-effect block; body return value discarded |
+| `pass(ignore_halts: true) { body }` | pipe value unchanged | Side-effect block with suppressed errors |
+| `pass(async: true) { body }` | pipe value unchanged | Fire-and-forget side-effect block; body return value discarded |
 
 All operators chain with `->`. Error contracts apply identically to list and stream inputs.
 
@@ -573,8 +573,8 @@ Under the synchronous batch path, `ctx.nowMs` does not advance between chunks. A
 |------|--------|----------|
 | Bare `pass` | `pass` | References current pipe value `$`; halts `#RILL_R005` if unbound |
 | Body form | `pass { body }` | Runs body for side effects; returns pipe value unchanged; does NOT suppress halts |
-| Body form with suppression | `pass<on_error: #IGNORE> { body }` | Runs body; suppresses catchable halts in body; returns pipe value unchanged |
-| Async body form | `pass<async: true> { body }` | Dispatches body as fire-and-forget; returns pipe value immediately; body return value discarded |
+| Body form with suppression | `pass(ignore_halts: true) { body }` | Runs body; suppresses catchable halts in body; returns pipe value unchanged |
+| Async body form | `pass(async: true) { body }` | Dispatches body as fire-and-forget; returns pipe value immediately; body return value discarded |
 
 All body forms discard the body's result. The value before `pass` continues down the pipe.
 
@@ -590,14 +590,14 @@ range(1, 4) -> seq({ $ * 10 }) -> pass { log($) }
 
 ### Error Suppression
 
-Use `pass<on_error: #IGNORE> { body }` when the body may produce catchable errors that should not halt the pipeline.
+Use `pass(ignore_halts: true) { body }` when the body may produce catchable errors that should not halt the pipeline.
 
 ```rill
-10 -> pass<on_error: #IGNORE> { 1 / 0 }
+10 -> pass(ignore_halts: true) { 1 / 0 }
 # Result: 10
 ```
 
-Without `on_error: #IGNORE`, a catchable halt in the body propagates normally:
+Without `ignore_halts: true`, a catchable halt in the body propagates normally:
 
 ```text
 # Error: #RILL_R002 — body halt propagates
@@ -606,7 +606,7 @@ Without `on_error: #IGNORE`, a catchable halt in the body propagates normally:
 
 ### What Is Not Suppressed
 
-`pass<on_error: #IGNORE>` suppresses catchable halts only. Two categories always propagate out of the body:
+`pass(ignore_halts: true)` suppresses catchable halts only. Two categories always propagate out of the body:
 
 | Signal | Behavior |
 |--------|----------|
@@ -619,7 +619,7 @@ These are three distinct constructs:
 
 - **Bare `pass`** — an expression that references the current piped value `$`. Appears inside blocks and conditions, not as a standalone pipe stage. Halts `RILL_R005` if `$` is unbound.
 - **`pass { body }`** — a pipe stage that runs the body for side effects and returns the pipe value unchanged. Does not suppress halts.
-- **`pass<on_error: #IGNORE> { body }`** — same as `pass { body }` but suppresses catchable halts that occur inside the body.
+- **`pass(ignore_halts: true) { body }`** — same as `pass { body }` but suppresses catchable halts that occur inside the body.
 
 ```rill
 # Bare pass in expression — references the piped value inside a conditional
@@ -634,8 +634,8 @@ These are three distinct constructs:
 ```
 
 ```rill
-# pass<on_error: #IGNORE> { body } — side effect with catchable-halt suppression
-5 -> pass<on_error: #IGNORE> { log($) }
+# pass(ignore_halts: true) { body } — side effect with catchable-halt suppression
+5 -> pass(ignore_halts: true) { log($) }
 # Result: 5
 ```
 
@@ -648,43 +648,43 @@ range(1, 6) -> filter({ ($ % 2) == 0 }) -> pass { log($) } -> seq({ $ * 100 })
 # Result: list[200, 400]
 ```
 
-### Async Fire-and-Forget (`pass<async: true>`)
+### Async Fire-and-Forget (`pass(async: true)`)
 
-`pass<async: true> { body }` dispatches the body without blocking. The runtime registers the body's promise via `trackInflight` and returns control immediately. The pipe-entry value flows downstream unchanged.
+`pass(async: true) { body }` dispatches the body without blocking. The runtime registers the body's promise via `trackInflight` and returns control immediately. The pipe-entry value flows downstream unchanged.
 
 ```rill
-42 -> pass<async: true> { $ }
+42 -> pass(async: true) { $ }
 # Result: 42
 ```
 
 The body's return value is always discarded. Downstream operators never see it:
 
 ```rill
-10 -> pass<async: true> { $ * 100 }
+10 -> pass(async: true) { $ * 100 }
 # Result: 10
 ```
 
 Downstream operators chain on the original pipe value, not the body result:
 
 ```rill
-5 -> pass<async: true> { $ + 1 } -> { $ * 2 }
+5 -> pass(async: true) { $ + 1 } -> { $ * 2 }
 # Result: 10
 ```
 
 #### Body completion order is unobservable
 
-`pass<async: true>` bodies may complete after downstream operators run. Scripts must not depend on body completion order relative to downstream execution.
+`pass(async: true)` bodies may complete after downstream operators run. Scripts must not depend on body completion order relative to downstream execution.
 
-#### Compose `async` with `on_error`
+#### Compose `async` with `ignore_halts`
 
-`async: true` and `on_error: #IGNORE` are independent options that compose:
+`async: true` and `ignore_halts: true` are independent options that compose:
 
 ```rill
-"data" -> pass<async: true, on_error: #IGNORE> { 1 / 0 }
+"data" -> pass(async: true, ignore_halts: true) { 1 / 0 }
 # Result: "data"
 ```
 
-With both options, the runtime dispatches the body asynchronously and suppresses any catchable halt the body produces. Without `on_error: #IGNORE`, a catchable halt in the async body surfaces at disposal time.
+With both options, the runtime dispatches the body asynchronously and suppresses any catchable halt the body produces. Without `ignore_halts: true`, a catchable halt in the async body surfaces at disposal time.
 
 #### Shutdown behavior
 
@@ -694,26 +694,26 @@ With both options, the runtime dispatches the body asynchronously and suppresses
 
 ```text
 # Error: catchable halt — async value must be a bool
-pass<async: 1> { log($) }
+pass(async: 1) { log($) }
 ```
 
 ### Error Contracts
 
-The `on_error` option accepts only `#IGNORE`. Empty `pass<>`, unknown option keys, and `on_error` values other than `#IGNORE` are parse errors (`RILL-P004`). Use `pass { body }` for the no-options form.
+`pass` accepts the bool options `ignore_halts` and `async`, both defaulting to `false`. An unknown option, or a value that is not a bool, halts `#TYPE_MISMATCH`. `pass(...$policy)` supplies options from a dict; a spread field that repeats a written option halts `#INVALID_INPUT`. A written option given twice is a parse error (`RILL-P027`). Empty `pass()` is legal and equals `pass { body }`.
 
 ```text
-# Error: RILL-P004 — empty pass<> is a parse error; use pass { body }
-pass<> { log($) }
+# Error: RILL-P025 — angle-bracket options are removed; write pass(ignore_halts: true)
+pass<on_error: #IGNORE> { log($) }   # RILL-P025
 ```
 
 ```text
-# Error: RILL-P004 — unknown option key
-pass<on_warn: #IGNORE> { log($) }
+# Error: #TYPE_MISMATCH — unknown option 'on_warn'
+pass(on_warn: true) { log($) }
 ```
 
 ```text
-# Error: RILL-P004 — on_error value must be #IGNORE
-pass<on_error: #SKIP> { log($) }
+# Error: #TYPE_MISMATCH — ignore_halts must be a bool
+pass(ignore_halts: "yes") { log($) }
 ```
 
 ---

@@ -1,7 +1,7 @@
 /**
  * Detects `Conditional` nodes whose condition inspects a `.!` status probe.
  * Branching on `.!code == #TIMEOUT` is the manual try/catch shape; wrapping
- * the fallible call in `guard<on: list[#TIMEOUT]> { ... }` is the idiomatic
+ * the fallible call in `guard(on: #TIMEOUT) { ... }` is the idiomatic
  * form.
  */
 
@@ -31,7 +31,7 @@ export const guardOverTryCatch: Rule = {
       {
         code: 'GUARD_OVER_TRY_CATCH',
         message:
-          'Branching on .! is manual try/catch. Wrap the fallible call in guard<on: list[#X]> { ... }.',
+          'Branching on .! is manual try/catch. Wrap the fallible call in guard(on: #X) { ... }.',
         severity: 'info',
         location: cond.span.start,
         context: extractContextLine(cond.span.start.line, context.source),

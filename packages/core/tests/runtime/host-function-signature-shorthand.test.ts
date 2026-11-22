@@ -557,6 +557,24 @@ describe('host function signature shorthand', () => {
       expect(result).toEqual({ a: 1, b: 0 });
     });
 
+    it('rejects a uniform dict(V), caused by RILL-P012, naming map(string, V)', () => {
+      const err = registrationError('fn(d: dict(number))');
+      expect(err.cause).toBeInstanceOf(Error);
+      expect((err.cause as Error).cause).toMatchObject({
+        errorId: 'RILL-P012',
+      });
+      expect(err.message).toContain('map(string, number)');
+    });
+
+    it('rejects a uniform ordered(V), caused by RILL-P012, naming map(string, V)', () => {
+      const err = registrationError('fn(d: ordered(number))');
+      expect(err.cause).toBeInstanceOf(Error);
+      expect((err.cause as Error).cause).toMatchObject({
+        errorId: 'RILL-P012',
+      });
+      expect(err.message).toContain('map(string, number)');
+    });
+
     it('rejects a field default that mismatches its type with RILL-R091', () => {
       const err = registrationError('fn(d: dict(a: number, b: number = "x"))');
       expect(err.errorId).toBe('RILL-R091');
@@ -569,12 +587,6 @@ describe('host function signature shorthand', () => {
       const err = registrationError('fn(d: list(number = 1))');
       expect(err.errorId).toBe('RILL-R091');
       expect(err.message).toMatch(/list element type cannot carry a default/);
-    });
-
-    it('rejects a default on a uniform dict value type with RILL-R091', () => {
-      const err = registrationError('fn(d: dict(number = 1))');
-      expect(err.errorId).toBe('RILL-R091');
-      expect(err.message).toMatch(/dict value type cannot carry a default/);
     });
 
     it('rejects a default on the stream chunk type with RILL-R091', () => {
@@ -645,8 +657,8 @@ describe('host function signature shorthand', () => {
     const accepted = [
       ['a stream return type', 'fn():stream(number):string'],
       ['an ordered param', 'fn(o: ordered(a: number))'],
-      ['a uniform dict param', 'fn(d: dict(string))'],
-      ['a uniform dict return type', 'fn(a: string):dict(string)'],
+      ['a map param', 'fn(d: map(string, string))'],
+      ['a map return type', 'fn(a: string):map(string, string)'],
       ['an atom default', 'fn(a: atom = #X)'],
       ['a list default', 'fn(a: list(number) = list[1, 2])'],
       ['a dict default', 'fn(a: dict(k: number) = dict[k: 1])'],
@@ -679,7 +691,7 @@ describe('host function signature shorthand', () => {
       'fn(a: number, b: string = "x"):bool',
       'fn(a: union(string, number)):string',
       'fn(a: list(string), b: dict(k: string)):list(number)',
-      'fn(d: dict(string)):dict(number)',
+      'fn(d: map(string, string)):map(string, number)',
       'fn(o: ordered(a: number, b: string = "q")):ordered(z: bool)',
       'fn(t: tuple(number, string = "s")):tuple(bool)',
       'fn():stream(number):string',

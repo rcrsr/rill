@@ -1,7 +1,7 @@
 /**
  * Rill Runtime Tests: exhausted retry surfaces the FINAL attempt's error
  *
- * An exhausted `retry<limit: N>` must return the LAST attempt's invalid
+ * An exhausted `retry(attempts: N)` must return the LAST attempt's invalid
  * value (its `#code` / message), not the first attempt's, while still
  * carrying one `guard-caught` frame per attempt (N frames total).
  *
@@ -48,7 +48,7 @@ describe('Retry exhaustion surfaces the final attempt (bug #271)', () => {
 
     const result = await run(
       `
-        retry<limit: 2> { flaky() + 1 } => $r
+        retry(attempts: 2) { flaky() + 1 } => $r
         $r
       `,
       { functions: { flaky } }
@@ -74,7 +74,7 @@ describe('Retry exhaustion surfaces the final attempt (bug #271)', () => {
 
     const message = await run(
       `
-        retry<limit: 2> { flaky() + 1 } => $r
+        retry(attempts: 2) { flaky() + 1 } => $r
         $r.!message
       `,
       { functions: { flaky } }
@@ -103,7 +103,7 @@ describe('Retry exhaustion surfaces the final attempt (bug #271)', () => {
     };
 
     const src = `
-      retry<limit: 2> { flaky() -> .upper -> { $ + 1 } } => $r
+      retry(attempts: 2) { flaky() -> .upper -> { $ + 1 } } => $r
       $r
     `;
     const ast = parse(src);

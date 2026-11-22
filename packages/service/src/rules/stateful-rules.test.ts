@@ -44,7 +44,7 @@ describe('AVOID_REASSIGNMENT', () => {
   });
   it.each([
     'pass { 1 => $y }\n2 => $y\n',
-    'pass<async: true> { 1 => $y }\n2 => $y\n',
+    'pass(async: true) { 1 => $y }\n2 => $y\n',
     '1 -> pass { 1 => $y }\n2 => $y\n',
   ])(
     'does not fire for a capture inside a pass body then outside: %j',
@@ -102,11 +102,11 @@ describe('AVOID_REASSIGNMENT', () => {
 
   it.each([
     '1 -> ($ == 1) ? { 5 => $y } ! { 6 => $y }\n2 => $y\n',
-    'timeout<total: duration("500ms")> { 1 => $y }\n2 => $y\n',
+    'timeout(total: duration("500ms")) { 1 => $y }\n2 => $y\n',
     '1 -> ($ == 1) ? { 1 => $y } ! ($ == 2) ? { 2 => $y } ! { 3 => $y }\n4 => $y\n',
-    'timeout<total: duration("500ms")> { 1 => $y }\ntimeout<total: duration("500ms")> { 2 => $y }\n',
+    'timeout(total: duration("500ms")) { 1 => $y }\ntimeout(total: duration("500ms")) { 2 => $y }\n',
     'guard { 1 => $y }\n2 => $y\n',
-    'retry<limit: 2> { 1 => $y }\n2 => $y\n',
+    'retry(attempts: 2) { 1 => $y }\n2 => $y\n',
     'guard { 1 => $y }\nguard { 2 => $y }\n',
   ])(
     'does not fire for captures local to conditional branches, timeout, guard or retry bodies: %j',
@@ -122,9 +122,9 @@ describe('AVOID_REASSIGNMENT', () => {
   it.each([
     '1 => $x\n1 -> ($ == 1) ? { 2 => $x }\n',
     '1 => $x\n1 -> ($ == 1) ? { 3 => $z } ! { 2 => $x }\n',
-    '1 => $x\ntimeout<total: duration("500ms")> { 2 => $x }\n',
+    '1 => $x\ntimeout(total: duration("500ms")) { 2 => $x }\n',
     '1 => $x\nguard { 2 => $x }\n',
-    '1 => $x\nretry<limit: 2> { 2 => $x }\n',
+    '1 => $x\nretry(attempts: 2) { 2 => $x }\n',
   ])(
     'fires once at line 2 for an outer capture reassigned inside a branch, timeout, guard or retry body: %j',
     (source) => {

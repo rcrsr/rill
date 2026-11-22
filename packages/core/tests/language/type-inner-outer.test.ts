@@ -55,10 +55,6 @@ describe('type value inner', () => {
       await expectEqual('list["a", "b"].^type.inner', 'string');
     });
 
-    it('returns the value type of a uniform dict', async () => {
-      await expectEqual('dict(number).inner', 'number');
-    });
-
     it('returns a dict of types for a dict with fields', async () => {
       await expectEqual(
         'dict(a: number, b: string).inner',
@@ -97,7 +93,6 @@ describe('type value inner', () => {
   describe('access-chain and postfix forms agree', () => {
     const rows: [string, string, string][] = [
       ['list(number)', 'inner', 'number'],
-      ['dict(number)', 'inner', 'number'],
       ['dict(a: number, b: string)', 'inner', 'dict[a: number, b: string]'],
       ['dict(a: number)', 'inner.a', 'number'],
       [

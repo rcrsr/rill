@@ -3,11 +3,11 @@ id: ordered
 title: Ordered types
 status: normative
 since: 0.24.0
-issues: [600]
+issues: []
 grammar: []
-errors: [RILL-P006, TYPE_MISMATCH]
+errors: [RILL-P006, RILL-P012, TYPE_MISMATCH]
 depends: [type-value, type-form, dict]
-tests: [structural-type-identity.test.ts, structural-type-boundaries.test.ts, structural-type-defaults.test.ts, type-inner-outer.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts, type-field-keys.test.ts]
+tests: [uniform-value-type.test.ts, structural-type-identity.test.ts, structural-type-boundaries.test.ts, structural-type-defaults.test.ts, type-inner-outer.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts, type-field-keys.test.ts]
 ---
 
 # Ordered types
@@ -21,11 +21,11 @@ ordered                          any ordered
 ordered(a: number, b: string)    one type per named field
 ```
 
-r[ordered.fields] An ordered type always names its fields {pending #600}
+r[ordered.fields] An ordered type always names its fields
 Every argument of an ordered type MUST carry a field name.
 
-r[ordered.no-uniform] An ordered type has no uniform form {pending #600}
-The parse error for `ordered(V)` MUST name `map(string, V)`.
+r[ordered.no-uniform] An ordered type has no uniform form
+`ordered(V)` MUST be rejected with RILL-P012, and the message MUST name `map(string, V)`.
 
 r[ordered.empty-parens] ordered and ordered() are one type
 `ordered` and `ordered()` MUST compare equal.
@@ -66,6 +66,7 @@ ordered type, field order included, follows `structural-typing.exact-position`, 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | Outer on a type that takes none | RILL-P006 | No |
+| An argument with no field name, as in `ordered(V)` | RILL-P012 | No |
 | Value has a field a named form does not name (`structural-typing.exact-position`) | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
@@ -85,8 +86,8 @@ ordered[a: 1, b: 2] -> :?ordered
 # Result: true
 ```
 
-```rill pending=600
-# Error: parse error naming map(string, number)
+```rill
+# Error: RILL-P012
 ordered(number)
 ```
 
@@ -99,7 +100,7 @@ ordered("a b": number) == ordered["a b": 1].^type
 
 The 0.23.0 runtime accepts the uniform form: `ordered(number)` is a type, `ordered[a: 1] -> :?ordered(number)`
 is true, `.inner` of `ordered(T)` is `T`, and mixing named and unnamed arguments halts
-`#INVALID_INPUT`. #600 removes it, and a script rewrites `ordered(V)` to `map(string, V)`,
+`#INVALID_INPUT`. The form now halts RILL-P012, and a script rewrites `ordered(V)` to `map(string, V)`,
 which keeps insertion order.
 
 Superseded rule ids: `ordered.any`, `ordered.argument-naming`, `ordered.field-naming`, `ordered.forms`, `ordered.mixed`, `ordered.uniform-count`,

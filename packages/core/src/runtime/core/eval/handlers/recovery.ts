@@ -2,19 +2,20 @@
  * Guard / Retry Blocks, Status Probes, and Timeout Blocks
  *
  * Provides evaluator methods for the four recovery-related AST nodes:
- * - `GuardBlock` (`guard { body }` / `guard<on: [...]> { body }`)
- * - `RetryBlock` (`retry<limit: N> { body }` / `retry<limit: N, on: [...]> { body }`)
+ * - `GuardBlock` (`guard { body }` / `guard(on: list[...]) { body }`)
+ * - `RetryBlock` (`retry(attempts: N) { body }` / `retry(attempts: N, on: list[...]) { body }`)
  * - `StatusProbe` (`$x.!`, `$x.!code`, `$x.!message`, ...)
- * - `TimeoutBlock` (`timeout<total: d, idle: d> { body }`, either or both limits)
+ * - `TimeoutBlock` (`timeout(total: d, idle: d) { body }`, either or both limits)
  *
  * Interface requirements:
  * - Guard catches `RuntimeHaltSignal` at block boundary, appends a
  *   `guard-caught` trace frame, returns the invalid value as block
  *   result.
- * - Retry<limit: N> re-enters its body on caught halt up to N attempts;
+ * - `retry(attempts: N)` re-enters its body on caught halt up to N attempts;
  *   appends one `guard-caught` frame per failed attempt.
- * - `<on: list[#X, ...]>` filter: non-matching halts propagate (NOT
- *   caught).
+ * - `on:` filter: non-matching halts propagate (NOT caught).
+ * - Options run once per statement run, before the body, so neither guard
+ *   nor retry catches a halt its own options raise.
  * - Status probes bypass the access-halt gate and read the sidecar
  *   directly.
  * - `error "..."` and `assert` raise non-catchable halts: guard /
@@ -28,31 +29,23 @@
  */
 
 import type {
-  AtomLiteralNode,
   GuardBlockNode,
   RetryBlockNode,
   StatusProbeNode,
   TimeoutBlockNode,
 } from '../../../../types.js';
 import type { RillValue } from '../../types/structures.js';
-import {
-  getStatus,
-  appendTraceFrame,
-  invalidate,
-  isInvalid,
-} from '../../types/status.js';
+import { getStatus, appendTraceFrame, isInvalid } from '../../types/status.js';
 import { createTraceFrame } from '../../types/trace.js';
 import { atomName, toAtomValue } from '../../types/atom-registry.js';
 import type { EvalState } from '../state.js';
 import type { Carried } from '../../types/declared.js';
 import { STATUS_CODE_STRUCTURE } from '../../types/error-code.js';
 import { RuntimeHaltSignal, formatAccessSite } from './access.js';
-import { isDuration } from '../../types/guards.js';
 import {
   requireFixedDuration,
   requireTimerDelay,
 } from '../../types/duration-limit.js';
-import { inferType } from '../../types/registrations.js';
 import {
   getHostShape,
   throwAbortHalt,
@@ -75,63 +68,33 @@ import {
 } from '../shared.js';
 import { evaluateBody } from './control-flow.js';
 import { evaluateExpression } from './core.js';
-import { evaluateDict } from './literals.js';
-
-// ============================================================
-// Minimum retry attempts (engineer-consistent choice)
-// ============================================================
-
-/**
- * Minimum retry attempts. The parser rejects `limit:` values `< 1`, so this
- * guard only fires when a host synthesises a `RetryBlock` AST node directly
- * with `attempts <= 0`. Such a node executes zero times and returns an
- * invalid `#R001`; the body never runs.
- */
-const RETRY_MIN_ATTEMPTS = 1;
+import { evaluateConstructOptions } from './construct-options.js';
 
 // ============================================================
 // HELPERS
 // ============================================================
 
 /**
- * Resolves a node's atom-literal `onCodes` filter into a set of
- * atom names. Returns `undefined` when the filter is absent
- * (meaning: catch every catchable halt).
- *
- * Atoms are compared by name, so membership is a name lookup.
- */
-function resolveOnCodes(
-  onCodes: AtomLiteralNode[] | undefined
-): ReadonlySet<string> | undefined {
-  if (onCodes === undefined || onCodes.length === 0) return undefined;
-  const codes = new Set<string>();
-  for (const lit of onCodes) {
-    codes.add(lit.name);
-  }
-  return codes;
-}
-
-/**
  * Returns true when `signal` is catchable AND its invalid value's
- * status code matches the `onCodes` filter (or the filter is absent).
+ * status code matches the `on` filter (or the filter is absent).
  *
  * Non-catchable halts (from `error` / `assert`) never match.
  */
 function shouldCatch(
   signal: RuntimeHaltSignal,
-  onCodes: ReadonlySet<string> | undefined
+  on: ReadonlySet<string> | undefined
 ): boolean {
   if (!signal.catchable) return false;
-  if (onCodes === undefined) return true;
+  if (on === undefined) return true;
   const status = getStatus(signal.value);
-  return onCodes.has(status.code.name);
+  return on.has(status.code.name);
 }
 
 /**
  * Evaluate a guard block.
  *
  * Runs the body once. On a catchable halt whose code matches the
- * optional `onCodes` filter, appends a `guard-caught` trace frame
+ * optional `on` filter, appends a `guard-caught` trace frame
  * and returns the invalid value as the block result. Non-matching
  * halts and non-catchable halts (error / assert) propagate.
  */
@@ -139,11 +102,12 @@ export async function evaluateGuardBlock(
   s: EvalState,
   node: GuardBlockNode
 ): Promise<RillValue> {
-  const onCodes = resolveOnCodes(node.onCodes);
+  // Outside the try so a halt from the options is never caught here.
+  const { on } = await evaluateConstructOptions(s, 'guard', node.options, node);
   try {
     return await evaluateBody(s, node.body);
   } catch (e) {
-    if (e instanceof RuntimeHaltSignal && shouldCatch(e, onCodes)) {
+    if (e instanceof RuntimeHaltSignal && shouldCatch(e, on)) {
       const frame = createTraceFrame({
         site: formatAccessSite(getNodeLocation(s, node), s.ctx.sourceId),
         kind: 'guard-caught',
@@ -158,49 +122,40 @@ export async function evaluateGuardBlock(
 /**
  * Evaluate a retry block.
  *
- * Re-enters the body up to `node.attempts` times. Each caught halt
- * that matches the `onCodes` filter appends one `guard-caught`
- * frame to a running invalid value and advances to the next
- * attempt. On success, returns the body's result. If every attempt
- * halts, returns the final invalid value with all N frames.
+ * Re-enters the body up to `attempts` times. Each caught halt that matches
+ * the `on` filter appends one `guard-caught` frame to a running invalid value
+ * and advances to the next attempt. On success, returns the body's result. If
+ * every attempt halts, returns the final invalid value with all N frames.
  *
- * A `RetryBlock` node with `attempts <= 0` (only reachable via
- * host-synthesised AST; the parser rejects `limit: N` for N < 1) executes
- * zero times and returns an invalid `#R001` (programmer error).
+ * The options are evaluated once, before the first attempt.
  */
 export async function evaluateRetryBlock(
   s: EvalState,
   node: RetryBlockNode
 ): Promise<RillValue> {
-  const onCodes = resolveOnCodes(node.onCodes);
+  const { on, attempts } = await evaluateConstructOptions(
+    s,
+    'retry',
+    node.options,
+    node
+  );
 
-  // a synthesised RetryBlock with attempts <= 0 executes zero times and yields
-  // an invalid `#R001` fallback. The body never runs; the returned
-  // value carries a single `guard-caught` frame so traces still
-  // reflect that recovery was attempted and no body ran.
-  if (node.attempts < RETRY_MIN_ATTEMPTS) {
-    const site = formatAccessSite(getNodeLocation(s, node), s.ctx.sourceId);
-    // Empty-dict base carries the sidecar; primitives cannot hold
-    // status metadata (status.ts#attachStatus) so the invalid
-    // fallback materialises as `{}` with an attached `#R001` status.
-    const base: RillValue = {};
-    const invalid = invalidate(
-      base,
+  if (attempts === undefined || attempts < 1) {
+    // fatal: unreachable, option evaluation requires a positive attempts
+    throwFatalHostHalt(
       {
-        code: 'R001',
-        provider: 'retry',
-        raw: {
-          message: `retry attempts must be >= ${RETRY_MIN_ATTEMPTS}, got ${node.attempts}`,
-        },
+        location: getNodeLocation(s, node),
+        sourceId: s.ctx.sourceId,
+        fn: 'retry',
       },
-      createTraceFrame({ site, kind: 'guard-caught', fn: 'retry' })
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      'retry options carry no positive attempts'
     );
-    return invalid;
   }
 
   let lastHaltValue: RillValue | undefined;
   const caughtFrames: ReturnType<typeof createTraceFrame>[] = [];
-  for (let attempt = 0; attempt < node.attempts; attempt++) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
     // Outside the try so an abort halt is never retried.
     checkAborted(s, node);
     const yielded = maybeYield(s, node);
@@ -208,7 +163,7 @@ export async function evaluateRetryBlock(
     try {
       return await evaluateBody(s, node.body);
     } catch (e) {
-      if (e instanceof RuntimeHaltSignal && shouldCatch(e, onCodes)) {
+      if (e instanceof RuntimeHaltSignal && shouldCatch(e, on)) {
         // The returned value must describe the FINAL failure, not the
         // first, so only the raw thrown value (code/message) and a single
         // new frame are recorded per attempt - O(1) work here, not a
@@ -228,7 +183,7 @@ export async function evaluateRetryBlock(
   }
 
   // All attempts exhausted; lastHaltValue is populated because the
-  // loop ran at least once (RETRY_MIN_ATTEMPTS guards the path). Build the
+  // loop ran at least once. Build the
   // final trace once, replaying every guard-caught frame on top of the
   // LAST attempt's thrown value so its code/message win while every
   // attempt's frame is preserved.
@@ -335,8 +290,8 @@ async function evaluateStatusProbeValue(
 /**
  * Evaluate a timeout block.
  *
- * Evaluates `node.options` through the standard dict path and validates
- * each present limit (`total`, `idle`) as a `duration`. Creates a fresh
+ * Evaluates `node.options` against the `timeout` options type; each present
+ * limit (`total`, `idle`) is a `duration`. Creates a fresh
  * `AbortController` for the timeout scope, chains it to `ctx.signal` via
  * `AbortSignal.any` so either side can cancel. Arms a `setTimeout` (total)
  * and/or idle-tick (idle) timer via `ctx.scheduler` when injected, falling
@@ -361,20 +316,17 @@ export async function evaluateTimeoutBlock(
     fn: 'timeout',
   };
 
-  // Evaluate the options dict and validate each present limit.
-  const opts = await evaluateDict(s, node.options);
+  const options = await evaluateConstructOptions(
+    s,
+    'timeout',
+    node.options,
+    node
+  );
   const limits = new Map<TimeoutLimit, number>();
   for (const limit of TIMEOUT_LIMITS) {
-    const value = opts[limit];
+    const value = options[limit];
     if (value === undefined) continue;
-    if (!isDuration(value)) {
-      throwCatchableHostHalt(
-        site,
-        'INVALID_INPUT',
-        `timeout<${limit}:> duration must be a duration value, got ${inferType(value)}`
-      );
-    }
-    const optionName = `timeout<${limit}:>`;
+    const optionName = `timeout(${limit})`;
     limits.set(
       limit,
       requireTimerDelay(

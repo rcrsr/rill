@@ -8,17 +8,12 @@
  * - getEvalState returns distinct state per RuntimeContext.
  * - Initial EvalState field values on first creation.
  * - getAnnotation reads from ctx.annotationStack.
- * - getIterationLimit floors fractional operator-level limits and falls
- *   back to the default for non-positive/non-numeric limits.
  */
 
 import { describe, expect, it } from 'vitest';
 import { createRuntimeContext } from '@rcrsr/rill';
 import { getEvalState } from '../../src/runtime/core/eval/state.js';
-import {
-  getAnnotation,
-  getIterationLimit,
-} from '../../src/runtime/core/eval/handlers/annotations.js';
+import { getAnnotation } from '../../src/runtime/core/eval/handlers/annotations.js';
 
 describe('getEvalState', () => {
   it('returns the same EvalState instance for the same context', () => {
@@ -87,43 +82,5 @@ describe('getAnnotation', () => {
     const state = getEvalState(ctx);
 
     expect(getAnnotation(state, 'limit')).toBe(50);
-  });
-});
-
-describe('getIterationLimit', () => {
-  it('returns default when no operator-level annotations are given', () => {
-    const ctx = createRuntimeContext();
-    const state = getEvalState(ctx);
-
-    expect(getIterationLimit(state)).toBe(10000);
-  });
-
-  it('returns the operator-level limit when set', () => {
-    const ctx = createRuntimeContext();
-    const state = getEvalState(ctx);
-
-    expect(getIterationLimit(state, { limit: 100 })).toBe(100);
-  });
-
-  it('floors fractional limits', () => {
-    const ctx = createRuntimeContext();
-    const state = getEvalState(ctx);
-
-    expect(getIterationLimit(state, { limit: 100.7 })).toBe(100);
-  });
-
-  it('returns default for non-positive limits', () => {
-    const ctx = createRuntimeContext();
-    const state = getEvalState(ctx);
-
-    expect(getIterationLimit(state, { limit: 0 })).toBe(10000);
-    expect(getIterationLimit(state, { limit: -5 })).toBe(10000);
-  });
-
-  it('returns default for non-numeric limits', () => {
-    const ctx = createRuntimeContext();
-    const state = getEvalState(ctx);
-
-    expect(getIterationLimit(state, { limit: 'not a number' })).toBe(10000);
   });
 });

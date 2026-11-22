@@ -18,7 +18,7 @@ import {
 } from '@rcrsr/rill';
 import { expectHalt } from '../helpers/halt.js';
 
-const HELD = 'guard<on: list[#NOT_A_CODE]> { 1 } => $x\n';
+const HELD = 'guard(on: list[#NOT_A_CODE]) { 1 } => $x\n';
 
 /** Runs a script through parseWithRecovery + execute and returns its value. */
 async function runRecovered(src: string): Promise<unknown> {

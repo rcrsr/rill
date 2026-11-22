@@ -46,16 +46,17 @@ import {
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import {
+  DEFAULT_MAX_ITERATIONS,
   getNodeLocation,
   checkAborted,
   maybeYield,
   withChildScope,
 } from '../shared.js';
+import { executeStatement } from './annotations.js';
 import {
-  evaluateAnnotations,
-  getIterationLimit,
-  executeStatement,
-} from './annotations.js';
+  evaluateConstructOptions,
+  type ConstructOptions,
+} from './construct-options.js';
 import {
   evaluateExpression,
   evaluatePostfixExpr,
@@ -170,6 +171,11 @@ export async function evaluateWhileLoop(
   s: EvalState,
   node: WhileLoopNode
 ): Promise<RillValue> {
+  // Options run once, before the condition and the body.
+  const maxIter = loopIterationLimit(
+    await evaluateConstructOptions(s, 'do', node.options, node)
+  );
+
   // Save original pipe value before evaluating condition
   const originalPipeValue = s.ctx.pipeValue;
 
@@ -194,14 +200,6 @@ export async function evaluateWhileLoop(
 
   let value = s.ctx.pipeValue;
   let iterCount = 0;
-  // Evaluate operator-level annotations (node.annotations) to read limit.
-  // Statement-level annotationStack is not consulted.
-  const annotationNodes = node.annotations;
-  const operatorAnnotations =
-    annotationNodes !== undefined && annotationNodes.length > 0
-      ? await evaluateAnnotations(s, annotationNodes)
-      : undefined;
-  const maxIter = getIterationLimit(s, operatorAnnotations);
 
   try {
     let conditionResult = conditionValue;
@@ -258,6 +256,11 @@ export async function evaluateWhileLoop(
   return value;
 }
 
+/** The loop's iteration ceiling: its `limit` option, else the default. */
+function loopIterationLimit(options: ConstructOptions): number {
+  return options.limit ?? DEFAULT_MAX_ITERATIONS;
+}
+
 /**
  * Evaluate do-while loop: `do { body } while (cond)`
  *
@@ -274,15 +277,9 @@ export async function evaluateDoWhileLoop(
   node: DoWhileLoopNode
 ): Promise<RillValue> {
   let value = s.ctx.pipeValue;
-
-  // Evaluate operator-level annotations (node.annotations) to read limit.
-  // Statement-level annotationStack is not consulted.
-  const annotationNodes = node.annotations;
-  const operatorAnnotations =
-    annotationNodes !== undefined && annotationNodes.length > 0
-      ? await evaluateAnnotations(s, annotationNodes)
-      : undefined;
-  const maxIter = getIterationLimit(s, operatorAnnotations);
+  const maxIter = loopIterationLimit(
+    await evaluateConstructOptions(s, 'do', node.options, node)
+  );
   let iterCount = 0;
 
   try {

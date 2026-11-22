@@ -697,7 +697,7 @@ Unlike `BUILTIN_FUNCTIONS`, `KEYWORDS`, and `BUILTIN_ATOMS`, this is not a `read
 
 ## BUILTIN_ATOMS
 
-`BUILTIN_ATOMS` is a `readonly string[]` listing the built-in atom names, without the leading `#`. The core error set is this list minus `ok` and `IGNORE`. Hosts cannot add names to it.
+`BUILTIN_ATOMS` is a `readonly string[]` listing the built-in atom names, without the leading `#`. The core error set is this list minus `ok`. Hosts cannot add names to it.
 
 ```typescript
 import { BUILTIN_ATOMS } from '@rcrsr/rill';
@@ -710,7 +710,7 @@ Tooling such as the language service's `ATOM_CASE_MISMATCH` rule reads this list
 
 ## ERROR_CODES
 
-`ERROR_CODES` is a frozen `readonly string[]` of the core error set: every name in `BUILTIN_ATOMS` except `ok` and `IGNORE`, without the leading `#`. It lists the values `.!code` can hold on an invalid value. The rill type `error_code` holds the same set.
+`ERROR_CODES` is a frozen `readonly string[]` of the core error set: every name in `BUILTIN_ATOMS` except `ok`, without the leading `#`. It lists the values `.!code` can hold on an invalid value. The rill type `error_code` holds the same set.
 
 ```typescript
 import { ERROR_CODES } from '@rcrsr/rill';
@@ -899,7 +899,7 @@ Registration throws `RuntimeError` with `RILL-R091` in these cases:
 | Tuple default is not trailing | `Invalid signature for function '{name}': tuple() default values must be trailing: element at position {n} has no default but a preceding element does at {line}:{col}` |
 | Default or annotation value interpolates or reads a variable | `Invalid signature for function '{name}': string interpolation is not allowed here; a signature holds constant literals only at {line}:{col}`; a `$` default reads `Expected literal, got: $ at {line}:{col}`, and a `$` annotation value reads `a Variable expression is not allowed here; a signature holds constant literals only at {line}:{col}` |
 | Union is empty, lists a member twice, or has a compound literal member | `Invalid signature for function '{name}': union requires at least one member at {line}:{col}`; a repeat reads `union lists string more than once`; a compound literal reads `union member must be a type or a string, number, bool, or atom literal at {line}:{col}` |
-| Element or value type carries a default: list element, uniform dict or ordered value, stream chunk or return | `Invalid signature for function '{name}': list element type cannot carry a default at {line}:{col}`; a dict or ordered value reads `dict value type cannot carry a default` or `ordered value type cannot carry a default`; a stream reads `stream chunk type cannot carry a default` or `stream return type cannot carry a default` |
+| Element or value type carries a default: list element, stream chunk or return | `Invalid signature for function '{name}': list element type cannot carry a default at {line}:{col}`; a stream reads `stream chunk type cannot carry a default` or `stream return type cannot carry a default` |
 | Tuple element is named | `Invalid signature for function '{name}': tuple() requires positional arguments at {line}:{col}`, as in `tuple(a: number)` |
 | Parameter default does not match its type | `Invalid signature for function '{name}': Default value for parameter 'n' must be number, got string at {line}:{col}` |
 
@@ -1053,7 +1053,7 @@ Manifest names are quoted and escaped, so a name that is not an identifier still
 
 ## TimeoutScheduler
 
-`TimeoutScheduler` is the type of the `scheduler` option on `createRuntimeContext()`. It replaces the global timer functions for `timeout<total:>` and `timeout<idle:>` blocks and for the per-call `timeout` option, so a test can drive them from fake timers.
+`TimeoutScheduler` is the type of the `scheduler` option on `createRuntimeContext()`. It replaces the global timer functions for `timeout(total: ...)` and `timeout(idle: ...)` blocks and for the per-call `timeout` option, so a test can drive them from fake timers.
 
 ```typescript
 interface TimeoutScheduler {
@@ -1350,7 +1350,7 @@ Three helpers on `RuntimeContext` support error-aware extension functions.
 invalidate(error: unknown, meta: InvalidateMeta): RillValue
 ```
 
-Wraps a JavaScript error as an invalid rill value the script can test with `.?` and `.!`. `meta.code` must belong to the core error set (every built-in atom except `ok` and `IGNORE`). Any other code throws `RILL-R084` at the call; carry domain detail in `raw`.
+Wraps a JavaScript error as an invalid rill value the script can test with `.?` and `.!`. `meta.code` must belong to the core error set (every built-in atom except `ok`). Any other code throws `RILL-R084` at the call; carry domain detail in `raw`.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|

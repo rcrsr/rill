@@ -12,7 +12,7 @@
  * value *content* (code, message, trace) is byte-equal across both paths.
  *
  * guard fixture
- * retry<limit: 3> exhausted, 3 guard-caught frames
+ * retry(attempts: 3) exhausted, 3 guard-caught frames
  * .! probe variants (valid and invalid)
  * atom literal / .!code comparison
  * invalid LHS coerced to default with ??
@@ -106,7 +106,7 @@ describe('error-handling parity: Fiddle vs Node', () => {
   });
 
   // retry exhausted — exactly 3 guard-caught frames
-  it('retry<limit: 3> exhausted renders exactly 3 guard-caught frames, byte-equal', async () => {
+  it('retry(attempts: 3) exhausted renders exactly 3 guard-caught frames, byte-equal', async () => {
     const source = loadFixture('retry-exhausted');
     const nodeSide = await nodeExecute(source);
     const fiddleSide = await fiddleExecute(source);
@@ -173,7 +173,7 @@ describe('error-handling parity: Fiddle vs Node', () => {
   });
 
   // Nested guard + retry
-  it('nested guard { retry<limit: 2> { ... } } byte-equal', async () => {
+  it('nested guard { retry(attempts: 2) { ... } } byte-equal', async () => {
     const source = loadFixture('nested-guard-retry');
     const nodeSide = await nodeExecute(source);
     const fiddleSide = await fiddleExecute(source);

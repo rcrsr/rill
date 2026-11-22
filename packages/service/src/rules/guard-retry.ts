@@ -2,13 +2,9 @@
  * Lints idiomatic use of `guard` and `retry` error-recovery blocks.
  */
 
-import type { ASTNode } from '@rcrsr/rill';
+import type { ASTNode, DictEntryNode, DictNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
-import {
-  extractContextLine,
-  maskComments,
-  maskStringLiterals,
-} from './helpers.js';
+import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
 
 // ============================================================
@@ -21,13 +17,66 @@ function noEffectMessage(wrapper: string, remedy: string): string {
 }
 
 // ============================================================
+// Option readers
+// ============================================================
+
+/** True for a `...expression` entry, which carries no key form. */
+function isSpreadEntry(entry: DictEntryNode): boolean {
+  return entry.key === '...' && entry.keyForm === undefined;
+}
+
+/** The entry written under `name`, or undefined when no entry names it. */
+function writtenOption(
+  options: DictNode | null,
+  name: string
+): DictEntryNode | undefined {
+  return options?.entries.find(
+    (entry) => entry.key === name && !isSpreadEntry(entry)
+  );
+}
+
+/**
+ * True when the options may supply a field the source does not name: a spread,
+ * or a variable, computed, or multi-key entry.
+ */
+function hasUnwrittenFields(options: DictNode | null): boolean {
+  return (
+    options?.entries.some(
+      (entry) => isSpreadEntry(entry) || typeof entry.key !== 'string'
+    ) ?? false
+  );
+}
+
+/**
+ * The sole primary of a value written as one bare literal, else undefined.
+ * A pipe, method, default (`??`), existence check, or terminator makes the
+ * value richer than its primary.
+ */
+function writtenPrimary(entry: DictEntryNode): ASTNode | undefined {
+  return barePrimary(entry.value);
+}
+
+function barePrimary(value: ASTNode): ASTNode | undefined {
+  if (value.type !== 'PipeChain') return undefined;
+  if (value.pipes.length > 0 || value.terminator !== null) return undefined;
+  const head = value.head;
+  if (head.type !== 'PostfixExpr') return undefined;
+  if (head.methods.length > 0 || head.defaultValue !== null) return undefined;
+  if (head.existenceCheck !== null && head.existenceCheck !== undefined) {
+    return undefined;
+  }
+  return head.primary;
+}
+
+// ============================================================
 // GUARD_BARE
 // ============================================================
 
 /**
  * Suggests explicit `on:` codes on `guard` blocks. A bare `guard { ... }`
  * recovers from any error, hiding intent and silencing errors the author
- * never planned for.
+ * never planned for. A guard whose options are spread in may carry `on`, so
+ * it is not bare.
  */
 export const guardBare: Rule = {
   code: 'GUARD_BARE',
@@ -38,7 +87,8 @@ export const guardBare: Rule = {
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     if (node.type !== 'GuardBlock') return [];
     const guard = node;
-    if (guard.onCodes && guard.onCodes.length > 0) return [];
+    if (writtenOption(guard.options, 'on') !== undefined) return [];
+    if (hasUnwrittenFields(guard.options)) return [];
 
     return [
       {
@@ -46,7 +96,7 @@ export const guardBare: Rule = {
         severity: 'info',
         code: 'GUARD_BARE',
         message:
-          'Bare guard catches every error. Prefer guard<on: list[#X, ...]> to make recoverability explicit.',
+          'Bare guard catches every error. Prefer guard(on: list[#X, ...]) to make recoverability explicit.',
         context: extractContextLine(guard.span.start.line, context.source),
         fix: null,
       },
@@ -59,7 +109,7 @@ export const guardBare: Rule = {
 // ============================================================
 
 /**
- * Flags `retry<limit: N>` with N <= 1. A single attempt is what already
+ * Flags `retry(attempts: N)` with N <= 1. A single attempt is what already
  * happens without `retry`; the block has no effect.
  */
 export const retryTrivial: Rule = {
@@ -71,7 +121,9 @@ export const retryTrivial: Rule = {
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     if (node.type !== 'RetryBlock') return [];
     const retry = node;
-    if (retry.attempts > 1) return [];
+    const attempts = writtenOption(retry.options, 'attempts');
+    const count = attempts === undefined ? undefined : writtenPrimary(attempts);
+    if (count?.type !== 'NumberLiteral' || count.value > 1) return [];
 
     return [
       {
@@ -79,7 +131,7 @@ export const retryTrivial: Rule = {
         severity: 'warning',
         code: 'RETRY_TRIVIAL',
         message: noEffectMessage(
-          `retry<limit: ${retry.attempts}>`,
+          `retry(attempts: ${count.value})`,
           'raise the attempt count'
         ),
         context: extractContextLine(retry.span.start.line, context.source),
@@ -94,7 +146,7 @@ export const retryTrivial: Rule = {
 // ============================================================
 
 /**
- * Flags `timeout<>` with no limit. An empty options dict arms neither the
+ * Flags `timeout()` with no limit. An empty options dict arms neither the
  * total nor the idle bound; the block has no effect.
  */
 export const timeoutTrivial: Rule = {
@@ -113,7 +165,7 @@ export const timeoutTrivial: Rule = {
         location: timeout.span.start,
         severity: 'warning',
         code: 'TIMEOUT_TRIVIAL',
-        message: noEffectMessage('timeout<>', 'add a limit'),
+        message: noEffectMessage('timeout()', 'add a limit'),
         context: extractContextLine(timeout.span.start.line, context.source),
         fix: null,
       },
@@ -126,8 +178,9 @@ export const timeoutTrivial: Rule = {
 // ============================================================
 
 /**
- * Flags `on: list[#X]` on `guard` and `retry`. A one-element list holds a
- * single code; the plain form `on: #X` says the same thing directly.
+ * Flags `on: list[#X]` on `guard` and `retry`, and the bare `on: [#X]`. A
+ * one-element list holds a single code; the plain form `on: #X` says the same
+ * thing directly.
  */
 export const onListSingle: Rule = {
   code: 'ON_LIST_SINGLE',
@@ -137,26 +190,24 @@ export const onListSingle: Rule = {
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     if (node.type !== 'GuardBlock' && node.type !== 'RetryBlock') return [];
-    const codes = node.onCodes;
-    const only = codes?.[0];
-    if (codes?.length !== 1 || only === undefined) return [];
-
-    const options = maskComments(
-      maskStringLiterals(
-        context.source.slice(
-          node.span.start.offset,
-          node.body.span.start.offset
-        )
-      )
-    );
-    if (!options.includes('list[')) return [];
+    const on = writtenOption(node.options, 'on');
+    const list = on === undefined ? undefined : writtenPrimary(on);
+    if (list?.type !== 'ListLiteral' && list?.type !== 'TupleLiteral') {
+      return [];
+    }
+    const [only, ...rest] = list.elements;
+    if (only === undefined || rest.length > 0 || only.type === 'ListSpread') {
+      return [];
+    }
+    const atom = barePrimary(only);
+    if (atom?.type !== 'AtomLiteral') return [];
 
     return [
       {
         location: node.span.start,
         severity: 'info',
         code: 'ON_LIST_SINGLE',
-        message: `on: list[#${only.name}] holds one code; write on: #${only.name}.`,
+        message: `on: list[#${atom.name}] holds one code; write on: #${atom.name}.`,
         context: extractContextLine(node.span.start.line, context.source),
         fix: null,
       },

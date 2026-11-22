@@ -188,8 +188,8 @@ describe('Rill Language: Pass Keyword Parsing', () => {
       expect(pipeExpr.methods[0]!.name).toBe('upper');
     });
 
-    it('a pass<> block with options as a pipe target chains a method call into one statement', () => {
-      const script = '5 -> pass<on_error: #IGNORE> { $ * 2 } . upper';
+    it('a pass() block with options as a pipe target chains a method call into one statement', () => {
+      const script = '5 -> pass(ignore_halts: true) { $ * 2 } . upper';
       const ast = parse(script);
       expect(ast.statements).toHaveLength(1);
 

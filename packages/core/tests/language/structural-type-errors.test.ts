@@ -93,30 +93,28 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   });
 
   // ============================================================
-  // AC-43: dict(string) with single positional arg produces uniform type
-  // (Task 1.5: uniform path for 1 positional arg)
+  // dict(V) is removed: a positional argument raises RILL-P012
   // ============================================================
 
-  describe('dict() with single positional argument (AC-43)', () => {
-    it('produces uniform dict type with valueType', async () => {
-      const result = (await run('dict(string)')) as any;
-      expect(result.__rill_type).toBe(true);
-      expect(result.typeName).toBe('dict');
-      expect(result.structure.kind).toBe('dict');
-      expect(result.structure.valueType).toEqual({ kind: 'string' });
-    });
-
-    it('throws when dict() mixes positional and named arguments', async () => {
-      await expectHalt(() => run('dict(string, x: number)'), {
-        code: 'INVALID_INPUT',
-        messagePattern: 'dict() cannot mix positional and named arguments',
+  describe('dict() with a positional argument', () => {
+    it('rejects dict(string) naming map(string, string)', async () => {
+      await expect(run('dict(string)')).rejects.toMatchObject({
+        errorId: 'RILL-P012',
+        message: expect.stringContaining('map(string, string)'),
       });
     });
 
-    it('throws when dict() has 2+ positional arguments', async () => {
-      await expectHalt(() => run('dict(string, number)'), {
-        code: 'INVALID_INPUT',
-        messagePattern: 'dict() requires exactly 1 positional type argument',
+    it('rejects mixed positional and named arguments', async () => {
+      await expect(run('dict(string, x: number)')).rejects.toMatchObject({
+        errorId: 'RILL-P012',
+        message: expect.stringContaining('map(string, string)'),
+      });
+    });
+
+    it('rejects 2+ positional arguments naming map(K, V)', async () => {
+      await expect(run('dict(string, number)')).rejects.toMatchObject({
+        errorId: 'RILL-P012',
+        message: expect.stringContaining('map(K, V)'),
       });
     });
   });
@@ -151,30 +149,28 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   });
 
   // ============================================================
-  // EC-6: ordered() with single positional arg produces uniform type
-  // (Task 1.5: uniform path for 1 positional arg)
+  // ordered(V) is removed: a positional argument raises RILL-P012
   // ============================================================
 
-  describe('ordered() with single positional argument (EC-6)', () => {
-    it('produces uniform ordered type with valueType', async () => {
-      const result = (await run('ordered(string)')) as any;
-      expect(result.__rill_type).toBe(true);
-      expect(result.typeName).toBe('ordered');
-      expect(result.structure.kind).toBe('ordered');
-      expect(result.structure.valueType).toEqual({ kind: 'string' });
-    });
-
-    it('throws when ordered() mixes positional and named arguments', async () => {
-      await expectHalt(() => run('ordered(string, x: number)'), {
-        code: 'INVALID_INPUT',
-        messagePattern: 'ordered() cannot mix positional and named arguments',
+  describe('ordered() with a positional argument', () => {
+    it('rejects ordered(string) naming map(string, string)', async () => {
+      await expect(run('ordered(string)')).rejects.toMatchObject({
+        errorId: 'RILL-P012',
+        message: expect.stringContaining('map(string, string)'),
       });
     });
 
-    it('throws when ordered() has 2+ positional arguments', async () => {
-      await expectHalt(() => run('ordered(string, number)'), {
-        code: 'INVALID_INPUT',
-        messagePattern: 'ordered() requires exactly 1 positional type argument',
+    it('rejects mixed positional and named arguments', async () => {
+      await expect(run('ordered(string, x: number)')).rejects.toMatchObject({
+        errorId: 'RILL-P012',
+        message: expect.stringContaining('map(string, string)'),
+      });
+    });
+
+    it('rejects 2+ positional arguments naming map(K, V)', async () => {
+      await expect(run('ordered(string, number)')).rejects.toMatchObject({
+        errorId: 'RILL-P012',
+        message: expect.stringContaining('map(K, V)'),
       });
     });
   });

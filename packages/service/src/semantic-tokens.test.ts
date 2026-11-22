@@ -144,6 +144,33 @@ describe('semanticTokens', () => {
     expect(mapToken?.tokenType).toBe('keyword');
   });
 
+  it('classifies the timeout word of a timeout block as keyword', () => {
+    const source = 'timeout(total: duration("1s")) { 1 }\n';
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const decoded = decodeAbsolute(
+      semanticTokens(parsed, tokenize(source), source)
+    );
+    const timeoutToken = decoded.find((t) => t.line === 0 && t.character === 0);
+
+    expect(timeoutToken?.tokenType).toBe('keyword');
+    expect(timeoutToken?.length).toBe('timeout'.length);
+  });
+
+  it('leaves a host function named timeout as an ordinary name', () => {
+    const source = 'timeout(5)\n';
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const decoded = decodeAbsolute(
+      semanticTokens(parsed, tokenize(source), source)
+    );
+    const timeoutToken = decoded.find((t) => t.line === 0 && t.character === 0);
+
+    expect(timeoutToken?.tokenType).not.toBe('keyword');
+  });
+
   it('tolerates a recovery/partial AST without throwing', () => {
     const source = '1 -> $x -> ';
     const parsed = parseWithRecovery(source);

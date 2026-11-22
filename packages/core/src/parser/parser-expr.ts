@@ -16,6 +16,7 @@ import type {
   WhileLoopNode,
   GroupedExprNode,
   PassBlockNode,
+  PassNode,
   TimeoutBlockNode,
   PipeChainNode,
   PipeTargetNode,
@@ -51,7 +52,7 @@ import {
 } from './helpers.js';
 import { parseScriptTypeRef } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
-import { parseOptionDict } from './parser-options.js';
+import { parseParenOptions, atContextualOptions } from './parser-options.js';
 import { runPostfixDispatchLoop } from './parser-pipe-target.js';
 import type { PostfixLoopState } from './parser-primary.js';
 
@@ -100,7 +101,7 @@ declare module './parser.js' {
       opMap: Map<TokenType, BinaryOp>,
       maxChain?: number
     ): ArithHead;
-    parsePassBlock(): PassBlockNode;
+    parsePassForm(): PassBlockNode | PassNode;
     parseTimeoutBlock(): TimeoutBlockNode;
   }
 }
@@ -177,7 +178,7 @@ Parser.prototype.parseCommonConstruct = function (
     return this.parsePipedConditional();
   }
 
-  // Loop dispatch: WHILE / DO / DO_LANGLE → new keyword forms.
+  // Loop dispatch: WHILE / DO → new keyword forms.
   // Guard: @[ and @$fn are not valid expression forms (RILL-P010).
   // Bare AT at expression head → legacy post-loop form (RILL-R080).
   if (check(this.state, TOKEN_TYPES.AT)) {
@@ -193,7 +194,7 @@ Parser.prototype.parseCommonConstruct = function (
     if (peek(this.state, 1).type === TOKEN_TYPES.CARET) {
       throw new ParseError(
         ERROR_IDS.RILL_R080,
-        'Migration error: use `do<limit: N> { body } while (cond)`',
+        'Migration error: use `do(limit: N) { body } while (cond)`',
         current(this.state).span.start
       );
     }
@@ -209,10 +210,7 @@ Parser.prototype.parseCommonConstruct = function (
   if (check(this.state, TOKEN_TYPES.WHILE)) {
     return this.parseWhileLoop();
   }
-  if (
-    check(this.state, TOKEN_TYPES.DO) ||
-    check(this.state, TOKEN_TYPES.DO_LANGLE)
-  ) {
+  if (check(this.state, TOKEN_TYPES.DO)) {
     return this.parseLoop();
   }
 
@@ -227,11 +225,7 @@ Parser.prototype.parseCommonConstruct = function (
         current(this.state).span.start
       );
     }
-    if (
-      check(this.state, TOKEN_TYPES.WHILE) ||
-      check(this.state, TOKEN_TYPES.DO) ||
-      check(this.state, TOKEN_TYPES.DO_LANGLE)
-    ) {
+    if (check(this.state, TOKEN_TYPES.WHILE, TOKEN_TYPES.DO)) {
       return this.parseLoopWithInput(block);
     }
     if (check(this.state, TOKEN_TYPES.QUESTION)) {
@@ -251,11 +245,7 @@ Parser.prototype.parseCommonConstruct = function (
         current(this.state).span.start
       );
     }
-    if (
-      check(this.state, TOKEN_TYPES.WHILE) ||
-      check(this.state, TOKEN_TYPES.DO) ||
-      check(this.state, TOKEN_TYPES.DO_LANGLE)
-    ) {
+    if (check(this.state, TOKEN_TYPES.WHILE, TOKEN_TYPES.DO)) {
       return this.parseLoopWithInput(grouped);
     }
     if (check(this.state, TOKEN_TYPES.QUESTION)) {
@@ -381,7 +371,7 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
     }
   }
 
-  // Check for loop: expr while/do/do< body (new syntax) or expr @ (legacy RILL-R080)
+  // Check for loop: expr while/do body (new syntax) or expr @ (legacy RILL-R080)
   if (check(this.state, TOKEN_TYPES.AT)) {
     // Legacy seeded loop: expr @ { body } ? (cond) — RILL-R080 at @
     throw new ParseError(
@@ -390,11 +380,7 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
       current(this.state).span.start
     );
   }
-  if (
-    check(this.state, TOKEN_TYPES.WHILE) ||
-    check(this.state, TOKEN_TYPES.DO) ||
-    check(this.state, TOKEN_TYPES.DO_LANGLE)
-  ) {
+  if (check(this.state, TOKEN_TYPES.WHILE, TOKEN_TYPES.DO)) {
     const headAsPipeChain: PipeChainNode = {
       type: 'PipeChain',
       head,
@@ -848,69 +834,43 @@ function parseUnaryImpl(this: Parser): UnaryExprNode | PostfixExprNode {
 }
 
 // ============================================================
-// PASS BLOCK PARSER
+// PASS FORM PARSER
 // ============================================================
 
 /**
- * Parse a pass block: `pass<on_error: #IGNORE> { body }`.
+ * Parse `pass` in primary or pipe-target position. Enters with the cursor on
+ * the `pass` keyword.
  *
- * Enters with current token being PASS_LANGLE (compound `pass<`).
- * Parses key:value pairs separated by commas until `>`, then parses
- * a block body. The options are synthesised into a DictNode so the
- * evaluator can use the standard dict evaluation path to read them.
+ * `pass { body }` and `pass(ignore_halts: true, async: true) { body }` are a
+ * PassBlock. A bare `pass` is the PassNode that returns the piped value. A
+ * `(` after `pass` opens options only when it starts with a `key:` entry or
+ * closes at a `)` followed on the same line by `{`; otherwise `pass(...)` stays
+ * a call to a host function of that name. The options type is checked when the
+ * block runs.
  */
-Parser.prototype.parsePassBlock = function (this: Parser): PassBlockNode {
-  const start = current(this.state).span.start;
-  advance(this.state); // consume pass<
-
-  const options = parseOptionDict(this, 'pass', ['on_error', 'async']);
-
-  if (options.entries.length === 0) {
-    throw new ParseError(
-      ERROR_IDS.RILL_P004,
-      "'pass<>' requires at least one option (use 'pass { body }' for the no-options form, 'pass<on_error: #IGNORE> { body }' for suppression, or 'pass<async: true> { body }' for async execution)",
-      options.span.start
-    );
-  }
-
-  for (const entry of options.entries) {
-    const head =
-      entry.value.type === 'PipeChain' ? entry.value.head : undefined;
-    if (head?.type !== 'PostfixExpr') continue;
-    const primary = head.primary;
-    if (entry.key === 'on_error') {
-      if (primary.type !== 'AtomLiteral' || primary.name !== 'IGNORE') {
-        throw new ParseError(
-          ERROR_IDS.RILL_P004,
-          "'on_error' option requires value '#IGNORE'",
-          primary.span.start
-        );
-      }
-    } else if (primary.type !== 'BoolLiteral') {
-      throw new ParseError(
-        ERROR_IDS.RILL_P004,
-        "'async' option requires a boolean literal ('true' or 'false')",
-        primary.span.start
-      );
-    }
-  }
-
-  skipNewlines(this.state);
+Parser.prototype.parsePassForm = function (
+  this: Parser
+): PassBlockNode | PassNode {
+  const opensOptions = atContextualOptions(this.state);
+  const token = advance(this.state); // consume `pass`
+  const options = opensOptions ? parseParenOptions(this, 'pass') : null;
 
   if (!check(this.state, TOKEN_TYPES.LBRACE)) {
-    throw new ParseError(
-      ERROR_IDS.RILL_P004,
-      "Expected '{ body }' after 'pass<...>'",
-      current(this.state).span.start
-    );
+    if (opensOptions) {
+      throw new ParseError(
+        ERROR_IDS.RILL_P004,
+        "Expected '{ body }' after 'pass(...)'",
+        current(this.state).span.start
+      );
+    }
+    return { type: 'Pass', span: token.span };
   }
 
   const body = this.parseBlock(true);
-
   return {
     type: 'PassBlock',
     options,
     body,
-    span: makeSpan(start, body.span.end),
+    span: makeSpan(token.span.start, body.span.end),
   } satisfies PassBlockNode;
 };

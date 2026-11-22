@@ -218,9 +218,8 @@ describe('Rill Language: -> Conversion Operator', () => {
       expect(isTuple(result) ? result.entries : result).toEqual(['1', '2']);
     });
 
-    it('converts dict fields and uniform values', async () => {
+    it('converts dict fields', async () => {
       expect(await run('dict[a: 1] -> dict(a: string)')).toEqual({ a: '1' });
-      expect(await run('dict[a: 1] -> dict(string)')).toEqual({ a: '1' });
     });
 
     it('converts ordered fields', async () => {

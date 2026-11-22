@@ -5,7 +5,7 @@
  * Loop syntax:
  *   while (cond) do { body }        - while loop (cond must be bool)
  *   do { body } while (cond)        - do-while (body first, then check)
- *   do<limit: N> { body } while (cond) - do-while with iteration limit
+ *   do(limit: N) { body } while (cond) - do-while with iteration limit
  *
  * For iteration over collections, use collection operators: each, map, filter, fold
  */
@@ -13,6 +13,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { parse, ParseError } from '@rcrsr/rill';
+import { expectHalt } from '../helpers/halt.js';
 import { findNode, run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Loops', () => {
@@ -267,7 +268,7 @@ describe('Rill Runtime: Loops', () => {
         const e = err as ParseError;
         expect(e.errorId).toBe('RILL-R081');
         expect(e.message).toContain(
-          'Migration error: use `do<limit: N> { body }`'
+          'Migration error: use `do(limit: N) { body }`'
         );
         expect(e.location?.line).toBe(1);
         expect(e.location?.column).toBe(8);
@@ -327,7 +328,7 @@ describe('Rill Runtime: Loops', () => {
   // ============================================================
 
   describe('AST Structure: WhileLoopNode [AC-NOD-1]', () => {
-    it('[AC-NOD-1] produces WhileLoopNode with PipeChain condition and no annotations', () => {
+    it('[AC-NOD-1] produces WhileLoopNode with PipeChain condition and no options', () => {
       const ast = parse('0 -> while ($ < 5) do { $ + 1 }');
       expect(ast.type).toBe('Script');
       // Walk to find the WhileLoop node
@@ -341,8 +342,8 @@ describe('Rill Runtime: Loops', () => {
       expect((whileNode!['condition'] as Record<string, unknown>)['type']).toBe(
         'PipeChain'
       );
-      // annotations are undefined when not specified
-      expect(whileNode!['annotations']).toBeUndefined();
+      // options are null when not specified
+      expect(whileNode!['options']).toBeNull();
     });
   });
 
@@ -372,27 +373,26 @@ describe('Rill Runtime: Loops', () => {
   // ============================================================
 
   describe('Limit Annotations [AC-NOD-3, AC-NOD-4]', () => {
-    it('[AC-NOD-3] while...do<limit: 100> allows up to 100 iterations', async () => {
+    it('[AC-NOD-3] while...do(limit: 100) allows up to 100 iterations', async () => {
       // limit: 100 overrides the default; loop runs to completion (50 iterations)
-      const result = await run('0 -> while ($ < 50) do<limit: 100> { $ + 1 }');
+      const result = await run('0 -> while ($ < 50) do(limit: 100) { $ + 1 }');
       expect(result).toBe(50);
     });
 
-    it('[AC-NOD-3] do<limit: 100>...while annotation is present on AST node', () => {
-      const ast = parse('while ($ < 50) do<limit: 100> { $ + 1 }');
+    it('[AC-NOD-3] do(limit: 100)...while option is present on AST node', () => {
+      const ast = parse('while ($ < 50) do(limit: 100) { $ + 1 }');
       const whileNode = findNode(ast, 'WhileLoop') as Record<
         string,
         unknown
       > | null;
       expect(whileNode).not.toBeNull();
-      const annotations = whileNode!['annotations'] as unknown[];
-      expect(Array.isArray(annotations)).toBe(true);
-      expect(annotations.length).toBeGreaterThan(0);
+      const options = whileNode!['options'] as { entries: unknown[] };
+      expect(options.entries).toHaveLength(1);
     });
 
-    it('[AC-NOD-4] do<limit: 50>...while applies limit verbatim at runtime', async () => {
+    it('[AC-NOD-4] do(limit: 50)...while applies limit verbatim at runtime', async () => {
       // limit: 50 allows exactly 50 iterations; loop to 50 from 0
-      const result = await run('0 -> do<limit: 50> { $ + 1 } while ($ < 50)');
+      const result = await run('0 -> do(limit: 50) { $ + 1 } while ($ < 50)');
       expect(result).toBe(50);
     });
   });
@@ -618,22 +618,20 @@ describe('Rill Runtime: Loops', () => {
   });
 
   // ============================================================
-  // AC-NOD-13: do<unknown: N> emits RILL-P004 row 7
+  // AC-NOD-13: do(unknown: N) emits RILL-P004 row 7
   // ============================================================
 
-  describe('Parse Error: unknown construct option [AC-NOD-13]', () => {
-    it('[AC-NOD-13] do<unknown: 1> { body } emits RILL-P004 with unknown substituted', () => {
-      try {
-        parse('do<unknown: 1> { $ + 1 } while ($ < 5)');
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        const e = err as ParseError;
-        expect(e.errorId).toBe('RILL-P004');
-        expect(e.message).toContain(
-          'Parse error: unknown option `unknown` for `do` construct (only `limit` accepted)'
-        );
-      }
+  describe('Unknown construct option [AC-NOD-13]', () => {
+    it('[AC-NOD-13] do(unknown: 1) { body } parses and halts #TYPE_MISMATCH when run', async () => {
+      expect(() =>
+        parse('do(unknown: 1) { $ + 1 } while ($ < 5)')
+      ).not.toThrow();
+      await expectHalt(
+        () => run('0 -> do(unknown: 1) { $ + 1 } while ($ < 5)'),
+        {
+          code: 'TYPE_MISMATCH',
+        }
+      );
     });
   });
 
@@ -642,31 +640,27 @@ describe('Rill Runtime: Loops', () => {
   // ============================================================
 
   describe('Parse Error: non-positive limit [AC-NOD-14]', () => {
-    it('[AC-NOD-14] do<limit: 0> { body } emits RILL-P004 with row-8 message', () => {
+    it('[AC-NOD-14] do(limit: 0) { body } emits RILL-P004 with row-8 message', () => {
       try {
-        parse('do<limit: 0> { $ + 1 } while ($ < 5)');
+        parse('do(limit: 0) { $ + 1 } while ($ < 5)');
         expect.fail('Should have thrown ParseError');
       } catch (err) {
         expect(err).toBeInstanceOf(ParseError);
         const e = err as ParseError;
         expect(e.errorId).toBe('RILL-P004');
-        expect(e.message).toContain(
-          'Validation error: `limit` must be a positive integer'
-        );
+        expect(e.message).toContain('must be a positive integer');
       }
     });
 
-    it('[AC-NOD-14] do<limit: -5> { body } emits RILL-P004 with row-8 message', () => {
+    it('[AC-NOD-14] do(limit: -5) { body } emits RILL-P004 with row-8 message', () => {
       try {
-        parse('do<limit: -5> { $ + 1 } while ($ < 5)');
+        parse('do(limit: -5) { $ + 1 } while ($ < 5)');
         expect.fail('Should have thrown ParseError');
       } catch (err) {
         expect(err).toBeInstanceOf(ParseError);
         const e = err as ParseError;
         expect(e.errorId).toBe('RILL-P004');
-        expect(e.message).toContain(
-          'Validation error: `limit` must be a positive integer'
-        );
+        expect(e.message).toContain('must be a positive integer');
       }
     });
   });
@@ -675,18 +669,16 @@ describe('Rill Runtime: Loops', () => {
   // AC-NOD-15: missing > in construct options emits RILL-P005 row 9
   // ============================================================
 
-  describe('Parse Error: missing > in construct options [AC-NOD-15]', () => {
-    it('[AC-NOD-15] do<limit: 100 { body } emits RILL-P005 with row-9 message', () => {
+  describe('Parse Error: missing ) in construct options [AC-NOD-15]', () => {
+    it('[AC-NOD-15] do(limit: 100 { body } emits RILL-P005 for the unclosed option list', () => {
       try {
-        parse('do<limit: 100 { $ + 1 } while ($ < 5)');
+        parse('do(limit: 100 { $ + 1 } while ($ < 5)');
         expect.fail('Should have thrown ParseError');
       } catch (err) {
         expect(err).toBeInstanceOf(ParseError);
         const e = err as ParseError;
         expect(e.errorId).toBe('RILL-P005');
-        expect(e.message).toContain(
-          'Parse error: expected `>` to close `do` construct options'
-        );
+        expect(e.message).toContain("Expected ')' to close 'do(...)'");
       }
     });
   });
@@ -714,38 +706,37 @@ describe('Rill Runtime: Loops', () => {
   });
 
   // ============================================================
-  // AC-NOD-17: do<limit: 1> succeeds (smallest positive integer)
+  // AC-NOD-17: do(limit: 1) succeeds (smallest positive integer)
   // ============================================================
 
   describe('Boundary: minimum valid limit [AC-NOD-17]', () => {
-    it('[AC-NOD-17] do<limit: 1> { body } while (false) succeeds', async () => {
+    it('[AC-NOD-17] do(limit: 1) { body } while (false) succeeds', async () => {
       // limit: 1 is the smallest positive integer; body runs once
-      const result = await run('0 -> do<limit: 1> { $ + 1 } while (false)');
+      const result = await run('0 -> do(limit: 1) { $ + 1 } while (false)');
       expect(result).toBe(1);
     });
   });
 
   // ============================================================
-  // AC-NOD-18: do<limit: 10000> applies verbatim, not the default
+  // AC-NOD-18: do(limit: 10000) applies verbatim, not the default
   // ============================================================
 
   describe('Boundary: limit equal to default [AC-NOD-18]', () => {
-    it('[AC-NOD-18] do<limit: 10000> annotation is present on the AST node', () => {
-      const ast = parse('do<limit: 10000> { $ + 1 } while ($ < 5)');
+    it('[AC-NOD-18] do(limit: 10000) option is present on the AST node', () => {
+      const ast = parse('do(limit: 10000) { $ + 1 } while ($ < 5)');
       const doWhileNode = findNode(ast, 'DoWhileLoop') as Record<
         string,
         unknown
       > | null;
       expect(doWhileNode).not.toBeNull();
-      // annotations are present (not undefined) — verbatim limit is stored
-      const annotations = doWhileNode!['annotations'] as unknown[];
-      expect(Array.isArray(annotations)).toBe(true);
-      expect(annotations.length).toBeGreaterThan(0);
+      // options are present (not null) — verbatim limit is stored
+      const options = doWhileNode!['options'] as { entries: unknown[] };
+      expect(options.entries).toHaveLength(1);
     });
 
-    it('[AC-NOD-18] do<limit: 10000> executes correctly at runtime', async () => {
+    it('[AC-NOD-18] do(limit: 10000) executes correctly at runtime', async () => {
       // Runs 5 iterations to reach 5; limit 10000 is applied verbatim
-      const result = await run('0 -> do<limit: 10000> { $ + 1 } while ($ < 5)');
+      const result = await run('0 -> do(limit: 10000) { $ + 1 } while ($ < 5)');
       expect(result).toBe(5);
     });
   });
@@ -863,8 +854,8 @@ describe('Rill Runtime: Loops', () => {
       expect(await run('0 -> while ($ < 3)\ndo\n{ $ + 1 }')).toBe(3);
     });
 
-    it('a newline between `do<limit: N>` and the body block is allowed', async () => {
-      expect(await run('0 -> while ($ < 3) do<limit: 10>\n{ $ + 1 }')).toBe(3);
+    it('a newline between `do(limit: N)` and the body block is allowed', async () => {
+      expect(await run('0 -> while ($ < 3) do(limit: 10)\n{ $ + 1 }')).toBe(3);
     });
 
     it('a newline between `do` and the do-while body block is allowed', async () => {

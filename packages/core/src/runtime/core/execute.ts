@@ -547,7 +547,7 @@ function getInnerStatement(
  * `undefined`, so the caller rethrows the raw `RuntimeHaltSignal`
  * unconverted. Several language-spec tests lock that contract (a type
  * assertion failure, the `#ok` sentinel, a filtered guard's non-matching
- * halt, `pass<on_error: #IGNORE>`) — converting these to `RuntimeError`
+ * halt, `pass(ignore_halts: true)`) — converting these to `RuntimeError`
  * would break them.
  */
 const HALT_ATOM_TO_ERROR_ID: Record<string, string> = {
@@ -584,7 +584,7 @@ const HALT_ATOM_TO_ERROR_ID: Record<string, string> = {
   RILL_R061: ERROR_IDS.RILL_R061,
   // builtins.ts collection-operator atoms.
   RILL_R040: ERROR_IDS.RILL_R040,
-  // timeout<total:> and timeout<idle:> catchable halt codes.
+  // timeout(total) and timeout(idle) catchable halt codes.
   RILL_R082: ERROR_IDS.RILL_R082,
   RILL_R083: ERROR_IDS.RILL_R083,
   // createRuntimeContext({ timeout }) host-level execution timeout.

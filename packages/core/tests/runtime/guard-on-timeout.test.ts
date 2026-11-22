@@ -1,7 +1,7 @@
 /**
- * `guard<on: ...>` filtering of timeout halts.
+ * `guard(on: ...)` filtering of timeout halts.
  *
- * `timeout<total:>` expires with RILL-R082. A guard whose `on:` list omits
+ * `timeout(total:)` expires with RILL-R082. A guard whose `on:` list omits
  * that code must re-raise the halt; a bare outer guard then recovers it.
  * Uses an injected scheduler whose timers fire after a few milliseconds. The
  * rejection is issued before the body resolves, so the outcome does not
@@ -58,24 +58,24 @@ function expiringOptions(): {
   return { functions: { wait: makeWaitForExpiry(expired) }, scheduler };
 }
 
-const TIMEOUT = 'timeout<total: duration("1d")> { wait() }';
+const TIMEOUT = 'timeout(total: duration("1d")) { wait() }';
 
-describe('guard<on:> around a timeout', () => {
+describe('guard(on:) around a timeout', () => {
   it('re-raises the timeout halt when the filter omits its code', async () => {
     await expectHalt(
       () =>
-        run(`guard<on: list[#RILL_R083]> { ${TIMEOUT} }`, expiringOptions()),
+        run(`guard(on: list[#RILL_R083]) { ${TIMEOUT} }`, expiringOptions()),
       { code: 'RILL_R082' }
     );
   });
 
   it('lets an outer bare guard recover the re-raised timeout halt', async () => {
-    const source = `guard { guard<on: list[#RILL_R083]> { ${TIMEOUT} } } => $r\n($r.!code == #RILL_R082)`;
+    const source = `guard { guard(on: list[#RILL_R083]) { ${TIMEOUT} } } => $r\n($r.!code == #RILL_R082)`;
     expect(await run(source, expiringOptions())).toBe(true);
   });
 
   it('recovers the timeout halt when the filter lists its code', async () => {
-    const source = `guard<on: list[#RILL_R082]> { ${TIMEOUT} } => $r\n($r.!code == #RILL_R082)`;
+    const source = `guard(on: list[#RILL_R082]) { ${TIMEOUT} } => $r\n($r.!code == #RILL_R082)`;
     expect(await run(source, expiringOptions())).toBe(true);
   });
 });
@@ -83,20 +83,20 @@ describe('guard<on:> around a timeout', () => {
 describe('timeout expiry messages', () => {
   it('renders the total-limit registry template', async () => {
     await expectHalt(
-      () => run('timeout<total: duration("1d")> { wait() }', expiringOptions()),
+      () => run('timeout(total: duration("1d")) { wait() }', expiringOptions()),
       {
         code: 'RILL_R082',
-        messagePattern: /^timeout<total:> exceeded after 86400000ms/,
+        messagePattern: /^timeout\(total\) exceeded after 86400000ms/,
       }
     );
   });
 
   it('renders the idle-limit registry template', async () => {
     await expectHalt(
-      () => run('timeout<idle: duration("1d")> { wait() }', expiringOptions()),
+      () => run('timeout(idle: duration("1d")) { wait() }', expiringOptions()),
       {
         code: 'RILL_R083',
-        messagePattern: /^timeout<idle:> exceeded: no activity for 86400000ms/,
+        messagePattern: /^timeout\(idle\) exceeded: no activity for 86400000ms/,
       }
     );
   });

@@ -759,21 +759,21 @@ Retry a failing operation up to N times, then coerce the result to a default:
 ```text
 use<ext:app> => $app
 
-retry<limit: 3> {
+retry(attempts: 3) {
   $app.fetch("https://api.example.com/data")
 } => $result
 
 $result.! ? "unavailable" ! $result
 ```
 
-`retry<limit: 3>` re-enters the body up to 3 times. If all attempts fail, the final invalid value is returned. The `??` operator replaces it with a safe default.
+`retry(attempts: 3)` re-enters the body up to 3 times. If all attempts fail, the final invalid value is returned. The `??` operator replaces it with a safe default.
 
 Combine with `??` for a one-liner fallback:
 
 ```text
 use<ext:app> => $app
 
-retry<limit: 3> { $app.fetch("https://api.example.com/data") } ?? "unavailable"
+retry(attempts: 3) { $app.fetch("https://api.example.com/data") } ?? "unavailable"
 ```
 
 ### Nested Guard and Retry
@@ -783,8 +783,8 @@ Wrap an inner `guard` with an outer retry to re-execute on partial failure:
 ```text
 use<ext:app> => $app
 
-retry<limit: 3, on: #UNAVAILABLE> {
-  guard<on: #NOT_FOUND> {
+retry(attempts: 3, on: #UNAVAILABLE) {
+  guard(on: #NOT_FOUND) {
     $app.fetch("https://api.example.com/resource")
   } => $inner
   $inner.! ? (error "not found") ! $inner
@@ -793,7 +793,7 @@ retry<limit: 3, on: #UNAVAILABLE> {
 $result.! ? "all retries failed: {$result.!message}" ! $result
 ```
 
-`guard<on: #NOT_FOUND>` catches only `#NOT_FOUND` halts and surfaces them as values. The inline `error` re-escalates them as non-catchable halts. `retry<limit: 3, on: #UNAVAILABLE>` retries only on service unavailability.
+`guard(on: #NOT_FOUND)` catches only `#NOT_FOUND` halts and surfaces them as values. The inline `error` re-escalates them as non-catchable halts. `retry(attempts: 3, on: #UNAVAILABLE)` retries only on service unavailability. Options written as `retry<limit: 3>` halt with RILL-P025; write them in parentheses.
 
 ### Per-Item Collection Recovery
 
@@ -950,20 +950,20 @@ range(1, 20) -> start_when(fn(x) { $x >= 5 }) -> stop_when(fn(x) { $x >= 10 })
 
 ### Non-Halting Audit Logging
 
-Use `pass<on_error: #IGNORE>` to log a side effect without risking a halt that breaks the pipe:
+Use `pass(ignore_halts: true)` to log a side effect without risking a halt that breaks the pipe:
 
 ```rill
-5 -> pass<on_error: #IGNORE> { log($) }
+5 -> pass(ignore_halts: true) { log($) }
 # Result: 5
 ```
 
-The pipe value `5` flows through unchanged. `log($)` executes as a side effect. If `log` raises a catchable halt, `on_error: #IGNORE` suppresses it and the pipe continues.
+The pipe value `5` flows through unchanged. `log($)` executes as a side effect. If `log` raises a catchable halt, `ignore_halts: true` suppresses it and the pipe continues.
 
 This pattern is useful when audit or observability calls must not interrupt the main pipeline:
 
 ```rill
 range(1, 4) -> seq({
-  $ -> pass<on_error: #IGNORE> { log($) }
+  $ -> pass(ignore_halts: true) { log($) }
 })
 # Result: list[1, 2, 3]
 ```
@@ -980,7 +980,7 @@ The function advances the Fibonacci pair at each step; `seq` extracts `$.a` from
 ### Timeout Recovery via `??`
 ```text
 use<ext:app> => $app
-guard { timeout<total: duration("500ms")> { $app.fetch("https://api.example.com") } } ?? "cached"
+guard { timeout(total: duration("500ms")) { $app.fetch("https://api.example.com") } } ?? "cached"
 ```
 Expiry emits `#RILL_R082`. `guard` catches the halt; `??` replaces it with the fallback.
 ### Debounce, Throttle, and Sample
@@ -996,7 +996,7 @@ All three are stream-only; passing a list halts with `#INVALID_INPUT`. Under syn
 - [Examples](guide-examples.md) — Language feature demonstrations
 - [Reference](ref-language.md) — Complete language specification
 - [Collections](topic-collections.md) — `seq`, `fan`, `filter`, `fold`, `acc` details
-- [Collection Slicing](topic-collection-slicing.md) — `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `pass<>` details
+- [Collection Slicing](topic-collection-slicing.md) — `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `pass` details
 - [Functions and Code Blocks](topic-closures.md) — Function patterns and binding
 - [Host Integration](integration-host.md) — Embedding API
 - [Error Handling](topic-error-handling.md) — guard, retry, status probes

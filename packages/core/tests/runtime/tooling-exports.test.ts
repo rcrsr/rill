@@ -91,9 +91,13 @@ describe('Tooling Exports', () => {
       expect(BUILTIN_ATOMS).not.toContain('RILL_R004');
     });
 
-    it('has 52 entries', () => {
+    it('lists no IGNORE atom', () => {
+      expect(BUILTIN_ATOMS).not.toContain('IGNORE');
+    });
+
+    it('has 51 entries', () => {
       expect(Object.isFrozen(BUILTIN_ATOMS)).toBe(true);
-      expect(BUILTIN_ATOMS).toHaveLength(52);
+      expect(BUILTIN_ATOMS).toHaveLength(51);
     });
 
     it('resolves each builtin name to one shared atom reference', () => {
@@ -112,14 +116,13 @@ describe('Tooling Exports', () => {
       expect(Object.isFrozen(ERROR_CODES)).toBe(true);
     });
 
-    it('excludes ok and IGNORE', () => {
+    it('excludes ok', () => {
       expect(ERROR_CODES).not.toContain('ok');
-      expect(ERROR_CODES).not.toContain('IGNORE');
     });
 
-    it('equals the builtin atom list minus ok and IGNORE', () => {
+    it('equals the builtin atom list minus ok', () => {
       expect([...ERROR_CODES]).toEqual(
-        BUILTIN_ATOMS.filter((name) => name !== 'ok' && name !== 'IGNORE')
+        BUILTIN_ATOMS.filter((name) => name !== 'ok')
       );
     });
   });

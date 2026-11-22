@@ -198,7 +198,7 @@ export function checkAutoExceptions(
 
 /**
  * Timer functions used when the context has no injected scheduler. Per-call
- * timeouts and `timeout<>` blocks both fall back to it.
+ * timeouts and `timeout(...)` blocks both fall back to it.
  */
 export const defaultScheduler: TimeoutScheduler = {
   setTimeout(fn, ms) {
@@ -222,7 +222,7 @@ export const defaultScheduler: TimeoutScheduler = {
  * timeout the same way they recover any other operational halt.
  *
  * The timer runs on the context's injected scheduler when one is set, as
- * `timeout<>` blocks do, and on `defaultScheduler` otherwise.
+ * `timeout(...)` blocks do, and on `defaultScheduler` otherwise.
  */
 export function withTimeout<T>(
   s: EvalState,

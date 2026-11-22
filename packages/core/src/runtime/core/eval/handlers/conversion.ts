@@ -86,7 +86,7 @@ import { structureMatches, formatStructure } from '../../types/operations.js';
  * Convert a value to a resolved type target. The single conversion path for
  * `-> type(...)` and `-> $var` when `$var` holds a type value.
  *
- * - dict/ordered with explicit `fields` (and no `valueType`), tuple with
+ * - dict/ordered with explicit `fields`, tuple with
  *   explicit `elements`:
  *   structural conversion (assert inner, fill defaults, drop extras)
  * - Every other type: convert by type name, then assert the structure
@@ -165,16 +165,10 @@ function convertPart(
   if (structure.kind === 'any') {
     return value;
   }
-  if (isStructureKind(structure, 'dict') && structure.valueType === undefined) {
-    if (structure.fields !== undefined) {
-      return convertToDictWithSig(s, value, structure.fields, node, part);
-    }
+  if (isStructureKind(structure, 'dict') && structure.fields !== undefined) {
+    return convertToDictWithSig(s, value, structure.fields, node, part);
   }
-  if (
-    isStructureKind(structure, 'ordered') &&
-    structure.valueType === undefined &&
-    structure.fields !== undefined
-  ) {
+  if (isStructureKind(structure, 'ordered') && structure.fields !== undefined) {
     return convertToOrderedWithSig(s, value, structure.fields, node, part);
   }
   if (isStructureKind(structure, 'tuple') && structure.elements !== undefined) {
@@ -188,35 +182,6 @@ function convertPart(
     const elementType = structure.element;
     return outer.map((item, i) =>
       convertPart(s, item, elementType, node, `element ${i}`)
-    );
-  }
-  if (isStructureKind(structure, 'dict') && structure.valueType) {
-    const outer = applyConversion(s, value, 'dict', node, part);
-    if (!isPlainDict(outer)) {
-      return outer;
-    }
-    const valueType = structure.valueType;
-    const result: Record<string, RillValue> = {};
-    for (const { key, value: item } of orderedDictEntries(outer)) {
-      setDictField(
-        result,
-        key,
-        convertPart(s, item, valueType, node, `field '${key}'`)
-      );
-    }
-    return result;
-  }
-  if (isStructureKind(structure, 'ordered') && structure.valueType) {
-    const outer = applyConversion(s, value, 'ordered', node, part);
-    if (!isOrdered(outer)) {
-      return outer;
-    }
-    const valueType = structure.valueType;
-    return createOrdered(
-      outer.entries.map(([key, item]): [string, RillValue] => [
-        key,
-        convertPart(s, item, valueType, node, `field '${key}'`),
-      ])
     );
   }
   if (isStructureKind(structure, 'map')) {

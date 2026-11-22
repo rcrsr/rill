@@ -83,11 +83,11 @@ describe('break inside sort key extractor halts as a coded RuntimeError', () => 
 
 describe('break inside a retry body halts as a coded RuntimeError', () => {
   it('rejects a break inside the retry body', async () => {
-    await expectRejectedBreak('retry<limit: 3> { 1 -> break }');
+    await expectRejectedBreak('retry(attempts: 3) { 1 -> break }');
   });
 
   it('a guard wrapping retry does not swallow the halt', async () => {
-    await expectRejectedBreak('guard { retry<limit: 3> { 1 -> break } }');
+    await expectRejectedBreak('guard { retry(attempts: 3) { 1 -> break } }');
   });
 });
 
@@ -120,7 +120,7 @@ describe('regression: seq and while still consume their OWN break unchanged', ()
 
   it('seq wrapping a retry body still consumes a break that passes through retry', async () => {
     const result = await run(
-      'list[1,2,3,4,5] -> seq({ retry<limit:3> { ($==3) ? break ! $ } })'
+      'list[1,2,3,4,5] -> seq({ retry(attempts:3) { ($==3) ? break ! $ } })'
     );
     expect(result).toEqual([1, 2]);
   });

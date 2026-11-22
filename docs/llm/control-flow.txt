@@ -31,9 +31,9 @@ Post-condition (`do ... while`, body runs at least once):
 
     init -> do { $ + 1 } while ($ < 10)
 
-Iteration limit (default 10,000):
+Iteration limit (default 10,000). `limit` is a written positive integer literal; a variable or any spread is `RILL-P004`; the old `do<limit: N>` form is `RILL-P025`:
 
-    0 -> while ($ < 50) do<limit: 100> { $ + 1 }
+    0 -> while ($ < 50) do(limit: 100) { $ + 1 }
     $items -> fan({ slow($) }, dict[concurrency: 3])
 
 Invalid annotation keys produce a runtime error.
@@ -79,7 +79,7 @@ Invalid annotation keys produce a runtime error.
 | Suppress rapid stream emissions | `-> debounce(duration)` |
 | Limit to one per interval | `-> throttle(duration)` |
 | Latest at fixed interval | `-> sample(duration)` |
-| Bound body by wall-time and/or inactivity limit | `timeout<total: d, idle: d> { body }` |
+| Bound body by wall-time and/or inactivity limit | `timeout(total: d, idle: d) { body }` |
 
 | Operator | Execution | Returns | Catches `break`? |
 |---|---|---|---|
@@ -175,7 +175,7 @@ Example:
     list[1, 2, 5, 3, 4] -> start_when({ $ > 3 })   # stream[5, 3, 4]
     list[1, 2, 5, 3, 4] -> stop_when({ $ > 3 })    # stream[1, 2, 5]
 
-## `timeout<>` blocks
+## `timeout` blocks
 
 Bound a body to a time limit. On expiry, the block produces an invalid value carrying a timeout atom.
 
@@ -184,34 +184,34 @@ Bound a body to a time limit. On expiry, the block produces an invalid value car
 | `total: duration` | `#RILL_R082` | Wall-time from block entry |
 | `idle: duration` | `#RILL_R083` | Inactivity: no stream chunk or host call return within duration; restarts every enclosing idle limit |
 
-Either, both, or neither option may appear. With both, the first limit to fire ends the body and the halt carries that limit's atom. `timeout<>` with neither arms nothing (checker rule `TIMEOUT_TRIVIAL`). The duration must be a `duration` value with no months part and at most 2147483647 ms (about 24.8 days); anything else halts with `#INVALID_INPUT`.
+Either, both, or neither option may appear. With both, the first limit to fire ends the body and the halt carries that limit's atom. `timeout()` with neither arms nothing (checker rule `TIMEOUT_TRIVIAL`). A non-duration value or an unknown option halts `#TYPE_MISMATCH`. A duration with a months part, or one over 2147483647 ms (about 24.8 days), halts `#INVALID_INPUT`. The old `timeout<total: d>` form is `RILL-P025`.
 
 Expiry produces a catchable halt. See the errors fragment for `guard` and `??` recovery.
 
 ## `pass` body forms
 
-`pass` runs a side-effect block and returns the pipe value unchanged. The body form has two surfaces: with and without `<...>` options. Suppression of catchable halts requires `on_error: #IGNORE` explicitly; a bare `pass { body }` does NOT suppress halts.
+`pass` runs a side-effect block and returns the pipe value unchanged. The body form has two surfaces: with and without `(...)` options. Suppression of catchable halts requires `ignore_halts: true` explicitly; a bare `pass { body }` does NOT suppress halts.
 
-Note: `pass<>` (empty angle brackets) is a parse error (RILL-P004). Always use `pass { body }` or `pass<on_error: #IGNORE> { body }`.
+Note: the old angle-bracket form `pass<on_error: #IGNORE>` is a parse error (RILL-P025). Empty `pass()` is legal and equals `pass { body }`. An unknown option or a non-bool value halts `#TYPE_MISMATCH`.
 
 | Form | Purpose |
 |---|---|
 | `pass` | References current piped value `$`; halts #RILL_R005 if unbound |
 | `pass { body }` | Runs body for side effects; pipe value unchanged; does NOT suppress catchable halts |
-| `pass<on_error: #IGNORE> { body }` | Runs body for side effects; pipe value unchanged; suppresses catchable halts in body |
-| `pass<async: true> { body }` | Fire-and-forget; body dispatched without blocking; pipe value returned immediately |
-| `pass<async: true, on_error: #IGNORE> { body }` | Fire-and-forget; body halt suppressed |
+| `pass(ignore_halts: true) { body }` | Runs body for side effects; pipe value unchanged; suppresses catchable halts in body |
+| `pass(async: true) { body }` | Fire-and-forget; body dispatched without blocking; pipe value returned immediately |
+| `pass(async: true, ignore_halts: true) { body }` | Fire-and-forget; body halt suppressed |
 
-`on_error: #IGNORE` suppresses catchable halts inside the body. Non-catchable halts (for example `error` and `assert`) and `ControlSignal` (`break`, `return`) still propagate.
+`ignore_halts: true` suppresses catchable halts inside the body. Non-catchable halts (for example `error` and `assert`) and `ControlSignal` (`break`, `return`) still propagate.
 
-`pass<async: true>` bodies may complete after downstream operators run. Scripts must not depend on body completion order relative to downstream execution.
+`pass(async: true)` bodies may complete after downstream operators run. Scripts must not depend on body completion order relative to downstream execution.
 
 Example:
 
     5 -> pass { log($) }                                          # logs 5, yields 5
-    5 -> pass<on_error: #IGNORE> { log($) }                      # logs 5, yields 5; body halts suppressed
-    "data" -> pass<on_error: #IGNORE> { audit($) } -> .upper     # "DATA"
-    42 -> pass<async: true, on_error: #IGNORE> { $app.log($) }   # fire-and-forget; yields 42
+    5 -> pass(ignore_halts: true) { log($) }                      # logs 5, yields 5; body halts suppressed
+    "data" -> pass(ignore_halts: true) { audit($) } -> .upper     # "DATA"
+    42 -> pass(async: true, ignore_halts: true) { $app.log($) }   # fire-and-forget; yields 42
 
 Do NOT use `pass { body }` when you need the body result — the body result is always discarded.
 

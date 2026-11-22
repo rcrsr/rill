@@ -99,13 +99,13 @@ const BODY_PAIRS: readonly BodyPair[] = [
   },
   {
     name: 'while loop limit',
-    base: '0 -> while ($ < 3) do<limit: 5> { $ + 1 }',
-    variant: '0 -> while ($ < 3) do<limit: 9> { $ + 1 }',
+    base: '0 -> while ($ < 3) do(limit: 5) { $ + 1 }',
+    variant: '0 -> while ($ < 3) do(limit: 9) { $ + 1 }',
   },
   {
     name: 'do-while loop limit',
-    base: '0 -> do<limit: 5> { $ + 1 } while ($ < 3)',
-    variant: '0 -> do<limit: 9> { $ + 1 } while ($ < 3)',
+    base: '0 -> do(limit: 5) { $ + 1 } while ($ < 3)',
+    variant: '0 -> do(limit: 9) { $ + 1 } while ($ < 3)',
   },
   { name: 'type assertion', base: '$x -> :number', variant: '$x -> :string' },
   { name: 'type check', base: '$x -> :?number', variant: '$x -> :?string' },
@@ -116,13 +116,13 @@ const BODY_PAIRS: readonly BodyPair[] = [
   },
   {
     name: 'retry block',
-    base: 'retry<limit: 2> { $x }',
-    variant: 'retry<limit: 3> { $x }',
+    base: 'retry(attempts: 2) { $x }',
+    variant: 'retry(attempts: 3) { $x }',
   },
   {
     name: 'timeout block',
-    base: 'timeout<total: duration("500ms")> { $x }',
-    variant: 'timeout<total: duration("600ms")> { $x }',
+    base: 'timeout(total: duration("500ms")) { $x }',
+    variant: 'timeout(total: duration("600ms")) { $x }',
   },
   { name: 'atom literal', base: '#RILL_R001', variant: '#RILL_R002' },
   { name: 'status probe', base: '$x.!code', variant: '$x.!message' },
@@ -140,8 +140,8 @@ const BODY_PAIRS: readonly BodyPair[] = [
   { name: 'use expression', base: 'use<ext:a>', variant: 'use<ext:b>' },
   {
     name: 'pass block',
-    base: '$x -> pass<on_error: #IGNORE> { 1 }',
-    variant: '$x -> pass<on_error: #IGNORE> { 2 }',
+    base: '$x -> pass(ignore_halts: true) { 1 }',
+    variant: '$x -> pass(ignore_halts: true) { 2 }',
   },
   {
     name: 'nested fn param annotation',

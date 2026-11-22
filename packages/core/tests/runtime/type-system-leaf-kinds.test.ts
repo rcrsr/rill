@@ -10,7 +10,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { createRuntimeContext, execute, parse } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('structureEquals leaf kinds (#280)', () => {
   it('list[now(), now()] no longer halts and has length 2', async () => {
@@ -74,21 +76,17 @@ describe('structureMatches / reflection for atom and iterator (#282)', () => {
   });
 });
 
-describe('dict(T) rejects branded non-dict values (#283)', () => {
-  it('now() :? dict(any) is false', async () => {
-    expect(await run('(now() :? dict(any))')).toBe(false);
-  });
-
-  it('now() :? dict is false (consistent)', async () => {
+describe('dict rejects branded non-dict values (#283)', () => {
+  it('now() :? dict is false', async () => {
     expect(await run('(now() :? dict)')).toBe(false);
   });
 
-  it('#TIMEOUT :? dict(any) is false', async () => {
-    expect(await run('(#TIMEOUT :? dict(any))')).toBe(false);
+  it('#TIMEOUT :? dict is false', async () => {
+    expect(await run('(#TIMEOUT :? dict)')).toBe(false);
   });
 
-  it('a real dict still matches dict(any)', async () => {
-    expect(await run('(dict[a: 1] :? dict(any))')).toBe(true);
+  it('a real dict still matches dict', async () => {
+    expect(await run('(dict[a: 1] :? dict)')).toBe(true);
   });
 
   it('a real dict still matches a keyed dict shape', async () => {
@@ -108,4 +106,26 @@ describe('TypeNameExpr maps branded kinds (#285)', () => {
   it('#TIMEOUT.^type == atom is true', async () => {
     expect(await run('(#TIMEOUT.^type == atom)')).toBe(true);
   });
+});
+
+describe('hand-built dict and ordered type constructors', () => {
+  it.each(['dict', 'ordered'])(
+    'halts #INVALID_INPUT when %s carries a positional argument',
+    async (name) => {
+      const ast = parse(`${name}(a: number)`);
+      const stmt = ast.statements[0];
+      if (stmt?.type !== 'Statement') throw new Error('expected a statement');
+      const primary = stmt.expression.head;
+      if (primary.type !== 'PostfixExpr') throw new Error('expected postfix');
+      const node = primary.primary;
+      if (node.type !== 'TypeConstructor') throw new Error('expected type');
+      const arg = node.args[0];
+      if (arg === undefined) throw new Error('expected an argument');
+      Object.assign(arg, { name: undefined });
+      await expectHalt(() => execute(ast, createRuntimeContext()), {
+        code: 'INVALID_INPUT',
+        messagePattern: 'map(string, V)',
+      });
+    }
+  );
 });

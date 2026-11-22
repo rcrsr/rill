@@ -451,7 +451,7 @@ args: operation: string
 use<ext:app> => $app
 
 # Do-while: body runs first, then condition checked
-do<limit: 5> {
+do(limit: 5) {
   """
 Perform: {$operation}
 
@@ -464,6 +464,8 @@ $result -> .contains("SUCCESS") ? [code: 0, msg: "Succeeded"] ! dict[code: 1, ms
 ```
 
 The do-while form eliminates the separate first-attempt code since the body always executes at least once.
+
+The iteration cap is written `do(limit: 5)`.
 
 ## Inline Capture Pattern
 

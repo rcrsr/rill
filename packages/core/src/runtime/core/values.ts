@@ -215,17 +215,14 @@ export function structureToTypeValue(type: TypeStructure): RillTypeValue {
 /**
  * Decide whether an omitted member of this type is seeded with an empty
  * collection. A type counts only when it names fields or positions (dict or
- * ordered with `fields`, tuple with `elements`); the legacy uniform dict or
- * ordered `valueType` form also counts until it is removed, and its seed
- * hydrates to an empty collection with no check. Map, list, and every other
+ * ordered with `fields`, tuple with `elements`). Map, list, and every other
  * kind never count, so an omitted member of those types halts RILL-R044. This
  * only decides whether to seed; hydrating the seed halts RILL-R044 when a
  * child lacks a default.
  */
 export function hasCollectionFields(type: TypeStructure): boolean {
-  if (isStructureKind(type, 'dict')) return !!type.fields || !!type.valueType;
-  if (isStructureKind(type, 'ordered')) {
-    return !!type.fields || !!type.valueType;
+  if (isStructureKind(type, 'dict') || isStructureKind(type, 'ordered')) {
+    return !!type.fields;
   }
   if (isStructureKind(type, 'tuple')) {
     return !!type.elements;

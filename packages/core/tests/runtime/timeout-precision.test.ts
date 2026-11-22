@@ -1,7 +1,7 @@
 /**
  * Rill Runtime Tests: Timeout Precision
  *
- * timeout<total: duration(...)> hands the scheduler exactly the requested
+ * timeout(total: duration(...)) hands the scheduler exactly the requested
  * millisecond count, leaves the body running until the timer fires, and then
  * guard sees RILL-R082. The scheduler is injected, so no real timer runs and
  * the test cannot flake under load.
@@ -63,7 +63,7 @@ async function flushMicrotasks(): Promise<void> {
   for (let i = 0; i < 10; i++) await Promise.resolve();
 }
 
-describe('timeout<total:> scheduling', () => {
+describe('timeout(total:) scheduling', () => {
   it.each([100, 1, 2500])(
     'schedules exactly %i ms, keeps the body pending, then guard sees RILL-R082',
     async (ms) => {
@@ -75,7 +75,7 @@ describe('timeout<total:> scheduling', () => {
       let settled = false;
 
       const pending = run(
-        `guard { timeout<total: duration("${ms}ms")> { precision_body() } } => $r\n($r.!code == #RILL_R082)`,
+        `guard { timeout(total: duration("${ms}ms")) { precision_body() } } => $r\n($r.!code == #RILL_R082)`,
         {
           functions: {
             precision_body: makeAbortAwareBody(() => markStarted()),

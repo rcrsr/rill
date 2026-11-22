@@ -81,10 +81,6 @@ export const TOKEN_TYPES = {
   SLICE_LANGLE: 'SLICE_LANGLE', // slice<
   USE_LANGLE: 'USE_LANGLE', // use<
   GUARD_LBRACE: 'GUARD_LBRACE', // guard{
-  RETRY_LANGLE: 'RETRY_LANGLE', // retry<
-  DO_LANGLE: 'DO_LANGLE', // do<
-  PASS_LANGLE: 'PASS_LANGLE', // pass<
-  TIMEOUT_LANGLE: 'TIMEOUT_LANGLE', // timeout<
 
   // Keywords
   BREAK: 'BREAK',

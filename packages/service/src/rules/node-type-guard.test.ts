@@ -74,8 +74,8 @@ list[1, 2] -> fold(0, { $@ + $ }) => $sum
 0 -> while ($ < 3) do { $ + 1 }
 0 -> do { $ + 1 } while ($ < 3)
 guard { $app.fetch("u") } => $g
-retry<limit: 2> { $app.fetch("u") } => $t
-timeout<> { $app.fetch("u") } => $to
+retry(attempts: 2) { $app.fetch("u") } => $t
+timeout() { $app.fetch("u") } => $to
 $g.! ? "bad" ! "ok"
 #SOME_ATOM
 `;

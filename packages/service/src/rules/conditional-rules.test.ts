@@ -221,7 +221,7 @@ describe('GUARD_OVER_TRY_CATCH', () => {
       code: 'GUARD_OVER_TRY_CATCH',
       severity: 'info',
       message:
-        'Branching on .! is manual try/catch. Wrap the fallible call in guard<on: list[#X]> { ... }.',
+        'Branching on .! is manual try/catch. Wrap the fallible call in guard(on: #X) { ... }.',
       fix: null,
     });
   });

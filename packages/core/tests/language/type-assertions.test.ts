@@ -392,15 +392,6 @@ describe('Rill Runtime: Type Assertions', () => {
       );
     });
 
-    it('EC-5: dict(string) annotation (positional) resolves as uniform dict type', async () => {
-      // Single positional arg now produces uniform dict type { kind: 'dict', valueType: { kind: 'string' } }
-      // "x" is not a dict, so assertType raises a type mismatch
-      await expectHaltMessage(
-        () => run('"x" :dict(string)'),
-        'Type assertion failed'
-      );
-    });
-
     it('EC-6: tuple(x: string) annotation (named) halts with "requires positional arguments"', async () => {
       await expectHaltMessage(
         () => run('"x" :tuple(x: string)'),

@@ -1,18 +1,18 @@
 /**
- * Runtime test: pass<async: true> body halts surface at dispose() time.
+ * Runtime test: pass(async: true) body halts surface at dispose() time.
  *
- * A fire-and-forget `pass<async: true>` body is not awaited by any caller,
+ * A fire-and-forget `pass(async: true)` body is not awaited by any caller,
  * so a halt it throws was previously swallowed by trackInflight and the
  * Promise.allSettled in performDispose. Per docs/topic-collection-slicing.md
- * ("Without on_error: #IGNORE, a catchable halt in the async body surfaces
+ * ("Without `ignore_halts: true`, a catchable halt in the async body surfaces
  * at disposal time"), such a halt must now be observable at dispose().
  *
  * Surfacing is via the log callbacks (onLog / onLogEvent), consistent with
  * the existing dispose-timeout warning path. dispose() still resolves.
  *
  * Cases:
- * 1. Catchable halt without on_error: #IGNORE  -> surfaces at dispose().
- * 2. Catchable halt with on_error: #IGNORE      -> SUPPRESSED, no surface.
+ * 1. Catchable halt without ignore_halts: true -> surfaces at dispose().
+ * 2. Catchable halt with ignore_halts: true    -> SUPPRESSED, no surface.
  * 3. Non-catchable error/assert halt            -> never swallowed; surfaces.
  * 4. Clean async body                           -> nothing surfaced.
  * 5. Structured onLogEvent path                 -> receives async_body_halt.
@@ -61,27 +61,27 @@ async function runAndDispose(
   return captured;
 }
 
-describe('pass<async: true> body halt surfaces at dispose()', () => {
-  it('surfaces a catchable halt (no on_error: #IGNORE) via onLog', async () => {
+describe('pass(async: true) body halt surfaces at dispose()', () => {
+  it('surfaces a catchable halt (no ignore_halts: true) via onLog', async () => {
     // 1 / 0 is a catchable runtime halt. Fire-and-forget, nobody awaits it.
-    const logs = await runAndDispose('"x" -> pass<async: true> { 1 / 0 }');
+    const logs = await runAndDispose('"x" -> pass(async: true) { 1 / 0 }');
     expect(logs.messages.length).toBeGreaterThan(0);
     expect(
-      logs.messages.some((m) => m.includes('pass<async> body halted'))
+      logs.messages.some((m) => m.includes('pass(async) body halted'))
     ).toBe(true);
   });
 
-  it('SUPPRESSES a catchable halt when on_error: #IGNORE is set', async () => {
+  it('SUPPRESSES a catchable halt when ignore_halts: true is set', async () => {
     // The documented compose case: async + suppress. The halt must NOT surface.
     const logs = await runAndDispose(
-      '"data" -> pass<async: true, on_error: #IGNORE> { 1 / 0 }'
+      '"data" -> pass(async: true, ignore_halts: true) { 1 / 0 }'
     );
     expect(logs.messages).toEqual([]);
   });
 
   it('never swallows a non-catchable error halt; surfaces its message', async () => {
     // `error` produces a non-catchable halt. It must never be swallowed.
-    const logs = await runAndDispose('pass<async: true> { error "boom" }');
+    const logs = await runAndDispose('pass(async: true) { error "boom" }');
     expect(logs.messages.length).toBeGreaterThan(0);
     // The surfaced description carries the original halt message.
     expect(logs.messages.some((m) => m.includes('boom'))).toBe(true);
@@ -89,7 +89,7 @@ describe('pass<async: true> body halt surfaces at dispose()', () => {
 
   it('surfaces nothing for a clean async body', async () => {
     const logs = await runAndDispose(
-      '"ok" -> pass<async: true> { $ -> .upper }'
+      '"ok" -> pass(async: true) { $ -> .upper }'
     );
     expect(logs.messages).toEqual([]);
     expect(logs.events).toEqual([]);
@@ -97,7 +97,7 @@ describe('pass<async: true> body halt surfaces at dispose()', () => {
 
   it('prefers the structured onLogEvent channel when installed', async () => {
     const logs = await runAndDispose(
-      '"x" -> pass<async: true> { 1 / 0 }',
+      '"x" -> pass(async: true) { 1 / 0 }',
       /* withEvent */ true
     );
     // Structured path wins: onLogEvent receives the event, onLog is not used.
@@ -111,7 +111,7 @@ describe('pass<async: true> body halt surfaces at dispose()', () => {
 
   it('dispose() still resolves despite a surfaced halt', async () => {
     const ctx = createRuntimeContext({});
-    await execute(parse('pass<async: true> { error "boom" }'), ctx);
+    await execute(parse('pass(async: true) { error "boom" }'), ctx);
     await expect(ctx.dispose()).resolves.toBeUndefined();
   });
 
@@ -119,7 +119,7 @@ describe('pass<async: true> body halt surfaces at dispose()', () => {
     // Fire-and-forget: the halting body does not affect the pipe result.
     const ctx = createRuntimeContext({});
     const outcome = await execute(
-      parse('"done" -> pass<async: true> { error "boom" }'),
+      parse('"done" -> pass(async: true) { error "boom" }'),
       ctx
     );
     expect(outcome.result).toBe('done');

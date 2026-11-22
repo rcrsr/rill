@@ -81,7 +81,7 @@ interface LifecycleState {
   readonly inflight: Set<Promise<unknown>>;
   /**
    * Rejection reasons from fire-and-forget async bodies
-   * (`pass<async: true>`) that must surface at `dispose()` time rather
+   * (`pass(async: true)`) that must surface at `dispose()` time rather
    * than being silently discarded. Only reasons carrying the
    * {@link DEFERRED_HALT_SYM} marker are collected here; ordinary
    * tracked-promise rejections (e.g. an awaited host-function dispatch
@@ -103,7 +103,7 @@ const DEFERRED_HALT_SYM: unique symbol = Symbol('rill.deferredHalt');
  * reason. Non-object reasons (and frozen objects) pass through
  * unmarked, which simply means they are not surfaced — never an error.
  *
- * Used by the `pass<async: true>` dispatch path in `literals.ts`, which
+ * Used by the `pass(async: true)` dispatch path in `literals.ts`, which
  * hands the marked, rejected body promise to {@link RuntimeContext.trackInflight}.
  */
 export function markDeferredHalt(reason: unknown): unknown {
@@ -291,12 +291,12 @@ async function performDispose(state: LifecycleState): Promise<void> {
     }
   }
 
-  // Surface halts from fire-and-forget async bodies (`pass<async: true>`)
+  // Surface halts from fire-and-forget async bodies (`pass(async: true)`)
   // that were tagged for deferral. The `trackInflight` rejection handler
   // runs before `Promise.allSettled` resolves (it was attached at
   // dispatch, ahead of allSettled's own handlers), so any body that
   // rejected during the wait above is already collected here. Bodies run
-  // under `on_error: #IGNORE` resolve instead of rejecting, so their
+  // under `ignore_halts: true` resolve instead of rejecting, so their
   // suppressed catchable halts never reach this list — as documented.
   if (state.deferredHalts.length > 0) {
     for (const reason of state.deferredHalts) {
@@ -327,7 +327,7 @@ function logDeferredHalt(state: LifecycleState, reason: unknown): void {
     });
     return;
   }
-  callbacks.onLog(`runtime: pass<async> body halted: ${detail}`);
+  callbacks.onLog(`runtime: pass(async) body halted: ${detail}`);
 }
 
 /**

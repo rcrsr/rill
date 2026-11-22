@@ -35,9 +35,8 @@ import { ERROR_IDS } from '../error-registry.js';
 const RESERVED_ANNOTATION_KEYS: readonly string[] = ['type', 'effective'];
 
 // Tokens that open a nested construct tracked by recoverToNextStatement's
-// type-matched resync. Angle-bracket forms (destruct<, slice<, use<, retry<,
-// do<, pass<, timeout<) are out of scope for v1 and are treated as ordinary
-// tokens during resync.
+// type-matched resync. Angle-bracket forms (destruct<, slice<, use<) are out of
+// scope for v1 and are treated as ordinary tokens during resync.
 //
 // Maps each opening token to the closing token type it expects. Resync
 // pushes the expected closer onto a stack on each opening token and pops it

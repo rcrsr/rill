@@ -12,14 +12,14 @@ rill provides singular control flow with no exceptions and no try/catch. Errors 
 | `$val -> ? then ! else` | Piped conditional (uses $ as cond) |
 | `while (cond) do { body }` | While loop (cond is bool, evaluated before each iteration) |
 | `do { body } while (cond)` | Do-while (body first, cond after) |
-| `do<limit: N> { body }` | Construct option: sets iteration limit |
+| `do(limit: N) { body }` | Construct option: sets iteration limit |
 | `break` / `$val -> break` | Exit loop |
 | `return` / `$val -> return` | Exit block |
 | `assert cond` / `assert cond "msg"` | Validate condition, halt on failure |
 | `error "msg"` / `$val -> error` | Halt execution with error message |
 | `guard { body }` | Run body; replace halt with invalid value |
-| `retry<limit: N> { body }` | Retry body up to N times on caught halt |
-| `timeout<total: d, idle: d> { body }` | Bound body by a wall-time limit, an inactivity limit, or both; expiry → `#RILL_R082` (total) or `#RILL_R083` (idle) |
+| `retry(attempts: N) { body }` | Retry body up to N times on caught halt |
+| `timeout(total: d, idle: d) { body }` | Bound body by a wall-time limit, an inactivity limit, or both; expiry → `#RILL_R082` (total) or `#RILL_R083` (idle) |
 
 ---
 
@@ -222,16 +222,16 @@ Pipe a seed value to `while` to prime the accumulator `$`:
 
 ### Iteration Limit
 
-Use `do<limit: N>` as the construct option to set maximum iterations (default: 10,000):
+Use `do(limit: N)` as the construct option to set maximum iterations (default: 10,000):
 
 ```rill
-0 -> while ($ < 10) do<limit: 100> { $ + 1 }
+0 -> while ($ < 10) do(limit: 100) { $ + 1 }
 # Result: 10
 ```
 
 Exceeding the limit halts with `RILL-R010`.
 
-The `do<limit: N>` construct option applies only to that specific loop evaluation, not to the loop body.
+The `do(limit: N)` construct option applies only to that specific loop evaluation, not to the loop body. `limit` is a written positive integer literal; a variable, a computed value, zero, or any spread in `while ... do(...)` or `do(...) { } while` is a parse error (`RILL-P004`). A repeated `limit` is `RILL-P027`. An unknown option halts `#TYPE_MISMATCH`. The old angle-bracket form `do<limit: N>` is a parse error (`RILL-P025`).
 
 ### Multiple State Values
 
@@ -307,7 +307,7 @@ Do-while is ideal for retry patterns:
 ```text
 use<ext:app> => $app
 
-do<limit: 5> {
+do(limit: 5) {
   $app.prompt("Perform operation")
 } while (.contains("RETRY"))
 # Loop exits when result doesn't contain RETRY
@@ -316,7 +316,7 @@ do<limit: 5> {
 ### Iteration Limit
 
 ```rill
-0 -> do<limit: 100> { $ + 1 } while ($ < 10)
+0 -> do(limit: 100) { $ + 1 } while ($ < 10)
 # Result: 10
 ```
 
@@ -742,7 +742,7 @@ The body forms run a block for side effects, then pass the original pipe value t
 | Form | Suppresses catchable halts? |
 |------|----------------------------|
 | `pass { body }` | No — halts in `body` propagate normally |
-| `pass<on_error: #IGNORE> { body }` | Yes — catchable halts in `body` are suppressed; the pipe value flows through |
+| `pass(ignore_halts: true) { body }` | Yes — catchable halts in `body` are suppressed; the pipe value flows through |
 
 ```rill
 5 -> pass { log($) }
@@ -755,11 +755,11 @@ range(1, 4) -> seq({ $ * 10 }) -> pass { log($) }
 ```
 
 ```rill
-10 -> pass<on_error: #IGNORE> { 1 / 0 }
+10 -> pass(ignore_halts: true) { 1 / 0 }
 # Result: 10 (body halt suppressed)
 ```
 
-`on_error` accepts only `#IGNORE`. Empty `pass<>`, unknown option keys, and any other `on_error` value raise `RILL-P004` at parse time. Non-catchable halts (for example `error` and `assert`) and `ControlSignal` (`break`, `return`) always propagate out of either body form. See [Collection Slicing](topic-collection-slicing.md#pass-body-forms) for the full reference.
+`pass` accepts the bool options `ignore_halts` and `async`. An unknown option or a non-bool value halts `#TYPE_MISMATCH`, and a spread that repeats a written option halts `#INVALID_INPUT`. The old form `pass<on_error: #IGNORE>` is a parse error (`RILL-P025`). Non-catchable halts (for example `error` and `assert`) and `ControlSignal` (`break`, `return`) always propagate out of either body form. See [Collection Slicing](topic-collection-slicing.md#pass-body-forms) for the full reference.
 
 ---
 
@@ -795,22 +795,22 @@ See [Error Handling](topic-error-handling.md) for full patterns and [Error Refer
 
 ---
 
-## Bounded Retry with `retry<limit: N>`
+## Bounded Retry with `retry(attempts: N)`
 
-`retry<limit: N> { body }` runs its body up to N times. Each attempt that raises a catchable halt triggers the next attempt. The result is the first successful value, or the final invalid value when all attempts halt.
+`retry(attempts: N) { body }` runs its body up to N times. Each attempt that raises a catchable halt triggers the next attempt. The result is the first successful value, or the final invalid value when all attempts halt.
 
 ```text
 use<ext:app> => $app
 
-retry<limit: 3> { $app.fetch("https://api.example.com/data") } => $result
+retry(attempts: 3) { $app.fetch("https://api.example.com/data") } => $result
 ```
 
-`retry` is strictly bounded; N must be a literal integer. `retry` catches the same catchable halts as `guard`; non-catchable halts (for example `error` and `assert`) propagate without retry.
+`retry` is strictly bounded; N must be a written positive integer literal. A variable, a computed value, or any spread in `retry(...)` is a parse error (`RILL-P004`), and omitting `attempts` halts `#TYPE_MISMATCH`. `retry` catches the same catchable halts as `guard`; non-catchable halts (for example `error` and `assert`) propagate without retry.
 
 ```text
 use<ext:app> => $app
 
-retry<limit: 3> {
+retry(attempts: 3) {
   guard { $app.fetch("https://api.example.com/data") }
 } => $result
 $result.? ? $result ! error "all retries failed: {$result.!}"
@@ -820,7 +820,7 @@ $result.? ? $result ! error "all retries failed: {$result.!}"
 
 | Pattern | Use when |
 |---------|----------|
-| `retry<limit: N> { guard { ... } }` | Fixed maximum attempts, automatic backoff not needed |
+| `retry(attempts: N) { guard { ... } }` | Fixed maximum attempts, automatic backoff not needed |
 | `do { } while (cond)` | Custom retry logic, delay, or condition-based exit |
 
 See [Error Handling](topic-error-handling.md) for retry with backoff patterns.
@@ -838,10 +838,10 @@ Two limits are available, singly or together:
 | `total: duration` | Wall-time from block entry | `#RILL_R082` |
 | `idle: duration` | Inactivity: time since the last stream chunk or host call return | `#RILL_R083` |
 
-One head may carry both limits, in either order. The first limit to fire ends the body, and the halt carries that limit's atom. A repeated key is a parse error. `timeout<>` with neither limit arms nothing and has no effect; the checker reports it as `TIMEOUT_TRIVIAL`.
+One head may carry both limits, in either order. The first limit to fire ends the body, and the halt carries that limit's atom. A repeated key is a parse error (`RILL-P027`). `timeout()` with neither limit arms nothing and has no effect; the checker reports it as `TIMEOUT_TRIVIAL`. `timeout(...$policy)` supplies the limits from a dict; a spread field that repeats a written limit halts `#INVALID_INPUT`. The old form `timeout<total: d>` is a parse error (`RILL-P025`).
 
 ```text
-timeout<total: duration("5s"), idle: duration("500ms")> {
+timeout(total: duration("5s"), idle: duration("500ms")) {
   $stream -> seq({ $ })
 }
 ```
@@ -850,7 +850,7 @@ timeout<total: duration("5s"), idle: duration("500ms")> {
 
 ```text
 use<ext:app> => $app
-timeout<total: duration("500ms")> {
+timeout(total: duration("500ms")) {
   $app.fetch("https://api.example.com/data")
 }
 ```
@@ -860,7 +860,7 @@ The body must finish within 500 ms. If it does not, the block aborts the body an
 ### Inactivity Bound (`idle`)
 
 ```text
-timeout<idle: duration("200ms")> {
+timeout(idle: duration("200ms")) {
   $stream -> seq({ $ })
 }
 ```
@@ -869,11 +869,11 @@ The idle timer restarts each time a stream chunk arrives in the body or a host f
 
 ### Duration Argument
 
-The duration expression must evaluate to a `duration` value. A non-duration argument halts with `#INVALID_INPUT`, and so does a duration with a months part (`duration("1mo")`, `duration("1y")`), which has no fixed length. A `total` or `idle` limit above 2147483647 ms, about 24.8 days, halts `#INVALID_INPUT` too:
+The duration expression must evaluate to a `duration` value. A non-duration argument or an unknown option halts with `#TYPE_MISMATCH`. A duration with a months part (`duration("1mo")`, `duration("1y")`), which has no fixed length, halts `#INVALID_INPUT`, as does a `total` or `idle` limit above 2147483647 ms, about 24.8 days:
 
 ```text
-# Error: #INVALID_INPUT — duration must be a duration value
-timeout<total: 500> { "x" }
+# Error: #TYPE_MISMATCH — total must be a duration value
+timeout(total: 500) { "x" }
 ```
 
 See [Duration](topic-types.md#duration) for the ways to construct a duration value.
@@ -886,8 +886,8 @@ Timeout blocks may be nested. The outer timer fires independently of the inner t
 
 ```text
 use<ext:app> => $app
-timeout<total: duration("1s")> {
-  timeout<total: duration("200ms")> {
+timeout(total: duration("1s")) {
+  timeout(total: duration("200ms")) {
     $app.fetch("https://api.example.com/fast")
   }
 }
@@ -907,14 +907,14 @@ When the outer timer fires before the inner body completes, the outer expiry tak
 | `$val -> return` | Block/Script | Exit block or script with value |
 | `pass` | Any | Returns current `$` unchanged |
 | `pass { body }` | Pipe stage | Run `body` for side effects; pipe value unchanged; halts propagate |
-| `pass<on_error: #IGNORE> { body }` | Pipe stage | Run `body`; suppresses catchable halts in body; pipe value unchanged |
+| `pass(ignore_halts: true) { body }` | Pipe stage | Run `body`; suppresses catchable halts in body; pipe value unchanged |
 | `assert cond` | Any | Halt if condition false, pass through on success |
 | `assert cond "msg"` | Any | Halt with custom message if condition false |
 | `error "msg"` | Any | Always halt with error message |
 | `$val -> error` | Any | Always halt with piped error message (must be string) |
 | `guard { body }` | Any | Replace halt with invalid value |
-| `retry<limit: N> { body }` | Any | Retry up to N times on caught halt |
-| `timeout<total: d, idle: d> { body }` | Block | Abort body on the first limit to fire; catchable halt `#RILL_R082` (total) or `#RILL_R083` (idle); use `guard` to recover |
+| `retry(attempts: N) { body }` | Any | Retry up to N times on caught halt |
+| `timeout(total: d, idle: d) { body }` | Block | Abort body on the first limit to fire; catchable halt `#RILL_R082` (total) or `#RILL_R083` (idle); use `guard` to recover |
 
 ---
 
@@ -939,7 +939,7 @@ fn(data) {
 ```text
 use<ext:app> => $app
 
-do<limit: 3> {
+do(limit: 3) {
   $app.prompt("Try operation")
 } while (.contains("RETRY"))
 
@@ -969,14 +969,14 @@ do<limit: 3> {
 
 ## Loop Syntax Migration
 
-rill previously used `@` as the loop operator with `^(limit: N)` annotations. The current syntax uses `while`/`do` keywords with the `do<limit: N>` construct option.
+rill previously used `@` as the loop operator with `^(limit: N)` annotations. The current syntax uses `while`/`do` keywords with the `do(limit: N)` construct option.
 
 | Old syntax | New syntax |
 |------------|------------|
 | `initial -> (cond) @ { body }` | `initial -> while (cond) do { body }` |
 | `initial -> @ { body } ? (cond)` | `initial -> do { body } while (cond)` |
-| `initial -> (cond) @ ^(limit: N) { body }` | `initial -> while (cond) do<limit: N> { body }` |
-| `initial -> @ ^(limit: N) { body } ? (cond)` | `initial -> do<limit: N> { body } while (cond)` |
+| `initial -> (cond) @ ^(limit: N) { body }` | `initial -> while (cond) do(limit: N) { body }` |
+| `initial -> @ ^(limit: N) { body } ? (cond)` | `initial -> do(limit: N) { body } while (cond)` |
 
 See [CHANGELOG.md](../CHANGELOG.md) for the full change history.
 

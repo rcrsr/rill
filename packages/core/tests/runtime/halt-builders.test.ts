@@ -1252,7 +1252,7 @@ describe('halt assertion helpers', () => {
 describe('host-error shape (file)', () => {
   /**
    * Halts that carry a host-error shape: carrier seeding and fills, host
-   * boundary conversion, closure boundary fills, and the timeout<> and deferred
+   * boundary conversion, closure boundary fills, and the timeout() and deferred
    * log class branches.
    */
 
@@ -1725,7 +1725,7 @@ describe('host-error shape (file)', () => {
   // CLASS BRANCHES
 
   // Completion of every boom body started by this file, so a test can wait for
-  // fire-and-forget or timeout<>-outliving work instead of sleeping.
+  // fire-and-forget or timeout()-outliving work instead of sleeping.
   const lateWork: Promise<void>[] = [];
 
   async function drainLateWork(): Promise<void> {
@@ -1775,7 +1775,7 @@ describe('host-error shape (file)', () => {
   }
 
   // A scheduler whose timers fire fast; `expired` settles once a timer has fired,
-  // so a host body can wait for the timeout<> to expire before it halts.
+  // so a host body can wait for the timeout() to expire before it halts.
   function makeExpiringScheduler(): ExpiringScheduler {
     let markExpired: () => void = () => {};
     const expired = new Promise<void>((resolve) => {
@@ -1822,7 +1822,7 @@ describe('host-error shape (file)', () => {
     }
   }
 
-  describe('timeout<> with a carrier halt', () => {
+  describe('timeout() with a carrier halt', () => {
     const expiring = (preserve: boolean): RuntimeOptions => {
       const { scheduler, expired } = makeExpiringScheduler();
       return {
@@ -1835,21 +1835,21 @@ describe('host-error shape (file)', () => {
 
     it('after total expiry a guard recovers the timeout halt', async () => {
       const source =
-        'guard { timeout<total: duration("1d")> { boom() } } => $r\n($r.!code == #RILL_R082)';
+        'guard { timeout(total: duration("1d")) { boom() } } => $r\n($r.!code == #RILL_R082)';
       expect(await runValue(source, expiring(true))).toBe(true);
       await drainLateWork();
     });
 
     it('after idle expiry a guard recovers the idle timeout halt', async () => {
       const source =
-        'guard { timeout<idle: duration("1d")> { boom() } } => $r\n($r.!code == #RILL_R083)';
+        'guard { timeout(idle: duration("1d")) { boom() } } => $r\n($r.!code == #RILL_R083)';
       expect(await runValue(source, expiring(true))).toBe(true);
       await drainLateWork();
     });
 
     it('after expiry without guard raises RILL-R082 with durationMs', async () => {
       const err = await captureError(
-        'timeout<total: duration("1d")> { boom() }',
+        'timeout(total: duration("1d")) { boom() }',
         expiring(true)
       );
       expect(err).toBeInstanceOf(RuntimeError);
@@ -1860,7 +1860,7 @@ describe('host-error shape (file)', () => {
 
     it('before expiry the original fatal error propagates unchanged', async () => {
       const err = await captureError(
-        'guard { timeout<total: duration("1d")> { boom() } } => $r\n$r',
+        'guard { timeout(total: duration("1d")) { boom() } } => $r\n$r',
         {
           functions: {
             boom: makeClassBoom({
@@ -1879,7 +1879,7 @@ describe('host-error shape (file)', () => {
 
     it('a fatal halt without a carrier keeps the fatal rethrow after expiry', async () => {
       const err = await captureError(
-        'guard { timeout<total: duration("1d")> { boom() } } => $r\n$r',
+        'guard { timeout(total: duration("1d")) { boom() } } => $r\n$r',
         expiring(false)
       );
       expect(err).toBeInstanceOf(RuntimeError);
@@ -1913,7 +1913,7 @@ describe('host-error shape (file)', () => {
             : {}),
         },
       });
-      await execute(parse('pass<async: true> { boom() }'), ctx);
+      await execute(parse('pass(async: true) { boom() }'), ctx);
       await drainLateWork();
       await ctx.dispose();
       return out;
@@ -1921,7 +1921,7 @@ describe('host-error shape (file)', () => {
 
     it('appends the location suffix in onLog and onLogEvent', async () => {
       expect(await collectLog(true, false)).toEqual([
-        'runtime: pass<async> body halted: boom message at 4:9',
+        'runtime: pass(async) body halted: boom message at 4:9',
       ]);
       expect(await collectLog(true, true)).toEqual(['boom message at 4:9']);
     });
@@ -1930,7 +1930,7 @@ describe('host-error shape (file)', () => {
       const lines = await collectLog(false, false);
       expect(lines).toHaveLength(1);
       expect(lines[0]).toMatch(
-        /^runtime: pass<async> body halted: boom message at \d+:\d+$/
+        /^runtime: pass\(async\) body halted: boom message at \d+:\d+$/
       );
       const events = await collectLog(false, true);
       expect(events).toHaveLength(1);
@@ -1977,7 +1977,7 @@ describe('host-error shape (file)', () => {
           },
         },
       });
-      await execute(parse('pass<async: true> { s() => $st\n$st() }'), ctx);
+      await execute(parse('pass(async: true) { s() => $st\n$st() }'), ctx);
       await drainLateWork();
       await ctx.dispose();
       expect(out).toEqual(['stream boom']);
@@ -2002,7 +2002,7 @@ describe('host-error shape (file)', () => {
           },
         },
       });
-      await execute(parse('pass<async: true> { boom() }'), ctx);
+      await execute(parse('pass(async: true) { boom() }'), ctx);
       await drainLateWork();
       await ctx.dispose();
       expect(out).toHaveLength(1);

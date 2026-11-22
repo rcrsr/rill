@@ -117,8 +117,8 @@ describe('Rill Runtime: structural conversion field type mismatch halts', () => 
     expect(result).toEqual({ a: 5 });
   });
 
-  it('uniform dict path halts RILL-R038 on a bad value', async () => {
-    await expectHalt(() => run('dict[a: "x"] -> dict(number)'), {
+  it('map value path halts RILL-R038 on a bad value', async () => {
+    await expectHalt(() => run('dict[a: "x"] -> map(string, number)'), {
       code: 'RILL_R038',
     });
   });

@@ -56,6 +56,7 @@ import {
   throwBareUnion,
   throwRemovedClosureType,
 } from './parser-types.js';
+import { atTimeoutBlock } from './parser-options.js';
 import { atTypeConstructor } from './parser-shape.js';
 import { ERROR_IDS } from '../error-registry.js';
 import { removedSelectorError } from './parser-variables.js';
@@ -268,36 +269,16 @@ const pipeTargetDispatchTable: Record<
   [TOKEN_TYPES.USE_LANGLE]: function (this: Parser) {
     return this.parseUseExpr();
   },
-  [TOKEN_TYPES.PASS_LANGLE]: function (this: Parser) {
-    return attachPipeTargetPostfixChain.call(this, this.parsePassBlock());
-  },
-  [TOKEN_TYPES.TIMEOUT_LANGLE]: function (this: Parser) {
-    return attachPipeTargetPostfixChain.call(this, this.parseTimeoutBlock());
-  },
   [TOKEN_TYPES.PASS]: function (this: Parser) {
-    const token = advance(this.state);
-    // Bracketless body form: -> pass { body }
-    if (check(this.state, TOKEN_TYPES.LBRACE)) {
-      const emptyOptions: DictNode = {
-        type: 'Dict',
-        entries: [],
-        defaultValue: null,
-        span: makeSpan(token.span.end, token.span.end),
-      };
-      const body = this.parseBlock(true);
-      const passBlock: PassBlockNode = {
-        type: 'PassBlock',
-        options: emptyOptions,
-        body,
-        span: makeSpan(token.span.start, body.span.end),
-      };
-      return attachPipeTargetPostfixChain.call(this, passBlock);
+    const pass = this.parsePassForm();
+    if (pass.type === 'Pass') {
+      throw new ParseError(
+        ERROR_IDS.RILL_P004,
+        "'pass' as a pipe target requires a body block; use 'pass { body }' or 'pass(ignore_halts: true) { body }'",
+        pass.span.start
+      );
     }
-    throw new ParseError(
-      ERROR_IDS.RILL_P004,
-      "'pass' as a pipe target requires a body block; use 'pass { body }' or 'pass<on_error: #IGNORE> { body }'",
-      token.span.start
-    );
+    return attachPipeTargetPostfixChain.call(this, pass);
   },
   [TOKEN_TYPES.DOT]: function (this: Parser): PipeTargetNode {
     return this.parsePipeTargetDot();
@@ -568,6 +549,11 @@ function parseUncheckedPipeTarget(this: Parser): PipeTargetNode {
   ) {
     const varNode = this.parseVariable();
     return { ...varNode, isPipeTarget: true };
+  }
+
+  // Timeout block as pipe target: -> timeout(total: $d) { body }
+  if (atTimeoutBlock(this.state)) {
+    return attachPipeTargetPostfixChain.call(this, this.parseTimeoutBlock());
   }
 
   // Table dispatch: single-token forms (ASSERT/ERROR precede isHostCall check)

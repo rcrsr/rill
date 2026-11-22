@@ -38,7 +38,7 @@ type TypeStructure =
   | { kind: 'datetime' }
   | { kind: 'duration' }
   | { kind: 'list'; element?: TypeStructure }
-  | { kind: 'dict'; fields?: Record<string, RillFieldDef>; valueType?: TypeStructure }
+  | { kind: 'dict'; fields?: Record<string, RillFieldDef> }
   | { kind: 'tuple'; elements?: RillFieldDef[] }
   | { kind: 'ordered'; fields?: RillFieldDef[] }
   | { kind: 'map'; key?: TypeStructure; value?: TypeStructure }
@@ -62,10 +62,8 @@ The `kind` field is the discriminator. Leaf variants (`number`, `string`, `bool`
 | `duration` | N/A | N/A | Leaf variant. No sub-fields |
 | `list` | `element` | `TypeStructure \| undefined` | Element type for all list members. Absent when element type is unknown |
 | `dict` | `fields` | `Record<string, RillFieldDef> \| undefined` | Named fields with individual types and optional annotations. Present for structural dicts |
-| `dict` | `valueType` | `TypeStructure \| undefined` | Value type for all dict values. Present for uniform dicts. No per-field annotations |
 | `tuple` | `elements` | `RillFieldDef[] \| undefined` | Ordered positional fields. Index access: `type.elements[i]` |
 | `ordered` | `fields` | `RillFieldDef[] \| undefined` | Named ordered fields. Index access: `type.fields[i]`. Present for structural ordered types |
-| `ordered` | `valueType` | `TypeStructure \| undefined` | Value type for all ordered values. Present for uniform ordered types |
 | `map` | `key` | `TypeStructure \| undefined` | Scalar key type shared by every key. Absent for the bare `map` type |
 | `map` | `value` | `TypeStructure \| undefined` | Value type for all map values. Absent for the bare `map` type |
 | `vector` | `dimensions` | `number` | Embedding dimension count |
@@ -87,8 +85,6 @@ Host applications read field annotations through the `annotations` property on `
 | `ordered` | `type.fields[index].annotations` | `Record<string, RillValue> \| undefined` |
 | `tuple` | `type.elements[index].annotations` | `Record<string, RillValue> \| undefined` |
 | `fn` | `type.params[index].annotations` | `Record<string, RillValue> \| undefined` |
-
-Uniform dicts (`dict(string)`) carry no `fields` record and have no per-field annotations.
 
 ```typescript
 // Reading annotations from a structural dict field
@@ -234,7 +230,6 @@ Formats a structural type descriptor as a human-readable string.
 | `{ kind: 'bool' }` | `"bool"` |
 | `{ kind: 'any' }` | `"any"` |
 | `{ kind: 'list', element: { kind: 'number' } }` | `"list(number)"` |
-| `{ kind: 'dict', valueType: { kind: 'string' } }` | `"dict(string)"` |
 | `{ kind: 'dict', fields: { 'a b': { type: { kind: 'number' } } } }` | `"dict(\"a b\": number)"` (key not spelled as an identifier or reserved word, and `true`/`false`, quoted) |
 | `{ kind: 'fn', params: [{ name: 'x', type: { kind: 'number' } }] }` | `"fn(x: number):any"` |
 | `{ kind: 'fn' }` | `"fn"` |
@@ -268,7 +263,7 @@ buildFieldDescriptor(
 
 Builds a frozen `RillFieldDescriptor` for a named field within a structural dict type.
 
-`structuralType` must narrow to `{ kind: 'dict' }` at the call site. The field must exist in `valueType` or `RILL-R003` is thrown.
+`structuralType` must narrow to `{ kind: 'dict' }` at the call site. The field must exist in `fields` or `RILL-R003` is thrown.
 
 ### RillFieldDescriptor
 

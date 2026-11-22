@@ -47,8 +47,7 @@ export function declarationOf(
 /**
  * Project the declared type of an element read from a declared collection:
  * list(E) -> E; tuple by index, dict by name, ordered by name or index. A
- * uniform dict or ordered valueType wins over fields, as in the matcher; with
- * none set, an unmatched key projects nothing. Index keys are non-negative.
+ * unmatched dict or ordered key projects nothing. Index keys are non-negative.
  * Unions and bare kinds project nothing. With no carried type, the element
  * carries none and is judged by its own type.
  */
@@ -74,25 +73,21 @@ export function projectElement(
   if (isStructureKind(collection, 'dict')) {
     const fields = collection.fields;
     if (
-      collection.valueType === undefined &&
       typeof key === 'string' &&
       fields !== undefined &&
       Object.prototype.hasOwnProperty.call(fields, key)
     ) {
       return declarationOf(fields[key]?.type);
     }
-    return declarationOf(collection.valueType);
+    return undefined;
   }
   if (isStructureKind(collection, 'ordered')) {
     const fields = collection.fields;
     const field =
-      collection.valueType !== undefined
-        ? undefined
-        : typeof key === 'number'
-          ? fields?.[key]
-          : fields?.find((f) => f.name === key);
-    if (field !== undefined) return declarationOf(field.type);
-    return declarationOf(collection.valueType);
+      typeof key === 'number'
+        ? fields?.[key]
+        : fields?.find((f) => f.name === key);
+    return field === undefined ? undefined : declarationOf(field.type);
   }
   return undefined;
 }

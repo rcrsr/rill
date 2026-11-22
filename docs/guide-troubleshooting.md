@@ -533,7 +533,7 @@ guard { 1 / 0 } => $r
 
 ```text
 # Error: RILL-P004 '#MY_CODE' is not a core error code
-guard<on: #MY_CODE> { $app.fetch($url) }
+guard(on: #MY_CODE) { $app.fetch($url) }
 ```
 
 **Fix:** Compare against a name from the core error set. Hosts report domain detail in the sidecar `raw` field, so read it with `.!field`, for example `$result.!reason`.
@@ -568,11 +568,11 @@ guard { error "fatal" }
 
 **Cause 1:** The halt originated from `error "..."` or `assert`. These are intentional escalations, not recoverable failures.
 
-**Cause 2:** A filtered `guard<on: #CODE>` or `guard<on: list[#CODE, ...]>` did not match the actual error code. Non-matching codes propagate.
+**Cause 2:** A filtered `guard(on: #CODE)` or `guard(on: list[#CODE, ...])` did not match the actual error code. Non-matching codes propagate.
 
 ```text
 use<ext:app> => $app
-guard<on: #TIMEOUT> {
+guard(on: #TIMEOUT) {
   $app.fetch("https://api.example.com")
   # If this returns #AUTH, the halt propagates — not caught
 }
@@ -589,7 +589,7 @@ $out.!
 # Result: false
 ```
 
-The filter is optional. Without it, `guard` catches every catchable halt. `guard<on: list[]>` is a parse error, not a catch-all.
+The filter is optional. Without it, `guard` catches every catchable halt. A written `guard(on: list[])` is a parse error, and a computed empty list halts `#INVALID_INPUT`; neither is a catch-all. Options in angle brackets, such as `guard<on: #AUTH>`, are a parse error (`RILL-P025`); write `guard(on: #AUTH)`.
 
 ## Why Does `ns::fn()` Fail to Parse?
 

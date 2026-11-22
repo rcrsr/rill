@@ -3,9 +3,9 @@ id: guard
 title: Guard
 status: normative
 since: 0.24.0
-issues: [578]
+issues: []
 grammar: []
-errors: [INVALID_INPUT, RILL-P004, TYPE_MISMATCH]
+errors: [INVALID_INPUT, RILL-P004, RILL-P025, TYPE_MISMATCH]
 depends: [invalid-value]
 tests: [guard-retry.test.ts]
 ---
@@ -31,12 +31,12 @@ with RILL-P004.
 r[guard.on-empty] A selector is not empty
 A written `on: list[]` MUST be rejected with RILL-P004.
 
-r[guard.on-single] A selector may be one atom {pending #578}
+r[guard.on-single] A selector may be one atom
 `on: #CODE` MUST mean `on: list[#CODE]`.
 
 ## Evaluation
 
-r[guard.on-runtime] A computed selector is checked when it runs {pending #578}
+r[guard.on-runtime] A computed selector is checked when it runs
 An `on` value computed at run time MUST halt with `#INVALID_INPUT` when it is an empty list, and
 with `#TYPE_MISMATCH` when it holds a value outside the closed core error set.
 
@@ -64,8 +64,9 @@ r[guard.dollar] The body sees the incoming $
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | A written `on` names an atom outside the core set, or is empty | RILL-P004 | No |
-| A computed `on` is an empty list {pending #578} | `#INVALID_INPUT` | Yes |
-| A computed `on` holds a value outside the core set {pending #578} | `#TYPE_MISMATCH` | Yes |
+| The selector is written in angle brackets | RILL-P025 | No |
+| A computed `on` is an empty list | `#INVALID_INPUT` | Yes |
+| A computed `on` holds a value outside the core set | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 
@@ -87,4 +88,5 @@ guard { 5 -> assert ($ > 9) }
 
 ## Notes
 
-On 0.23.0 the selector is written `guard<on: list[#A]>` and takes a list only.
+On 0.23.0 the selector is written `guard<on: list[#A]>` and takes a list only, and the angle form
+now halts RILL-P025.

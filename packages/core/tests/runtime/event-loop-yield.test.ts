@@ -40,7 +40,7 @@ vi.hoisted(() => {
 // yields that work but run slow. It replaces load-dependent wall-clock bounds.
 vi.setConfig({ testTimeout: 30_000 });
 
-const R1 = '0 -> while (true) do<limit: 1000000000000> { $ + 1 }';
+const R1 = '0 -> while (true) do(limit: 1000000000000) { $ + 1 }';
 const R2 =
   'range(0,10000) -> seq(fn(x) { range(0,10000) -> seq(fn(y) { range(0,10000) -> fold(0, { $@ + $ }) }) })';
 const REPROS: ReadonlyArray<readonly [string, string]> = [
@@ -109,7 +109,7 @@ describe('Rill Runtime: event-loop yielding', () => {
 
     it('halts a do-while loop with #DISPOSED at the host abort', async () => {
       await expectAbortHalt(() =>
-        run('0 -> do<limit: 1000000000000> { $ + 1 } while (true)', {
+        run('0 -> do(limit: 1000000000000) { $ + 1 } while (true)', {
           signal: AbortSignal.timeout(ABORT_MS),
         })
       );
@@ -127,13 +127,13 @@ describe('Rill Runtime: event-loop yielding', () => {
     });
 
     it('exhausts a bounded retry limit with a catchable failure when no signal is set', async () => {
-      const result = await run('guard { retry<limit: 3> { (1 / 0) } }');
+      const result = await run('guard { retry(attempts: 3) { (1 / 0) } }');
       expect(isInvalid(result)).toBe(true);
     });
 
     it('halts retry with an unbounded limit and a catchably-halting body', async () => {
       await expectAbortHalt(() =>
-        run('retry<limit: 1000000000000> { (1 / 0) }', {
+        run('retry(attempts: 1000000000000) { (1 / 0) }', {
           signal: AbortSignal.timeout(100),
         })
       );
@@ -142,10 +142,10 @@ describe('Rill Runtime: event-loop yielding', () => {
 
   describe('script timeout block', () => {
     it.each(REPROS)(
-      'guard recovers timeout<total:> expiry in %s with the total-timeout atom',
+      'guard recovers timeout(total:) expiry in %s with the total-timeout atom',
       async (_name, source) => {
         const result = await run(
-          `guard { timeout<total: duration("200ms")> { ${source} } }`
+          `guard { timeout(total: duration("200ms")) { ${source} } }`
         );
         expect(isInvalid(result)).toBe(true);
         expect(getStatus(result).code).toBe(resolveAtom('RILL_R082'));
@@ -157,7 +157,7 @@ describe('Rill Runtime: event-loop yielding', () => {
       async (_name, source) => {
         let caught: unknown;
         try {
-          await run(`timeout<total: duration("200ms")> { ${source} }`);
+          await run(`timeout(total: duration("200ms")) { ${source} }`);
         } catch (e) {
           caught = e;
         }
@@ -172,7 +172,7 @@ describe('Rill Runtime: event-loop yielding', () => {
       'keeps #DISPOSED, uncaught by guard, when the host aborts inside a long timeout block in %s',
       async (_name, source) => {
         await expectAbortHalt(() =>
-          run(`guard { timeout<total: duration("10s")> { ${source} } }`, {
+          run(`guard { timeout(total: duration("10s")) { ${source} } }`, {
             signal: AbortSignal.timeout(100),
           })
         );
@@ -194,7 +194,7 @@ describe('Rill Runtime: event-loop yielding', () => {
           clearTimeout: (handle) => clearTimeout(handle),
         };
         await expectAbortHalt(() =>
-          run(`guard { timeout<total: duration("1000ms")> { ${source} } }`, {
+          run(`guard { timeout(total: duration("1000ms")) { ${source} } }`, {
             signal: controller.signal,
             scheduler,
           })
@@ -213,7 +213,7 @@ describe('Rill Runtime: event-loop yielding', () => {
         clearTimeout: () => {},
       };
       await expectAbortHalt(() =>
-        run('guard { timeout<total: duration("1000ms")> { trip() } }', {
+        run('guard { timeout(total: duration("1000ms")) { trip() } }', {
           signal: controller.signal,
           scheduler,
           functions: {
@@ -234,7 +234,7 @@ describe('Rill Runtime: event-loop yielding', () => {
 
     it('recovers the inner timeout when nested timeout blocks expire in order', async () => {
       const result = await run(
-        `guard { timeout<total: duration("5s")> { timeout<total: duration("100ms")> { ${R1} } } }`
+        `guard { timeout(total: duration("5s")) { timeout(total: duration("100ms")) { ${R1} } } }`
       );
       expect(isInvalid(result)).toBe(true);
       expect(getStatus(result).code).toBe(resolveAtom('RILL_R082'));
@@ -242,7 +242,7 @@ describe('Rill Runtime: event-loop yielding', () => {
 
     it('halts a retry inside a timeout block with the total-timeout atom', async () => {
       const result = await run(
-        `guard { timeout<total: duration("150ms")> { retry<limit: 1000000000000> { (1 / 0) } } }`
+        `guard { timeout(total: duration("150ms")) { retry(attempts: 1000000000000) { (1 / 0) } } }`
       );
       expect(isInvalid(result)).toBe(true);
       expect(getStatus(result).code).toBe(resolveAtom('RILL_R082'));
@@ -399,7 +399,7 @@ describe('Rill Runtime: event-loop yielding', () => {
       await expectAbortHalt(() =>
         execute(
           parse(
-            'range(0, 8) -> fan(fn(x) { 0 -> while (true) do<limit: 1000000000000> { $ + 1 } })'
+            'range(0, 8) -> fan(fn(x) { 0 -> while (true) do(limit: 1000000000000) { $ + 1 } })'
           ),
           ctx
         )

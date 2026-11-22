@@ -1124,26 +1124,26 @@ The `^(limit: N)` form is **not part of the current parser surface**. The parser
 **Rejected syntax (RILL-R081):**
 
 ```text
-# Error: RILL-R081 — Migration error: use `do<limit: N> { body }` at 1:N
+# Error: RILL-R081 — Migration error: use `do(limit: N) { body }` at 1:N
 [1, 2, 3] -> seq(^(limit: 1000) { $ * 2 })
 ```
 
 ```text
-# Error: RILL-R081 — Migration error: use `do<limit: N> { body }` at 1:N
+# Error: RILL-R081 — Migration error: use `do(limit: N) { body }` at 1:N
 [1, 2, 3] -> fan(^(limit: 10) { $ + 1 })
 ```
 
 ```text
-# Error: RILL-R081 — Migration error: use `do<limit: N> { body }` at 1:N
+# Error: RILL-R081 — Migration error: use `do(limit: N) { body }` at 1:N
 [1, 2, 3, 4] -> filter(^(limit: 50) { $ > 2 })
 ```
 
 ```text
-# Error: RILL-R081 — Migration error: use `do<limit: N> { body }` at 1:N
+# Error: RILL-R081 — Migration error: use `do(limit: N) { body }` at 1:N
 [1, 2, 3] -> fold(0, ^(limit: 20) fn(x) { $@ + $x })
 ```
 
-Iteration limits are controlled via the `do<limit: N>` loop construct, not via operator-level annotation. See [Control Flow](topic-control-flow.md) for `do<limit: N>` syntax.
+Iteration limits are controlled via the `do(limit: N)` loop construct, not via operator-level annotation. See [Control Flow](topic-control-flow.md) for `do(limit: N)` syntax. The angle-bracket form `do<limit: N>` is a parse error (`RILL-P025`).
 
 ---
 

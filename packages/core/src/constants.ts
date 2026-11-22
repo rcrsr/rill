@@ -48,7 +48,7 @@ export const VALID_TYPE_NAMES = [
  *
  * Covers the `#ok` status sentinel, the `#R001` and `#R999` registry
  * codes, the host-extension taxonomy (`#TIMEOUT`, `#AUTH`, ...),
- * `#IGNORE`, `#TYPE_MISMATCH`, and one halt-builder atom per `RILL-Rxxx`
+ * `#TYPE_MISMATCH`, and one halt-builder atom per `RILL-Rxxx`
  * error ID (underscore form). Shared by the parser and the runtime.
  */
 export const BUILTIN_ATOM_NAMES: readonly string[] = Object.freeze([
@@ -65,7 +65,6 @@ export const BUILTIN_ATOM_NAMES: readonly string[] = Object.freeze([
   'INVALID_INPUT',
   'PROTOCOL',
   'DISPOSED',
-  'IGNORE',
   'R999',
   'TYPE_MISMATCH',
   ERROR_ATOMS[ERROR_IDS.RILL_R016],
@@ -109,8 +108,8 @@ export const BUILTIN_ATOM_NAMES: readonly string[] = Object.freeze([
 /**
  * The closed set of error codes a halt or `ctx.invalidate` may carry,
  * and the only names `on:` accepts: every builtin atom except the
- * `#ok` sentinel and `#IGNORE`.
+ * `#ok` sentinel.
  */
 export const ERROR_CODE_NAMES: readonly string[] = Object.freeze(
-  BUILTIN_ATOM_NAMES.filter((name) => name !== 'ok' && name !== 'IGNORE')
+  BUILTIN_ATOM_NAMES.filter((name) => name !== 'ok')
 );

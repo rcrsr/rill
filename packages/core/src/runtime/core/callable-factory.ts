@@ -52,7 +52,7 @@ export function callable(
 
 /**
  * Create an application callable for runtime machinery (iterator and stream
- * steps). Its return never counts as host activity for `timeout<idle:>`.
+ * steps). Its return never counts as host activity for `timeout(idle: ...)`.
  */
 export function internalCallable(
   fn: CallableFn,

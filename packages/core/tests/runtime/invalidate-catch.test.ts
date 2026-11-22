@@ -38,7 +38,7 @@ describe('on: parsing agrees with ctx.invalidate', () => {
   };
   const parses = (name: string): boolean => {
     try {
-      parse(`guard<on: #${name}> { 1 }`);
+      parse(`guard(on: #${name}) { 1 }`);
       return true;
     } catch {
       return false;
@@ -307,7 +307,7 @@ describe('Non-access invalid-value halts', () => {
 
   it('== on an invalid operand halts catchably rather than comparing the dict-shaped sidecar', async () => {
     const src = `
-      guard<on: list[#NOT_A_CODE]> { 1 } => $x
+      guard(on: list[#NOT_A_CODE]) { 1 } => $x
       guard { $x == $x }
     `;
     const result = await runRecovered(src);
@@ -316,7 +316,7 @@ describe('Non-access invalid-value halts', () => {
 
   it('!= on an invalid operand halts catchably', async () => {
     const src = `
-      guard<on: list[#NOT_A_CODE]> { 1 } => $x
+      guard(on: list[#NOT_A_CODE]) { 1 } => $x
       guard { $x != $x }
     `;
     const result = await runRecovered(src);
@@ -346,7 +346,7 @@ describe('Non-access invalid-value halts', () => {
 
   it('json() on a directly-invalid argument halts catchably', async () => {
     const src = `
-      guard<on: list[#NOT_A_CODE]> { 1 } => $x
+      guard(on: list[#NOT_A_CODE]) { 1 } => $x
       guard { json($x) }
     `;
     const result = await runRecovered(src);
@@ -355,7 +355,7 @@ describe('Non-access invalid-value halts', () => {
 
   it('filter predicate reporting an invalid value halts catchably instead of reporting "got dict"', async () => {
     const src = `
-      guard<on: list[#NOT_A_CODE]> { 1 } => $x
+      guard(on: list[#NOT_A_CODE]) { 1 } => $x
       guard { list[1] -> filter(fn(y) { $x }) }
     `;
     const result = await runRecovered(src);

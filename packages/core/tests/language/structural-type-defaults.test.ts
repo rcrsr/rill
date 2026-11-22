@@ -982,26 +982,6 @@ describe('Rill Language: Structural Type Default Values', () => {
     );
 
     rule('defaults.element').it(
-      'halts #INVALID_INPUT on a uniform dict value type default',
-      async () => {
-        await expectHalt(() => run('dict[a: 1] -> :dict(number = 1)'), {
-          code: 'INVALID_INPUT',
-          messagePattern: /dict value type cannot carry a default/,
-        });
-      }
-    );
-
-    rule('defaults.element').it(
-      'halts #INVALID_INPUT on a uniform ordered value type default',
-      async () => {
-        await expectHalt(() => run('ordered[a: 1] -> :ordered(number = 1)'), {
-          code: 'INVALID_INPUT',
-          messagePattern: /ordered value type cannot carry a default/,
-        });
-      }
-    );
-
-    rule('defaults.element').it(
       'halts #INVALID_INPUT on a stream chunk type default',
       async () => {
         await expectHalt(() => run('number -> :stream(number = 1)'), {

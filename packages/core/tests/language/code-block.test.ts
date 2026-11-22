@@ -160,7 +160,7 @@ describe('Rill Language: Code Blocks', () => {
     rule('code-block.assert-construct').it(
       'keeps a retry body a plain block and applies the suffix to the whole retry',
       () => {
-        const primary = firstPrimary('retry<limit: 2> { 5 }:number');
+        const primary = firstPrimary('retry(attempts: 2) { 5 }:number');
         expect(primary).toMatchObject({
           type: 'TypeAssertion',
           operand: {
@@ -985,9 +985,9 @@ describe('Rill Language: Code Blocks', () => {
       );
 
       rule('code-block.non-selecting').it(
-        'halts TYPE_MISMATCH naming the entry when it converts a dict holding a block with dict(any)',
+        'halts TYPE_MISMATCH naming the entry when it converts a dict holding a block with map(string, any)',
         async () => {
-          await expectHalt(() => run('dict[a: { 1 }] -> dict(any)'), {
+          await expectHalt(() => run('dict[a: { 1 }] -> map(string, any)'), {
             code: 'TYPE_MISMATCH',
             messagePattern: /'a'/,
           });

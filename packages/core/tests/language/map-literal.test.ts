@@ -229,7 +229,7 @@ describe('map literal', () => {
     await expectHalt(
       () =>
         runRecovered(
-          'guard<on: list[#NOT_A_CODE]> { 1 } => $bad\nmap[1: $bad]'
+          'guard(on: list[#NOT_A_CODE]) { 1 } => $bad\nmap[1: $bad]'
         ),
       { code: 'R001' }
     );

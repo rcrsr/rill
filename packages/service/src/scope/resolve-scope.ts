@@ -32,7 +32,7 @@ interface ScopeState {
  * `ScopeFrame`s (script, block, closure, grouped-expression) is derived
  * purely from span containment: a frame closes as soon as a later-visited
  * node's span starts at or past the frame's own end. Every `Block`, including
- * a `pass<...> { ... }` body, opens its own frame, so a capture made inside
+ * a `pass(...) { ... }` body, opens its own frame, so a capture made inside
  * a block is not visible after it.
  *
  * Every binding discovered in a scope enclosing `offset` is returned

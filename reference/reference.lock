@@ -139,18 +139,20 @@ conditional.chain f6e6d4a3bb8a
 conditional.dollar 02e039ee422d
 conditional.no-else 7f5fd8f0deba
 conditional.piped 933b1fa68341
-construct-options.dict 5c87097818e4
-construct-options.literal-bound e92b3597ff26
-construct-options.none cee8fe49f9ef
-construct-options.order 1d6b6fe441b6
-construct-options.parens 8ddaad32696a
-construct-options.space 41e48387924e
-construct-options.spread 363569976dca
+construct-options de4af52c4043 construct-options.literal-bound@77e40601f298
+construct-options.dict d1b7a83760a9
+construct-options.literal-bound 77e40601f298
+construct-options.none a35d47116b66
+construct-options.order 9e0fa90d515e
+construct-options.parens b2044d7d107a
+construct-options.space 27a60210ba21
+construct-options.spread a3b22c8d67d7 construct-options.literal-bound@77e40601f298
 construct-options.timeout-ceiling d744b56da9e6
+construct-options.timeout-context 0c51eabc354d
 construct-options.timeout-fixed-duration 7407da20a63c
-construct-options.timeout-idle-activity ff699ac8a2cf
+construct-options.timeout-idle-activity 9582bd6ab45b
 construct-options.timeout-limits 48fae22e61a1
-construct-options.values 4e5fac4f2791
+construct-options.values 6ebb8d66f635
 conversion.any d639008176d6
 conversion.deep f7f36025251e
 conversion.dict-ordered b07caa56f8ab
@@ -205,7 +207,7 @@ declaration.spellings 87af7ad5866e list.bare@37dca8616609
 declaration.unspecified 5f4c3ab13a85
 declaration.written bd3669fb6801
 defaults.arg-hydrate 54df009dbca2
-defaults.element 1b4d75e182c3
+defaults.element 2682cbf6ba4d
 defaults.equality 59da62824e1e
 defaults.fill 1c3e396558aa assertion.unchanged@d5063326e3a7
 defaults.hydrated-type 7e897e168814
@@ -235,7 +237,7 @@ destruct.result 979409b161ac
 destruct.skip 86168bbe3c38
 destruct.target 7cc2b884121b
 destruct.typed 1fb13796760d capture.mismatch@616241654040 type-lock.halt@33dbd80723fe
-dict 76996b36e6b0 structural-typing.bare-dict@47f054dbadd3 structural-typing.exact-dict@edc7a049d7b0 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
+dict 2bf2f791986b structural-typing.bare-dict@47f054dbadd3 structural-typing.exact-dict@edc7a049d7b0 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
 dict.bare 4a06680ac2db dict.key-duplicate@b6d0d4b31a32 dict.key-string@e24f644a5bdc list.bare@37dca8616609
 dict.empty-parens c8b91cfc3a0e
 dict.entries-type 1694a66fcd0a
@@ -244,13 +246,13 @@ dict.field-equality 59a0c468bdd0
 dict.field-inner cd37b043f41b
 dict.field-print 8d9ff802effb
 dict.field-type f1601698eb92
-dict.fields b8c3432bfe22
+dict.fields 0de0acb5a416
 dict.key-duplicate b6d0d4b31a32
 dict.key-print 084c35b9866c
 dict.key-spelling edaf10c0720f
 dict.key-string e24f644a5bdc
 dict.no-outer 62f0b3f59f69
-dict.no-uniform b86b80e51011
+dict.no-uniform bcc2baecc3e4
 dict.type-key-duplicate 15dacb9fbd88
 dict.value-print d57857f13b69
 dispatch.block eea8f694c93e
@@ -384,8 +386,8 @@ guard.dollar 1f03b764b461
 guard.non-catchable 8144d6897ddd halt.non-catchable@8eb8c26644b7
 guard.on-codes 2937862d4b07
 guard.on-empty 65db40915a6d
-guard.on-runtime 6a920bc6e108
-guard.on-single 658ac5d3de79
+guard.on-runtime c32ccd79a3ca
+guard.on-single bfcc2094f87e
 guard.pass f983c5956e00
 guard.selector cfa1673f98d5
 guard.signals 2206949301de break.not-halt@ec05571e1ef0
@@ -500,7 +502,7 @@ loop.bool 857e8d9a91e0
 loop.do-required cde369c28522
 loop.do-while e3cab5f0f0ed
 loop.limit 00362c68cd6b
-loop.limit-literal db7eabc1b164
+loop.limit-literal a39673617195 construct-options.literal-bound@77e40601f298
 loop.result 2fe4a5304602
 loop.scope 3db206370382 scope.iteration@6614cdd083b1
 loop.seed ece9a46ff7a0
@@ -570,21 +572,22 @@ number.precision 72e91dffc612
 number.print 48a1ee322f61
 number.print-exponent bbcacfa268f6
 number.value 51a06e4cfb4e
-ordered 5a19e186c4dd structural-typing.bare-ordered@194efa7a1fef structural-typing.exact-position@cb3617c378f1 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
+ordered e90fefe9ecde structural-typing.bare-ordered@194efa7a1fef structural-typing.exact-position@cb3617c378f1 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
 ordered.empty-parens dee46359e906
 ordered.field-inner 9b3eea08a977
 ordered.field-print 803005b1b1ef
-ordered.fields b85b597cb48b
+ordered.fields bbdc190c0dd6
 ordered.key-spelling 1f4557b2aa7d dict.key-print@084c35b9866c dict.key-spelling@edaf10c0720f
 ordered.no-outer 22b1f36e7c6c
-ordered.no-uniform d52b47c28c66
+ordered.no-uniform de6d6989b9c6
 ordered.not-dict efe035f5b624
 ordered.order 357de38d6895
-pass.async f3606f153ab1
+pass 71393dc26d21 construct-options.dict@d1b7a83760a9
+pass.async 71b97f7c7f40
 pass.body cf196fd31151
 pass.halts 0d9009ce6827
 pass.identity daaa2d6b9355
-pass.ignore 255923507376
+pass.ignore 8ad8770f2b06
 pass.target-body 03087cb442a9
 pipe faaad1e8e067 conditional.piped@933b1fa68341 loop.seed@ece9a46ff7a0
 pipe.block 00f69bfcf9d1 code-block.pipe-target@10cd486fec05
@@ -604,8 +607,8 @@ pipe.uses-value b0a557eb924b
 pipe.variable 6f95dc9aaa5e
 pipe.variable-kind d61d19325ad6 pipe.data@faa3632d051e
 pipe.zero-param 932c1c0e59a4
-retry.attempts 082c9ee5c2b9
-retry.attempts-name 626b546e297d
+retry.attempts d068f109fa31 construct-options.literal-bound@77e40601f298
+retry.attempts-name ac7fc2d95a27
 retry.exhaust f6b05f39b670
 retry.guard f0791b01e0d5
 retry.success b3ed4a875ec6
