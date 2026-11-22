@@ -699,6 +699,23 @@ function runCheckStandardsFixtureTests() {
       'grep_noncomment: the same token outside a comment passes STD-CI-4',
       real.stdout
     );
+
+    // A match near the top of a file far larger than a pipe buffer. With
+    // `grep -q` as the last stage, grep -v was still writing when grep -q
+    // exited at the match, died of SIGPIPE, and pipefail turned the present
+    // token into a FAIL. 64 KiB is the Linux pipe buffer; 4 MiB of padding
+    // makes the old code lose every run rather than some.
+    const padding = '      - run: echo padding\n'.repeat(160000);
+    const rootLarge = writeFixtureTree({
+      'package.json': MINIMAL_PKG,
+      '.github/workflows/ci.yml': ciReal + padding,
+    });
+    const large = runCheckStandards(rootLarge);
+    check(
+      /ok\s+STD-CI-4\s/.test(large.stdout),
+      'grep_noncomment: an early match in a file larger than a pipe buffer passes STD-CI-4',
+      large.stdout
+    );
   }
 
   // (h) STD-HOOK-4: presence of a `pre-push:` key alone is not enough; the
