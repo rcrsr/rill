@@ -14,6 +14,7 @@
  * Not auto-fixable: each replacement needs a naming decision.
  */
 
+/** @type {import('./types.cjs').Rule} */
 module.exports = {
   meta: {
     type: 'problem',
@@ -38,7 +39,9 @@ module.exports = {
   },
 
   create(context) {
-    const options = context.options[0] ?? {};
+    const options = /** @type {{ allowExportAll?: string[] }} */ (
+      context.options[0] ?? {}
+    );
     const allowExportAll = options.allowExportAll ?? [];
     const filename = String(context.filename ?? '').replaceAll('\\', '/');
     const exportAllAllowed = allowExportAll.some((suffix) =>

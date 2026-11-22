@@ -12,6 +12,11 @@ the language version. Language changes are recorded in the
 
 ## Unreleased
 
+### Changed
+
+- **The rule files are type-checked by type-aware lint.** `packages/dev` lints with `oxlint --type-aware` against a new `tsconfig.json`. Each rule file carries JSDoc types derived from oxlint's `RuleTester` in `lint-rules/types.cjs`. The package stays plain CommonJS with no build step.
+- **Rules read source through `context.sourceCode`.** `no-duplicate-error-id` and `no-spec-id-reference` drop the `context.getSourceCode()` fallback, matching `rethrow-control-signal`. oxlint provides `context.sourceCode`, so rule behavior is unchanged under oxlint.
+
 ## 0.3.0 - 2026-11-06
 
 ### Changed

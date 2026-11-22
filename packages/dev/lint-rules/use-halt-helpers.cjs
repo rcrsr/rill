@@ -11,6 +11,7 @@
 
 const THROW_MATCHERS = new Set(['toThrow', 'toThrowError']);
 
+/** @type {import('./types.cjs').Rule} */
 module.exports = {
   meta: {
     type: 'suggestion',

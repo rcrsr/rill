@@ -33,7 +33,7 @@
   ],
   "scripts": {
     "test": "node lint-rules/rule-unit-test.cjs && node baseline-test.cjs",
-    "lint": "oxlint --config ../../.oxlintrc.json lint-rules/",
+    "lint": "oxlint --config ../../.oxlintrc.json --type-aware lint-rules/",
     "check": "pnpm run test && pnpm run lint"
   },
   "repository": {

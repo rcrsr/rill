@@ -13,6 +13,10 @@
  * Not auto-fixable: the fix adds an import whose path depends on the file.
  */
 
+/**
+ * @param {import('./types.cjs').NodeOf<'ForOfStatement'>} node
+ * @returns {string | null}
+ */
 function loopKeyName(node) {
   const right = node.right;
   if (
@@ -39,6 +43,7 @@ function loopKeyName(node) {
   return null;
 }
 
+/** @type {import('./types.cjs').Rule} */
 module.exports = {
   meta: {
     type: 'problem',
@@ -55,6 +60,7 @@ module.exports = {
   },
 
   create(context) {
+    /** @type {Array<string | null>} */
     const keys = [];
 
     return {

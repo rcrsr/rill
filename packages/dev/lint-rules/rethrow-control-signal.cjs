@@ -22,16 +22,31 @@ const RUNS_RILL = /\b(?:evaluate|invoke)\w*\s*\(|\.fn\s*\(/;
 const HANDLES_SIGNAL =
   /\b(?:ControlSignal|BreakSignal|ReturnSignal|YieldSignal|rejectBreakAsHalt)\b/;
 
+/**
+ * @param {string} text
+ * @returns {string}
+ */
 function stripComments(text) {
   return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
 }
 
+/**
+ * @param {string} text
+ * @returns {string}
+ */
 function escapeRegExp(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/**
+ * @param {import('./types.cjs').Statement | null | undefined} statement
+ * @param {string | null} param
+ * @returns {boolean}
+ */
 function endsInRethrow(statement, param) {
-  if (!statement || param === null) return false;
+  if (statement === null || statement === undefined || param === null) {
+    return false;
+  }
   if (statement.type === 'ThrowStatement') {
     return (
       statement.argument?.type === 'Identifier' &&
@@ -47,6 +62,7 @@ function endsInRethrow(statement, param) {
   return false;
 }
 
+/** @type {import('./types.cjs').Rule} */
 module.exports = {
   meta: {
     type: 'problem',
@@ -71,7 +87,9 @@ module.exports = {
   },
 
   create(context) {
-    const options = context.options[0] ?? {};
+    const options = /** @type {{ delegates?: string[] }} */ (
+      context.options[0] ?? {}
+    );
     const delegates = options.delegates ?? [];
     const delegateCall =
       delegates.length > 0
@@ -82,12 +100,12 @@ module.exports = {
     return {
       TryStatement(node) {
         const handler = node.handler;
-        if (!handler) return;
+        if (handler === null) return;
         if (!RUNS_RILL.test(sourceCode.getText(node.block))) return;
 
         const body = stripComments(sourceCode.getText(handler.body));
         if (HANDLES_SIGNAL.test(body)) return;
-        if (delegateCall?.test(body)) return;
+        if (delegateCall?.test(body) === true) return;
 
         const param =
           handler.param?.type === 'Identifier' ? handler.param.name : null;

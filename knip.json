@@ -9,6 +9,7 @@
       "vitest": ["vitest.config.ts"]
     },
     "packages/dev": {
+      "entry": ["lint-rules/types.cjs"],
       "project": ["lint-rules/**/*.{js,cjs}"]
     },
     "packages/core": {
