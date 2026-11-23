@@ -155,6 +155,19 @@ Rules in the `callables` chapter that leave a probed case unstated. Probed at 97
 | A call suffix after a method | `$mk(1)(2)` calls the result. `list[fn(x) { $x * 10 }] => $l` then `$l.at(0)(3)` yields 30, and `$l[0](3)` and `$d["a"](3)` call too | `$l -> .at(0)(3)` yields 3, and `list[7, 8] -> .at(0)(99)` yields 99: the `(3)` starts a second statement on the line (`statement.same-line`), while `list[7, 8] => $l` then `$l.at(0)(99)` halts RILL-R002 | `invocation`, `pipe-target`, `statement` |
 | A type suffix on an annotation presence test | The `annotation-existence` production and the `annotation-access` Syntax: `".?" , "^" , identifier`, with no `&` | `^(a: 1) fn(x) { $x } => $f` then `$f.?^a&number` yields `true`, `$f.?^a&string` and `$f.?^z&number` yield `false`, as `existence-check` allows for `.?name&T` (`existence`). `annotations.test.ts` pins it | `annotation-access`, `existence` |
 
+## Control flow
+
+Rules in the `control-flow` chapter that leave a probed case unstated. Probed at 23491968.
+
+| Inconsistency | One form | The other form | Concept |
+|---------------|----------|----------------|---------|
+| Which body `return` ends | `break.return-body`: `return` ends the innermost code block, and a construct body is a code block (`code-block.construct`). A pipe target block and a head block end: `1 -> { ($ + 1) -> return } => $x` then `"after {$x}"` yields `"after 2"`, and `fn { { "a" -> return }` then `"after" }` yields `"after"` | A `while` or `do` body, a conditional branch block, and a `guard`, `retry`, `timeout`, or `pass` body pass `return` on. `0 -> while ($ < 3) do { ($ + 1) -> return }` then `"after"` yields 1 and ends the script. `fn { true ? { "a" -> return } ! 1` then `"after" }` yields `"a"`. `break.not-halt` names only `guard`, `retry`, and `pass`, so `break.return-body` is uncited | `break`, `code-block`, `loop`, `conditional` |
+| `break` inside a called function | `break.nested` names code blocks only. `return` ends the function body it stands in (`break.return-body`) | `break` crosses a call. `fn(x) { $x -> break } => $f` then `0 -> while (true) do { $f(7) }` yields 7, and `list[1, 2, 3] -> seq({ ($ == 2) ? $f($) ! $ })` yields `list[1]`. `$f(1)` outside a loop halts RILL-R002 "break not supported in script" | `break`, `invocation` |
+| A bare `break` with no `$` bound | `break.unsupported`: `break` outside any loop halts RILL-R002, uncatchable. `1 -> break` halts RILL-R002 "break not supported in script" and escapes `guard` | `break` and `true ? break ! 1` at the top level halt RILL-R005 "Undefined variable: $", which `guard` catches: the read of `$` fails before the loop check. `break.unsupported` is uncited | `break` |
+| A halt in an async `pass` body | `pass.halts`: a halt in a `pass` body propagates unless `ignore_halts` is true | `5 -> pass(async: true) { 1 / 0 }` yields 5. `pass-async.test.ts` pins that the halt rejects the in-flight promise the host awaits at `dispose()`, so it never reaches the script. `pass.async` does not say where the halt goes, so `pass.halts` is uncited | `pass` |
+| An empty `pass` body | Every other empty block halts RILL-P004 "Empty blocks are not allowed" (see the Callables row on an empty function body) | `5 -> pass { }` parses and yields 5 | `pass`, `code-block` |
+| `timeout` with no parentheses | `construct-options.none`: an empty `keyword()` means the same as the form without parentheses, and the rule lists `timeout` | `timeout() { 1 }` yields 1, but `timeout { 1 }` halts RILL-R006 "Unknown function: timeout", catchable: `construct-options.timeout-context` keeps a `timeout` with no `(` an ordinary name, so no form without parentheses exists | `construct-options` |
+
 ## Line continuation
 
 Forms that read alike continue across a line ending in some places and not others. Probed at

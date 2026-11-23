@@ -106,7 +106,7 @@ One row per PR. Tick a row when its PR merges.
 | 10 | `variables` | 3 | 27 | 0 | #676 |
 | 11 | `expressions` | 13 | 137 | 2 | #676 |
 | 12 | `callables` | 3 | 37 | 0 | #676 |
-| 13 | `control-flow` | 5 | 43 | 31 | |
+| 13 | `control-flow` | 5 | 52 | 4 | |
 | 14 | `collections` | 7 | 53 | 47 | |
 | 15 | `errors` | 5 | 33 | 32 | |
 | 16 | `limits` (write) | 0 | 0 | 0 | |
@@ -243,11 +243,11 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `control-flow/break.md` | 7 | 7 | | | | |
-| `control-flow/conditional.md` | 7 | 7 | | | | |
-| `control-flow/construct-options.md` | 13 | 1 | | | | |
-| `control-flow/loop.md` | 10 | 10 | | | | |
-| `control-flow/pass.md` | 6 | 6 | | | | |
+| `control-flow/break.md` | 8 | 2 | x | x | x | |
+| `control-flow/conditional.md` | 8 | 0 | x | x | x | x |
+| `control-flow/construct-options.md` | 16 | 0 | x | x | x | x |
+| `control-flow/loop.md` | 14 | 1 | x | x | x | |
+| `control-flow/pass.md` | 6 | 1 | x | x | x | |
 
 ### `collections`
 
@@ -291,16 +291,6 @@ Each gets a table when its PR splits it into concepts.
 What the sweeps found that no rule states yet, routed to the slice that owns it. A slice works its
 backlog in the Complete and Cited columns: probe each item, then write a rule or record why none is
 needed. Strike nothing here; the slice PR deletes the items it settles.
-
-### `control-flow`
-
-- Grammar: `chain-terminator`, `else-clause`, `loop`, `pass`, `pass-block`, `construct-options`, `timeout-block`,
-  and `body`, the conditional branch (`pipe-chain`), which no `fn` literal uses.
-- Tests: the branch-shape cases of `parser-syntax-errors.test.ts`.
-- Errors: RILL-R079 and RILL-R080 (removed `@` loop forms), RILL-P010 (`@` expression),
-  RILL-R082 and RILL-R083 (timeout expiry; the timeout rules name no error id).
-- `break`: `break` in `sort` halts RILL-R002 and escapes `guard`.
-- `construct-options`: bare `retry(3)` halts RILL-P001.
 
 ### `collections`
 
@@ -424,4 +414,6 @@ at a897cfc3 unless they say otherwise.
 | `variables/scope.md` | A capture into a parameter inside its own body halts RILL-R001 as an outer rebinding; no rule says which scope a function body's parent is. Probed at 9b5a9c67 | Collected in INCONSISTENCIES.md |
 | `expressions/selection.md` | `selection.at`: `.at` on a dict or an ordered halts RILL-R003, and the Errors row says Yes. `dict[a: 1].at(0)` and `ordered[a: 1].at(0)` halt RILL-R003 "Cannot call .at() on object" and escape `guard`. Shares the root cause of the `.keys` row above. Probed at 21eecdfb | Collected |
 | `expressions` | A tuple or ordered literal is not a dispatch target, while a list or dict literal is; `spread.list-uniform` contradicts `inference.literal-union`; `spread.arg-positional` does not say whether positional arguments may precede the spread. Probed at 21eecdfb | Collected in INCONSISTENCIES.md |
+| `control-flow/loop.md`, `control-flow/pass.md`, `control-flow/conditional.md` | A construct with no `$` bound reads a missing value instead of halting RILL-R005, which `loop.seed` requires, and which bare `pass` and `false ? "y"` raise. At the top level, `while (false) do { 1 } => $x` then `$x` prints `type(null)`, and its `.^type.name` is `"string"`. `do { 1 } while (false)` yields 1. `pass { 1 }` and `pass(ignore_halts: true) { 1 / 0 }` yield an empty printout. `? 1 ! 2` halts RILL-R002 "Piped conditional requires boolean, got string". Probed at 23491968 | Collected |
 | `callables` | An empty `fn` body parses and halts RILL-R043 on call while every other empty block halts RILL-P004; `$d.a()` on a non-function field halts RILL-R007 while `$n()` halts RILL-R002; a call suffix after a method in a pipe target starts a new statement; `annotation-existence` omits the `&T` suffix the runtime accepts. Probed at 97c5b292 | Collected in INCONSISTENCIES.md |
+| `control-flow` | Which body `return` ends; `break` inside a called function; a bare `break` with no `$`; a halt in an async `pass` body; an empty `pass` body; `timeout` with no parentheses. Probed at 23491968 | Collected in INCONSISTENCIES.md |

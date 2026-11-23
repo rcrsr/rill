@@ -4,7 +4,7 @@ title: Pass
 status: normative
 since: 0.24.0
 issues: []
-grammar: []
+grammar: [pass, pass-block]
 errors: [RILL-P004, RILL-P025, RILL-R005, TYPE_MISMATCH]
 depends: [conditional]
 tests: [pass.test.ts, pass-parsing.test.ts, pass-async.test.ts]
@@ -16,6 +16,11 @@ tests: [pass.test.ts, pass-parsing.test.ts, pass-async.test.ts]
 yields the incoming `$`.
 
 ## Syntax
+
+```ebnf
+pass       = "pass" ;
+pass-block = "pass" , construct-options , block ;
+```
 
 ```text
 pass                              the incoming $
@@ -53,7 +58,7 @@ With `async: true`, `pass` MUST yield `v` without waiting for the body to finish
 |-----------|-------|-----------|
 | `-> pass` with no body | RILL-P004 | No |
 | `pass` where no `$` is bound | RILL-R005 | Yes |
-| The options are written in angle brackets | RILL-P025 | No |
+| The options are written in angle brackets (`construct-options.parens`) | RILL-P025 | No |
 | `ignore_halts` or `async` is not a bool (`construct-options.dict`) | `#TYPE_MISMATCH` | Yes |
 
 ## Examples

@@ -98,6 +98,7 @@ bool.unordered 3b55c75110e5
 break.loop 77f3c77a4528
 break.nested de79f3da488d
 break.not-halt ec05571e1ef0
+break.other-operators 8614ac07ec34
 break.return-body 23c89e6d85e2 statement.return@231d6a34b48f
 break.return-each 14a36a5597f3
 break.seq e47b3a30461b
@@ -148,17 +149,19 @@ code-block.pipe-target 10cd486fec05
 code-block.positions 25abcf4223c3
 code-block.shape-reads 8593baf5bf0f
 code-block.unbound bd68ab55850b
-conditional fcbcf4e09c78 pipe.no-literal@2292a8733c47
+conditional 8bcc9f97debe pipe.no-literal@2292a8733c47
 conditional.block 0552c47f0c19 code-block.construct@70936e7ddf4a
 conditional.bool e166d29a4597
 conditional.branch 3df7264f90de
+conditional.branch-shape 9bc762681ab0
 conditional.chain f6e6d4a3bb8a
 conditional.dollar 02e039ee422d
 conditional.no-else 7f5fd8f0deba
 conditional.piped 933b1fa68341
-construct-options de4af52c4043 construct-options.literal-bound@77e40601f298
+construct-options 57e2de8c1433 construct-options.literal-bound@77e40601f298 construct-options.timeout-context@0c51eabc354d
 construct-options.dict d1b7a83760a9
 construct-options.literal-bound 77e40601f298
+construct-options.named 296cd5a12e99
 construct-options.none a35d47116b66
 construct-options.order 9e0fa90d515e
 construct-options.parens b2044d7d107a
@@ -168,7 +171,9 @@ construct-options.timeout-ceiling d744b56da9e6
 construct-options.timeout-context 0c51eabc354d
 construct-options.timeout-fixed-duration 7407da20a63c
 construct-options.timeout-idle-activity 9582bd6ab45b
+construct-options.timeout-idle-expiry 3a07f3768098
 construct-options.timeout-limits 48fae22e61a1
+construct-options.timeout-total-expiry 591c1e9bdfd7
 construct-options.values 6ebb8d66f635
 conversion 3be39372db13 number.from-string-fail@56311bb2eeec
 conversion.any d639008176d6
@@ -556,16 +561,21 @@ logical.not 6c71deb89749
 logical.not-operand c96171d24c24
 logical.or 803683c9a91b
 logical.short-circuit 142a7e9b729b
+loop 5ed5997859ac construct-options.parens@b2044d7d107a
 loop.accumulate 7080c69b7e01
+loop.at-expression d9359c8a7df6
 loop.bool 857e8d9a91e0
 loop.do-required cde369c28522
 loop.do-while e3cab5f0f0ed
 loop.limit 00362c68cd6b
 loop.limit-literal a39673617195 construct-options.literal-bound@77e40601f298
+loop.no-post-at f0cdab042115
+loop.no-pre-at a23217bc302d
 loop.result 2fe4a5304602
 loop.scope 3db206370382 scope.iteration@6614cdd083b1
 loop.seed ece9a46ff7a0
 loop.while 88bf4bd89886
+loop.while-required 713d4999e34c
 map 44b58070ebf1 filter.map@e33e5b705bac
 map.duplicate-parse 05b269a892bc
 map.duplicate-run ebcfe219f67b
@@ -647,7 +657,7 @@ ordered.no-outer 22b1f36e7c6c
 ordered.no-uniform de6d6989b9c6
 ordered.not-dict efe035f5b624
 ordered.order 357de38d6895
-pass 71393dc26d21 construct-options.dict@d1b7a83760a9
+pass 2e3e00a889bb construct-options.dict@d1b7a83760a9 construct-options.parens@b2044d7d107a
 pass.async 71b97f7c7f40
 pass.body cf196fd31151
 pass.halts 0d9009ce6827
