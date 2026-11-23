@@ -9,9 +9,10 @@ access.field-name dd80884e3d51
 access.method-target e5fcfe58c1b6
 access.ordered-key 1391744093d9
 annotation 4d28dc2fd296 annotation.spread-dict@4e60ef06a20c introspection.annotations@b4c71df09996 introspection.annotations-tuple@b8ad2c2fd7fa
-annotation-access 8b3d6b558d16 annotation-access.no-params@3d47ace54fa0 annotation.attach@31bfd3e68c4d introspection.annotations@b4c71df09996 introspection.type-probe@98d4ed5945dd
+annotation-access 9ebb35a1012b annotation-access.no-input@c5f17fbdd94d annotation-access.no-params@3d47ace54fa0 annotation.attach@31bfd3e68c4d introspection.annotations@b4c71df09996 introspection.type-probe@98d4ed5945dd
 annotation-access.fallback 04bd31e1f425 vacancy.fallback@a8ddb8c219f9
 annotation-access.missing db2b8f7c2690
+annotation-access.no-input c5f17fbdd94d
 annotation-access.no-params 3d47ace54fa0
 annotation-access.non-function eebed6b904cb
 annotation-access.presence 39e8aad16b17
@@ -125,15 +126,15 @@ carried-type.own-element 1613e0cd4bce equality.no-overlap@39f213f599cf inference
 carried-type.replace 92d0ac2c5056 assertion.any@c486fea6b8eb
 carried-type.reserved-key 482d6a7d0ebf
 carried-type.type-probe eaad72137ace
-code-block b91083ffb360 break.return-body@23c89e6d85e2 dispatch.fn@a115a855126a fn.bare-literal@da926d363944 fn.block-outer@d1fc49ffe0c9 fn.block-type@52e90c07026e pipe.uses-value@b0a557eb924b statement.result@4c84cfa0816c
+code-block 6375db37ee9d break.return-body@23c89e6d85e2 dispatch.block@eea8f694c93e dispatch.block-held@88a79ab26f9d dispatch.block-list@1e9e1042a47d dispatch.fn@a115a855126a fn.bare-literal@da926d363944 fn.block-outer@d1fc49ffe0c9 fn.block-type@52e90c07026e pipe.uses-value@b0a557eb924b statement.result@4c84cfa0816c
 code-block.access 3a85d15f615c
+code-block.access-call c12e386936fe code-block.access@3a85d15f615c
 code-block.access-target 3681f2360105
 code-block.assert adcd030a8f58 assertion.mismatch@9dc0075657b2 assertion.pass@1a0a1da3896c
 code-block.assert-construct 90d23d3203a9
 code-block.assert-scope cf3fccd7bc92
 code-block.check 7405304063e8
 code-block.construct 70936e7ddf4a
-code-block.dispatch 8decd7894edc
 code-block.each-time 85492459e40a
 code-block.head 50fc507875b8
 code-block.held 3e6bfe9018e1
@@ -145,6 +146,7 @@ code-block.not-value f7293a3f40a0
 code-block.parens 7d9c790478e5
 code-block.pipe-target 10cd486fec05
 code-block.positions 25abcf4223c3
+code-block.shape-reads 8593baf5bf0f
 code-block.unbound bd68ab55850b
 conditional fcbcf4e09c78 pipe.no-literal@2292a8733c47
 conditional.block 0552c47f0c19 code-block.construct@70936e7ddf4a
@@ -498,10 +500,12 @@ invalid-value.origin f59e88d4cf82
 invalid-value.probe 024c35ff18e2
 invalid-value.status 7d727ece29c6
 invalid-value.valid-status 413a1a114f6b
-invocation 2fcefbf63cce defaults.param@4bd0a3bd35c5 defaults.param-required@94b94909db07 halt.non-catchable@8eb8c26644b7 pipe.call-operand@3a33d5a45012 pipe.script-operand@6cce33562a21 scope.child@fb0f345c5707 scope.late-binding@80ad28cdc782 selection.property@a2c17ab01fb9 spread.arg-dict@60818904593b spread.arg-tuple@ca06a765a105
+invocation f9fc60ad111f defaults.param@4bd0a3bd35c5 defaults.param-required@94b94909db07 halt.non-catchable@8eb8c26644b7 keyword.other@11d39ac6f7d5 pipe.call-operand@3a33d5a45012 pipe.script-operand@6cce33562a21 scope.child@fb0f345c5707 scope.late-binding@80ad28cdc782 selection.property@a2c17ab01fb9 spread.arg-dict@60818904593b spread.arg-tuple@ca06a765a105
 invocation.arguments-first 506b39f747fd
+invocation.bare-name 02c253c5afa8
 invocation.before-body 248c16d5ba59
 invocation.excess adc4936056b0
+invocation.no-named 582e5e355d4d
 invocation.no-self-binding 7b59d21fdf8b
 invocation.positional 95d22ed507e2
 invocation.type 3b9d5f0b7e24

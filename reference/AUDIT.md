@@ -105,7 +105,7 @@ One row per PR. Tick a row when its PR merges.
 | 9 | `types/typing` | 8 | 122 | 0 | #676 |
 | 10 | `variables` | 3 | 27 | 0 | #676 |
 | 11 | `expressions` | 13 | 137 | 2 | #676 |
-| 12 | `callables` | 3 | 33 | 15 | |
+| 12 | `callables` | 3 | 37 | 0 | |
 | 13 | `control-flow` | 5 | 43 | 31 | |
 | 14 | `collections` | 7 | 53 | 47 | |
 | 15 | `errors` | 5 | 33 | 32 | |
@@ -235,9 +235,9 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `callables/annotation-access.md` | 7 | 6 | | | | |
-| `callables/code-block.md` | 20 | 4 | | | | |
-| `callables/invocation.md` | 6 | 5 | | | | |
+| `callables/annotation-access.md` | 8 | 0 | x | x | x | x |
+| `callables/code-block.md` | 21 | 0 | x | x | x | x |
+| `callables/invocation.md` | 8 | 0 | x | x | x | x |
 
 ### `control-flow`
 
@@ -291,17 +291,6 @@ Each gets a table when its PR splits it into concepts.
 What the sweeps found that no rule states yet, routed to the slice that owns it. A slice works its
 backlog in the Complete and Cited columns: probe each item, then write a rule or record why none is
 needed. Strike nothing here; the slice PR deletes the items it settles.
-
-### `callables`
-
-- Grammar: `fn-call`, `host-call`, `host-name`, `argument`, `arguments`.
-- Errors: RILL-R043 (non-producing body).
-- Tests: `args.test.ts`.
-- `invocation`: a bare `name` statement is a call (RILL-R006); `name: value` arguments halt
-  RILL-P001; a bare built-in name as an argument is a zero-argument call.
-- `code-block`: `$c.name(args)` runs the held block, then calls its result; `.keys` and `.len`
-  do not read held entries.
-- `annotation-access`: `.^input` halts RILL-R008 naming `.^type.inner`.
 
 ### `control-flow`
 
@@ -435,3 +424,4 @@ at a897cfc3 unless they say otherwise.
 | `variables/scope.md` | A capture into a parameter inside its own body halts RILL-R001 as an outer rebinding; no rule says which scope a function body's parent is. Probed at 9b5a9c67 | Collected in INCONSISTENCIES.md |
 | `expressions/selection.md` | `selection.at`: `.at` on a dict or an ordered halts RILL-R003, and the Errors row says Yes. `dict[a: 1].at(0)` and `ordered[a: 1].at(0)` halt RILL-R003 "Cannot call .at() on object" and escape `guard`. Shares the root cause of the `.keys` row above. Probed at 21eecdfb | Collected |
 | `expressions` | A tuple or ordered literal is not a dispatch target, while a list or dict literal is; `spread.list-uniform` contradicts `inference.literal-union`; `spread.arg-positional` does not say whether positional arguments may precede the spread. Probed at 21eecdfb | Collected in INCONSISTENCIES.md |
+| `callables` | An empty `fn` body parses and halts RILL-R043 on call while every other empty block halts RILL-P004; `$d.a()` on a non-function field halts RILL-R007 while `$n()` halts RILL-R002; a call suffix after a method in a pipe target starts a new statement; `annotation-existence` omits the `&T` suffix the runtime accepts. Probed at 97c5b292 | Collected in INCONSISTENCIES.md |

@@ -7,7 +7,7 @@ issues: []
 grammar: [annotation-access, annotation-existence]
 errors: [RILL-R003, RILL-R008]
 depends: [annotation]
-tests: [annotations.test.ts]
+tests: [annotations.test.ts, type-inner-outer.test.ts]
 ---
 
 # Annotation access
@@ -53,11 +53,17 @@ r[annotation-access.no-params] .params on a function halts, naming the replaceme
 `$f.params` on a function MUST halt with RILL-R008, with a message naming `.^type.annotations` and
 `.^type.inner`.
 
+r[annotation-access.no-input] .^input and .^output halt, naming the replacement
+`$f.^input` and `$f.^output` on a function that stores no such key MUST halt with RILL-R008,
+with a message naming `.^type.inner` or `.^type.outer`. A stored `input` or `output` key MUST
+read as any other key.
+
 ## Interactions
 
 Which annotations a function carries is stated in `annotation.attach`. Parameter annotations
 are read from the function's type (`introspection.annotations`), not with `.^key`.
-`.params` on a function is removed (`annotation-access.no-params`). `.^type`
+`.params`, `.^input`, and `.^output` are removed (`annotation-access.no-params`,
+`annotation-access.no-input`). `.^type`
 and `.^effective` read a value's type (`introspection.type-probe`, `carried-type`).
 
 ## Errors
@@ -67,6 +73,7 @@ and `.^effective` read a value's type (`introspection.type-probe`, `carried-type
 | `.^key` names a key the function lacks | RILL-R008 | Yes |
 | `.^key` on a value that is not a function | RILL-R003 | Yes |
 | `.params` on a function | RILL-R008 | Yes |
+| `.^input` or `.^output` on a function that stores neither | RILL-R008 | Yes |
 
 ## Examples
 

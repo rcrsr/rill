@@ -33,7 +33,7 @@ open it goes in the [AUDIT.md](AUDIT.md) Findings table; otherwise file it as an
 
 | Inconsistency | Held block | Host property function | Concept |
 |---------------|------------|------------------------|---------|
-| What the body sees on access | The enclosing `$` (`code-block.access`), so `$d.c` at top level halts RILL-R005. Dispatch binds the selector (`code-block.dispatch`) | The collection it is selected from, as `self`, under every selecting form | `selection`, `code-block` |
+| What the body sees on access | The enclosing `$` (`code-block.access`), so `$d.c` at top level halts RILL-R005. Dispatch binds the selector (`dispatch.block`) | The collection it is selected from, as `self`, under every selecting form | `selection`, `code-block` |
 | Reads that select no entry | Halt `#TYPE_MISMATCH` (`code-block.non-selecting`) | Pass the function through uncalled: `.values`, `.entries`, and `seq` yield it as a value | `selection`, `code-block` |
 | Receivers that run it | A list or tuple element runs on selection | Only a dict or ordered receiver runs it: `list[$p] => $l` then `$l[0]` returns it uncalled | `selection` |
 | Shape of `self` | Not applicable | A dict arrives as a plain record, an ordered as its internal `__rill_ordered` form | `selection`, `host-boundary` |
@@ -143,6 +143,17 @@ Rules in the `expressions` chapter that leave a probed case unstated. Probed at 
 | A tuple or ordered literal as a dispatch target | A list or dict literal is a target: `0 -> list[{ 5 }]` yields 5 (`dispatch.block-literal`), and `"a" -> dict[a: 1]` yields 1. A tuple or ordered held in a variable dispatches: `tuple[{ "t{$}" }] => $t` then `0 -> $t` yields `"t0"` (`dispatch.tuple`, `dispatch.block-held`) | `0 -> tuple[{ "t{$}" }]`, `1 -> tuple[0, 1]`, and `"a" -> ordered[a: 1]` halt RILL-P001 "Expected pipe target". The `pipe-target` production lists `list` and `dict` only | `dispatch`, `pipe-target` |
 | A spread into a list of another element type | `spread.list-uniform`: the spread elements join the list's element type check, so `list[1, ...$strings]` halts as a mixed list literal does | `inference.literal-union`: a mixed list literal infers a union and does not halt. `list[1, "a"]` yields `list[1, "a"]`, and `list["a"] => $s` then `list[1, ...$s]` yields `list[1, "a"]`. The two rules disagree, so `spread.list-uniform` is uncited | `spread`, `inference` |
 | Positional arguments before a dict spread | `spread.arg-positional`: positional arguments written beside a dict spread fill the parameters the spread leaves without a value. With `fn(a, b, c) { "{$a}{$b}{$c}" } => $f`, `$f(...dict[c: "y"], "x", "z")` yields `"xzy"` | `$f("x", "z", ...dict[b: "y"])` halts RILL-R001 "Duplicate binding for parameter 'b': already bound positionally", catchable: arguments before the spread fill `a` and `b` in order. "Beside" does not say before or after, so `spread.arg-positional` is uncited | `spread`, `invocation` |
+
+## Callables
+
+Rules in the `callables` chapter that leave a probed case unstated. Probed at 97c5b292.
+
+| Inconsistency | One form | The other form | Concept |
+|---------------|----------|----------------|---------|
+| An empty function body | The `block` production requires one statement, and every other empty block halts at parse: `{ }`, `1 -> { }`, `seq({ })`, `true ? { } ! 1`, `guard { }`, and `dict[a: { }]` halt RILL-P004 "Empty blocks are not allowed" | `fn(x) { } => $f` and `fn { } => $f` parse. `$f(1)` halts RILL-R043 "Function body produced no value", which escapes `guard`. `code-block.test.ts` builds an empty block by hand because "the parser rejects an empty block" | `fn`, `code-block`, `statement` |
+| Calling a value that is not a function | `5 => $n` then `$n()` halts RILL-R002 "'$n' is not callable", catchable. A held block whose result is not a function halts the same way: `dict[a: { 5 }] => $d` then `$d.a(3)` | `dict[a: 1] => $d` then `$d.a()` halts RILL-R007 "Unknown method: a on type dict", catchable | `invocation`, `selection` |
+| A call suffix after a method | `$mk(1)(2)` calls the result. `list[fn(x) { $x * 10 }] => $l` then `$l.at(0)(3)` yields 30, and `$l[0](3)` and `$d["a"](3)` call too | `$l -> .at(0)(3)` yields 3, and `list[7, 8] -> .at(0)(99)` yields 99: the `(3)` starts a second statement on the line (`statement.same-line`), while `list[7, 8] => $l` then `$l.at(0)(99)` halts RILL-R002 | `invocation`, `pipe-target`, `statement` |
+| A type suffix on an annotation presence test | The `annotation-existence` production and the `annotation-access` Syntax: `".?" , "^" , identifier`, with no `&` | `^(a: 1) fn(x) { $x } => $f` then `$f.?^a&number` yields `true`, `$f.?^a&string` and `$f.?^z&number` yield `false`, as `existence-check` allows for `.?name&T` (`existence`). `annotations.test.ts` pins it | `annotation-access`, `existence` |
 
 ## Line continuation
 
