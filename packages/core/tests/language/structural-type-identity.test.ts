@@ -378,8 +378,10 @@ describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
 
   describe('Type constructors as values (AC-21 to AC-23)', () => {
-    it('AC-21: dict(name: string) => $t stores a type value equal only to the same structure', async () => {
-      const result = await run(`
+    rule('type-value.first-class').it(
+      'AC-21: dict(name: string) => $t stores a type value equal only to the same structure',
+      async () => {
+        const result = await run(`
         dict(name: string) => $t
         list[
           $t == dict(name: string),
@@ -387,8 +389,9 @@ describe('Rill Language: Structural Type Identity', () => {
           $t == dict(other: string)
         ]
       `);
-      expect(result).toEqual([true, false, false]);
-    });
+        expect(result).toEqual([true, false, false]);
+      }
+    );
 
     it('AC-22: stored type constructor equals ^type of matching dict', async () => {
       const result = await run(`
@@ -643,5 +646,69 @@ describe('Rill Language: Structural Type Identity', () => {
       const result = await run(script);
       expect(result).toBe(true);
     });
+  });
+  describe('Structural relations', () => {
+    rule('structural-typing.structural').it(
+      'treats two types written with the same structure as one type',
+      async () => {
+        expect(
+          await run('dict(t: number) => $c\ndict(t: number) => $f\n$c == $f')
+        ).toBe(true);
+      }
+    );
+
+    rule('structural-typing.accepts').it(
+      'drops a union member another member accepts',
+      async () => {
+        expect(await run('union(list, list(number)).signature')).toBe('list');
+        expect(await run('union(dict, dict(a: number)).signature')).toBe(
+          'dict'
+        );
+      }
+    );
+
+    rule('structural-typing.equal').it(
+      'equates types that accept each other',
+      async () => {
+        expect(await run('list == list(any)')).toBe(true);
+        expect(await run('dict == dict()')).toBe(true);
+        expect(await run('union(list, list(number)) == list')).toBe(true);
+      }
+    );
+
+    rule('structural-typing.exact-position').it(
+      'requires exact positions and fields for tuple and ordered',
+      async () => {
+        expect(await run('tuple[1, 2] -> :?tuple(number)')).toBe(false);
+        expect(await run('tuple[1] -> :?tuple(number, number)')).toBe(false);
+        expect(await run('tuple[1] -> :?tuple(number, number = 2)')).toBe(true);
+        expect(await run('ordered[a: 1, b: 2] -> :?ordered(a: number)')).toBe(
+          false
+        );
+        expect(
+          await run('ordered[a: 1] -> :?ordered(a: number, b: number = 0)')
+        ).toBe(true);
+        expect(
+          await run('ordered[b: 1, a: 2] -> :?ordered(a: number, b: number)')
+        ).toBe(false);
+      }
+    );
+
+    rule('structural-typing.present-typed').it(
+      'checks a present defaulted field against its field type',
+      async () => {
+        expect(await run('dict[a: "x"] -> :?dict(a: number = 1)')).toBe(false);
+        expect(await run('dict[a: 2] -> :?dict(a: number = 1)')).toBe(true);
+      }
+    );
+
+    rule('structural-typing.bare-ordered').it(
+      'admits every ordered in a bare ordered',
+      async () => {
+        expect(await run('ordered[a: 1] -> :?ordered')).toBe(true);
+        expect(await run('ordered[] -> :?ordered')).toBe(true);
+        expect(await run('dict[a: 1] -> :?ordered')).toBe(false);
+      }
+    );
   });
 });

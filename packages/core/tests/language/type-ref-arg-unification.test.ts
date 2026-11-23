@@ -110,15 +110,18 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
       expect(annotResult).toEqual({ b: 42 });
     });
 
-    it('dict(b: number = 5) structure matches between contexts', async () => {
-      // Expression context
-      const exprType = (await run('dict(b: number = 5)')) as any;
-      // Annotation context: -> conversion hydrates defaults
-      const convResult = await run('dict[] -> dict(b: number = 5)');
-      expect(exprType.structure.fields.b.type).toEqual({ kind: 'number' });
-      expect(exprType.structure.fields.b.defaultValue).toBe(5);
-      expect(convResult).toEqual({ b: 5 });
-    });
+    rule('type-value.contexts').it(
+      'dict(b: number = 5) structure matches between contexts',
+      async () => {
+        // Expression context
+        const exprType = (await run('dict(b: number = 5)')) as any;
+        // Annotation context: -> conversion hydrates defaults
+        const convResult = await run('dict[] -> dict(b: number = 5)');
+        expect(exprType.structure.fields.b.type).toEqual({ kind: 'number' });
+        expect(exprType.structure.fields.b.defaultValue).toBe(5);
+        expect(convResult).toEqual({ b: 5 });
+      }
+    );
   });
 
   // ============================================================
@@ -126,12 +129,15 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
   // ============================================================
 
   describe('AC-6: identical type arg lists produce equal type values', () => {
-    it('dict(a: number, b: string) == dict(a: number, b: string) is true', async () => {
-      const result = await run(
-        'dict(a: number, b: string) == dict(a: number, b: string)'
-      );
-      expect(result).toBe(true);
-    });
+    rule('type-value.equality').it(
+      'dict(a: number, b: string) == dict(a: number, b: string) is true',
+      async () => {
+        const result = await run(
+          'dict(a: number, b: string) == dict(a: number, b: string)'
+        );
+        expect(result).toBe(true);
+      }
+    );
 
     it('dict(a: number = 5) == dict(a: number = 5) is true', async () => {
       const result = await run('dict(a: number = 5) == dict(a: number = 5)');
@@ -437,11 +443,14 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
   // ============================================================
 
   describe('EC-4: non-type variable used as type ref -> typed-atom halt', () => {
-    it('variable holding number used as type ref halts #TYPE_MISMATCH', async () => {
-      await expectHalt(() => run('42 => $t\n"hello" -> :$t'), {
-        code: 'TYPE_MISMATCH',
-      });
-    });
+    rule('type-value.variable-halt').it(
+      'variable holding number used as type ref halts #TYPE_MISMATCH',
+      async () => {
+        await expectHalt(() => run('42 => $t\n"hello" -> :$t'), {
+          code: 'TYPE_MISMATCH',
+        });
+      }
+    );
   });
 
   // ============================================================

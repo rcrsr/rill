@@ -77,13 +77,19 @@ describe('Rill Runtime: Type Assertions', () => {
   });
 
   describe('Pipe Shorthand :?type (Type Check)', () => {
-    it('returns true when type matches - string', async () => {
-      expect(await run('"hello" -> :?string')).toBe(true);
-    });
+    rule('structural-typing.has').it(
+      'returns true when type matches - string',
+      async () => {
+        expect(await run('"hello" -> :?string')).toBe(true);
+      }
+    );
 
-    it('returns false when type mismatches - string', async () => {
-      expect(await run('42 -> :?string')).toBe(false);
-    });
+    rule('structural-typing.has').it(
+      'returns false when type mismatches - string',
+      async () => {
+        expect(await run('42 -> :?string')).toBe(false);
+      }
+    );
 
     it('returns true when type matches - number', async () => {
       expect(await run('42 -> :?number')).toBe(true);

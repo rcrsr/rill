@@ -178,12 +178,15 @@ describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
 
   describe('AC-12 (EC-4): type assertion : does not hydrate defaults, fails typed-atom halt', () => {
-    it('[b: "b"] -> :dict(a: string, b: string) fails because : does not hydrate', async () => {
-      await expectHaltMessage(
-        () => run('[b: "b"] -> :dict(a: string, b: string)'),
-        /Type assertion failed/
-      );
-    });
+    rule('structural-typing.missing').it(
+      '[b: "b"] -> :dict(a: string, b: string) fails because : does not hydrate',
+      async () => {
+        await expectHaltMessage(
+          () => run('[b: "b"] -> :dict(a: string, b: string)'),
+          /Type assertion failed/
+        );
+      }
+    );
   });
 
   // ============================================================
@@ -456,14 +459,17 @@ describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
 
   describe('AC-1 (1.11): tuple : assertion accepts value omitting trailing defaulted fields', () => {
-    it('tuple["x"] passes :$t where $t = tuple(string, number = 0)', async () => {
-      const result = await run(
-        'tuple(string, number = 0) => $t\ntuple["x"] -> :$t'
-      );
-      expect(isTuple(result)).toBe(true);
-      const tupleResult = result as { entries: unknown[] };
-      expect(tupleResult.entries).toEqual(['x']);
-    });
+    rule('structural-typing.exact-position').it(
+      'tuple["x"] passes :$t where $t = tuple(string, number = 0)',
+      async () => {
+        const result = await run(
+          'tuple(string, number = 0) => $t\ntuple["x"] -> :$t'
+        );
+        expect(isTuple(result)).toBe(true);
+        const tupleResult = result as { entries: unknown[] };
+        expect(tupleResult.entries).toEqual(['x']);
+      }
+    );
 
     it('tuple["x", 1] also passes :$t where $t = tuple(string, number = 0)', async () => {
       const result = await run(

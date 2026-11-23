@@ -89,15 +89,23 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   // ============================================================
 
   describe('EC-5: list() with single non-type argument', () => {
-    it('throws when list(1) is called with a non-type argument — fails at parse time', async () => {
-      // parseFieldArgList uses parseTypeRef; numeric literals are not valid type names.
-      await expect(run('list(1)')).rejects.toThrow('Expected type name');
-    });
+    rule('type-form.argument-literal').it(
+      'throws when list(1) is called with a non-type argument — fails at parse time',
+      async () => {
+        // parseFieldArgList uses parseTypeRef; numeric literals are not valid type names.
+        await expect(run('list(1)')).rejects.toThrow('Expected type name');
+      }
+    );
 
-    it('throws when list("hello") is called with a string argument — fails at parse time', async () => {
-      // parseFieldArgList uses parseTypeRef; string literals are not valid type names.
-      await expect(run('list("hello")')).rejects.toThrow('Expected type name');
-    });
+    rule('type-form.argument-literal').it(
+      'throws when list("hello") is called with a string argument — fails at parse time',
+      async () => {
+        // parseFieldArgList uses parseTypeRef; string literals are not valid type names.
+        await expect(run('list("hello")')).rejects.toThrow(
+          'Expected type name'
+        );
+      }
+    );
   });
 
   // ============================================================
@@ -246,10 +254,13 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   // ============================================================
 
   describe('EC-4 to EC-9: Type constructor argument type errors', () => {
-    it('dict() with non-type value in named arg — fails at parse time (EC-5)', async () => {
-      // parseFieldArgList uses parseTypeRef; numeric literals are not valid type names.
-      await expect(run('dict(a: 1)')).rejects.toThrow('Expected type name');
-    });
+    rule('type-form.argument-literal').it(
+      'dict() with non-type value in named arg — fails at parse time (EC-5)',
+      async () => {
+        // parseFieldArgList uses parseTypeRef; numeric literals are not valid type names.
+        await expect(run('dict(a: 1)')).rejects.toThrow('Expected type name');
+      }
+    );
 
     it('tuple() with non-type positional arg — fails at parse time (EC-5)', async () => {
       // parseFieldArgList uses parseTypeRef; numeric literals are not valid type names.

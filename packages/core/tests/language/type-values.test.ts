@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Type Value Expressions
  * Tests for bare type name expressions, `.^type` operator, `.name` property,
@@ -9,6 +10,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { rule } from '../helpers/rule.js';
 
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
@@ -25,11 +27,14 @@ describe('Rill Language: Type Value Expressions', () => {
       expect(result.typeName).toBe('string');
     });
 
-    it('number evaluates as a RillTypeValue with typeName "number"', async () => {
-      const result = (await run('number')) as any;
-      expect(result.__rill_type).toBe(true);
-      expect(result.typeName).toBe('number');
-    });
+    rule('type-value.expression').it(
+      'number evaluates as a RillTypeValue with typeName "number"',
+      async () => {
+        const result = (await run('number')) as any;
+        expect(result.__rill_type).toBe(true);
+        expect(result.typeName).toBe('number');
+      }
+    );
 
     it('bool evaluates as a RillTypeValue with typeName "bool"', async () => {
       const result = (await run('bool')) as any;
@@ -67,11 +72,14 @@ describe('Rill Language: Type Value Expressions', () => {
       expect(result.typeName).toBe('fn');
     });
 
-    it('any evaluates as a RillTypeValue with typeName "any"', async () => {
-      const result = (await run('any')) as any;
-      expect(result.__rill_type).toBe(true);
-      expect(result.typeName).toBe('any');
-    });
+    rule('any.name').it(
+      'any evaluates as a RillTypeValue with typeName "any"',
+      async () => {
+        const result = (await run('any')) as any;
+        expect(result.__rill_type).toBe(true);
+        expect(result.typeName).toBe('any');
+      }
+    );
 
     it('type evaluates as a RillTypeValue with typeName "type"', async () => {
       const result = (await run('type')) as any;
@@ -115,10 +123,13 @@ describe('Rill Language: Type Value Expressions', () => {
       expect(result).toBe(true);
     });
 
-    it('.^type returns a RillTypeValue object (EC-4)', async () => {
-      const result = (await run('42 => $v\n$v.^type')) as any;
-      expect(result.__rill_type).toBe(true);
-    });
+    rule('introspection.type-probe').it(
+      '.^type returns a RillTypeValue object (EC-4)',
+      async () => {
+        const result = (await run('42 => $v\n$v.^type')) as any;
+        expect(result.__rill_type).toBe(true);
+      }
+    );
 
     it('.^type on a string returns typeName "string"', async () => {
       const result = (await run('"hello" => $v\n$v.^type')) as any;
@@ -192,15 +203,21 @@ describe('Rill Language: Type Value Expressions', () => {
   // ============================================================
 
   describe('.^type on Type Values (AC-6, AC-23)', () => {
-    it('number.^type == type evaluates to true (AC-6)', async () => {
-      const result = await run('number => $v\n$v.^type == type');
-      expect(result).toBe(true);
-    });
+    rule('type-value.metatype').it(
+      'number.^type == type evaluates to true (AC-6)',
+      async () => {
+        const result = await run('number => $v\n$v.^type == type');
+        expect(result).toBe(true);
+      }
+    );
 
-    it('type.^type == type evaluates to true (AC-23)', async () => {
-      const result = await run('type => $v\n$v.^type == type');
-      expect(result).toBe(true);
-    });
+    rule('type-value.metatype').it(
+      'type.^type == type evaluates to true (AC-23)',
+      async () => {
+        const result = await run('type => $v\n$v.^type == type');
+        expect(result).toBe(true);
+      }
+    );
 
     it('string.^type == type evaluates to true', async () => {
       const result = await run('string => $v\n$v.^type == type');
@@ -269,20 +286,26 @@ describe('Rill Language: Type Value Expressions', () => {
   // ============================================================
 
   describe('Type Value Equality', () => {
-    it('number == number evaluates to true', async () => {
-      const result = await run('number == number');
-      expect(result).toBe(true);
-    });
+    rule('type-value.equality').it(
+      'number == number evaluates to true',
+      async () => {
+        const result = await run('number == number');
+        expect(result).toBe(true);
+      }
+    );
 
     it('string == string evaluates to true', async () => {
       const result = await run('string == string');
       expect(result).toBe(true);
     });
 
-    it('number == string evaluates to false', async () => {
-      const result = await run('number == string');
-      expect(result).toBe(false);
-    });
+    rule('type-value.equality').it(
+      'number == string evaluates to false',
+      async () => {
+        const result = await run('number == string');
+        expect(result).toBe(false);
+      }
+    );
 
     it('type == type evaluates to true', async () => {
       const result = await run('type == type');
@@ -477,6 +500,41 @@ describe('Rill Language: Type Value Expressions', () => {
     it('type value formats as structural type in string interpolation', async () => {
       const result = await run('dict[a: 1].^type => $t\n"kind: {$t}"');
       expect(result).toBe('kind: dict(a: number)');
+    });
+  });
+  describe('the any type', () => {
+    rule('any.admits').it('gives every value the type any', async () => {
+      expect(await run('fn { 1 } -> :?any')).toBe(true);
+      expect(await run('number -> :?any')).toBe(true);
+      expect(await run('list[] -> :?any')).toBe(true);
+      expect(await run('dict[] -> :?any')).toBe(true);
+      expect(await run('range(0, 2) -> :?any')).toBe(true);
+      expect(await run('dict[a: { $ + 1 }] -> :?dict(a: any)')).toBe(true);
+    });
+
+    rule('any.assert').it('returns the value unchanged from :any', async () => {
+      expect(await run('5 -> :any')).toBe(5);
+      expect(await run('list[1, 2] -> :any')).toEqual([1, 2]);
+      expect(await run('dict[a: 1] -> :any')).toEqual({ a: 1 });
+    });
+
+    rule('any.collection').it('admits every list in list(any)', async () => {
+      expect(await run('list[1, "a"] -> :?list(any)')).toBe(true);
+      expect(await run('list[] -> :?list(any)')).toBe(true);
+      expect(await run('list[list[1], list["a"]] -> :?list(any)')).toBe(true);
+      expect(await run('list[dict[a: 1], dict[b: 2]] -> :?list(any)')).toBe(
+        true
+      );
+    });
+
+    rule('any.union').it('reduces a union containing any to any', async () => {
+      expect(await run('union(number, any).signature')).toBe('any');
+      expect(await run('union(any, "a").signature')).toBe('any');
+      expect(await run('union(any, list(number)) == any')).toBe(true);
+    });
+
+    rule('any.signature').it('prints the any type as any', async () => {
+      expect(await run('any.signature')).toBe('any');
     });
   });
 });

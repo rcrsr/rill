@@ -263,4 +263,22 @@ describe('Rill Language: equality gate', () => {
       );
     }
   );
+  rule('structural-typing.overlap-literal', 'equality.no-overlap').it(
+    'compares literal unions that share a member and halts on disjoint ones',
+    async () => {
+      expect(
+        await run(
+          '"a" => $x:union("a", "b")\n"b" => $y:union("b", "c")\n$x == $y'
+        )
+      ).toBe(false);
+      await expectHalt(
+        () => run('"a" => $x:union("a")\n"b" => $y:union("b")\n$x == $y'),
+        { code: 'TYPE_MISMATCH' }
+      );
+      await expectHalt(
+        () => run('1 => $x:union(1, 2)\n3 => $y:union(3, 4)\n$x == $y'),
+        { code: 'TYPE_MISMATCH' }
+      );
+    }
+  );
 });

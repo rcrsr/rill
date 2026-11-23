@@ -26,12 +26,15 @@ const STREAM_TYPE =
 
 describe('type value inner', () => {
   describe('through a variable', () => {
-    it('keeps name and signature unchanged', async () => {
-      expect(await run('list(number) => $t\n$t.name')).toBe('list');
-      expect(await run('list(number) => $t\n$t.signature')).toBe(
-        'list(number)'
-      );
-    });
+    rule('introspection.name', 'introspection.signature').it(
+      'keeps name and signature unchanged',
+      async () => {
+        expect(await run('list(number) => $t\n$t.name')).toBe('list');
+        expect(await run('list(number) => $t\n$t.signature')).toBe(
+          'list(number)'
+        );
+      }
+    );
 
     rule('list.inner').it(
       'returns the element type of list(number)',
@@ -105,13 +108,16 @@ describe('type value inner', () => {
       }
     );
 
-    it('returns any for a compound type written without an inner', async () => {
-      await expectEqual('list.inner', 'any');
-      await expectEqual('dict.inner', 'any');
-      await expectEqual('tuple.inner', 'any');
-      await expectEqual('ordered.inner', 'any');
-      await expectEqual('stream.inner', 'any');
-    });
+    rule('introspection.bare-open', 'introspection.bare-inner').it(
+      'returns any for a compound type written without an inner',
+      async () => {
+        await expectEqual('list.inner', 'any');
+        await expectEqual('dict.inner', 'any');
+        await expectEqual('tuple.inner', 'any');
+        await expectEqual('ordered.inner', 'any');
+        await expectEqual('stream.inner', 'any');
+      }
+    );
   });
 
   describe('access-chain and postfix forms agree', () => {
@@ -168,12 +174,15 @@ describe('type value inner', () => {
   });
 
   describe('on a closure type', () => {
-    it('returns an ordered of parameter types', async () => {
-      await expectEqual(
-        'fn(a: string, b: number) { $a } => $f\n$f.^type.inner',
-        'ordered[a: string, b: number]'
-      );
-    });
+    rule('introspection.inner').it(
+      'returns an ordered of parameter types',
+      async () => {
+        await expectEqual(
+          'fn(a: string, b: number) { $a } => $f\n$f.^type.inner',
+          'ordered[a: string, b: number]'
+        );
+      }
+    );
 
     rule('fn.inner-empty').it(
       'returns an empty ordered for a zero-parameter closure',
@@ -182,16 +191,22 @@ describe('type value inner', () => {
       }
     );
 
-    it('returns the declared result as outer', async () => {
-      await expectEqual(
-        'fn(x: number):string { "a" } => $f\n$f.^type.outer',
-        'string'
-      );
-    });
+    rule('introspection.outer').it(
+      'returns the declared result as outer',
+      async () => {
+        await expectEqual(
+          'fn(x: number):string { "a" } => $f\n$f.^type.outer',
+          'string'
+        );
+      }
+    );
 
-    it('returns any as outer when no result is declared', async () => {
-      await expectEqual('fn(x: number) { $x } => $f\n$f.^type.outer', 'any');
-    });
+    rule('introspection.outer').it(
+      'returns any as outer when no result is declared',
+      async () => {
+        await expectEqual('fn(x: number) { $x } => $f\n$f.^type.outer', 'any');
+      }
+    );
   });
 
   describe('on a bare fn type', () => {
@@ -203,9 +218,12 @@ describe('type value inner', () => {
   });
 
   describe('on a union type', () => {
-    rule('union.inner').it('returns the members as a list', async () => {
-      await expectEqual('union("a", "b").inner', 'list["a", "b"]');
-    });
+    rule('union.inner', 'introspection.literal-member').it(
+      'returns the members as a list',
+      async () => {
+        await expectEqual('union("a", "b").inner', 'list["a", "b"]');
+      }
+    );
 
     rule('union.inner').it(
       'returns the members of a captured union',
@@ -321,38 +339,50 @@ describe('type value inner', () => {
   });
 
   describe('defaults', () => {
-    it('keeps defaulted fields out of inner', async () => {
-      await expectEqual(
-        'dict(a: string = "x", b: number).inner',
-        'dict[a: string, b: number]'
-      );
-    });
+    rule('introspection.inner').it(
+      'keeps defaulted fields out of inner',
+      async () => {
+        await expectEqual(
+          'dict(a: string = "x", b: number).inner',
+          'dict[a: string, b: number]'
+        );
+      }
+    );
 
-    it('lists only fields that have a default', async () => {
-      await expectEqual(
-        'dict(a: string = "x", b: number).defaults',
-        'dict[a: "x"]'
-      );
-    });
+    rule('introspection.defaults').it(
+      'lists only fields that have a default',
+      async () => {
+        await expectEqual(
+          'dict(a: string = "x", b: number).defaults',
+          'dict[a: "x"]'
+        );
+      }
+    );
 
-    it('returns an empty dict when no field has a default', async () => {
-      await expectEqual('dict(a: string).defaults', 'dict[]');
-    });
+    rule('introspection.defaults').it(
+      'returns an empty dict when no field has a default',
+      async () => {
+        await expectEqual('dict(a: string).defaults', 'dict[]');
+      }
+    );
 
     it('lists defaults of an ordered type', async () => {
       await expectEqual('ordered(a: string = "x").defaults', 'dict[a: "x"]');
     });
 
-    it('lists closure parameter defaults', async () => {
-      await expectEqual(
-        'fn(a: string = "x", b: number) { $a } => $f\n$f.^type.defaults',
-        'dict[a: "x"]'
-      );
-    });
+    rule('introspection.defaults').it(
+      'lists closure parameter defaults',
+      async () => {
+        await expectEqual(
+          'fn(a: string = "x", b: number) { $a } => $f\n$f.^type.defaults',
+          'dict[a: "x"]'
+        );
+      }
+    );
   });
 
   describe('missing properties', () => {
-    it.each([
+    rule('introspection.leaf').it.each([
       'vector',
       'datetime',
       'duration',
@@ -382,20 +412,26 @@ describe('type value inner', () => {
     });
 
     // introspection.defaults-tuple
-    it('returns a map of 0-based positions to defaults for a tuple type', async () => {
-      expect(
-        await run(
-          'tuple(number, string = "x", bool = true).defaults == map[1: "x", 2: true]'
-        )
-      ).toBe(true);
-      expect(await run('tuple(string).defaults == map[]')).toBe(true);
-    });
+    rule('introspection.defaults-tuple').it(
+      'returns a map of 0-based positions to defaults for a tuple type',
+      async () => {
+        expect(
+          await run(
+            'tuple(number, string = "x", bool = true).defaults == map[1: "x", 2: true]'
+          )
+        ).toBe(true);
+        expect(await run('tuple(string).defaults == map[]')).toBe(true);
+      }
+    );
 
-    it('halts RILL-R003 for defaults on a map type', async () => {
-      await expectHalt(() => run('map(string, number).defaults'), {
-        code: 'RILL_R003',
-      });
-    });
+    rule('introspection.defaults-halt').it(
+      'halts RILL-R003 for defaults on a map type',
+      async () => {
+        await expectHalt(() => run('map(string, number).defaults'), {
+          code: 'RILL_R003',
+        });
+      }
+    );
 
     it.each(['element', 'fields', 'args'])(
       'halts RILL-R003 for .%s on a dict type',
@@ -406,14 +442,17 @@ describe('type value inner', () => {
       }
     );
 
-    it('halts RILL-R003 for outer on a type without outer', async () => {
-      await expectHalt(() => run('list(number) => $t\n$t.outer'), {
-        code: 'RILL_R003',
-      });
-      await expectHalt(() => run('number => $t\n$t.outer'), {
-        code: 'RILL_R003',
-      });
-    });
+    rule('introspection.no-outer').it(
+      'halts RILL-R003 for outer on a type without outer',
+      async () => {
+        await expectHalt(() => run('list(number) => $t\n$t.outer'), {
+          code: 'RILL_R003',
+        });
+        await expectHalt(() => run('number => $t\n$t.outer'), {
+          code: 'RILL_R003',
+        });
+      }
+    );
 
     it('names the type signature in the message', async () => {
       await expectHalt(() => run('list(number) => $t\n$t.outer'), {
@@ -422,20 +461,26 @@ describe('type value inner', () => {
       });
     });
 
-    it('recovers a missing property with ??', async () => {
-      expect(await run('string => $t\n$t.missing ?? "none"')).toBe('none');
-      await expectEqual('string => $t\n$t.inner ?? any', 'any');
-    });
+    rule('introspection.fallback').it(
+      'recovers a missing property with ??',
+      async () => {
+        expect(await run('string => $t\n$t.missing ?? "none"')).toBe('none');
+        await expectEqual('string => $t\n$t.inner ?? any', 'any');
+      }
+    );
 
     it('recovers a missing property with ?? on the postfix form', async () => {
       expect(await run('string.missing ?? "none"')).toBe('none');
     });
 
-    it('does not recover an unrelated RILL-R003 halt with ??', async () => {
-      await expectHalt(() => run('42.upper ?? "none"'), {
-        code: 'RILL_R003',
-      });
-    });
+    rule('introspection.fallback').it(
+      'does not recover an unrelated RILL-R003 halt with ??',
+      async () => {
+        await expectHalt(() => run('42.upper ?? "none"'), {
+          code: 'RILL_R003',
+        });
+      }
+    );
 
     it('recovers a missing dict field with ??', async () => {
       expect(await run('dict[a: 1].missing ?? "none"')).toBe('none');
@@ -450,16 +495,22 @@ describe('type value inner', () => {
   });
 
   describe('presence probe', () => {
-    it('reports presence of name and signature', async () => {
-      expect(await run('string.?name')).toBe(true);
-      expect(await run('string => $t\n$t.?name')).toBe(true);
-      expect(await run('list(number).?signature')).toBe(true);
-    });
+    rule('introspection.presence').it(
+      'reports presence of name and signature',
+      async () => {
+        expect(await run('string.?name')).toBe(true);
+        expect(await run('string => $t\n$t.?name')).toBe(true);
+        expect(await run('list(number).?signature')).toBe(true);
+      }
+    );
 
-    it('reports absence of inner on a leaf and of an unknown property', async () => {
-      expect(await run('string.?inner')).toBe(false);
-      expect(await run('string.?missing')).toBe(false);
-    });
+    rule('introspection.presence').it(
+      'reports absence of inner on a leaf and of an unknown property',
+      async () => {
+        expect(await run('string.?inner')).toBe(false);
+        expect(await run('string.?missing')).toBe(false);
+      }
+    );
 
     it('reports presence of inner on a compound and a union', async () => {
       expect(await run('list(number).?inner')).toBe(true);
@@ -493,7 +544,7 @@ describe('type value inner', () => {
       'annotations',
     ];
 
-    it.each(
+    rule('introspection.presence').it.each(
       kinds.flatMap(([kind, source]) =>
         properties.map((property) => [kind, source, property] as const)
       )
@@ -762,5 +813,16 @@ describe('stream type acceptance', () => {
     const script =
       'fn():stream(string):string { "a" -> yield\n "done" } => $gen\n$gen() => $s\n$s :?stream(any)';
     expect(await run(script)).toBe(true);
+  });
+});
+
+describe('type value defaults on a leaf type', () => {
+  rule('introspection.defaults-leaf').it.each([
+    'vector',
+    'iterator',
+    'type',
+    'any',
+  ])('halts RILL-R003 for defaults on %s', async (leaf) => {
+    await expectHalt(() => run(`${leaf}.defaults`), { code: 'RILL_R003' });
   });
 });

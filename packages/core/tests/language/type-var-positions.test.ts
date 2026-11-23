@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: $var in All 5 Type Positions
  * Tests for dynamic type references ($var) in assertion, check, shape field,
@@ -13,6 +14,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { rule } from '../helpers/rule.js';
 
 import { run } from '../helpers/runtime.js';
 import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
@@ -24,7 +26,11 @@ describe('Type Variable Positions', () => {
 
   describe('Assertion Position (:$t)', () => {
     // AC-9: variable holding a RillTypeValue works in assertion position
-    it('AC-9: $t holds number type value — 42 -> :$t passes', async () => {
+    rule(
+      'type-position.assertion',
+      'type-position.variable',
+      'type-value.variable'
+    ).it('AC-9: $t holds number type value — 42 -> :$t passes', async () => {
       expect(await run('number => $t\n42 -> :$t')).toBe(42);
     });
     it('AC-9: $t holds string type value — type mismatch throws', async () => {
@@ -44,9 +50,12 @@ describe('Type Variable Positions', () => {
 
   describe('Check Position (:?$t)', () => {
     // AC-10: variable holding a RillTypeValue works in check position
-    it('AC-10: $t holds number type value — 42 -> :?$t returns true', async () => {
-      expect(await run('number => $t\n42 -> :?$t')).toBe(true);
-    });
+    rule('type-position.assertion', 'type-position.variable').it(
+      'AC-10: $t holds number type value — 42 -> :?$t returns true',
+      async () => {
+        expect(await run('number => $t\n42 -> :?$t')).toBe(true);
+      }
+    );
     it('AC-10: $t holds string type value — "hello" -> :?$t returns true', async () => {
       expect(await run('string => $t\n"hello" -> :?$t')).toBe(true);
     });
@@ -61,14 +70,17 @@ describe('Type Variable Positions', () => {
 
   describe('Closure Param Position (fn(val: $t))', () => {
     // AC-12: $t resolves at closure creation time
-    it('AC-12: $t bound to string — closure accepts string argument', async () => {
-      const result = await run(`
+    rule('type-position.parameter', 'type-value.variable').it(
+      'AC-12: $t bound to string — closure accepts string argument',
+      async () => {
+        const result = await run(`
         string => $t
         fn(val: $t) { $val } => $f
         $f("hello")
       `);
-      expect(result).toBe('hello');
-    });
+        expect(result).toBe('hello');
+      }
+    );
 
     it('AC-12: $t bound to number — closure rejects string argument', async () => {
       await expect(
@@ -89,15 +101,18 @@ describe('Type Variable Positions', () => {
       expect(result).toBe(42);
     });
 
-    it('AC-12: $t reassigned after closure creation — closure retains creation-time type', async () => {
-      const result = await run(`
+    rule('type-value.resolve-early').it(
+      'AC-12: $t reassigned after closure creation — closure retains creation-time type',
+      async () => {
+        const result = await run(`
         string => $t
         fn(val: $t) { $val } => $f
         number => $t
         $f("hello")
       `);
-      expect(result).toBe('hello');
-    });
+        expect(result).toBe('hello');
+      }
+    );
 
     it('AC-12: $t bound to list — closure accepts list argument', async () => {
       const result = await run(`
@@ -115,9 +130,12 @@ describe('Type Variable Positions', () => {
 
   describe('Capture Position ($x:$t)', () => {
     // AC-13: $t resolves at binding (capture execution) time
-    it('AC-13: $t bound to string — capture accepts string value', async () => {
-      expect(await run('string => $t\n"hello" => $x:$t\n$x')).toBe('hello');
-    });
+    rule('type-position.capture', 'type-value.variable').it(
+      'AC-13: $t bound to string — capture accepts string value',
+      async () => {
+        expect(await run('string => $t\n"hello" => $x:$t\n$x')).toBe('hello');
+      }
+    );
 
     it('AC-13: $t bound to number — capture rejects string value', async () => {
       await expectHalt(() => run('number => $t\n"hello" => $x:$t'), {
@@ -154,16 +172,19 @@ describe('Type Variable Positions', () => {
 
   describe('Error Cases', () => {
     // AC-17 / EC-3: string variable in :$t — RILL-R004
-    it('AC-17/EC-3: string variable $t used in :$t assertion halts typed-atom', async () => {
-      await expectHaltMessage(
-        () =>
-          run(`
+    rule('type-value.variable-halt').it(
+      'AC-17/EC-3: string variable $t used in :$t assertion halts typed-atom',
+      async () => {
+        await expectHaltMessage(
+          () =>
+            run(`
           "number" => $t
           42 -> :$t
         `),
-        'not a valid type reference'
-      );
-    });
+          'not a valid type reference'
+        );
+      }
+    );
 
     it('AC-17/EC-3: string variable $t used in :$t — identifies the variable name', async () => {
       await expectHaltMessage(
@@ -177,24 +198,30 @@ describe('Type Variable Positions', () => {
     });
 
     // AC-19 / EC-1: undefined variable in :$t — runtime error
-    it('AC-19/EC-1: undefined variable identifies the variable name in error', async () => {
-      await expect(run('"hello" -> :$undefined_var')).rejects.toMatchObject({
-        errorId: 'RILL-R005',
-        message: expect.stringContaining('$undefined_var'),
-      });
-    });
+    rule('type-value.variable-undefined').it(
+      'AC-19/EC-1: undefined variable identifies the variable name in error',
+      async () => {
+        await expect(run('"hello" -> :$undefined_var')).rejects.toMatchObject({
+          errorId: 'RILL-R005',
+          message: expect.stringContaining('$undefined_var'),
+        });
+      }
+    );
 
     // AC-21 / EC-2: number variable in :$t — RILL-R004
-    it('AC-21/EC-2: number variable $t used in :$t assertion halts typed-atom', async () => {
-      await expectHaltMessage(
-        () =>
-          run(`
+    rule('type-value.variable-halt').it(
+      'AC-21/EC-2: number variable $t used in :$t assertion halts typed-atom',
+      async () => {
+        await expectHaltMessage(
+          () =>
+            run(`
           42 => $t
           42 -> :$t
         `),
-        'not a valid type reference'
-      );
-    });
+          'not a valid type reference'
+        );
+      }
+    );
 
     it('AC-21/EC-2: number variable $t used in :$t — identifies the variable name', async () => {
       await expectHaltMessage(
@@ -216,5 +243,44 @@ describe('Type Variable Positions', () => {
         `)
       ).rejects.toThrow('val expects string, got number');
     });
+  });
+  describe('Other type positions', () => {
+    rule('type-position.inner').it(
+      'reads each constructor argument as a type position',
+      async () => {
+        expect(await run('list(list(number)).inner == list(number)')).toBe(
+          true
+        );
+        expect(await run('dict(a: list(number)).signature')).toBe(
+          'dict(a: list(number))'
+        );
+        expect(await run('number => $t\nlist($t).signature')).toBe(
+          'list(number)'
+        );
+      }
+    );
+
+    rule('type-position.conversion', 'type-position.variable').it(
+      'reads a conversion target as a type position',
+      async () => {
+        expect(await run('"5" -> number')).toBe(5);
+        expect(await run('list[1] -> list(number)')).toEqual([1]);
+        expect(await run('number => $t\n"5" -> $t')).toBe(5);
+      }
+    );
+
+    rule('type-value.argument-resolve').it(
+      'resolves a variable argument at any nesting depth',
+      async () => {
+        expect(
+          await run('number => $t\ndict(a: list($t)) == dict(a: list(number))')
+        ).toBe(true);
+        expect(
+          await run(
+            'number => $t\nlist(list(list($t))) == list(list(list(number)))'
+          )
+        ).toBe(true);
+      }
+    );
   });
 });
