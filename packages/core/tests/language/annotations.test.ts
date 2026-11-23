@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  anyTypeValue,
   parse,
   ParseError,
   isScriptCallable,
@@ -91,10 +92,13 @@ describe('Rill Runtime: Annotations', () => {
   });
 
   describe('Execution', () => {
-    it('executes annotated statement normally', async () => {
-      const result = await run('^(limit: 10) "hello"');
-      expect(result).toBe('hello');
-    });
+    rule('annotation.inert').it(
+      'executes annotated statement normally',
+      async () => {
+        const result = await run('^(limit: 10) "hello"');
+        expect(result).toBe('hello');
+      }
+    );
 
     it('evaluates annotation values', async () => {
       const result = await run('^(limit: 5 + 5) "hello"');
@@ -111,7 +115,7 @@ describe('Rill Runtime: Annotations', () => {
       expect(result).toBe('hello');
     });
 
-    it('ignores unknown annotations', async () => {
+    rule('annotation.inert').it('ignores unknown annotations', async () => {
       const result = await run('^(unknown_annotation: 42) "hello"');
       expect(result).toBe('hello');
     });
@@ -545,13 +549,16 @@ describe('Rill Runtime: Annotations', () => {
     });
 
     describe('Description Shorthand (AC-9)', () => {
-      it('bare string expands to description annotation', async () => {
-        const script = `
+      rule('annotation.shorthand').it(
+        'bare string expands to description annotation',
+        async () => {
+          const script = `
           ^("text") fn(x) { $x } => $fn
           $fn.^description
         `;
-        expect(await run(script)).toBe('text');
-      });
+          expect(await run(script)).toBe('text');
+        }
+      );
 
       it('bare string with additional named args sets description and other keys', async () => {
         // Mixed-type list [string, bool] not allowed; verify each annotation separately
@@ -623,10 +630,13 @@ describe('Rill Runtime: Annotations', () => {
   });
 
   describe('Parser Bug Fixes', () => {
-    it('parses annotation after newline before closure (AC-1)', async () => {
-      const script = `^("desc")\nfn(x) { $x } => $fn\n$fn.^description`;
-      expect(await run(script)).toBe('desc');
-    });
+    rule('annotation.newline').it(
+      'parses annotation after newline before closure (AC-1)',
+      async () => {
+        const script = `^("desc")\nfn(x) { $x } => $fn\n$fn.^description`;
+        expect(await run(script)).toBe('desc');
+      }
+    );
 
     it('parses multi-line parameter list (AC-3)', async () => {
       const script = `fn(x: string,\ny: number) { "{$x}: {$y}" } => $fn\n$fn("hello", 42)`;
@@ -638,23 +648,29 @@ describe('Rill Runtime: Annotations', () => {
       await expect(run(script)).resolves.not.toThrow();
     });
 
-    it('throws parse error for annotation with no target (BC-1)', () => {
-      try {
-        parse('^(key: "val")');
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
+    rule('annotation.target').it(
+      'throws parse error for annotation with no target (BC-1)',
+      () => {
+        try {
+          parse('^(key: "val")');
+          expect.fail('Should have thrown ParseError');
+        } catch (err) {
+          expect(err).toBeInstanceOf(ParseError);
+        }
       }
-    });
+    );
 
-    it('throws parse error for annotation followed by newlines then EOF (EC-1)', () => {
-      try {
-        parse('^(key: "val")\n');
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
+    rule('annotation.target').it(
+      'throws parse error for annotation followed by newlines then EOF (EC-1)',
+      () => {
+        try {
+          parse('^(key: "val")\n');
+          expect.fail('Should have thrown ParseError');
+        } catch (err) {
+          expect(err).toBeInstanceOf(ParseError);
+        }
       }
-    });
+    );
 
     it('throws parse error for invalid token after newline in param list (EC-3)', () => {
       try {
@@ -753,13 +769,16 @@ describe('Rill Runtime: Annotations', () => {
         expect(result).toEqual([1, 2, 3]);
       });
 
-      it('statement-level ^(limit:) before while — still runs while to natural end', async () => {
-        // Statement annotation does not restrict operator iteration count.
-        const result = await run(
-          '^(limit: 1000) 0 -> while ($ < 5) do { $ + 1 }'
-        );
-        expect(result).toBe(5);
-      });
+      rule('annotation.inert').it(
+        'statement-level ^(limit:) before while — still runs while to natural end',
+        async () => {
+          // Statement annotation does not restrict operator iteration count.
+          const result = await run(
+            '^(limit: 1000) 0 -> while ($ < 5) do { $ + 1 }'
+          );
+          expect(result).toBe(5);
+        }
+      );
     });
 
     describe('EC-7: Unknown annotation key at statement level — parse-level acceptance', () => {
@@ -795,17 +814,20 @@ describe('Rill Runtime: Annotations', () => {
         }
       });
 
-      it('evaluates statement annotation values', async () => {
-        const { context } = await runWithContext(
-          '^(timeout: 10 + 20) fn(x) { $x } => $fn\ntrue'
-        );
-        const fn = context.variables.get('fn') as RillValue;
+      rule('annotation.values').it(
+        'evaluates statement annotation values',
+        async () => {
+          const { context } = await runWithContext(
+            '^(timeout: 10 + 20) fn(x) { $x } => $fn\ntrue'
+          );
+          const fn = context.variables.get('fn') as RillValue;
 
-        expect(isScriptCallable(fn)).toBe(true);
-        if (isScriptCallable(fn)) {
-          expect(fn.annotations['timeout']).toBe(30);
+          expect(isScriptCallable(fn)).toBe(true);
+          if (isScriptCallable(fn)) {
+            expect(fn.annotations['timeout']).toBe(30);
+          }
         }
-      });
+      );
 
       it('captures multiple statement annotations', async () => {
         const { context } = await runWithContext(
@@ -949,29 +971,38 @@ describe('Rill Runtime: Annotations', () => {
         }
       });
 
-      it('evaluates parameter annotation values', async () => {
-        const { context } = await runWithContext(
-          '5 => $limit\nfn(^(max: $limit * 2) x: number) { $x } => $fn\ntrue'
-        );
-        const fn = context.variables.get('fn') as RillValue;
+      rule('annotation.values').it(
+        'evaluates parameter annotation values',
+        async () => {
+          const { context } = await runWithContext(
+            '5 => $limit\nfn(^(max: $limit * 2) x: number) { $x } => $fn\ntrue'
+          );
+          const fn = context.variables.get('fn') as RillValue;
 
-        expect(isScriptCallable(fn)).toBe(true);
-        if (isScriptCallable(fn)) {
-          expect(
-            fn.params.find((p) => p.name === 'x')!.annotations['max']
-          ).toBe(10);
+          expect(isScriptCallable(fn)).toBe(true);
+          if (isScriptCallable(fn)) {
+            expect(
+              fn.params.find((p) => p.name === 'x')!.annotations['max']
+            ).toBe(10);
+          }
         }
-      });
+      );
 
-      it('propagates error from parameter annotation evaluation (AC-11, EC-7)', async () => {
-        const script = 'fn(^(min: $undefined) x: number) { $x }';
-        await expect(run(script)).rejects.toThrow(/undefined variable/i);
-      });
+      rule('annotation.values').it(
+        'propagates error from parameter annotation evaluation (AC-11, EC-7)',
+        async () => {
+          const script = 'fn(^(min: $undefined) x: number) { $x }';
+          await expect(run(script)).rejects.toThrow(/undefined variable/i);
+        }
+      );
 
-      it('propagates error from closure-level annotation evaluation (AC-11, EC-7)', async () => {
-        const script = '^(config: $undefined_var) fn(x) { $x }';
-        await expect(run(script)).rejects.toThrow(/undefined variable/i);
-      });
+      rule('annotation.values').it(
+        'propagates error from closure-level annotation evaluation (AC-11, EC-7)',
+        async () => {
+          const script = '^(config: $undefined_var) fn(x) { $x }';
+          await expect(run(script)).rejects.toThrow(/undefined variable/i);
+        }
+      );
 
       it('has empty annotations object for params without annotations', async () => {
         const { context } = await runWithContext(
@@ -1037,41 +1068,53 @@ describe('Rill Runtime: Annotations', () => {
       );
     });
 
-    it('annotation does not inherit to nested block-closure (AC-7)', async () => {
-      // Outer statement annotated; inner block-closure defined in same script is not
-      const script = `
+    rule('annotation.attach').it(
+      'annotation does not inherit to nested block-closure (AC-7)',
+      async () => {
+        // Outer statement annotated; inner block-closure defined in same script is not
+        const script = `
         ^(version: 2) fn(x) { $x * 2 } => $fn
         fn { $ + 1 } => $inner
         $inner.^version
       `;
-      await expect(run(script)).rejects.toThrow(
-        /Annotation 'version' not found/
-      );
-    });
+        await expect(run(script)).rejects.toThrow(
+          /Annotation 'version' not found/
+        );
+      }
+    );
 
-    it('stacked annotation blocks before one closure merge', async () => {
-      const script = `
+    rule('annotation.stack').it(
+      'stacked annotation blocks before one closure merge',
+      async () => {
+        const script = `
         ^(first: 1) ^(second: 2) fn(x) { $x } => $fn
         [$fn.^first, $fn.^second]
       `;
-      expect(await run(script)).toEqual([1, 2]);
-    });
+        expect(await run(script)).toEqual([1, 2]);
+      }
+    );
 
-    it('later key wins when stacked blocks repeat a key', async () => {
-      const script = `
+    rule('annotation.repeat-key').it(
+      'later key wins when stacked blocks repeat a key',
+      async () => {
+        const script = `
         ^(k: 1) ^(k: 2) fn(x) { $x } => $fn
         $fn.^k
       `;
-      expect(await run(script)).toBe(2);
-    });
+        expect(await run(script)).toBe(2);
+      }
+    );
 
-    it('three stacked annotation blocks all merge', async () => {
-      const script = `
+    rule('annotation.stack').it(
+      'three stacked annotation blocks all merge',
+      async () => {
+        const script = `
         ^(a: 1) ^(b: 2) ^(c: 3) fn(x) { $x } => $fn
         [$fn.^a, $fn.^b, $fn.^c]
       `;
-      expect(await run(script)).toEqual([1, 2, 3]);
-    });
+        expect(await run(script)).toEqual([1, 2, 3]);
+      }
+    );
 
     it('stacked statement annotations parse to one AnnotatedStatement', () => {
       const ast = parse('^(a: 1) ^(b: 2) "x"');
@@ -1111,17 +1154,20 @@ describe('Rill Runtime: Annotations', () => {
       expect(found[0]!.expression.type).toBe('Closure');
     });
 
-    it('stacked parameter annotation blocks merge', async () => {
-      const result = await run(
-        'fn(^(a: 1) ^(b: 2) x: number) { $x } => $fn\n$fn.^type'
-      );
-      const shape = result as {
-        structure: { params: { annotations?: Record<string, unknown> }[] };
-      };
-      const annotations = shape.structure.params[0]!.annotations;
-      expect(annotations).toEqual({ a: 1, b: 2 });
-      expect(Object.keys(annotations ?? {})).toEqual(['a', 'b']);
-    });
+    rule('annotation.stack').it(
+      'stacked parameter annotation blocks merge',
+      async () => {
+        const result = await run(
+          'fn(^(a: 1) ^(b: 2) x: number) { $x } => $fn\n$fn.^type'
+        );
+        const shape = result as {
+          structure: { params: { annotations?: Record<string, unknown> }[] };
+        };
+        const annotations = shape.structure.params[0]!.annotations;
+        expect(annotations).toEqual({ a: 1, b: 2 });
+        expect(Object.keys(annotations ?? {})).toEqual(['a', 'b']);
+      }
+    );
 
     it('unannotated block-closure .^description halts RILL-R008', async () => {
       const script = `
@@ -1386,7 +1432,7 @@ describe('Rill Runtime: Annotations', () => {
       expect(await run('1 => $a\n$a.^effective == $a.^type')).toBe(true);
     });
 
-    it('is a reserved annotation key', () => {
+    rule('annotation.reserved').it('is a reserved annotation key', () => {
       expect(() => parse('^(effective: 1) "x"')).toThrow(ParseError);
     });
   });
@@ -1438,5 +1484,131 @@ describe('Rill Runtime: Annotations', () => {
       expect(await run('$fn.?^a', { variables: { fn: hostFn } })).toBe(true);
       expect(await run('$fn.?^b', { variables: { fn: hostFn } })).toBe(false);
     });
+  });
+
+  describe('Annotation rules', () => {
+    rule('annotation.key').it.each([
+      ['a number', '^(1: "x") fn(x) { $x }'],
+      ['a string', '^("k": "x") fn(x) { $x }'],
+    ])('rejects %s written as a key', async (_name, source) => {
+      await expect(run(source)).rejects.toMatchObject({ errorId: 'RILL-P001' });
+    });
+
+    rule('annotation.reserved').it.each([
+      ['on a function', '^(type: "x") fn(x) { $x }'],
+      ['on a statement', '^(effective: "x") 1'],
+      ['on a parameter', 'fn(^(type: 1) x: number) { $x }'],
+      ['on a field', 'dict(^(type: 1) a: string)'],
+    ])('rejects a reserved key %s', async (_name, source) => {
+      await expect(run(source)).rejects.toMatchObject({ errorId: 'RILL-P001' });
+    });
+
+    rule('annotation.positions').it(
+      'accepts an annotation before a statement, function, parameter, and field',
+      async () => {
+        expect(await run('^(note: "x") 5')).toBe(5);
+        expect(await run('^(k: 1) fn(x) { $x } => $f\n$f.^k')).toBe(1);
+        expect(await run('fn(^(min: 0) x: number) { $x } => $f\n$f(3)')).toBe(
+          3
+        );
+        expect(await run('dict(^("label") name: string) => $t\ntrue')).toBe(
+          true
+        );
+        expect(await run('ordered(^(k: 1) a: string) => $t\ntrue')).toBe(true);
+        expect(await run('tuple(^(k: 1) string) => $t\ntrue')).toBe(true);
+        expect(
+          await run('fn(g) { $g.^a } => $read\n$read(^(a: 7) fn(x) { $x })')
+        ).toBe(7);
+      }
+    );
+
+    rule('annotation.positions').it(
+      'rejects an annotation before a list element type',
+      async () => {
+        await expect(run('list(^(k: 1) string)')).rejects.toMatchObject({
+          errorId: 'RILL-P001',
+        });
+      }
+    );
+
+    rule('annotation.limit-in-call').it(
+      'halts a limit annotation before a function argument with RILL-R081',
+      async () => {
+        await expect(
+          run('range(0, 3) -> seq(^(limit: 5) { $ })')
+        ).rejects.toMatchObject({ errorId: 'RILL-R081' });
+      }
+    );
+
+    rule('annotation.values').it('evaluates each value once', async () => {
+      let calls = 0;
+      const functions = {
+        tick: { params: [], returnType: anyTypeValue, fn: () => ++calls },
+      };
+      expect(
+        await run('^(k: tick()) fn(x) { $x } => $f\n$f.^k\n$f.^k', {
+          functions,
+        })
+      ).toBe(1);
+      expect(calls).toBe(1);
+    });
+
+    rule('annotation.repeat-key').it(
+      'keeps the later value of a key repeated in one block',
+      async () => {
+        expect(await run('^(k: 1, k: 2) fn(x) { $x } => $f\n$f.^k')).toBe(2);
+      }
+    );
+
+    rule('annotation.spread', 'annotation.repeat-key').it(
+      'adds the entries of a spread dict as keys',
+      async () => {
+        expect(
+          await run(
+            'dict[k: 1, description: "z"] => $o\n^(...$o) fn(x) { $x } => $f\nlist[$f.^k, $f.^description]'
+          )
+        ).toEqual([1, 'z']);
+        expect(
+          await run(
+            'dict[k: 1] => $o\n^(...$o, k: 2) fn(x) { $x } => $f\n$f.^k'
+          )
+        ).toBe(2);
+      }
+    );
+
+    rule('annotation.spread-dict').it(
+      'halts a spread of a non-dict with RILL-R002',
+      async () => {
+        await expect(
+          run('list[1] => $o\n^(...$o) fn(x) { $x }')
+        ).rejects.toMatchObject({ errorId: 'RILL-R002' });
+        expect(
+          await run(
+            'list[1] => $o\nguard { ^(...$o) fn(x) { $x } } => $r\n$r.!code == #RILL_R002'
+          )
+        ).toBe(true);
+      }
+    );
+
+    rule('annotation.attach').it(
+      'does not carry to a function created inside the annotated one',
+      async () => {
+        expect(
+          await run(
+            '^(a: 1) fn() { fn(x) { $x } } => $f\n$f() => $g\nlist[$f.?^a, $g.?^a]'
+          )
+        ).toEqual([true, false]);
+      }
+    );
+
+    rule('annotation.inert').it(
+      'leaves a statement annotation unreadable from the value',
+      async () => {
+        expect(await run('^(note: "x") 5 => $v\n$v.?^note')).toBe(false);
+        expect(
+          await run('^(note: "inert") 0 -> while ($ < 3) do { $ + 1 }')
+        ).toBe(3);
+      }
+    );
   });
 });

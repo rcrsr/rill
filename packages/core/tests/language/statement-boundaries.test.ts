@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Statement Boundaries
  * Tests for whitespace handling and statement continuation/termination
@@ -7,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { ParseError, parse } from '@rcrsr/rill';
 
 import { run, runWithContext } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Statement Boundaries', () => {
   describe('Single Line Continuations', () => {
@@ -99,11 +101,14 @@ identity("explicit")`;
     });
 
     describe('Parenthesized Expression Start', () => {
-      it('a "(" on the next line is not treated as a call on the prior name', () => {
-        const script = 'foo\n(1 + 2)';
-        const ast = parse(script);
-        expect(ast.statements.length).toBe(2);
-      });
+      rule('statement.leading-bracket').it(
+        'a "(" on the next line is not treated as a call on the prior name',
+        () => {
+          const script = 'foo\n(1 + 2)';
+          const ast = parse(script);
+          expect(ast.statements.length).toBe(2);
+        }
+      );
 
       it('a "(" on the next line is not treated as a call on a pipe-target property access', () => {
         const script = '5 -> $math.double\n(1)';
@@ -161,7 +166,7 @@ $x`;
   });
 
   describe('Complex Multi-Statement Scripts', () => {
-    it('multiple capture statements', async () => {
+    rule('statement.order').it('multiple capture statements', async () => {
       // Mixed-type list [$greeting, $count] (string + number) not allowed.
       // Verify each variable independently via runWithContext.
       const { context } = await runWithContext(`"hello" => $greeting
@@ -171,11 +176,14 @@ $greeting`);
       expect(context.variables.get('count')).toBe(5);
     });
 
-    it('capture then use in expression', async () => {
-      const script = `"hello" -> .len => $length
+    rule('statement.variables').it(
+      'capture then use in expression',
+      async () => {
+        const script = `"hello" -> .len => $length
 $length -> ($ * 2)`;
-      expect(await run(script)).toBe(10);
-    });
+        expect(await run(script)).toBe(10);
+      }
+    );
 
     it('for loop with block on same line', async () => {
       const script = `list[1, 2, 3] -> seq({ ($ > 1) ? ($ * 10) ! $ })`;
@@ -195,23 +203,32 @@ $parts -> seq({ "{$}!" })`;
   });
 
   describe('Edge Cases', () => {
-    it('empty script errors (non-producing script → RILL-R043)', async () => {
-      await expect(run('')).rejects.toHaveProperty('errorId', 'RILL-R043');
-    });
+    rule('statement.empty').it(
+      'empty script errors (non-producing script → RILL-R043)',
+      async () => {
+        await expect(run('')).rejects.toHaveProperty('errorId', 'RILL-R043');
+      }
+    );
 
-    it('whitespace-only script errors (non-producing script → RILL-R043)', async () => {
-      await expect(run('   \n\n   ')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R043'
-      );
-    });
+    rule('statement.empty').it(
+      'whitespace-only script errors (non-producing script → RILL-R043)',
+      async () => {
+        await expect(run('   \n\n   ')).rejects.toHaveProperty(
+          'errorId',
+          'RILL-R043'
+        );
+      }
+    );
 
-    it('comment-only script errors (non-producing script → RILL-R043)', async () => {
-      await expect(run('# just a comment')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R043'
-      );
-    });
+    rule('statement.empty').it(
+      'comment-only script errors (non-producing script → RILL-R043)',
+      async () => {
+        await expect(run('# just a comment')).rejects.toHaveProperty(
+          'errorId',
+          'RILL-R043'
+        );
+      }
+    );
 
     it('handles CRLF line endings', async () => {
       const script = '"a" => $x\r\n"b" => $y\r\nlist[$x, $y]';
@@ -230,11 +247,14 @@ $parts -> seq({ "{$}!" })`;
   });
 
   describe('Parser Behavior', () => {
-    it('a trailing -> at end of line continues onto the next line', async () => {
-      const script = `"hello" ->
+    rule('statement.trailing-operator').it(
+      'a trailing -> at end of line continues onto the next line',
+      async () => {
+        const script = `"hello" ->
 .len`;
-      expect(await run(script)).toBe(5);
-    });
+        expect(await run(script)).toBe(5);
+      }
+    );
 
     it('rejects a trailing -> with nothing to continue onto', async () => {
       const script = `"hello" ->
@@ -587,5 +607,117 @@ $loop(5)`;
         expect(() => parse('5 => $a[0]')).toThrow();
       });
     });
+  });
+
+  describe('Statement rules', () => {
+    rule('statement.same-line').it(
+      'reads two statements on one line',
+      async () => {
+        expect(await run('1 2')).toBe(2);
+        expect(await run('1 => $a 2')).toBe(2);
+        expect(await run('1 => $a 2\n$a')).toBe(1);
+      }
+    );
+
+    rule('statement.leading-operator').it.each([
+      ['+', '1\n+ 2'],
+      ['*', '2\n* 3'],
+      ['/', '1\n/ 2'],
+      ['%', '1\n% 2'],
+      ['==', '1\n== 1'],
+      ['<', '1\n< 2'],
+      ['>=', '1\n>= 2'],
+      ['&&', 'true\n&& false'],
+      ['??', '1\n?? 2'],
+    ])('rejects a line that begins with %s', async (_op, source) => {
+      await expect(run(source)).rejects.toMatchObject({ errorId: 'RILL-P001' });
+    });
+
+    rule('statement.leading-operator').it(
+      'starts a new statement at a line that begins with -',
+      async () => {
+        expect(await run('1\n- 2')).toBe(-2);
+      }
+    );
+
+    rule('statement.order').it('runs statements in source order', async () => {
+      expect(await run('1 => $a\n$a + 1 => $b\n$b * 10')).toBe(20);
+    });
+
+    rule('statement.no-carry').it(
+      'does not bind $ to the previous result at the top level',
+      async () => {
+        await expect(run('5\n$')).rejects.toMatchObject({
+          errorId: 'RILL-R005',
+        });
+        expect(
+          await run('guard {\n5\n$\n} => $r\n$r.!code == #RILL_R005')
+        ).toBe(true);
+      }
+    );
+
+    rule('statement.block-dollar').it(
+      'gives every statement in a block the same $',
+      async () => {
+        expect(await run('5 -> {\n1\n2\n$\n}')).toBe(5);
+        expect(await run('5 -> {\n1 => $a\n$a + $\n}')).toBe(6);
+        expect(await run('3 -> {\n$ + 1\n$ * 10\n}')).toBe(30);
+      }
+    );
+
+    rule('statement.continuation').it(
+      'continues the chain at a line that begins with an arrow',
+      async () => {
+        expect(await run('5\n-> { $ + 1 }')).toBe(6);
+        expect(await run('5\n=> $x\n$x')).toBe(5);
+        expect(await run('1 -> { $ + 1 }\n-> { $ * 2 }\n-> { $ - 1 }')).toBe(3);
+        expect(await run('5\n\n-> { $ + 1 }')).toBe(6);
+        expect(await run('5\n# a comment\n-> { $ + 1 }')).toBe(6);
+      }
+    );
+
+    rule('statement.result').it(
+      'yields the last statement of a script and a block',
+      async () => {
+        expect(await run('1\n2\n3')).toBe(3);
+        expect(await run('0 -> {\n$ + 1\n$ + 2\n}')).toBe(2);
+      }
+    );
+
+    rule('statement.return').it(
+      'ends the script at a top-level return',
+      async () => {
+        expect(await run('"x" -> return\n"y"')).toBe('x');
+        expect(await run('"x" -> return\n$undefined')).toBe('x');
+      }
+    );
+
+    rule('statement.empty').it(
+      'halts a script of only frontmatter with RILL-R043',
+      async () => {
+        await expect(run('---\nk: v\n---\n')).rejects.toMatchObject({
+          errorId: 'RILL-R043',
+        });
+      }
+    );
+
+    rule('statement.trailing-operator').it(
+      'continues after a trailing - < >= or ||',
+      async () => {
+        expect(await run('5 -\n2')).toBe(3);
+        expect(await run('1 <\n2')).toBe(true);
+        expect(await run('2 >=\n1')).toBe(true);
+        expect(await run('false ||\ntrue')).toBe(true);
+        expect(await run('2 *\n# a comment\n3')).toBe(6);
+      }
+    );
+
+    rule('statement.leading-bracket').it(
+      'reads a bracket at line start as a new list',
+      async () => {
+        expect(await run('list[1, 2] => $l\n$l\n[0]')).toEqual([0]);
+        expect(await run('fn(x) { $x } => $f\n$f\n(1)')).toBe(1);
+      }
+    );
   });
 });
