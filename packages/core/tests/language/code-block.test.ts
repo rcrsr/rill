@@ -263,7 +263,7 @@ describe('Rill Language: Code Blocks', () => {
       }
     );
 
-    rule('code-block.pipe-target').it(
+    rule('code-block.pipe-target', 'break.nested').it(
       'lets break pass through a block to the enclosing loop',
       async () => {
         expect(

@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Loops
  * Tests for while loops, do-while loops, break, and return
@@ -14,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 
 import { parse, ParseError } from '@rcrsr/rill';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 import { findNode, run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Loops', () => {
@@ -26,14 +28,17 @@ describe('Rill Runtime: Loops', () => {
       expect(await run(script)).toBe(3);
     });
 
-    it('never enters loop when condition is initially false', async () => {
-      // Loop body never executes when condition starts false
-      // The value is 5, which never satisfies ($ < 0)
-      const script = `
+    rule('loop.while', 'loop.result').it(
+      'never enters loop when condition is initially false',
+      async () => {
+        // Loop body never executes when condition starts false
+        // The value is 5, which never satisfies ($ < 0)
+        const script = `
         5 -> while ($ < 0) do { $ + 1 }
       `;
-      expect(await run(script)).toBe(5);
-    });
+        expect(await run(script)).toBe(5);
+      }
+    );
 
     it('uses method as condition', async () => {
       // Loop while string contains "RETRY", replace with "OK" to exit
@@ -60,14 +65,14 @@ describe('Rill Runtime: Loops', () => {
       expect(await run(script)).toBe(5);
     });
 
-    it('requires boolean condition', async () => {
+    rule('loop.bool').it('requires boolean condition', async () => {
       // Non-boolean conditions should error
       await expect(run('while (list[1, 2, 3]) do { $ }')).rejects.toThrow(
         /condition must be boolean/i
       );
     });
 
-    it('string condition errors', async () => {
+    rule('loop.bool').it('string condition errors', async () => {
       await expect(run('while ("hello") do { $ }')).rejects.toThrow(
         /condition must be boolean/i
       );
@@ -75,7 +80,7 @@ describe('Rill Runtime: Loops', () => {
   });
 
   describe('Break', () => {
-    it('exits while loop with break', async () => {
+    rule('break.loop').it('exits while loop with break', async () => {
       // Uses $ as accumulator, condition always true, break exits
       const script = `
         0 -> while ($ < 100) do {
@@ -85,7 +90,7 @@ describe('Rill Runtime: Loops', () => {
       expect(await run(script)).toBe(5);
     });
 
-    it('returns break value from while loop', async () => {
+    rule('break.loop').it('returns break value from while loop', async () => {
       // Uses $ as accumulator, condition always true, break exits with value
       const script = `
         0 -> while ($ < 100) do {
@@ -95,7 +100,7 @@ describe('Rill Runtime: Loops', () => {
       expect(await run(script)).toBe('three');
     });
 
-    it('exits each loop early with break', async () => {
+    rule('break.seq').it('exits each loop early with break', async () => {
       // Break in each terminates iteration and returns partial results
       const script = `
         list[1, 2, 3, 4, 5] -> seq({
@@ -148,13 +153,16 @@ describe('Rill Runtime: Loops', () => {
   });
 
   describe('Do-While Loops', () => {
-    it('[AC-NOD-2] executes body at least once (DoWhileLoopNode structure)', async () => {
-      // Even with false condition, body runs once (uses $ as accumulator)
-      const script = `
+    rule('loop.do-while').it(
+      '[AC-NOD-2] executes body at least once (DoWhileLoopNode structure)',
+      async () => {
+        // Even with false condition, body runs once (uses $ as accumulator)
+        const script = `
         0 -> do { $ + 1 } while (false)
       `;
-      expect(await run(script)).toBe(1);
-    });
+        expect(await run(script)).toBe(1);
+      }
+    );
 
     it('continues while condition is true', async () => {
       // Uses $ as accumulator
@@ -172,7 +180,7 @@ describe('Rill Runtime: Loops', () => {
       expect(await run(script)).toBe('xxx');
     });
 
-    it('supports break', async () => {
+    rule('break.loop').it('supports break', async () => {
       // Uses $ as accumulator
       const script = `
         0 -> do {
@@ -182,7 +190,7 @@ describe('Rill Runtime: Loops', () => {
       expect(await run(script)).toBe(4);
     });
 
-    it('returns last value from body', async () => {
+    rule('loop.result').it('returns last value from body', async () => {
       // Uses $ as accumulator
       const script = `
         0 -> do { $ + 1 } while ($ < 3)
@@ -190,20 +198,23 @@ describe('Rill Runtime: Loops', () => {
       expect(await run(script)).toBe(3);
     });
 
-    it('executes once then checks condition (vs while which checks first)', async () => {
-      // While loop with false condition: body never executes
-      // Use a condition that's always false for initial value
-      const whileScript = `
+    rule('loop.while', 'loop.do-while').it(
+      'executes once then checks condition (vs while which checks first)',
+      async () => {
+        // While loop with false condition: body never executes
+        // Use a condition that's always false for initial value
+        const whileScript = `
         5 -> while ($ < 0) do { $ + 1 }
       `;
-      expect(await run(whileScript)).toBe(5);
+        expect(await run(whileScript)).toBe(5);
 
-      // Do-while with false condition: body executes once, then exits
-      const doWhileScript = `
+        // Do-while with false condition: body executes once, then exits
+        const doWhileScript = `
         5 -> do { $ + 1 } while ($ < 0)
       `;
-      expect(await run(doWhileScript)).toBe(6);
-    });
+        expect(await run(doWhileScript)).toBe(6);
+      }
+    );
   });
 
   describe('Nested Loops (using each)', () => {
@@ -219,7 +230,7 @@ describe('Rill Runtime: Loops', () => {
       ]);
     });
 
-    it('break only exits inner loop', async () => {
+    rule('break.seq').it('break only exits inner loop', async () => {
       const script = `
         list[list[1, 2, 3], list[4, 5, 6]] -> seq({
           $ -> seq({
@@ -248,16 +259,19 @@ describe('Rill Runtime: Loops', () => {
   });
 
   describe('Legacy @ Syntax Errors', () => {
-    it('[AC-NOD-8] bare @ without condition emits migration error R080', async () => {
-      const err = await run('@ { $ + 1 }').catch((e: unknown) => e);
-      expect(err).toHaveProperty('errorId', 'RILL-R080');
-      expect(err).toHaveProperty(
-        'message',
-        expect.stringContaining(
-          'Migration error: use `do { body } while (cond)`'
-        )
-      );
-    });
+    rule('loop.no-post-at').it(
+      '[AC-NOD-8] bare @ without condition emits migration error R080',
+      async () => {
+        const err = await run('@ { $ + 1 }').catch((e: unknown) => e);
+        expect(err).toHaveProperty('errorId', 'RILL-R080');
+        expect(err).toHaveProperty(
+          'message',
+          expect.stringContaining(
+            'Migration error: use `do { body } while (cond)`'
+          )
+        );
+      }
+    );
 
     it('bare ^(limit: N) as primary expression emits R081 at the ^ glyph', () => {
       try {
@@ -277,15 +291,21 @@ describe('Rill Runtime: Loops', () => {
   });
 
   describe('Self-Chaining Semantics', () => {
-    it('while: body result becomes next $', async () => {
-      const result = await run('1 -> while ($ < 100) do { $ * 2 }');
-      expect(result).toBe(128); // 1->2->4->8->16->32->64->128
-    });
+    rule('loop.accumulate').it(
+      'while: body result becomes next $',
+      async () => {
+        const result = await run('1 -> while ($ < 100) do { $ * 2 }');
+        expect(result).toBe(128); // 1->2->4->8->16->32->64->128
+      }
+    );
 
-    it('do-while: body result becomes next $', async () => {
-      const result = await run('1 -> do { $ * 2 } while ($ < 100)');
-      expect(result).toBe(128);
-    });
+    rule('loop.accumulate').it(
+      'do-while: body result becomes next $',
+      async () => {
+        const result = await run('1 -> do { $ * 2 } while ($ < 100)');
+        expect(result).toBe(128);
+      }
+    );
   });
 
   describe('Script-Level Return', () => {
@@ -430,35 +450,41 @@ describe('Rill Runtime: Loops', () => {
   // ============================================================
 
   describe('Migration Error: R079 pre-loop @ [AC-NOD-7]', () => {
-    it('seeded 0 -> ($ < 3) @ { $ + 1 } emits RILL-R079 at the @ glyph', () => {
-      try {
-        parse('0 -> ($ < 3) @ { $ + 1 }');
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        const e = err as ParseError;
-        expect(e.errorId).toBe('RILL-R079');
-        expect(e.message).toContain(
-          'Migration error: use `while (cond) do { body }`'
-        );
-        expect(e.location?.line).toBe(1);
-        expect(e.location?.column).toBe(14);
+    rule('loop.no-pre-at').it(
+      'seeded 0 -> ($ < 3) @ { $ + 1 } emits RILL-R079 at the @ glyph',
+      () => {
+        try {
+          parse('0 -> ($ < 3) @ { $ + 1 }');
+          expect.fail('Should have thrown ParseError');
+        } catch (err) {
+          expect(err).toBeInstanceOf(ParseError);
+          const e = err as ParseError;
+          expect(e.errorId).toBe('RILL-R079');
+          expect(e.message).toContain(
+            'Migration error: use `while (cond) do { body }`'
+          );
+          expect(e.location?.line).toBe(1);
+          expect(e.location?.column).toBe(14);
+        }
       }
-    });
+    );
 
-    it('[AC-NOD-7] ($ < 5) @ { $ + 1 } emits RILL-R079 at @ token', () => {
-      try {
-        parse('($ < 5) @ { $ + 1 }');
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        const e = err as ParseError;
-        expect(e.errorId).toBe('RILL-R079');
-        expect(e.message).toContain(
-          'Migration error: use `while (cond) do { body }`'
-        );
+    rule('loop.no-pre-at').it(
+      '[AC-NOD-7] ($ < 5) @ { $ + 1 } emits RILL-R079 at @ token',
+      () => {
+        try {
+          parse('($ < 5) @ { $ + 1 }');
+          expect.fail('Should have thrown ParseError');
+        } catch (err) {
+          expect(err).toBeInstanceOf(ParseError);
+          const e = err as ParseError;
+          expect(e.errorId).toBe('RILL-R079');
+          expect(e.message).toContain(
+            'Migration error: use `while (cond) do { body }`'
+          );
+        }
       }
-    });
+    );
 
     it('[AC-NOD-7] error fires at the @ glyph (NFR-LOOP-3 span locality)', () => {
       try {
@@ -478,35 +504,41 @@ describe('Rill Runtime: Loops', () => {
   // ============================================================
 
   describe('Migration Error: R080 post-loop @ [AC-NOD-8]', () => {
-    it('seeded 0 -> @ { $ + 1 } ? ($ < 3) emits RILL-R080 at the @ glyph', () => {
-      try {
-        parse('0 -> @ { $ + 1 } ? ($ < 3)');
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        const e = err as ParseError;
-        expect(e.errorId).toBe('RILL-R080');
-        expect(e.message).toContain(
-          'Migration error: use `do { body } while (cond)`'
-        );
-        expect(e.location?.line).toBe(1);
-        expect(e.location?.column).toBe(6);
+    rule('loop.no-post-at').it(
+      'seeded 0 -> @ { $ + 1 } ? ($ < 3) emits RILL-R080 at the @ glyph',
+      () => {
+        try {
+          parse('0 -> @ { $ + 1 } ? ($ < 3)');
+          expect.fail('Should have thrown ParseError');
+        } catch (err) {
+          expect(err).toBeInstanceOf(ParseError);
+          const e = err as ParseError;
+          expect(e.errorId).toBe('RILL-R080');
+          expect(e.message).toContain(
+            'Migration error: use `do { body } while (cond)`'
+          );
+          expect(e.location?.line).toBe(1);
+          expect(e.location?.column).toBe(6);
+        }
       }
-    });
+    );
 
-    it('[AC-NOD-8] @ { $ + 1 } ? ($ < 5) emits RILL-R080 at @ token', () => {
-      try {
-        parse('@ { $ + 1 } ? ($ < 5)');
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        const e = err as ParseError;
-        expect(e.errorId).toBe('RILL-R080');
-        expect(e.message).toContain(
-          'Migration error: use `do { body } while (cond)`'
-        );
+    rule('loop.no-post-at').it(
+      '[AC-NOD-8] @ { $ + 1 } ? ($ < 5) emits RILL-R080 at @ token',
+      () => {
+        try {
+          parse('@ { $ + 1 } ? ($ < 5)');
+          expect.fail('Should have thrown ParseError');
+        } catch (err) {
+          expect(err).toBeInstanceOf(ParseError);
+          const e = err as ParseError;
+          expect(e.errorId).toBe('RILL-R080');
+          expect(e.message).toContain(
+            'Migration error: use `do { body } while (cond)`'
+          );
+        }
       }
-    });
+    );
 
     it('[AC-NOD-8] error fires at the @ glyph (NFR-LOOP-3 span locality)', () => {
       try {
@@ -582,19 +614,22 @@ describe('Rill Runtime: Loops', () => {
   // ============================================================
 
   describe('Parse Error: while (cond) missing do [AC-NOD-11]', () => {
-    it('[AC-NOD-11] while ($ < 5) { body } emits RILL-P004 with row-5 message', () => {
-      try {
-        parse('while ($ < 5) { $ + 1 }');
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        const e = err as ParseError;
-        expect(e.errorId).toBe('RILL-P004');
-        expect(e.message).toContain(
-          'Parse error: expected `do` after `while (cond)`'
-        );
+    rule('loop.do-required').it(
+      '[AC-NOD-11] while ($ < 5) { body } emits RILL-P004 with row-5 message',
+      () => {
+        try {
+          parse('while ($ < 5) { $ + 1 }');
+          expect.fail('Should have thrown ParseError');
+        } catch (err) {
+          expect(err).toBeInstanceOf(ParseError);
+          const e = err as ParseError;
+          expect(e.errorId).toBe('RILL-P004');
+          expect(e.message).toContain(
+            'Parse error: expected `do` after `while (cond)`'
+          );
+        }
       }
-    });
+    );
   });
 
   // ============================================================
@@ -602,19 +637,22 @@ describe('Rill Runtime: Loops', () => {
   // ============================================================
 
   describe('Parse Error: standalone do without trailing while [AC-NOD-12]', () => {
-    it('[AC-NOD-12] do { $ + 1 } emits RILL-P004 with row-6 message', () => {
-      try {
-        parse('do { $ + 1 }');
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        const e = err as ParseError;
-        expect(e.errorId).toBe('RILL-P004');
-        expect(e.message).toContain(
-          'Parse error: `do { body }` requires trailing `while (cond)` in post-loop form'
-        );
+    rule('loop.while-required').it(
+      '[AC-NOD-12] do { $ + 1 } emits RILL-P004 with row-6 message',
+      () => {
+        try {
+          parse('do { $ + 1 }');
+          expect.fail('Should have thrown ParseError');
+        } catch (err) {
+          expect(err).toBeInstanceOf(ParseError);
+          const e = err as ParseError;
+          expect(e.errorId).toBe('RILL-P004');
+          expect(e.message).toContain(
+            'Parse error: `do { body }` requires trailing `while (cond)` in post-loop form'
+          );
+        }
       }
-    });
+    );
   });
 
   // ============================================================
@@ -640,29 +678,35 @@ describe('Rill Runtime: Loops', () => {
   // ============================================================
 
   describe('Parse Error: non-positive limit [AC-NOD-14]', () => {
-    it('[AC-NOD-14] do(limit: 0) { body } emits RILL-P004 with row-8 message', () => {
-      try {
-        parse('do(limit: 0) { $ + 1 } while ($ < 5)');
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        const e = err as ParseError;
-        expect(e.errorId).toBe('RILL-P004');
-        expect(e.message).toContain('must be a positive integer');
+    rule('loop.limit-literal').it(
+      '[AC-NOD-14] do(limit: 0) { body } emits RILL-P004 with row-8 message',
+      () => {
+        try {
+          parse('do(limit: 0) { $ + 1 } while ($ < 5)');
+          expect.fail('Should have thrown ParseError');
+        } catch (err) {
+          expect(err).toBeInstanceOf(ParseError);
+          const e = err as ParseError;
+          expect(e.errorId).toBe('RILL-P004');
+          expect(e.message).toContain('must be a positive integer');
+        }
       }
-    });
+    );
 
-    it('[AC-NOD-14] do(limit: -5) { body } emits RILL-P004 with row-8 message', () => {
-      try {
-        parse('do(limit: -5) { $ + 1 } while ($ < 5)');
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        const e = err as ParseError;
-        expect(e.errorId).toBe('RILL-P004');
-        expect(e.message).toContain('must be a positive integer');
+    rule('loop.limit-literal').it(
+      '[AC-NOD-14] do(limit: -5) { body } emits RILL-P004 with row-8 message',
+      () => {
+        try {
+          parse('do(limit: -5) { $ + 1 } while ($ < 5)');
+          expect.fail('Should have thrown ParseError');
+        } catch (err) {
+          expect(err).toBeInstanceOf(ParseError);
+          const e = err as ParseError;
+          expect(e.errorId).toBe('RILL-P004');
+          expect(e.message).toContain('must be a positive integer');
+        }
       }
-    });
+    );
   });
 
   // ============================================================
@@ -883,8 +927,108 @@ describe('Rill Runtime: Loops', () => {
       );
     });
 
-    it('while (cond) { body } on the same line (no newline) still requires `do`', () => {
-      expect(() => parse('0 -> while ($ < 3) { $ + 1 }')).toThrow(ParseError);
-    });
+    rule('loop.do-required').it(
+      'while (cond) { body } on the same line (no newline) still requires `do`',
+      () => {
+        expect(() => parse('0 -> while ($ < 3) { $ + 1 }')).toThrow(ParseError);
+      }
+    );
+  });
+});
+
+describe('Rill Runtime: Loop and break rules', () => {
+  rule('break.seq').it(
+    'discards the value piped into break inside seq and acc',
+    async () => {
+      expect(
+        await run(
+          'list["a", "b", "c"] -> seq({ ($ == "b") ? ("zz" -> break) ! $ })'
+        )
+      ).toEqual(['a']);
+      expect(
+        await run(
+          'list["a", "b", "c"] -> acc("", { ($ == "c") ? ("zz" -> break) ! "{$@}{$}" })'
+        )
+      ).toEqual(['a', 'ab']);
+    }
+  );
+
+  rule('break.other-operators').it(
+    'halts RILL-R002 for break in sort, start_when, stop_when, and iterate',
+    async () => {
+      for (const source of [
+        'list[3, 1, 2] -> sort({ break })',
+        'list[1, 2] -> start_when({ $ -> break })',
+        'list[1, 2] -> stop_when({ $ -> break })',
+        '1 -> iterate({ $ -> break }) -> take(3)',
+      ]) {
+        await expect(run(source)).rejects.toHaveProperty(
+          'errorId',
+          'RILL-R002'
+        );
+        await expect(
+          run(`guard { ${source} } => $r\n$r`)
+        ).rejects.toHaveProperty('errorId', 'RILL-R002');
+      }
+    }
+  );
+
+  rule('break.return-each').it(
+    'ends one operator call with return and continues with the next element',
+    async () => {
+      expect(
+        await run('list[1, 2, 3] -> seq({ ($ == 2) ? ("two" -> return) ! $ })')
+      ).toEqual([1, 'two', 3]);
+      expect(
+        await run('list[1, 2, 3] -> fan({ ($ == 2) ? ("two" -> return) ! $ })')
+      ).toEqual([1, 'two', 3]);
+      expect(
+        await run(
+          'list[1, 2, 3] -> fold(0, { ($ == 2) ? ($@ -> return) ! ($@ + $) })'
+        )
+      ).toBe(4);
+    }
+  );
+
+  rule('loop.limit').it(
+    'halts RILL-R010 past the default limit of 10,000',
+    async () => {
+      expect(await run('0 -> while ($ < 10000) do { $ + 1 }')).toBe(10000);
+      await expect(
+        run('0 -> while ($ < 10001) do { $ + 1 }')
+      ).rejects.toMatchObject({
+        errorId: 'RILL-R010',
+        message: expect.stringContaining('exceeded 10000 iterations'),
+      });
+    }
+  );
+
+  rule('loop.limit').it('halts RILL-R010 past a written limit', async () => {
+    expect(await run('0 -> do(limit: 3) { $ + 1 } while ($ < 3)')).toBe(3);
+    await expect(
+      run('0 -> do(limit: 3) { $ + 1 } while ($ < 4)')
+    ).rejects.toHaveProperty('errorId', 'RILL-R010');
+  });
+
+  rule('loop.scope').it('gives each body run a fresh scope', async () => {
+    // A capture that leaked into the next run would lock $k to string and
+    // halt RILL-R001 when the second run binds a number.
+    expect(
+      await run(
+        '0 -> while ($ < 2) do {\n  ($ == 0) ? "s" ! 1 => $k\n  $ + 1\n}'
+      )
+    ).toBe(2);
+  });
+
+  rule('loop.at-expression').it('rejects @[ and @$name with RILL-P010', () => {
+    for (const source of ['@[1, 2, 3]', 'fn(x) { $x } => $f\n@$f']) {
+      try {
+        parse(source);
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        expect((err as ParseError).errorId).toBe('RILL-P010');
+      }
+    }
   });
 });

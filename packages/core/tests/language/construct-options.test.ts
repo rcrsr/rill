@@ -302,9 +302,12 @@ describe('statements with no options', () => {
 describe('pass ignore_halts', () => {
   const { it: ruleIt } = rule('construct-options.dict');
 
-  ruleIt('yields the piped value when the body halts catchably', async () => {
-    expect(await run('"x" -> pass(ignore_halts: true) { 1 / 0 }')).toBe('x');
-  });
+  rule('construct-options.dict', 'pass.ignore').it(
+    'yields the piped value when the body halts catchably',
+    async () => {
+      expect(await run('"x" -> pass(ignore_halts: true) { 1 / 0 }')).toBe('x');
+    }
+  );
 
   ruleIt('halts #TYPE_MISMATCH for a non-bool async value', async () => {
     await expectHalt(() => run('"x" -> pass(async: 1) { 1 }'), {
@@ -312,27 +315,80 @@ describe('pass ignore_halts', () => {
     });
   });
 
-  ruleIt('lets error halts propagate', async () => {
-    await expect(
-      run('"x" -> pass(ignore_halts: true) { error "boom" }')
-    ).rejects.toThrow(/boom/);
-  });
+  rule('construct-options.dict', 'pass.ignore').it(
+    'lets error halts propagate',
+    async () => {
+      await expect(
+        run('"x" -> pass(ignore_halts: true) { error "boom" }')
+      ).rejects.toThrow(/boom/);
+    }
+  );
 
-  ruleIt('lets assert halts propagate', async () => {
-    await expect(
-      run('"x" -> pass(ignore_halts: true) { assert false "nope" }')
-    ).rejects.toThrow(/nope/);
-  });
+  rule('construct-options.dict', 'pass.ignore').it(
+    'lets assert halts propagate',
+    async () => {
+      await expect(
+        run('"x" -> pass(ignore_halts: true) { assert false "nope" }')
+      ).rejects.toThrow(/nope/);
+    }
+  );
 
-  ruleIt('lets break propagate out of the body', async () => {
+  rule('construct-options.dict', 'pass.ignore', 'break.not-halt').it(
+    'lets break propagate out of the body',
+    async () => {
+      expect(
+        await run(
+          '0 -> while ($ < 5) do { pass(ignore_halts: true) { break } }'
+        )
+      ).toBe(0);
+    }
+  );
+
+  rule('construct-options.dict', 'pass.ignore', 'break.not-halt').it(
+    'lets return propagate out of the body',
+    async () => {
+      expect(
+        await run('5 -> { pass(ignore_halts: true) { 7 -> return }\n9 }')
+      ).toBe(7);
+    }
+  );
+});
+
+describe('options written as bare values', () => {
+  const { it: ruleIt } = rule('construct-options.named');
+
+  ruleIt.each([
+    'retry(3) { 1 }',
+    'guard(1) { 1 }',
+    '5 -> pass(true) { 1 }',
+    '0 -> while ($ < 2) do(5) { $ + 1 }',
+    'retry(attempts: 2, 3) { 1 }',
+  ])('rejects %s with RILL-P001', (source) => {
+    expect(parseErrorId(source)).toBe('RILL-P001');
+  });
+});
+
+describe('timeout recognized by what follows it', () => {
+  const { it: ruleIt } = rule('construct-options.timeout-context');
+
+  ruleIt('keeps a host function named timeout callable', async () => {
     expect(
-      await run('0 -> while ($ < 5) do { pass(ignore_halts: true) { break } }')
-    ).toBe(0);
-  });
-
-  ruleIt('lets return propagate out of the body', async () => {
-    expect(
-      await run('5 -> { pass(ignore_halts: true) { 7 -> return }\n9 }')
+      await run('timeout(1)', {
+        functions: { timeout: { signature: 'fn(n: number)', fn: () => 7 } },
+      })
     ).toBe(7);
   });
+
+  ruleIt('rejects a body that starts on a later line with RILL-P004', () => {
+    expect(parseErrorId('timeout(total: duration("100ms"))\n{ 1 }')).toBe(
+      'RILL-P004'
+    );
+  });
+
+  ruleIt(
+    'opens a block when the options end before { on the same line',
+    async () => {
+      expect(await run('timeout() { 1 }')).toBe(1);
+    }
+  );
 });

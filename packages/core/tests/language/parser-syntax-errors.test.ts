@@ -359,39 +359,45 @@ describe('Parser Syntax Errors', () => {
   });
 
   describe('Conditional branch shape', () => {
-    it('rejects a then-branch that is a binary/arithmetic expression', () => {
-      const source = 'true ? 1 + 1 ! 2';
+    rule('conditional.branch-shape').it(
+      'rejects a then-branch that is a binary/arithmetic expression',
+      () => {
+        const source = 'true ? 1 + 1 ! 2';
 
-      try {
-        parse(source);
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        const parseErr = err as ParseError;
+        try {
+          parse(source);
+          expect.fail('Should have thrown ParseError');
+        } catch (err) {
+          expect(err).toBeInstanceOf(ParseError);
+          const parseErr = err as ParseError;
 
-        expect(parseErr.errorId).toBe('RILL-P006');
-        expect(parseErr.message).toContain(
-          'conditional branch must be a block, grouped expression, or postfix expression'
-        );
+          expect(parseErr.errorId).toBe('RILL-P006');
+          expect(parseErr.message).toContain(
+            'conditional branch must be a block, grouped expression, or postfix expression'
+          );
+        }
       }
-    });
+    );
 
-    it('rejects an else-branch that is a binary/arithmetic expression', () => {
-      const source = 'false ? 1 ! 2 + 2';
+    rule('conditional.branch-shape').it(
+      'rejects an else-branch that is a binary/arithmetic expression',
+      () => {
+        const source = 'false ? 1 ! 2 + 2';
 
-      try {
-        parse(source);
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        const parseErr = err as ParseError;
+        try {
+          parse(source);
+          expect.fail('Should have thrown ParseError');
+        } catch (err) {
+          expect(err).toBeInstanceOf(ParseError);
+          const parseErr = err as ParseError;
 
-        expect(parseErr.errorId).toBe('RILL-P006');
-        expect(parseErr.message).toContain(
-          'conditional branch must be a block, grouped expression, or postfix expression'
-        );
+          expect(parseErr.errorId).toBe('RILL-P006');
+          expect(parseErr.message).toContain(
+            'conditional branch must be a block, grouped expression, or postfix expression'
+          );
+        }
       }
-    });
+    );
 
     it('accepts a grouped expression as the then-branch', async () => {
       const result = await run('true ? (1 + 1) ! 2');

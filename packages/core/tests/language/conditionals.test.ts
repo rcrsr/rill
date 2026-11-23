@@ -13,27 +13,33 @@ import { anyTypeValue } from '@rcrsr/rill';
 
 describe('Rill Runtime: Conditionals', () => {
   describe('Basic Conditionals', () => {
-    it('executes then branch on true', async () => {
+    rule('conditional.branch').it('executes then branch on true', async () => {
       expect(await run('true ? "yes" ! "no"')).toBe('yes');
     });
 
-    it('passes through on false without else (piped form)', async () => {
-      // Piped form preserves the input value when condition is false and no else
-      expect(await run('false -> ? "yes"')).toBe(false);
-    });
+    rule('conditional.no-else').it(
+      'passes through on false without else (piped form)',
+      async () => {
+        // Piped form preserves the input value when condition is false and no else
+        expect(await run('false -> ? "yes"')).toBe(false);
+      }
+    );
 
-    it('halts on false without else when $ is not bound', async () => {
-      // Explicit condition form has no piped $ to fall through to
-      await expect(run('false ? "yes"')).rejects.toThrow(
-        "Variable '$' not defined"
-      );
-    });
+    rule('conditional.no-else').it(
+      'halts on false without else when $ is not bound',
+      async () => {
+        // Explicit condition form has no piped $ to fall through to
+        await expect(run('false ? "yes"')).rejects.toThrow(
+          "Variable '$' not defined"
+        );
+      }
+    );
 
     it('executes then branch on true with else', async () => {
       expect(await run('true ? "yes" ! "no"')).toBe('yes');
     });
 
-    it('executes else branch on false', async () => {
+    rule('conditional.branch').it('executes else branch on false', async () => {
       expect(await run('false ? "yes" ! "no"')).toBe('no');
     });
   });
@@ -59,41 +65,47 @@ describe('Rill Runtime: Conditionals', () => {
       expect(await run('"" -> (!.empty) ? "has" ! "empty"')).toBe('empty');
     });
 
-    it('uses bare ? with true', async () => {
+    rule('conditional.piped').it('uses bare ? with true', async () => {
       expect(await run('true -> ? "yes" ! "no"')).toBe('yes');
     });
 
-    it('uses bare ? with false', async () => {
+    rule('conditional.piped').it('uses bare ? with false', async () => {
       expect(await run('false -> ? "yes" ! "no"')).toBe('no');
     });
 
-    it('rejects non-boolean string in piped conditional', async () => {
-      await expect(run('"x" -> ? "yes" ! "no"')).rejects.toThrow(
-        'Piped conditional requires boolean, got string'
-      );
-    });
+    rule('conditional.bool').it(
+      'rejects non-boolean string in piped conditional',
+      async () => {
+        await expect(run('"x" -> ? "yes" ! "no"')).rejects.toThrow(
+          'Piped conditional requires boolean, got string'
+        );
+      }
+    );
 
-    it('rejects non-boolean number in piped conditional', async () => {
-      await expect(run('42 -> ? "yes" ! "no"')).rejects.toThrow(
-        'Piped conditional requires boolean, got number'
-      );
-    });
+    rule('conditional.bool').it(
+      'rejects non-boolean number in piped conditional',
+      async () => {
+        await expect(run('42 -> ? "yes" ! "no"')).rejects.toThrow(
+          'Piped conditional requires boolean, got number'
+        );
+      }
+    );
   });
 
   describe('Else-If Chains', () => {
-    it('matches first condition', async () => {
+    rule('conditional.chain').it('matches first condition', async () => {
       expect(await run('"A" -> .eq("A") ? 1 ! .eq("B") ? 2 ! 3')).toBe(1);
     });
 
-    it('matches second condition', async () => {
+    rule('conditional.chain').it('matches second condition', async () => {
       expect(await run('"B" -> .eq("A") ? 1 ! .eq("B") ? 2 ! 3')).toBe(2);
     });
 
-    it('falls through to default', async () => {
+    rule('conditional.chain').it('falls through to default', async () => {
       expect(await run('"C" -> .eq("A") ? 1 ! .eq("B") ? 2 ! 3')).toBe(3);
     });
 
-    it('handles long else-if chain', async () => {
+    rule('conditional.chain').it('handles long else-if chain', async () => {
       const script =
         '"D" -> .eq("A") ? 1 ! .eq("B") ? 2 ! .eq("C") ? 3 ! .eq("D") ? 4 ! 5';
       expect(await run(script)).toBe(4);
@@ -137,17 +149,20 @@ describe('Rill Runtime: Conditionals', () => {
       expect(await run('false ? "result" ! "other" => $x\n$x')).toBe('other');
     });
 
-    it('returns last expression in multi-statement block', async () => {
-      expect(
-        await run(`
+    rule('conditional.block').it(
+      'returns last expression in multi-statement block',
+      async () => {
+        expect(
+          await run(`
           true ? {
             "first" => $a
             "second" => $b
             $b
           } ! "other"
         `)
-      ).toBe('second');
-    });
+        ).toBe('second');
+      }
+    );
   });
 
   describe('Empty Block Validation', () => {
@@ -208,17 +223,20 @@ describe('Rill Runtime: Conditionals', () => {
       );
     });
 
-    it('parses piped conditional with block bodies', async () => {
-      expect(
-        await run(`
+    rule('conditional.block').it(
+      'parses piped conditional with block bodies',
+      async () => {
+        expect(
+          await run(`
           true -> ? {
             "then"
           } ! {
             "else"
           }
         `)
-      ).toBe('then');
-    });
+        ).toBe('then');
+      }
+    );
   });
 
   describe('Function Calls in Branches', () => {
@@ -575,4 +593,38 @@ while ($ < 3)`);
       }
     );
   });
+});
+
+describe('Rill Runtime: Conditional rules', () => {
+  rule('conditional.branch').it(
+    'does not evaluate the branch not taken',
+    async () => {
+      expect(await run('false ? $nope ! 1')).toBe(1);
+      expect(await run('true ? 1 ! $nope')).toBe(1);
+    }
+  );
+
+  rule('conditional.piped').it(
+    'binds $ in a branch to the piped value',
+    async () => {
+      expect(await run('true -> ? $ ! 2')).toBe(true);
+      expect(await run('false -> ? 1 ! $')).toBe(false);
+    }
+  );
+
+  rule('conditional.dollar').it(
+    'sees the incoming $ in every form',
+    async () => {
+      expect(await run('5 -> ($ > 3) ? "{$}a" ! "{$}b"')).toBe('5a');
+      expect(await run('5 => $x\n"o" -> ($x > 3) ? $ ! 0')).toBe('o');
+    }
+  );
+
+  rule('conditional.chain').it(
+    'tests a later condition only when the earlier is false',
+    async () => {
+      expect(await run('true ? 1 ! $nope ? 2 ! 3')).toBe(1);
+      expect(await run('false ? 1 ! true ? 2 ! 3')).toBe(2);
+    }
+  );
 });

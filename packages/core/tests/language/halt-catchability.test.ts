@@ -124,16 +124,22 @@ describe('Rill Language: halts', () => {
   );
 
   describe('control signals pass through guard', () => {
-    rule('halt.signals').it('lets break leave the loop', async () => {
-      expect(
-        await run('list[1, 2, 3] -> seq({ ($ == 2) ? guard { break } ! $ })')
-      ).toEqual([1]);
-    });
+    rule('halt.signals', 'break.not-halt').it(
+      'lets break leave the loop',
+      async () => {
+        expect(
+          await run('list[1, 2, 3] -> seq({ ($ == 2) ? guard { break } ! $ })')
+        ).toEqual([1]);
+      }
+    );
 
-    rule('halt.signals').it('lets return leave the function', async () => {
-      expect(
-        await run('fn(x) { guard { $x -> return }\n8 } => $g\n$g(7)')
-      ).toBe(7);
-    });
+    rule('halt.signals', 'break.not-halt').it(
+      'lets return leave the function',
+      async () => {
+        expect(
+          await run('fn(x) { guard { $x -> return }\n8 } => $g\n$g(7)')
+        ).toBe(7);
+      }
+    );
   });
 });
