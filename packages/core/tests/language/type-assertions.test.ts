@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Type Assertions and Checks
  * Tests for type assertion (expr:type) and type check (expr:?type) syntax
@@ -7,6 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { rule } from '../helpers/rule.js';
 
 import { ParseError } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
@@ -392,12 +394,15 @@ describe('Rill Runtime: Type Assertions', () => {
       );
     });
 
-    it('EC-6: tuple(x: string) annotation (named) halts with "requires positional arguments"', async () => {
-      await expectHaltMessage(
-        () => run('"x" :tuple(x: string)'),
-        'tuple() requires positional arguments'
-      );
-    });
+    rule('tuple.unnamed').it(
+      'EC-6: tuple(x: string) annotation (named) halts with "requires positional arguments"',
+      async () => {
+        await expectHaltMessage(
+          () => run('"x" :tuple(x: string)'),
+          'tuple() requires positional arguments'
+        );
+      }
+    );
 
     it('EC-7: non-type-value as type arg halts with "not a valid type reference"', async () => {
       const script = `

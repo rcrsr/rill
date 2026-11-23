@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Structural Type Identity
  *
@@ -14,6 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { rule } from '../helpers/rule.js';
 
 import { createLogCollector, run } from '../helpers/runtime.js';
 
@@ -38,15 +40,21 @@ describe('Rill Language: Structural Type Identity', () => {
       expect(result).toBe(true);
     });
 
-    it('AC-4: list(number) == list(number) is true', async () => {
-      const result = await run('list(number) == list(number)');
-      expect(result).toBe(true);
-    });
+    rule('list.equality').it(
+      'AC-4: list(number) == list(number) is true',
+      async () => {
+        const result = await run('list(number) == list(number)');
+        expect(result).toBe(true);
+      }
+    );
 
-    it('AC-5: list(number) != list(string) is true', async () => {
-      const result = await run('list(number) != list(string)');
-      expect(result).toBe(true);
-    });
+    rule('list.equality').it(
+      'AC-5: list(number) != list(string) is true',
+      async () => {
+        const result = await run('list(number) != list(string)');
+        expect(result).toBe(true);
+      }
+    );
   });
 
   // ============================================================
@@ -61,19 +69,25 @@ describe('Rill Language: Structural Type Identity', () => {
       expect(result).toBe(true);
     });
 
-    it('AC-7: tuple(number, string) != tuple(string, number) is true', async () => {
-      const result = await run(
-        'tuple(number, string) != tuple(string, number)'
-      );
-      expect(result).toBe(true);
-    });
+    rule('tuple.equality').it(
+      'AC-7: tuple(number, string) != tuple(string, number) is true',
+      async () => {
+        const result = await run(
+          'tuple(number, string) != tuple(string, number)'
+        );
+        expect(result).toBe(true);
+      }
+    );
 
-    it('AC-8: tuple(number, string) != tuple(number, string, bool) is true', async () => {
-      const result = await run(
-        'tuple(number, string) != tuple(number, string, bool)'
-      );
-      expect(result).toBe(true);
-    });
+    rule('tuple.equality').it(
+      'AC-8: tuple(number, string) != tuple(number, string, bool) is true',
+      async () => {
+        const result = await run(
+          'tuple(number, string) != tuple(number, string, bool)'
+        );
+        expect(result).toBe(true);
+      }
+    );
 
     it('AC-9: tuple[].^type == tuple() is true', async () => {
       const result = await run('tuple[].^type == tuple()');
@@ -93,12 +107,15 @@ describe('Rill Language: Structural Type Identity', () => {
       expect(result).toBe(true);
     });
 
-    it('AC-11: ordered(a: number, b: string) != ordered(b: string, a: number) is true', async () => {
-      const result = await run(
-        'ordered(a: number, b: string) != ordered(b: string, a: number)'
-      );
-      expect(result).toBe(true);
-    });
+    rule('ordered.order').it(
+      'AC-11: ordered(a: number, b: string) != ordered(b: string, a: number) is true',
+      async () => {
+        const result = await run(
+          'ordered(a: number, b: string) != ordered(b: string, a: number)'
+        );
+        expect(result).toBe(true);
+      }
+    );
 
     it('AC-12: ordered[].^type == ordered()', async () => {
       const result = await run('ordered[].^type == ordered()');
@@ -118,31 +135,43 @@ describe('Rill Language: Structural Type Identity', () => {
       expect(result).toBe(true);
     });
 
-    it('AC-14: dict(a: number, b: string) == dict(b: string, a: number) is true (field-order-insensitive)', async () => {
-      const result = await run(
-        'dict(a: number, b: string) == dict(b: string, a: number)'
-      );
-      expect(result).toBe(true);
-    });
+    rule('dict.field-equality').it(
+      'AC-14: dict(a: number, b: string) == dict(b: string, a: number) is true (field-order-insensitive)',
+      async () => {
+        const result = await run(
+          'dict(a: number, b: string) == dict(b: string, a: number)'
+        );
+        expect(result).toBe(true);
+      }
+    );
 
-    it('AC-15: dict(a: string) == dict(b: string) is false (different field names)', async () => {
-      const result = await run('dict(a: string) == dict(b: string)');
-      expect(result).toBe(false);
-    });
+    rule('dict.field-equality').it(
+      'AC-15: dict(a: string) == dict(b: string) is false (different field names)',
+      async () => {
+        const result = await run('dict(a: string) == dict(b: string)');
+        expect(result).toBe(false);
+      }
+    );
 
-    it('AC-16: dict(a: dict(x: number)) == dict(a: dict(x: number)) is true', async () => {
-      const result = await run(
-        'dict(a: dict(x: number)) == dict(a: dict(x: number))'
-      );
-      expect(result).toBe(true);
-    });
+    rule('dict.field-equality', 'dict.field-type').it(
+      'AC-16: dict(a: dict(x: number)) == dict(a: dict(x: number)) is true',
+      async () => {
+        const result = await run(
+          'dict(a: dict(x: number)) == dict(a: dict(x: number))'
+        );
+        expect(result).toBe(true);
+      }
+    );
 
-    it('AC-17: dict(a: dict(x: number)) == dict(a: dict(x: string)) is false', async () => {
-      const result = await run(
-        'dict(a: dict(x: number)) == dict(a: dict(x: string))'
-      );
-      expect(result).toBe(false);
-    });
+    rule('dict.field-equality', 'dict.field-type').it(
+      'AC-17: dict(a: dict(x: number)) == dict(a: dict(x: string)) is false',
+      async () => {
+        const result = await run(
+          'dict(a: dict(x: number)) == dict(a: dict(x: string))'
+        );
+        expect(result).toBe(false);
+      }
+    );
   });
 
   // ============================================================
@@ -431,12 +460,15 @@ describe('Rill Language: Structural Type Identity', () => {
       expect(result).toBe(true);
     });
 
-    it('AC-29: [a: [1, 2, 3]] :? dict(a: list(number)) is true — via ^type equality', async () => {
-      const result = await run(
-        'dict[a: list[1, 2, 3]].^type == dict(a: list(number))'
-      );
-      expect(result).toBe(true);
-    });
+    rule('dict.field-type').it(
+      'AC-29: [a: [1, 2, 3]] :? dict(a: list(number)) is true — via ^type equality',
+      async () => {
+        const result = await run(
+          'dict[a: list[1, 2, 3]].^type == dict(a: list(number))'
+        );
+        expect(result).toBe(true);
+      }
+    );
   });
 
   // ============================================================
@@ -514,20 +546,29 @@ describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
 
   describe('Display format for parameterized type values (AC-10)', () => {
-    it('AC-10: list(string) type value .signature returns "list(string)"', async () => {
-      const result = await run('list(string) => $t\n$t.signature');
-      expect(result).toBe('list(string)');
-    });
+    rule('list.print').it(
+      'AC-10: list(string) type value .signature returns "list(string)"',
+      async () => {
+        const result = await run('list(string) => $t\n$t.signature');
+        expect(result).toBe('list(string)');
+      }
+    );
 
-    it('AC-10: list(number) type value .signature returns "list(number)"', async () => {
-      const result = await run('list(number) => $t\n$t.signature');
-      expect(result).toBe('list(number)');
-    });
+    rule('list.print').it(
+      'AC-10: list(number) type value .signature returns "list(number)"',
+      async () => {
+        const result = await run('list(number) => $t\n$t.signature');
+        expect(result).toBe('list(number)');
+      }
+    );
 
-    it('AC-10: dict(name: string) type value .signature returns "dict(name: string)"', async () => {
-      const result = await run('dict(name: string) => $t\n$t.signature');
-      expect(result).toBe('dict(name: string)');
-    });
+    rule('dict.field-print').it(
+      'AC-10: dict(name: string) type value .signature returns "dict(name: string)"',
+      async () => {
+        const result = await run('dict(name: string) => $t\n$t.signature');
+        expect(result).toBe('dict(name: string)');
+      }
+    );
 
     it('AC-10: list(string) type value .name returns "list"', async () => {
       const result = await run('list(string) => $t\n$t.name');

@@ -171,7 +171,7 @@ describe('Rill Language: Type form outer', () => {
     }
   );
 
-  rule('type-form.uniform', 'type-form.name').it(
+  rule('type-form.uniform', 'type-form.name', 'stream.bare-outer').it(
     'reads a bare name with an outer as the unspecified inner',
     async () => {
       expect(await run('stream:number == stream(any):number')).toBe(true);

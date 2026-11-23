@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Structural Type Error Contracts
  * Tests for error cases in structural type construction and list operations.
@@ -12,6 +13,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { rule } from '../helpers/rule.js';
 
 import { ParseError } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
@@ -55,19 +57,25 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   // ============================================================
 
   describe('list() with multiple arguments (AC-42)', () => {
-    it('throws when list() is called with two type arguments', async () => {
-      await expectHalt(() => run('list(string, number)'), {
-        code: 'INVALID_INPUT',
-        messagePattern: 'list() requires exactly 1 type argument',
-      });
-    });
+    rule('list.argument-count').it(
+      'throws when list() is called with two type arguments',
+      async () => {
+        await expectHalt(() => run('list(string, number)'), {
+          code: 'INVALID_INPUT',
+          messagePattern: 'list() requires exactly 1 type argument',
+        });
+      }
+    );
 
-    it('throws when list() is called with a named argument', async () => {
-      await expectHalt(() => run('list(a: string)'), {
-        code: 'INVALID_INPUT',
-        messagePattern: 'list() requires exactly 1 type argument',
-      });
-    });
+    rule('list.argument-count').it(
+      'throws when list() is called with a named argument',
+      async () => {
+        await expectHalt(() => run('list(a: string)'), {
+          code: 'INVALID_INPUT',
+          messagePattern: 'list() requires exactly 1 type argument',
+        });
+      }
+    );
 
     it('throws when list() is called with non-type arguments — fails at parse time', async () => {
       // parseFieldArgList uses parseTypeRef for arg values; non-type tokens
@@ -97,19 +105,25 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   // ============================================================
 
   describe('dict() with a positional argument', () => {
-    it('rejects dict(string) naming map(string, string)', async () => {
-      await expect(run('dict(string)')).rejects.toMatchObject({
-        errorId: 'RILL-P012',
-        message: expect.stringContaining('map(string, string)'),
-      });
-    });
+    rule('dict.no-uniform').it(
+      'rejects dict(string) naming map(string, string)',
+      async () => {
+        await expect(run('dict(string)')).rejects.toMatchObject({
+          errorId: 'RILL-P012',
+          message: expect.stringContaining('map(string, string)'),
+        });
+      }
+    );
 
-    it('rejects mixed positional and named arguments', async () => {
-      await expect(run('dict(string, x: number)')).rejects.toMatchObject({
-        errorId: 'RILL-P012',
-        message: expect.stringContaining('map(string, string)'),
-      });
-    });
+    rule('dict.fields').it(
+      'rejects mixed positional and named arguments',
+      async () => {
+        await expect(run('dict(string, x: number)')).rejects.toMatchObject({
+          errorId: 'RILL-P012',
+          message: expect.stringContaining('map(string, string)'),
+        });
+      }
+    );
 
     it('rejects 2+ positional arguments naming map(K, V)', async () => {
       await expect(run('dict(string, number)')).rejects.toMatchObject({
@@ -124,12 +138,15 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   // ============================================================
 
   describe('tuple() with named argument (AC-44)', () => {
-    it('throws when tuple() is called with a named argument', async () => {
-      await expectHalt(() => run('tuple(a: string)'), {
-        code: 'INVALID_INPUT',
-        messagePattern: 'tuple() requires positional arguments',
-      });
-    });
+    rule('tuple.unnamed').it(
+      'throws when tuple() is called with a named argument',
+      async () => {
+        await expectHalt(() => run('tuple(a: string)'), {
+          code: 'INVALID_INPUT',
+          messagePattern: 'tuple() requires positional arguments',
+        });
+      }
+    );
   });
 
   // ============================================================
@@ -153,19 +170,25 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   // ============================================================
 
   describe('ordered() with a positional argument', () => {
-    it('rejects ordered(string) naming map(string, string)', async () => {
-      await expect(run('ordered(string)')).rejects.toMatchObject({
-        errorId: 'RILL-P012',
-        message: expect.stringContaining('map(string, string)'),
-      });
-    });
+    rule('ordered.no-uniform').it(
+      'rejects ordered(string) naming map(string, string)',
+      async () => {
+        await expect(run('ordered(string)')).rejects.toMatchObject({
+          errorId: 'RILL-P012',
+          message: expect.stringContaining('map(string, string)'),
+        });
+      }
+    );
 
-    it('rejects mixed positional and named arguments', async () => {
-      await expect(run('ordered(string, x: number)')).rejects.toMatchObject({
-        errorId: 'RILL-P012',
-        message: expect.stringContaining('map(string, string)'),
-      });
-    });
+    rule('ordered.fields').it(
+      'rejects mixed positional and named arguments',
+      async () => {
+        await expect(run('ordered(string, x: number)')).rejects.toMatchObject({
+          errorId: 'RILL-P012',
+          message: expect.stringContaining('map(string, string)'),
+        });
+      }
+    );
 
     it('rejects 2+ positional arguments naming map(K, V)', async () => {
       await expect(run('ordered(string, number)')).rejects.toMatchObject({

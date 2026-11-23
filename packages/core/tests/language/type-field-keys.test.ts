@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Type Field Keys
  * Dict and ordered type fields accept every static key spelling a dict
@@ -5,6 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { rule } from '../helpers/rule.js';
 
 import { run } from '../helpers/runtime.js';
 
@@ -16,13 +18,16 @@ describe('Rill Language: Type Field Keys', () => {
       );
     });
 
-    it('matches a quoted ordered type key against the literal type', async () => {
-      expect(
-        await run('ordered("a b": number) == ordered["a b": 1].^type')
-      ).toBe(true);
-    });
+    rule('ordered.key-spelling').it(
+      'matches a quoted ordered type key against the literal type',
+      async () => {
+        expect(
+          await run('ordered("a b": number) == ordered["a b": 1].^type')
+        ).toBe(true);
+      }
+    );
 
-    it.each([
+    rule('dict.key-spelling').it.each([
       ['dict(1: number)', 'dict("1": number)'],
       ['dict(-1: number)', 'dict("-1": number)'],
       ['dict(true: bool)', 'dict("true": bool)'],
@@ -35,15 +40,18 @@ describe('Rill Language: Type Field Keys', () => {
       expect(await run('dict["a b": 1] -> :?dict("a b": number)')).toBe(true);
     });
 
-    it('fills a quoted-key default on conversion', async () => {
-      expect(
-        await run('dict[] -> dict("a b": number = 1) => $d\n$d["a b"]')
-      ).toBe(1);
-    });
+    rule('dict.field-default').it(
+      'fills a quoted-key default on conversion',
+      async () => {
+        expect(
+          await run('dict[] -> dict("a b": number = 1) => $d\n$d["a b"]')
+        ).toBe(1);
+      }
+    );
   });
 
   describe('duplicate keys', () => {
-    it.each([
+    rule('dict.type-key-duplicate').it.each([
       'dict(a: number, a: string)',
       'dict("a b": number, "a b": string)',
       'dict(1: number, "1": string)',
@@ -52,7 +60,7 @@ describe('Rill Language: Type Field Keys', () => {
       await expect(run(src)).rejects.toMatchObject({ errorId: 'RILL-P027' });
     });
 
-    it('is not caught by guard', async () => {
+    rule('dict.type-key-duplicate').it('is not caught by guard', async () => {
       await expect(
         run('guard { dict(a: number, a: string) }')
       ).rejects.toMatchObject({ errorId: 'RILL-P027' });
@@ -60,7 +68,7 @@ describe('Rill Language: Type Field Keys', () => {
   });
 
   describe('printing', () => {
-    it.each([
+    rule('dict.key-print', 'dict.field-print', 'ordered.field-print').it.each([
       ['dict("a b": number, c: string)', 'dict("a b": number, c: string)'],
       ['dict(1: number)', 'dict("1": number)'],
       ['dict(true: bool)', 'dict("true": bool)'],
@@ -73,10 +81,13 @@ describe('Rill Language: Type Field Keys', () => {
       expect(await run(`${src}.signature`)).toBe(printed);
     });
 
-    it('parses a printed brace key back to an equal type', async () => {
-      const printed = await run('dict("a{{b": number).signature');
-      expect(await run(`${printed} == dict["a{{b": 1].^type`)).toBe(true);
-    });
+    rule('dict.key-print').it(
+      'parses a printed brace key back to an equal type',
+      async () => {
+        const printed = await run('dict("a{{b": number).signature');
+        expect(await run(`${printed} == dict["a{{b": 1].^type`)).toBe(true);
+      }
+    );
 
     it('prints an ordered literal with a quoted key parseably', async () => {
       expect(await run('"{ordered["a b": 1]}"')).toBe('ordered["a b": 1]');

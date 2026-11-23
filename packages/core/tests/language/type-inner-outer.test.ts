@@ -33,53 +33,77 @@ describe('type value inner', () => {
       );
     });
 
-    it('returns the element type of list(number)', async () => {
-      await expectEqual('list(number) => $t\n$t.inner', 'number');
-    });
+    rule('list.inner').it(
+      'returns the element type of list(number)',
+      async () => {
+        await expectEqual('list(number) => $t\n$t.inner', 'number');
+      }
+    );
 
-    it('returns the chunk type of a stream type', async () => {
-      await expectEqual(`${STREAM_TYPE} => $t\n$t.inner`, 'number');
-    });
+    rule('stream.inner', 'stream.slots').it(
+      'returns the chunk type of a stream type',
+      async () => {
+        await expectEqual(`${STREAM_TYPE} => $t\n$t.inner`, 'number');
+      }
+    );
 
-    it('returns the resolution type of a stream type through outer', async () => {
-      await expectEqual(`${STREAM_TYPE} => $t\n$t.outer`, 'string');
-    });
+    rule('stream.outer', 'stream.slots').it(
+      'returns the resolution type of a stream type through outer',
+      async () => {
+        await expectEqual(`${STREAM_TYPE} => $t\n$t.outer`, 'string');
+      }
+    );
   });
 
   describe('directly on a type', () => {
-    it('returns the element type of list(string)', async () => {
-      await expectEqual('list(string).inner', 'string');
-    });
+    rule('list.inner').it(
+      'returns the element type of list(string)',
+      async () => {
+        await expectEqual('list(string).inner', 'string');
+      }
+    );
 
     it('returns the element type through a value type', async () => {
       await expectEqual('list["a", "b"].^type.inner', 'string');
     });
 
-    it('returns a dict of types for a dict with fields', async () => {
-      await expectEqual(
-        'dict(a: number, b: string).inner',
-        'dict[a: number, b: string]'
-      );
-    });
+    rule('dict.field-inner').it(
+      'returns a dict of types for a dict with fields',
+      async () => {
+        await expectEqual(
+          'dict(a: number, b: string).inner',
+          'dict[a: number, b: string]'
+        );
+      }
+    );
 
-    it('reads a field type from a dict inner', async () => {
-      await expectEqual('dict(a: number).inner.a', 'number');
-    });
+    rule('dict.field-inner').it(
+      'reads a field type from a dict inner',
+      async () => {
+        await expectEqual('dict(a: number).inner.a', 'number');
+      }
+    );
 
-    it('returns an ordered of types for an ordered with fields', async () => {
-      await expectEqual(
-        'ordered(a: string, b: string).inner',
-        'ordered[a: string, b: string]'
-      );
-    });
+    rule('ordered.field-inner').it(
+      'returns an ordered of types for an ordered with fields',
+      async () => {
+        await expectEqual(
+          'ordered(a: string, b: string).inner',
+          'ordered[a: string, b: string]'
+        );
+      }
+    );
 
-    it('returns a tuple of types for a tuple', async () => {
+    rule('tuple.inner').it('returns a tuple of types for a tuple', async () => {
       await expectEqual('tuple(string, number).inner', 'tuple[string, number]');
     });
 
-    it('returns a tuple for a one-element tuple', async () => {
-      await expectEqual('tuple(string).inner', 'tuple[string]');
-    });
+    rule('tuple.inner').it(
+      'returns a tuple for a one-element tuple',
+      async () => {
+        await expectEqual('tuple(string).inner', 'tuple[string]');
+      }
+    );
 
     it('returns any for a compound type written without an inner', async () => {
       await expectEqual('list.inner', 'any');
@@ -151,9 +175,12 @@ describe('type value inner', () => {
       );
     });
 
-    it('returns an empty ordered for a zero-parameter closure', async () => {
-      await expectEqual('fn() { 1 } => $f\n$f.^type.inner', 'ordered[]');
-    });
+    rule('fn.inner-empty').it(
+      'returns an empty ordered for a zero-parameter closure',
+      async () => {
+        await expectEqual('fn() { 1 } => $f\n$f.^type.inner', 'ordered[]');
+      }
+    );
 
     it('returns the declared result as outer', async () => {
       await expectEqual(
@@ -176,16 +203,19 @@ describe('type value inner', () => {
   });
 
   describe('on a union type', () => {
-    it('returns the members as a list', async () => {
+    rule('union.inner').it('returns the members as a list', async () => {
       await expectEqual('union("a", "b").inner', 'list["a", "b"]');
     });
 
-    it('returns the members of a captured union', async () => {
-      await expectEqual(
-        'union(#wired, #wireless) => $lan\n$lan.inner',
-        'list[#wired, #wireless]'
-      );
-    });
+    rule('union.inner').it(
+      'returns the members of a captured union',
+      async () => {
+        await expectEqual(
+          'union(#wired, #wireless) => $lan\n$lan.inner',
+          'list[#wired, #wireless]'
+        );
+      }
+    );
 
     it('returns a list with its length', async () => {
       expect(await run('union(#wired, #wireless).inner.len')).toBe(2);
@@ -220,31 +250,40 @@ describe('type value inner', () => {
       );
     });
 
-    it('lists type members first, then literals by kind and value', async () => {
-      const members = await run('union("x", list, #a, 1, true).inner');
-      expect(Array.isArray(members)).toBe(true);
-      const items = members as unknown[];
-      expect(items).toHaveLength(5);
-      expect(items[0]).toMatchObject({ __rill_type: true, typeName: 'list' });
-      expect(items[1]).toMatchObject({ __rill_atom: true });
-      expect((items[1] as { atom: { name: string } }).atom.name).toBe('a');
-      expect(items[2]).toBe(true);
-      expect(items[3]).toBe(1);
-      expect(items[4]).toBe('x');
-    });
+    rule('union.inner', 'union.canonical-order').it(
+      'lists type members first, then literals by kind and value',
+      async () => {
+        const members = await run('union("x", list, #a, 1, true).inner');
+        expect(Array.isArray(members)).toBe(true);
+        const items = members as unknown[];
+        expect(items).toHaveLength(5);
+        expect(items[0]).toMatchObject({ __rill_type: true, typeName: 'list' });
+        expect(items[1]).toMatchObject({ __rill_atom: true });
+        expect((items[1] as { atom: { name: string } }).atom.name).toBe('a');
+        expect(items[2]).toBe(true);
+        expect(items[3]).toBe(1);
+        expect(items[4]).toBe('x');
+      }
+    );
 
-    it('returns equal lists however the union was written', async () => {
-      expect(await run('union("b", "a").inner == union("a", "b").inner')).toBe(
-        true
-      );
-    });
+    rule('union.inner').it(
+      'returns equal lists however the union was written',
+      async () => {
+        expect(
+          await run('union("b", "a").inner == union("a", "b").inner')
+        ).toBe(true);
+      }
+    );
 
-    it('prints members in canonical order', async () => {
-      expect(await run('union("f", "c").signature')).toBe('union("c", "f")');
-      expect(await run('union(string, number).signature')).toBe(
-        'union(number, string)'
-      );
-    });
+    rule('union.canonical-order').it(
+      'prints members in canonical order',
+      async () => {
+        expect(await run('union("f", "c").signature')).toBe('union("c", "f")');
+        expect(await run('union(string, number).signature')).toBe(
+          'union(number, string)'
+        );
+      }
+    );
 
     it('orders inner like signature for every literal kind plus types', async () => {
       const signature = (await run(
@@ -566,32 +605,41 @@ describe('type value properties read directly on an expression', () => {
 });
 
 describe('stream type written as an expression', () => {
-  it('reads the chunk type through inner', async () => {
+  rule('stream.inner').it('reads the chunk type through inner', async () => {
     await expectEqual('stream(number):string => $t\n$t.inner', 'number');
   });
 
-  it('reads the resolution type through outer', async () => {
-    await expectEqual('stream(number):string => $t\n$t.outer', 'string');
-  });
+  rule('stream.outer').it(
+    'reads the resolution type through outer',
+    async () => {
+      await expectEqual('stream(number):string => $t\n$t.outer', 'string');
+    }
+  );
 
   it('equals the stream type a closure declares', async () => {
     await expectEqual(STREAM_TYPE, 'stream(number):string');
   });
 
-  it('prints its resolution type in the signature', async () => {
-    expect(await run('stream(number):string.signature')).toBe(
-      'stream(number):string'
-    );
-    expect(await run('stream():string => $t\n$t.signature')).toBe(
-      'stream(any):string'
-    );
-  });
+  rule('stream.print').it(
+    'prints its resolution type in the signature',
+    async () => {
+      expect(await run('stream(number):string.signature')).toBe(
+        'stream(number):string'
+      );
+      expect(await run('stream():string => $t\n$t.signature')).toBe(
+        'stream(any):string'
+      );
+    }
+  );
 
-  it('keeps stream(T) without a resolution type unchanged', async () => {
-    expect(await run('stream(number) => $t\n$t.signature')).toBe(
-      'stream(number)'
-    );
-  });
+  rule('stream.print').it(
+    'keeps stream(T) without a resolution type unchanged',
+    async () => {
+      expect(await run('stream(number) => $t\n$t.signature')).toBe(
+        'stream(number)'
+      );
+    }
+  );
 });
 
 describe('type value annotations', () => {

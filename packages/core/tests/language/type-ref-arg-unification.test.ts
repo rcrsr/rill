@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Type-Ref Arg Unification
  *
@@ -13,6 +14,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { rule } from '../helpers/rule.js';
 
 import {
   isTuple,
@@ -447,12 +449,15 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
   // ============================================================
 
   describe('EC-10: tuple non-trailing default -> typed-atom halt', () => {
-    it('tuple(number = 0, string) halts for non-trailing default', async () => {
-      await expectHaltMessage(
-        () => run('tuple(number = 0, string)'),
-        /tuple\(\) default values must be trailing/
-      );
-    });
+    rule('tuple.default-trailing').it(
+      'tuple(number = 0, string) halts for non-trailing default',
+      async () => {
+        await expectHaltMessage(
+          () => run('tuple(number = 0, string)'),
+          /tuple\(\) default values must be trailing/
+        );
+      }
+    );
 
     it('tuple(string = "x", number, bool = true) halts for non-trailing default', async () => {
       await expectHaltMessage(
