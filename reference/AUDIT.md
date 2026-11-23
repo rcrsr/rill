@@ -92,7 +92,7 @@ One row per PR. Tick a row when its PR merges.
 
 | # | Slice | Files | Rules | Uncited | PR |
 |---|-------|-------|-------|---------|----|
-| 1 | Setup and sweeps | 68 | 837 | 606 | |
+| 1 | Setup and sweeps | 68 | 837 | 606 | #675 |
 | 2 | `conventions` | 2 | 17 | 17 | |
 | 3 | `lexical` (write) | 0 | 0 | 0 | |
 | 4 | `program` | 2 | 17 | 17 | |
