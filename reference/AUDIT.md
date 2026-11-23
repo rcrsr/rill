@@ -100,7 +100,7 @@ One row per PR. Tick a row when its PR merges.
 | 4 | `program` | 3 | 32 | 0 | #676 |
 | 5 | `values` | 3 | 30 | 0 | #676 |
 | 6 | `types/constructors` | 9 | 160 | 0 | #676 |
-| 7 | `types/model` | 6 | 70 | 54 | |
+| 7 | `types/model` | 6 | 69 | 0 | |
 | 8 | `types/scalars` | 7 | 123 | 113 | |
 | 9 | `types/typing` | 8 | 121 | 68 | |
 | 10 | `variables` | 3 | 24 | 24 | |
@@ -173,12 +173,12 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `types/model/any.md` | 6 | 6 | | | | |
-| `types/model/introspection.md` | 22 | 15 | | | | |
-| `types/model/structural-typing.md` | 19 | 12 | | | | |
-| `types/model/type-form.md` | 5 | 3 | | | | |
-| `types/model/type-position.md` | 6 | 6 | | | | |
-| `types/model/type-value.md` | 10 | 10 | | | | |
+| `types/model/any.md` | 6 | 0 | x | x | x | x |
+| `types/model/introspection.md` | 23 | 0 | x | x | x | x |
+| `types/model/structural-typing.md` | 19 | 0 | x | x | x | x |
+| `types/model/type-form.md` | 5 | 0 | x | x | x | x |
+| `types/model/type-position.md` | 6 | 0 | x | x | x | x |
+| `types/model/type-value.md` | 10 | 0 | x | x | x | x |
 
 ### `types/scalars`
 
@@ -287,9 +287,9 @@ What the sweeps found that no rule states yet, routed to the slice that owns it.
 backlog in the Complete and Cited columns: probe each item, then write a rule or record why none is
 needed. Strike nothing here; the slice PR deletes the items it settles.
 
-### `types/model` and `types/typing`
+### `types/typing`
 
-- Grammar: `type-name`, `type-ref`, `type-ref-member`, `type-conversion`.
+- Grammar: `type-conversion`.
 - Errors: RILL-R077 (invalid parameter default), RILL-R078 (removed `:>` conversion).
 - `assertion`: `$l:list [0]` halts RILL-P001.
 - `carried-type`: a declaration carries through pipe selection and destructure; a bare `list`,
@@ -450,3 +450,4 @@ at a897cfc3 unless they say otherwise.
 | `types/constructors/stream.md` | `stream.accepts`: a stream type accepts when its chunk and resolution types accept the stream's. The runtime compares them by equality. With `fn(x):stream(string):number { $x -> yield` then `1 } => $f` and `$f("a") => $s`, `$s -> :?stream(union(string, number))` and `$s -> :?stream(string):union(number, string)` yield `false`. A `stream(dict(a: number))` value fails `:?stream(dict)`, and a `stream(list(number))` value fails `:?stream(list)`. A `stream()` value passes `:?stream(number)`. `list["a"] -> :?list(union(string, number))` yields `true`. Probed at 289206aa | Collected |
 | `scripts/reference/check.ts` | `grammar-syntax` drops the first production after a `text` fence. `parseProductions` splits the joined Syntax fences on `;` and keeps a statement only when it starts with `name =`. A `text` fence has no `;`, so its text joins the first production of the next `ebnf` fence. With the `text` fence first, `map.md`, `ordered.md`, and `tuple.md` failed for `map`, `ordered`, and `tuple`, while `map-entry` and `map-key` passed. Putting the `ebnf` fence first clears it. Probed at 289206aa | Collected |
 | `types/constructors` | Dict method names as keys; dict duplicates through multi-key and computed keys; `.entries` on mixed values; the halt for unordered operands; extra stream arguments; a stream's printed form | Collected in INCONSISTENCIES.md |
+| `types/model` | RILL-P014 from a non-type expression that starts with a type name; `number()` and `any(number)` differ by position; RILL-P001 for an outer on a scalar in a type position; `??` after an early missing read; the type a literal operand carries in an overlap check. Probed at 6cc38b29 | Collected in INCONSISTENCIES.md |

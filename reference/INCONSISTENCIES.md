@@ -89,6 +89,19 @@ unstated. Probed at 289206aa.
 | Extra arguments to a stream type | `list.argument-count` and `tuple.unnamed`: a second or named argument halts `#INVALID_INPUT`. `stream.slots` names only `stream(T):R` | `stream(number, string)` yields `stream(number):string`, and `stream(a: number)` yields `stream(number)`, the name dropped. `defaults.element` names `stream(number, string = "x")` as a form | `stream`, `list`, `defaults` |
 | The printed form of a stream | `string.md` and `interpolation.printed` state a printed form for each collection; no rule states one for a stream | `$s -> string` and `"{$s}"` yield `type(stream)` for a stream from `fn(x):stream(string):number { $x -> yield ... }` | `stream`, `string`, `interpolation` |
 
+## Type model
+
+Rules in the `types/model` chapter that disagree with another rule, the grammar, or the runtime,
+or leave a probed case unstated. Probed at 6cc38b29.
+
+| Inconsistency | One form | The other form | Concept |
+|---------------|----------|----------------|---------|
+| A non-type expression that starts with a type name inside an inner | `type-form.argument-literal`: a non-type expression inside an inner raises RILL-P001, as `list(1 + 1)` and `list("a")` do | `list(number + 1)` and `list(number -> :type)` halt RILL-P014 "Expected ',' or ')' in type argument list", which the `type-form` Errors table does not name | `type-form` |
+| Parentheses after a type name that takes no inner | `type-value.contexts`: a type form yields one type value in every position. `5 -> :string(number)` halts "string does not accept type arguments" | `5 -> :number()`, `5 => $x:number()`, `fn(x: number()) { $x }`, and `list(number())` accept `number()`, while `number()` as an expression halts RILL-R006 "Unknown function", catchable. `5 -> :any(number)` halts `#INVALID_INPUT`; `any(number)` halts RILL-R006 | `type-value`, `type-form`, `any` |
+| An outer on a scalar in a type position | The `type-form` Errors table: an outer on a type that takes none raises RILL-P006, as `5 -> :list(number):string` does | `5 -> :number:string` and `5 => $x:number:string` halt RILL-P001 "Unexpected token: :". As an expression, `number:string` asserts the type value `number` against `string` and halts `#TYPE_MISMATCH` | `type-form` |
+| `??` after a chain that reads a missing property early | `introspection.fallback`: `??` supplies its right operand when the left side reads a property the type lacks | `number.inner ?? any` yields `any`, but `number.inner.inner ?? 3` and `number.inner.name ?? 3` halt RILL-R003. Dicts agree: `dict[a: dict[]].a.c ?? 3` yields `3`, and `dict[a: 1].b.c ?? 3` halts RILL-R009. Only a miss on the last read recovers | `introspection`, `vacancy` |
+| The type a literal operand carries in an overlap check | `structural-typing.overlap-literal`: a literal type overlaps its scalar kind. `equality.closed-set` halts only when the union is all literals | With `"a" => $x:union("a", number)`, `$x == "b"` and `"b" == $x` halt `#TYPE_MISMATCH` "Cannot compare union(number, "a") with string", and so does `"b" => $s` then `$s == $x`. `"b" => $s:string` then `$s == $x` yields `false`. The operand acts as the literal `"b"`, but the message names `string` | `structural-typing`, `equality`, `carried-type` |
+
 ## Line continuation
 
 Forms that read alike continue across a line ending in some places and not others. Probed at

@@ -4,7 +4,7 @@ title: Type forms
 status: normative
 since: 0.24.0
 issues: []
-grammar: []
+grammar: [type-name, type-ref, type-ref-member]
 errors: [RILL-P001, RILL-P003, RILL-P006]
 depends: [notation, halt]
 tests: [type-var-positions.test.ts, type-ref-arg-unification.test.ts, type-form-outer.test.ts]
@@ -15,6 +15,21 @@ tests: [type-var-positions.test.ts, type-ref-arg-unification.test.ts, type-form-
 A type form is the one way a type is written: `name(inner):outer`, where the inner and the outer are optional.
 
 ## Syntax
+
+```ebnf
+type-name     = "string" | "number" | "bool" | "fn"
+              | "list" | "dict" | "tuple" | "ordered" | "map"
+              | "vector" | "iterator" | "stream"
+              | "datetime" | "duration" | "atom"
+              | "error_code"
+              | "any" | "type" ;
+type-ref          = type-ref-member ;
+type-ref-member   = "stream" , [ "(" , [ field-arg-list ] , ")" ] , [ ":" , type-ref ]
+                  | fn-type
+                  | type-name , [ "(" , [ field-arg-list ] , ")" ]
+                  | "$" , identifier
+                  | union-type ;
+```
 
 r[type-form.uniform] Every type is written name(inner):outer
 A type MUST be written in this form:

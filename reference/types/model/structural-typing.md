@@ -16,7 +16,7 @@ A value has a type by its structure, never by a type name, and four relations (h
 ## Static rules
 
 r[structural-typing.structural] A type is judged by structure, never by name
-Two types with the same structure MUST be the same type. No construct MUST declare a type
+Two types with the same structure MUST be the same type. A construct MUST NOT declare a type
 name that a value matches by that name.
 
 ## Evaluation

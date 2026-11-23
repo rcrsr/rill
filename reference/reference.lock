@@ -29,7 +29,7 @@ annotation.values 1a314342136c
 any 6ac6864f3c91 dict.empty-parens@c8b91cfc3a0e fn.empty@c49f1cdccf0d introspection.bare@4675364a5ade introspection.leaf@c3102e0c1886 list.unspecified@546466e216ff ordered.empty-parens@dee46359e906 stream.unspecified@6d472df28d3e tuple.unspecified@171dd6d58c4c union.empty@1f0396741c84
 any.admits 7b4420687b3a
 any.assert 0df138bbb10d
-any.collection b7208d2d5fe1
+any.collection 9eed6a0e2a9b
 any.name d8433fc4575b
 any.signature cc8b086f6ffb any.signature@cc8b086f6ffb
 any.union e3ddd2323cc8
@@ -447,6 +447,7 @@ interpolation.order 7bdb45c0246a
 interpolation.printed fdb3073b6dba string.from-bool@a2d54837dbaf string.from-collection@4778d11e7f7a string.from-number@aa4ac6bcf48e
 interpolation.scope 225c87dc5412 scope.child@fb0f345c5707
 interpolation.string 00f9ba88f50f
+introspection 9f35b450cfe6 map.inner@b0cf898a678b map.inner-unspecified@ea4b9d5b0527
 introspection.annotations b4c71df09996
 introspection.annotations-halt 29c2a98426a7
 introspection.annotations-inner cdd6d53128b8
@@ -457,6 +458,7 @@ introspection.bare-inner ee713b640625
 introspection.bare-open d7ff36635b1a
 introspection.defaults d73456d0a7d7
 introspection.defaults-halt 543634c5ed10
+introspection.defaults-leaf 88933d693ff1
 introspection.defaults-tuple 0e452d44afa7
 introspection.fallback 9c9b3e65af7d
 introspection.inner e30db587ed95 fn.inner-type@1181c9f16830 union.canonical-order@f8185ab53429
@@ -805,7 +807,7 @@ structural-typing.overlap-literal ab0a5013ddfd
 structural-typing.overlap-scalar 1a7f2b54468e
 structural-typing.overlap-union daece0e2cc16
 structural-typing.present-typed 8e32e38e694b
-structural-typing.structural 797742672410
+structural-typing.structural 53ef867c3349
 token 92bf5ff3960b token.longest@587be0ba712e token.removed-sigil@fe4bc9eb9f7f token.split@1dd82dcb8ba4 token.stray-closer@53705d99f299
 token.longest 587be0ba712e
 token.removed-sigil fe4bc9eb9f7f
