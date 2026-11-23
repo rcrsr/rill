@@ -108,7 +108,7 @@ One row per PR. Tick a row when its PR merges.
 | 12 | `callables` | 3 | 37 | 0 | #676 |
 | 13 | `control-flow` | 5 | 52 | 4 | #676 |
 | 14 | `collections` | 7 | 56 | 0 | #676 |
-| 15 | `errors` | 5 | 41 | 0 | |
+| 15 | `errors` | 5 | 41 | 0 | #676 |
 | 16 | `limits` (write) | 0 | 0 | 0 | |
 | 17 | `host-boundary` | 1 | 14 | 11 | |
 | 18 | `builtins` (write) | 0 | 0 | 0 | |
