@@ -14,7 +14,7 @@ the language version. Language changes are recorded in the
 
 ### Fixed
 
-- **`rill-check-standards` no longer fails present tokens at random.** STD-CI-4 and STD-REL-1, 3, 4, 5, 6, and 7 could report FAIL for a token the workflow file contains, as in `no tag trigger in .github/workflows/release.yml`. The checker piped into `grep -q`, which exits at the first match; the stage feeding it then died of SIGPIPE, and `set -o pipefail` reported that as no match. A 10.8 KB `release.yml` failed about 1 run in 25 with every core busy and 1 in 170 idle. The final grep now reads its whole input, and the four other `| grep -q` sites in the script do the same.
+- **`rill-check-standards` no longer fails present tokens at random.** STD-CI-4 and STD-REL-1, 3, 4, 5, 6, and 7 could report FAIL for a token the workflow file contains, as in `no tag trigger in .github/workflows/release.yml`. The checker piped into `grep -q`, which exits at the first match; the stage feeding it then died of SIGPIPE, and `set -o pipefail` reported that as no match. A 10.8 KB `release.yml` failed about 1 run in 25 with every core busy and 1 in 170 idle. The final grep now reads its whole input, and the four other `| grep -q` sites in the script do the same. ([#668](https://github.com/rcrsr/rill/pull/668))
 
 ### Changed
 
