@@ -355,7 +355,12 @@ function parseErrorRows(lines: string[], headings: Heading[]): ErrorRow[] {
 // ---------------------------------------------------------------------------
 
 /** Files exempt from concept rules; they describe the reference itself. */
-const EXEMPT_FILES: readonly string[] = ['README.md', 'FORMAT.md', 'CLAUDE.md'];
+const EXEMPT_FILES: readonly string[] = [
+  'README.md',
+  'FORMAT.md',
+  'CLAUDE.md',
+  'INCONSISTENCIES.md',
+];
 
 export interface Corpus {
   repoRoot: string;
