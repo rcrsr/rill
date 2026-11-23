@@ -99,7 +99,7 @@ One row per PR. Tick a row when its PR merges.
 | 3 | `lexical` (write) | 5 | 23 | 0 | #676 |
 | 4 | `program` | 3 | 32 | 0 | #676 |
 | 5 | `values` | 3 | 30 | 0 | #676 |
-| 6 | `types/constructors` | 8 | 149 | 61 | |
+| 6 | `types/constructors` | 9 | 160 | 0 | |
 | 7 | `types/model` | 6 | 70 | 54 | |
 | 8 | `types/scalars` | 7 | 123 | 113 | |
 | 9 | `types/typing` | 8 | 121 | 68 | |
@@ -159,14 +159,15 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `types/constructors/dict.md` | 17 | 10 | | | | |
-| `types/constructors/fn.md` | 27 | 0 | | | | |
-| `types/constructors/list.md` | 14 | 8 | | | | |
-| `types/constructors/map.md` | 36 | 0 | | | | |
-| `types/constructors/ordered.md` | 9 | 7 | | | | |
-| `types/constructors/stream.md` | 12 | 9 | | | | |
-| `types/constructors/tuple.md` | 16 | 10 | | | | |
-| `types/constructors/union.md` | 18 | 17 | | | | |
+| `types/constructors/dict.md` | 18 | 0 | x | x | x | x |
+| `types/constructors/dict-literal.md` | 2 | 0 | x | x | x | x |
+| `types/constructors/fn.md` | 30 | 0 | x | x | x | x |
+| `types/constructors/list.md` | 15 | 0 | x | x | x | x |
+| `types/constructors/map.md` | 37 | 0 | x | x | x | x |
+| `types/constructors/ordered.md` | 10 | 0 | x | x | x | x |
+| `types/constructors/stream.md` | 13 | 0 | x | x | x | x |
+| `types/constructors/tuple.md` | 17 | 0 | x | x | x | x |
+| `types/constructors/union.md` | 18 | 0 | x | x | x | x |
 
 ### `types/model`
 
@@ -174,7 +175,7 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 |------|-------|---------|---------|------------|----------|-------|
 | `types/model/any.md` | 6 | 6 | | | | |
 | `types/model/introspection.md` | 22 | 15 | | | | |
-| `types/model/structural-typing.md` | 21 | 14 | | | | |
+| `types/model/structural-typing.md` | 19 | 12 | | | | |
 | `types/model/type-form.md` | 5 | 3 | | | | |
 | `types/model/type-position.md` | 6 | 6 | | | | |
 | `types/model/type-value.md` | 10 | 10 | | | | |
@@ -199,7 +200,7 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 | `types/typing/carried-type.md` | 13 | 9 | | | | |
 | `types/typing/conversion.md` | 20 | 19 | | | | |
 | `types/typing/declaration.md` | 13 | 3 | | | | |
-| `types/typing/defaults.md` | 19 | 11 | | | | |
+| `types/typing/defaults.md` | 18 | 10 | | | | |
 | `types/typing/inference.md` | 15 | 8 | | | | |
 | `types/typing/strict-mode.md` | 10 | 0 | | | | |
 | `types/typing/type-lock.md` | 14 | 4 | | | | |
@@ -286,25 +287,6 @@ What the sweeps found that no rule states yet, routed to the slice that owns it.
 backlog in the Complete and Cited columns: probe each item, then write a rule or record why none is
 needed. Strike nothing here; the slice PR deletes the items it settles.
 
-### `types/constructors`
-
-- Grammar: `list`, `list-element`, `dict`, `dict-element`, `dict-entry`, `dict-key`, `map`,
-  `map-entry`, `map-key`, `ordered`, `ordered-element`, `tuple`, `tuple-element`, `fn-literal`,
-  `fn-param`, `fn-type`, `body`.
-- Tests: `anonymous-typed-closure.test.ts`, `anonymous-typed-closure-reflection.test.ts`,
-  `bare-syntax.test.ts`, `dict.test.ts`, `dict-key-form.test.ts`, `dict-variable-keys.test.ts`,
-  `string-dict-keys.test.ts`, `identifier-prototype-names.test.ts`, and the dict-key cases of
-  `parser-syntax-errors.test.ts` (its negation cases go to `expressions`, its branch-shape cases
-  to `conditional`).
-- `dict`: a variable or computed key that is not a string halts RILL-R002; the 8 dict method
-  names are reserved keys (`dict[len: 1]` halts RILL-R002); dicts have no ordering.
-- `tuple`: tuples order lexicographically; a length or slot type mismatch halts `#TYPE_MISMATCH`.
-- `fn`: the removed `|x|` and `||` literals and `:|x|:T` type (RILL-P012); no named `fn f(x)`
-  form (RILL-P001); a default does not infer the parameter type; `fn().^type.inner` is
-  `ordered[]`.
-- `union`: `|` as a type separator halts RILL-P011. `stream`: `stream:number` equals
-  `stream(any):number`.
-
 ### `types/model` and `types/typing`
 
 - Grammar: `type-name`, `type-ref`, `type-ref-member`, `type-conversion`.
@@ -328,7 +310,7 @@ needed. Strike nothing here; the slice PR deletes the items it settles.
   `selection`: `field-access`, `bracket-access`, `property-access`, `method-call`,
   `method-name`. For `existence`: `existence-check`, `status-probe`.
 - Tests: `expressions.test.ts`, `parameterized-destruct.test.ts`,
-  `parameterized-existence.test.ts`.
+  `parameterized-existence.test.ts`, and the negation cases of `parser-syntax-errors.test.ts`.
 - `selection`: `$t.1` halts RILL-P006 and `$t -> .1` halts RILL-P001.
 - `selection`: a wrong key type on an ordered halts RILL-R002. `pipe`: a pipe target's result
   takes a postfix index (`sort[0]`). `dispatch`: an empty hierarchical path returns its input.
@@ -346,7 +328,9 @@ needed. Strike nothing here; the slice PR deletes the items it settles.
 
 ### `control-flow`
 
-- Grammar: `else-clause`, `loop`, `pass`, `pass-block`, `construct-options`, `timeout-block`.
+- Grammar: `else-clause`, `loop`, `pass`, `pass-block`, `construct-options`, `timeout-block`,
+  and `body`, the conditional branch (`pipe-chain`), which no `fn` literal uses.
+- Tests: the branch-shape cases of `parser-syntax-errors.test.ts`.
 - Errors: RILL-R079 and RILL-R080 (removed `@` loop forms), RILL-P010 (`@` expression),
   RILL-R082 and RILL-R083 (timeout expiry; the timeout rules name no error id).
 - `break`: `break` in `sort` halts RILL-R002 and escapes `guard`.
@@ -463,3 +447,5 @@ at a897cfc3 unless they say otherwise.
 | `values/equality.md` | `equality.methods`: the methods compare as `==` does, including its halts. With `$s` a host stream, `$s == $s` and `$s != 1` halt RILL-R002, but `$s -> .eq($s)` and `list[$s] -> .has($s)` yield `true`. With `range(0, 3) => $i`, `$i == $i` halts RILL-R002, but `$i -> .eq($i)` and `list[$i] -> .has($i)` yield `true`. Probed at c611430c | Collected |
 | `values/equality.md` | `equality.kind` names an `any` operand, but no probed operand carries `any` | Collected in INCONSISTENCIES.md |
 | `values/value.md`, `values/vacancy.md` | `value.kinds` omits iterators and vectors; an iterator or stream that yields nothing is not vacant; `value.no-alias` and `scope.late-binding` disagree | Collected in INCONSISTENCIES.md |
+| `types/constructors/stream.md` | `stream.accepts`: a stream type accepts when its chunk and resolution types accept the stream's. The runtime compares them by equality. With `fn(x):stream(string):number { $x -> yield` then `1 } => $f` and `$f("a") => $s`, `$s -> :?stream(union(string, number))` and `$s -> :?stream(string):union(number, string)` yield `false`. A `stream(dict(a: number))` value fails `:?stream(dict)`, and a `stream(list(number))` value fails `:?stream(list)`. A `stream()` value passes `:?stream(number)`. `list["a"] -> :?list(union(string, number))` yields `true`. Probed at 289206aa | Collected |
+| `types/constructors` | Dict method names as keys; dict duplicates through multi-key and computed keys; `.entries` on mixed values; the halt for unordered operands; extra stream arguments; a stream's printed form | Collected in INCONSISTENCIES.md |

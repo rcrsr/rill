@@ -4,10 +4,10 @@ title: Function types
 status: normative
 since: 0.24.0
 issues: []
-grammar: []
-errors: [RILL-P028, RILL-P029]
+grammar: [fn-type, fn-param, fn-literal]
+errors: [RILL-P001, RILL-P028, RILL-P029]
 depends: [type-value, structural-typing]
-tests: [fn-type.test.ts, fn-literal.test.ts, block-argument.test.ts]
+tests: [fn-type.test.ts, fn-literal.test.ts, block-argument.test.ts, anonymous-typed-closure.test.ts, anonymous-typed-closure-reflection.test.ts, type-constructors.test.ts]
 ---
 
 # Function types
@@ -50,6 +50,10 @@ default is part of the type.
 r[fn.unnamed] An unnamed parameter binds the pipe value
 A type name alone in the parentheses, as in `fn(number)`, MUST declare an unnamed parameter.
 
+r[fn.default-any] A default does not set the parameter type
+A named parameter written with a default and no type MUST have type `any`, so `fn(x = "d")` MUST
+equal `fn(x: any = "d"):any`.
+
 r[fn.unnamed-no-default] An unnamed parameter carries no default
 `fn(number = 1)` MUST be rejected with RILL-P028. Only a named parameter MAY carry a default.
 
@@ -59,6 +63,10 @@ rejected with RILL-P028.
 
 r[fn.no-mix] Named and unnamed parameters do not mix
 A function type that mixes named and unnamed parameters MUST be rejected with RILL-P028.
+
+r[fn.no-name] A function literal takes no name
+A name between `fn` and its parameters, as in `fn double(x) { $x * 2 }`, MUST be rejected with
+RILL-P001. A function is named by capture: `fn(x) { $x * 2 } => $double`.
 
 r[fn.outer] The outer is the result type
 `fn(x: number):string` MUST yield `string` from `.outer`, and `any` when no outer is written.
@@ -72,6 +80,9 @@ omitted outer, which is `any`, MUST NOT equal `string`.
 
 r[fn.inner-named] The inner of named parameters is an ordered of types
 `fn(x: number):string` `.inner` MUST yield `ordered[x: number]`.
+
+r[fn.inner-empty] The inner of fn() is an empty ordered
+`fn()` `.inner` MUST yield `ordered[]`.
 
 r[fn.inner-unnamed] The inner of unnamed parameters is a tuple of types
 `fn(any)` `.inner` MUST yield `tuple[any]`, and `fn(number, number)` `.inner` MUST yield
@@ -129,6 +140,7 @@ block binds MUST be rejected where it is written, with RILL-P029, as `fn.no-self
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
+| A name between `fn` and its parameters | RILL-P001 | No |
 | A third unnamed parameter, mixed parameters, or an unnamed default | RILL-P028 | No |
 | A `fn()` body reads a parameter | RILL-P029 | No |
 | A named-parameter body reads a top-level `$` | RILL-P029 | No |

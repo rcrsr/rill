@@ -22,21 +22,15 @@ name that a value matches by that name.
 ## Evaluation
 
 r[structural-typing.has] A value has a type when it is a member of the type
-A scalar MUST have the type of its kind. A list MUST have `list(T)` when every element has
-`T`. A value MUST have a union when it has one member.
+A scalar MUST have the type of its kind. A list has a list type as `list.membership` states, and
+a union as `union.member-match` states.
 
 r[structural-typing.accepts] A type accepts another when every value of it has the first
-`T` accepts `U` when every value that has `U` also has `T`. Reducing a union MUST drop a
-member that another member accepts, so `union(list, list(number))` reduces to `list`.
+`T` MUST accept `U` when every value that has `U` also has `T`. Union reduction drops members by
+this relation (`union.reduce`), so `union(list, list(number))` reduces to `list`.
 
 r[structural-typing.equal] Two types are equal when each accepts the other
 Two types MUST be equal exactly when each accepts the other.
-
-r[structural-typing.equal-order] Dict types ignore field order
-`dict(a: number, b: string)` MUST equal `dict(b: string, a: number)`.
-
-r[structural-typing.empty] An empty collection has every type of its kind
-`list[]` MUST have `list(T)` for every `T`. `inference.empty` states its own type.
 
 ### Membership
 
@@ -143,3 +137,6 @@ value with the extra fields kept.
 
 Two identical structures with different meanings, such as a Celsius and a Fahrenheit
 temperature, are the same type.
+
+Superseded: `structural-typing.equal-order`, now `dict.field-equality`, and
+`structural-typing.empty`, now `list.membership`.

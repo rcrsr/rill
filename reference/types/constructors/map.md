@@ -4,10 +4,10 @@ title: Maps
 status: normative
 since: 0.24.0
 issues: []
-grammar: []
-errors: [INVALID_INPUT, RILL-P027, RILL-R036, TYPE_MISMATCH]
+grammar: [map, map-entry, map-key]
+errors: [INVALID_INPUT, RILL-P027, RILL-R002, RILL-R036, TYPE_MISMATCH]
 depends: [type-value, type-form, any, union, list, tuple, dict]
-tests: [map-type.test.ts, map-literal.test.ts, map-selection.test.ts, map-conversion.test.ts, map-iteration.test.ts, map-defaults.test.ts]
+tests: [map-type.test.ts, map-literal.test.ts, map-selection.test.ts, map-conversion.test.ts, map-iteration.test.ts, map-defaults.test.ts, type-constructors.test.ts]
 ---
 
 # Maps
@@ -15,6 +15,16 @@ tests: [map-type.test.ts, map-literal.test.ts, map-selection.test.ts, map-conver
 A map is a collection keyed by values of one scalar kind, with one value type.
 
 ## Syntax
+
+```ebnf
+map           = "map" , "[" , [ map-entry , { "," , map-entry } ] , "]" ;
+map-entry     = map-key , ":" , expression ;
+map-key       = string | number | "-" , number | bool | atom-literal
+              | "$" , identifier
+              | "(" , expression , ")"
+              | "[" , map-key , { "," , map-key } , "]"
+              | "list" , "[" , map-key , { "," , map-key } , "]" ;
+```
 
 ```text
 map(K, V)                  keys of type K, values of type V
@@ -67,6 +77,9 @@ A key in `map[...]` MUST be an expression: `map[1: "x"]` has the number key 1, `
 r[map.key-multi] An entry MAY list several keys
 `map[[#a, #b]: 1]` MUST bind both keys to the value 1. Only a list literal in key position is a
 multi-key. A variable holding a list is a non-scalar key (`map.key-scalar`).
+
+r[map.key-multi-empty] An empty multi-key list halts
+`map[[]: 1]` MUST halt with RILL-R002.
 
 r[map.duplicate-run] A duplicate computed key halts
 Two keys equal by value in one literal, not both literals, MUST halt with `#INVALID_INPUT`.
@@ -150,6 +163,7 @@ r[map.from-list] A list does not convert to a map
 | Two equal keys, not both literals | `#INVALID_INPUT` | Yes |
 | A type argument is not legal: wrong arity, a named argument, a default, or a non-scalar or mixed-kind key type | `#INVALID_INPUT` | Yes |
 | Keys of two kinds, or a non-scalar key | `#TYPE_MISMATCH` | Yes |
+| An empty multi-key list | RILL-R002 | Yes |
 | A map with a non-string key kind, or a list, converts | RILL-R036 | Yes |
 
 ## Examples

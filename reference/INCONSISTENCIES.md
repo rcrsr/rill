@@ -75,6 +75,20 @@ Probed at c611430c.
 | A source that yields nothing | An empty list, string, dict, tuple, ordered, or map is vacant, so `list[] ?? 5` yields `5` (`vacancy.empty`) | `range(0, 0) ?? 5` yields the iterator, and a host stream with no chunks passes `??` unchanged. `.empty` on either halts RILL-R003, catchable. `vacancy.empty` names neither kind | `vacancy`, `iteration` |
 | A function and a later rebinding | `value.no-alias`: rebinding a variable does not change the value a function or collection holds. `equality.function` compares the values captured variables hold | `scope.late-binding`: `"a" => $x`, `fn { $x } => $f`, `list[$f] => $l`, `"b" => $x`, then `$l[0]()` yields `"b"`. Two functions built before and after the rebinding compare equal | `value`, `equality`, `scope` |
 
+## Type constructors
+
+Rules in the `types/constructors` chapter that disagree with another rule or leave a probed case
+unstated. Probed at 289206aa.
+
+| Inconsistency | One form | The other form | Concept |
+|---------------|----------|----------------|---------|
+| Dict method names as keys | `dict.key-spelling`: a dict type accepts every key spelling a literal accepts. `dict[len: 1]`, `dict["len": 1]`, `[len: 1]`, and `ordered[keys: 1]` halt RILL-R002, catchable, for each of `len`, `first`, `empty`, `eq`, `ne`, `keys`, `values`, `entries`, and `map["len": 1] -> dict` halts RILL-R036 | `dict(len: number)` and `ordered(len: number)` are types, and `dict[] -> dict(len: number = 1)` yields `dict[len: 1]`, a dict holding the key. Brand keys such as `__type` halt RILL-R002 in both the literal and the type | `dict`, `ordered`, `map`, `defaults` |
+| A dict key reached twice through a multi-key list or a computed key | `dict.key-duplicate`: a literal that spells one key twice halts RILL-P027. In a map, a literal element of a multi-key list counts (`map.duplicate-parse`), and a computed duplicate halts `#INVALID_INPUT` (`map.duplicate-run`) | `dict[["a", "b"]: 1, a: 2]` yields `dict[a: 2, b: 1]`, `dict[["a", "a"]: 1]` yields `dict[a: 1]`, and `"k" => $k` then `dict[$k: 1, k: 2]` yields `dict[k: 2]`. `ordered` behaves the same | `dict`, `dict-literal`, `map` |
+| `.entries` on a dict whose values differ in type | `dict.entries-type`: values of type `V` give `list(tuple(string, V))` | `dict[a: 1, b: "x"].entries.^type.signature` is `"list(union(tuple(string, number), tuple(string, string)))"`, a union of tuples, not `list(tuple(string, union(number, string)))` | `dict`, `inference` |
+| The halt for operands with no order | `dict.no-order`, `list.no-order`, `ordered.no-order`, `number.no-coercion`, and `string.cross-order` halt RILL-R002 | `tuple[1, 2] < tuple[1, 2, 0]`, `tuple[1, "a"] < tuple[1, 2]`, and `tuple[true] < tuple[false]` halt `#TYPE_MISMATCH`, catchable; `tuple[1] < list[2]` halts RILL-R002. `sort.incomparable` halts `#TYPE_MISMATCH` for the same pairs | `tuple`, `dict`, `list`, `sort` |
+| Extra arguments to a stream type | `list.argument-count` and `tuple.unnamed`: a second or named argument halts `#INVALID_INPUT`. `stream.slots` names only `stream(T):R` | `stream(number, string)` yields `stream(number):string`, and `stream(a: number)` yields `stream(number)`, the name dropped. `defaults.element` names `stream(number, string = "x")` as a form | `stream`, `list`, `defaults` |
+| The printed form of a stream | `string.md` and `interpolation.printed` state a printed form for each collection; no rule states one for a stream | `$s -> string` and `"{$s}"` yield `type(stream)` for a stream from `fn(x):stream(string):number { $x -> yield ... }` | `stream`, `string`, `interpolation` |
+
 ## Line continuation
 
 Forms that read alike continue across a line ending in some places and not others. Probed at

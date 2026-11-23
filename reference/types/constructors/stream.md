@@ -7,7 +7,7 @@ issues: []
 grammar: []
 errors: [RILL-P006, RILL-R036, TYPE_MISMATCH]
 depends: [type-value, structural-typing]
-tests: [stream-type-parsing.test.ts, streams.test.ts, type-inner-outer.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts]
+tests: [stream-type-parsing.test.ts, streams.test.ts, type-inner-outer.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts, type-constructors.test.ts]
 ---
 
 # Stream types
@@ -37,6 +37,9 @@ r[stream.unspecified-outer] An omitted outer is unspecified
 
 r[stream.unspecified] stream, stream(), and stream(any) are one type
 `stream`, `stream()`, and `stream(any)` MUST compare equal.
+
+r[stream.bare-outer] A bare stream MAY take an outer
+`stream:R` MUST equal `stream(any):R`.
 
 r[stream.position] A stream type is written in every type position
 `stream(T):R` MUST be accepted after an assertion colon, in a capture annotation, as a

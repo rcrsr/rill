@@ -210,6 +210,7 @@ declaration.spacing ae51d242d104
 declaration.spellings 87af7ad5866e list.bare@37dca8616609
 declaration.unspecified 5f4c3ab13a85
 declaration.written bd3669fb6801
+defaults bd88e26d6a9a tuple.default-trailing@c10bb8a9f820
 defaults.arg-hydrate 54df009dbca2
 defaults.element 2682cbf6ba4d
 defaults.equality 59da62824e1e
@@ -227,7 +228,6 @@ defaults.param-form 968fd2d28064
 defaults.param-required 94b94909db07
 defaults.required 704c2fe56b2e
 defaults.synthesis e8200f8bec23
-defaults.tuple-trailing f25323b128a4
 defaults.type-match b099e1f33efb
 destruct.bind 53370e79daaa capture.bind@771562a46f74 capture.rebind@d0ae2424696b type-lock.halt@33dbd80723fe
 destruct.keyed-source 6d00545c764d
@@ -241,7 +241,10 @@ destruct.result 979409b161ac
 destruct.skip 86168bbe3c38
 destruct.target 7cc2b884121b
 destruct.typed 1fb13796760d capture.mismatch@616241654040 type-lock.halt@33dbd80723fe
-dict 2bf2f791986b structural-typing.bare-dict@47f054dbadd3 structural-typing.exact-dict@edc7a049d7b0 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
+dict 9278441285ce structural-typing.bare-dict@47f054dbadd3 structural-typing.exact-dict@edc7a049d7b0 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
+dict-literal b3e55c44e85b dict.bare@4a06680ac2db dict.key-duplicate@b6d0d4b31a32 dict.key-string@e24f644a5bdc
+dict-literal.key-computed 4bd56a5963ca
+dict-literal.key-multi 99d579ef5d0e
 dict.bare 4a06680ac2db dict.key-duplicate@b6d0d4b31a32 dict.key-string@e24f644a5bdc list.bare@37dca8616609
 dict.empty-parens c8b91cfc3a0e
 dict.entries-type 1694a66fcd0a
@@ -255,6 +258,7 @@ dict.key-duplicate b6d0d4b31a32
 dict.key-print 084c35b9866c
 dict.key-spelling edaf10c0720f
 dict.key-string e24f644a5bdc
+dict.no-order 9806be8e66e9
 dict.no-outer 62f0b3f59f69
 dict.no-uniform bcc2baecc3e4
 dict.type-key-duplicate 15dacb9fbd88
@@ -360,8 +364,10 @@ fn.block-reads-acc 499598c8a33a
 fn.block-reads-none e3685c5b74be
 fn.block-reads-pipe 6a6a984fb1a0
 fn.block-type 52e90c07026e
+fn.default-any 2d0f2ff24d9e
 fn.empty c49f1cdccf0d
 fn.equality 92e467864033
+fn.inner-empty f593aa656d1e
 fn.inner-named 69c414fd83c9
 fn.inner-type 1181c9f16830
 fn.inner-unnamed 17efffd801c1
@@ -369,6 +375,7 @@ fn.name 9ec178066ab5
 fn.named dcde4dc7a87e
 fn.no-closure 527e0f66812a
 fn.no-mix a65124bc0550
+fn.no-name b652fe297c2e
 fn.no-named-pipe b79ca6ba798f fn.no-self@b02e18c75198
 fn.no-self b02e18c75198
 fn.omitted f6fc3fe96a17
@@ -503,7 +510,7 @@ keyword.lowercase 79562d28001f
 keyword.name 263bfd7f342b
 keyword.other 11d39ac6f7d5
 keyword.reserved 572e9a506274
-list f953d598d67d type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
+list 9c88470e6d28 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
 list.argument c095b936d9af
 list.argument-count f196f166f68a
 list.bare 37dca8616609
@@ -514,6 +521,7 @@ list.equality 5e1bc7cac600
 list.form 6e50a87ace56
 list.inner df1930a5b2d9
 list.membership b7adc98be4b0
+list.no-order 1edda515aed7
 list.no-outer f24347f57047
 list.print 9f843c264e5a inference.empty@d047fb333dc7
 list.unspecified 546466e216ff
@@ -528,7 +536,7 @@ loop.result 2fe4a5304602
 loop.scope 3db206370382 scope.iteration@6614cdd083b1
 loop.seed ece9a46ff7a0
 loop.while 88bf4bd89886
-map 56f701ab9e64 filter.map@e33e5b705bac
+map 44b58070ebf1 filter.map@e33e5b705bac
 map.duplicate-parse 05b269a892bc
 map.duplicate-run ebcfe219f67b
 map.empty cbe99343719e
@@ -547,6 +555,7 @@ map.key-bare d73b3f0a7eba
 map.key-kind 2a51aaa53894
 map.key-mixed 1164ae8a2efc
 map.key-multi 3826e0235b0f map.key-scalar@1147029c77c3
+map.key-multi-empty f17fbe2d6237
 map.key-pipe 5d51e2b27aac
 map.key-scalar 1147029c77c3
 map.key-union 4cff7195ab0e
@@ -591,12 +600,13 @@ number.precision 72e91dffc612
 number.print 48a1ee322f61
 number.print-exponent bbcacfa268f6
 number.value 51a06e4cfb4e
-ordered e90fefe9ecde structural-typing.bare-ordered@194efa7a1fef structural-typing.exact-position@cb3617c378f1 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
+ordered 07fc970c6b87 structural-typing.bare-ordered@194efa7a1fef structural-typing.exact-position@cb3617c378f1 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
 ordered.empty-parens dee46359e906
 ordered.field-inner 9b3eea08a977
 ordered.field-print 803005b1b1ef
 ordered.fields bbdc190c0dd6
 ordered.key-spelling 1f4557b2aa7d dict.key-print@084c35b9866c dict.key-spelling@edaf10c0720f
+ordered.no-order 843544e4a7ad
 ordered.no-outer 22b1f36e7c6c
 ordered.no-uniform de6d6989b9c6
 ordered.not-dict efe035f5b624
@@ -731,6 +741,7 @@ statement.same-line 8f05b22c7bb9
 statement.trailing-operator 2500dddd9eaf
 statement.variables f7af6b5ed81e
 stream.accepts 4f01ef73eede
+stream.bare-outer ff6000fb06e0
 stream.chunk 6198ae79278a
 stream.equality e4151d863b72
 stream.inner f8518bceccc5
@@ -776,17 +787,15 @@ string.triple-interpolation bbec9bcefa57
 string.triple-newline 5bdc72df9d9e
 string.triple-unclosed 1d17b4479462
 string.value 07011aa5bf4c
-structural-typing.accepts 96e00e0184c2
+structural-typing.accepts 0cc83bbf6d78 union.reduce@0b805993ab3d
 structural-typing.bare-dict 47f054dbadd3
 structural-typing.bare-ordered 194efa7a1fef
 structural-typing.defaulted 6c131e9ca87a
-structural-typing.empty 56c26350d9f2 inference.empty@d047fb333dc7
 structural-typing.equal 4dbb04f3ce7c
-structural-typing.equal-order feff5c53b758
 structural-typing.exact-dict edc7a049d7b0 structural-typing.bare-dict@47f054dbadd3
 structural-typing.exact-position cb3617c378f1
 structural-typing.function 68c5fdf04b11
-structural-typing.has c9a47b47ba3a
+structural-typing.has 935245701cfa list.membership@b7adc98be4b0 union.member-match@ab6fe3e77cf8
 structural-typing.map cfebb068a569
 structural-typing.missing 9f65eada49ab
 structural-typing.overlap-fields 10ec669ce02c
@@ -802,10 +811,10 @@ token.longest 587be0ba712e
 token.removed-sigil fe4bc9eb9f7f
 token.split 1dd82dcb8ba4
 token.stray-closer 53705d99f299
-tuple 39d4491d4bc3 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
+tuple 8d68d4be46ed defaults.type-match@b099e1f33efb type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
 tuple.any-position 6a86bee75040
 tuple.bare ffddbd638c71
-tuple.default-trailing df2e154cb11a
+tuple.default-trailing c10bb8a9f820
 tuple.equality 64729ee2cb20
 tuple.inner b776a092093d
 tuple.len 073a01e4c74f
@@ -814,6 +823,7 @@ tuple.no-uniform df1522a0607b
 tuple.not-list 919afe9ff7a9
 tuple.omitted-default 8751d4355571
 tuple.one-position 60d48e0440e1
+tuple.order 96d724b34cc1
 tuple.position-type 5443f5714fad
 tuple.positions bb00e8c41af5
 tuple.print b092b90502af

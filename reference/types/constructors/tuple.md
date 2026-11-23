@@ -4,10 +4,10 @@ title: Tuple types
 status: normative
 since: 0.24.0
 issues: []
-grammar: []
+grammar: [tuple, tuple-element]
 errors: [RILL-P006, INVALID_INPUT, TYPE_MISMATCH]
 depends: [type-value, type-form]
-tests: [tuple-positions.test.ts, structural-type-identity.test.ts, structural-type-boundaries.test.ts, structural-type-defaults.test.ts, type-inner-outer.test.ts, type-assertions.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts]
+tests: [tuple-positions.test.ts, structural-type-errors.test.ts, type-ref-arg-unification.test.ts, structural-type-identity.test.ts, structural-type-boundaries.test.ts, structural-type-defaults.test.ts, type-inner-outer.test.ts, type-assertions.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts, type-constructors.test.ts]
 ---
 
 # Tuple types
@@ -15,6 +15,12 @@ tests: [tuple-positions.test.ts, structural-type-identity.test.ts, structural-ty
 A tuple type names one type for each position of a fixed-length sequence.
 
 ## Syntax
+
+```ebnf
+tuple         = "tuple" , "[" , [ tuple-element , { "," , tuple-element } ] , "]" ;
+tuple-element = "..." , expression
+              | expression ;
+```
 
 ```text
 tuple                           any tuple
@@ -57,8 +63,7 @@ A tuple type written with an outer, such as `tuple(number):string`, MUST be a pa
 
 r[tuple.default-trailing] Only trailing positions carry a default
 A position without a default that follows a position with a default MUST halt with
-`#INVALID_INPUT`. A default MUST have its position's type, or the type halts with
-`#TYPE_MISMATCH`.
+`#INVALID_INPUT` when the type is constructed.
 
 ## Evaluation
 
@@ -84,6 +89,10 @@ r[tuple.print] A tuple type prints its positions
 `tuple(T, U)` MUST print as `tuple(T, U)` with each position in printed form, and a type with
 one position MUST print as `tuple(T)`.
 
+r[tuple.order] Tuples of one length order slot by slot
+`<`, `>`, `<=`, and `>=` between two tuples of one length MUST compare their slots in order from
+position 0, and the first unequal slot MUST decide. `tuple[2, 0] > tuple[1, 9]` ⇒ `true`.
+
 ## Interactions
 
 An unknown type name as an argument follows `type-form.unknown-name`, and a variable argument
@@ -96,7 +105,7 @@ that holds a non-type follows `type-value.variable-halt`.
 | Outer on a type that takes none | RILL-P006 | No |
 | Named argument | `#INVALID_INPUT` | Yes |
 | Position without a default after one with a default | `#INVALID_INPUT` | Yes |
-| Default does not have its position's type | `#TYPE_MISMATCH` | Yes |
+| Default does not have its position's type (`defaults.type-match`) | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 
