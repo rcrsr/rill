@@ -175,15 +175,18 @@ describe('Rill Runtime: Capture Type Assertions', () => {
       expect(await run('list[1, 2] => $v\n$v')).toEqual([1, 2]);
     });
 
-    it('runs the type assertion before the lock check', async () => {
-      await expectHalt(() => run('"a" => $x\n5 => $x:string'), {
-        code: 'TYPE_MISMATCH',
-      });
-      await expectHalt(() => run('"a" => $x\n5 => $x:number'), {
-        code: 'RILL_R001',
-        hostErrorId: 'RILL-R001',
-      });
-    });
+    rule('capture.assert', 'capture.mismatch').it(
+      'runs the type assertion before the lock check',
+      async () => {
+        await expectHalt(() => run('"a" => $x\n5 => $x:string'), {
+          code: 'TYPE_MISMATCH',
+        });
+        await expectHalt(() => run('"a" => $x\n5 => $x:number'), {
+          code: 'RILL_R001',
+          hostErrorId: 'RILL-R001',
+        });
+      }
+    );
 
     it('halts #TYPE_MISMATCH for a typed destructure element mismatch', async () => {
       await expectHalt(() => run('list["a"] -> destruct<$n:number>'), {

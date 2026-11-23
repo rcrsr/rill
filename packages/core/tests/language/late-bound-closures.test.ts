@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Late-Bound Closures
  *
@@ -11,18 +12,22 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Late-Bound Closures', () => {
   describe('Recursive Closures', () => {
-    it('factorial: closure can call itself recursively', async () => {
-      // Braces required for conditional body
-      const script = `
+    rule('scope.recursion').it(
+      'factorial: closure can call itself recursively',
+      async () => {
+        // Braces required for conditional body
+        const script = `
         fn(n) { ($n < 1) ? 1 ! ($n * $factorial($n - 1)) } => $factorial
         $factorial(5)
       `;
-      expect(await run(script)).toBe(120);
-    });
+        expect(await run(script)).toBe(120);
+      }
+    );
 
     it('factorial: handles base case correctly', async () => {
       const script = `
@@ -198,15 +203,18 @@ describe('Rill Runtime: Late-Bound Closures', () => {
   });
 
   describe('Parameter Shadowing', () => {
-    it('parameter shadows captured variable', async () => {
-      const script = `
+    rule('scope.parameter').it(
+      'parameter shadows captured variable',
+      async () => {
+        const script = `
         100 => $x
         fn(x) { $x * 2 } => $double
         $double(5)
       `;
-      // Parameter $x (5) shadows captured $x (100)
-      expect(await run(script)).toBe(10);
-    });
+        // Parameter $x (5) shadows captured $x (100)
+        expect(await run(script)).toBe(10);
+      }
+    );
 
     it('inner param shadows outer captured var', async () => {
       const script = `
@@ -320,16 +328,19 @@ describe('Rill Runtime: Late-Bound Closures', () => {
       expect(await run(script)).toBe(20);
     });
 
-    it('closures in different loop iterations have different scopes', async () => {
-      // Each iteration creates a new child scope with its own $item
-      const script = `
+    rule('scope.iteration', 'scope.closure').it(
+      'closures in different loop iterations have different scopes',
+      async () => {
+        // Each iteration creates a new child scope with its own $item
+        const script = `
         list[10, 20, 30] -> seq({
           $ => $val
           fn() { $val * 2 }
         }) => $doublers
         list[$doublers[0](), $doublers[1](), $doublers[2]()]
       `;
-      expect(await run(script)).toEqual([20, 40, 60]);
-    });
+        expect(await run(script)).toEqual([20, 40, 60]);
+      }
+    );
   });
 });

@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Block Scoping
  *
@@ -10,14 +11,17 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Block Scoping', () => {
   describe('Loop Blocks', () => {
-    it('cannot shadow outer variable in block', async () => {
-      // Attempting to assign to outer variable name is an error.
-      // The body reads $ so it takes the element (iteration.arity).
-      const script = `
+    rule('scope.child', 'scope.no-rebind').it(
+      'cannot shadow outer variable in block',
+      async () => {
+        // Attempting to assign to outer variable name is an error.
+        // The body reads $ so it takes the element (iteration.arity).
+        const script = `
         "outer" => $x
         list[1, 2, 3] -> seq({
           $
@@ -25,52 +29,64 @@ describe('Rill Runtime: Block Scoping', () => {
         })
         $x
       `;
-      await expect(run(script)).rejects.toThrow(
-        /Cannot reassign outer variable/
-      );
-    });
+        await expect(run(script)).rejects.toThrow(
+          /Cannot reassign outer variable/
+        );
+      }
+    );
 
-    it('inner variable not visible after block exits', async () => {
-      // Variable created inside block is not visible outside
-      // Accessing undefined variable throws an error
-      const script = `
+    rule('scope.child', 'scope.no-leak').it(
+      'inner variable not visible after block exits',
+      async () => {
+        // Variable created inside block is not visible outside
+        // Accessing undefined variable throws an error
+        const script = `
         list[1, 2, 3] -> seq({
           $
           "created" => $y
         })
         $y
       `;
-      await expect(run(script)).rejects.toThrow('Undefined variable');
-    });
+        await expect(run(script)).rejects.toThrow('Undefined variable');
+      }
+    );
 
-    it('reading outer variable inside block works', async () => {
-      const script = `
+    rule('scope.read-outer').it(
+      'reading outer variable inside block works',
+      async () => {
+        const script = `
         100 => $x
         list[1, 2, 3] -> seq({ $x + $ })
       `;
-      expect(await run(script)).toEqual([101, 102, 103]);
-    });
+        expect(await run(script)).toEqual([101, 102, 103]);
+      }
+    );
 
-    it('can create new variables that do not shadow', async () => {
-      // New variables with unique names are allowed
-      const script = `
+    rule('scope.siblings').it(
+      'can create new variables that do not shadow',
+      async () => {
+        // New variables with unique names are allowed
+        const script = `
         10 => $x
         list[1, 2, 3] -> seq({
           ($x + $) => $local
           list[$x, $local]
         })
       `;
-      // $x is read from outer (10), $local is new in each iteration
-      expect(await run(script)).toEqual([
-        [10, 11],
-        [10, 12],
-        [10, 13],
-      ]);
-    });
+        // $x is read from outer (10), $local is new in each iteration
+        expect(await run(script)).toEqual([
+          [10, 11],
+          [10, 12],
+          [10, 13],
+        ]);
+      }
+    );
 
-    it('nested blocks create nested scopes', async () => {
-      // Each level can create new unique variables
-      const script = `
+    rule('scope.read-outer').it(
+      'nested blocks create nested scopes',
+      async () => {
+        // Each level can create new unique variables
+        const script = `
         "outer" => $x
         list[1, 2] -> seq({
           $
@@ -82,18 +98,19 @@ describe('Rill Runtime: Block Scoping', () => {
           })
         })
       `;
-      // Each inner block can read from all outer scopes
-      expect(await run(script)).toEqual([
-        [
-          ['outer', 'level1', 'level2'],
-          ['outer', 'level1', 'level2'],
-        ],
-        [
-          ['outer', 'level1', 'level2'],
-          ['outer', 'level1', 'level2'],
-        ],
-      ]);
-    });
+        // Each inner block can read from all outer scopes
+        expect(await run(script)).toEqual([
+          [
+            ['outer', 'level1', 'level2'],
+            ['outer', 'level1', 'level2'],
+          ],
+          [
+            ['outer', 'level1', 'level2'],
+            ['outer', 'level1', 'level2'],
+          ],
+        ]);
+      }
+    );
 
     it('loop iteration variable $ is block-local', async () => {
       // $ changes per iteration but doesn't leak to outer scope
@@ -137,14 +154,17 @@ describe('Rill Runtime: Block Scoping', () => {
       expect(await run(script)).toBe(15);
     });
 
-    it('variables created in conditional do not leak', async () => {
-      // Variable created in conditional branch is not visible outside
-      const script = `
+    rule('scope.child', 'scope.no-leak').it(
+      'variables created in conditional do not leak',
+      async () => {
+        // Variable created in conditional branch is not visible outside
+        const script = `
         true ? { "created" => $y }
         $y
       `;
-      await expect(run(script)).rejects.toThrow('Undefined variable');
-    });
+        await expect(run(script)).rejects.toThrow('Undefined variable');
+      }
+    );
   });
 
   describe('Grouped Expressions', () => {
@@ -167,39 +187,48 @@ describe('Rill Runtime: Block Scoping', () => {
       expect(await run(script)).toBe(15);
     });
 
-    it('variables created in group do not leak', async () => {
-      // Variable created in grouped expression is not visible outside
-      const script = `
+    rule('scope.child', 'scope.no-leak').it(
+      'variables created in group do not leak',
+      async () => {
+        // Variable created in grouped expression is not visible outside
+        const script = `
         ("created" => $y)
         $y
       `;
-      await expect(run(script)).rejects.toThrow('Undefined variable');
-    });
+        await expect(run(script)).rejects.toThrow('Undefined variable');
+      }
+    );
   });
 
   describe('Closures', () => {
-    it('closures cannot shadow outer variables', async () => {
-      const script = `
+    rule('scope.child', 'scope.no-rebind').it(
+      'closures cannot shadow outer variables',
+      async () => {
+        const script = `
         "outer" => $x
         fn() { "closure" => $x } => $fn
         $fn()
         $x
       `;
-      await expect(run(script)).rejects.toThrow(
-        /Cannot reassign outer variable/
-      );
-    });
+        await expect(run(script)).rejects.toThrow(
+          /Cannot reassign outer variable/
+        );
+      }
+    );
 
-    it('closures resolve variables at call time (late binding)', async () => {
-      const script = `
+    rule('scope.late-binding').it(
+      'closures resolve variables at call time (late binding)',
+      async () => {
+        const script = `
         10 => $x
         fn() { $x + 5 } => $fn
         20 => $x
         $fn()
       `;
-      // Closure resolves $x at call time, so it sees $x=20
-      expect(await run(script)).toBe(25);
-    });
+        // Closure resolves $x at call time, so it sees $x=20
+        expect(await run(script)).toBe(25);
+      }
+    );
   });
 
   describe('Type Consistency Across Scopes', () => {
@@ -236,18 +265,21 @@ describe('Rill Runtime: Block Scoping', () => {
       expect(await run(script)).toBe(5);
     });
 
-    it('while loop body has isolated scope', async () => {
-      // Variable assignment inside while body doesn't leak
-      const script = `
+    rule('scope.child', 'scope.no-leak').it(
+      'while loop body has isolated scope',
+      async () => {
+        // Variable assignment inside while body doesn't leak
+        const script = `
         0 -> while ($ < 3) do {
           ($ * 10) => $inner
           $ + 1
         }
         $inner
       `;
-      // $inner was only created inside loop, not visible outside
-      await expect(run(script)).rejects.toThrow('Undefined variable');
-    });
+        // $inner was only created inside loop, not visible outside
+        await expect(run(script)).rejects.toThrow('Undefined variable');
+      }
+    );
   });
 
   describe('Do-While Loop Scoping', () => {
@@ -270,5 +302,29 @@ describe('Rill Runtime: Block Scoping', () => {
       // $inner was only created inside loop, not visible outside
       await expect(run(script)).rejects.toThrow('Undefined variable');
     });
+  });
+
+  describe('Name Resolution', () => {
+    rule('scope.lexical').it(
+      'a function never reads a variable only its caller binds',
+      async () => {
+        const script = `
+          fn { $ + $w } => $f
+          1 -> {
+            $ => $w
+            $ -> $f
+          }
+        `;
+        await expect(run(script)).rejects.toThrow('Undefined variable: $w');
+      }
+    );
+
+    rule('scope.later-outer').it(
+      'an outer scope binds a name a finished child bound',
+      async () => {
+        expect(await run('1 -> { $ => $a }\n3 => $a\n$a')).toBe(3);
+        expect(await run('1 -> { $ => $a }\n"s" => $a\n$a')).toBe('s');
+      }
+    );
   });
 });
