@@ -100,7 +100,7 @@ One row per PR. Tick a row when its PR merges.
 | 4 | `program` | 3 | 32 | 0 | #676 |
 | 5 | `values` | 3 | 30 | 0 | #676 |
 | 6 | `types/constructors` | 9 | 160 | 0 | #676 |
-| 7 | `types/model` | 6 | 69 | 0 | |
+| 7 | `types/model` | 6 | 69 | 0 | #676 |
 | 8 | `types/scalars` | 7 | 123 | 113 | |
 | 9 | `types/typing` | 8 | 121 | 68 | |
 | 10 | `variables` | 3 | 24 | 24 | |
