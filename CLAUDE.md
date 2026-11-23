@@ -127,7 +127,7 @@ pnpm check          # Complete validation (build, test, lint)
 
 | Directory | Purpose | Policy |
 |-----------|---------|--------|
-| `packages/core/tests/language/` | Language behavior specification | **Protected.** Only modify for language spec changes. |
+| `packages/core/tests/language/` | Language behavior specification | **Protected.** Only modify for language spec changes, or to cite a built rule or add a test for an untested one (see `reference/AUDIT.md`). |
 | `packages/core/tests/runtime/` | Runtime API and implementation | Normal test maintenance applies. |
 
 Run subsets: `pnpm test tests/language` or `pnpm test tests/runtime`

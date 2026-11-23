@@ -360,6 +360,7 @@ const EXEMPT_FILES: readonly string[] = [
   'FORMAT.md',
   'CLAUDE.md',
   'INCONSISTENCIES.md',
+  'AUDIT.md',
 ];
 
 export interface Corpus {
