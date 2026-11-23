@@ -12,13 +12,16 @@ import { run } from '../helpers/runtime.js';
 
 describe('Dynamic Existence Check', () => {
   describe('Type-Qualified Existence Check (.?field&type)', () => {
-    it('AC-3: returns true when field exists and type matches', async () => {
-      const result = await run(`
+    rule('existence.type').it(
+      'AC-3: returns true when field exists and type matches',
+      async () => {
+        const result = await run(`
         dict[x: 1] => $data
         $data.?x&number
       `);
-      expect(result).toBe(true);
-    });
+        expect(result).toBe(true);
+      }
+    );
 
     it('returns true for string type match', async () => {
       const result = await run(`
@@ -52,21 +55,27 @@ describe('Dynamic Existence Check', () => {
       expect(result).toBe(true);
     });
 
-    it('AC-5: returns false when field exists but type does not match', async () => {
-      const result = await run(`
+    rule('existence.type').it(
+      'AC-5: returns false when field exists but type does not match',
+      async () => {
+        const result = await run(`
         dict[x: 1] => $data
         $data.?x&string
       `);
-      expect(result).toBe(false);
-    });
+        expect(result).toBe(false);
+      }
+    );
 
-    it('returns false when field does not exist (type-qualified)', async () => {
-      const result = await run(`
+    rule('existence.type').it(
+      'returns false when field does not exist (type-qualified)',
+      async () => {
+        const result = await run(`
         dict[x: 1] => $data
         $data.?y&number
       `);
-      expect(result).toBe(false);
-    });
+        expect(result).toBe(false);
+      }
+    );
 
     it('returns false for number field checked as boolean', async () => {
       const result = await run(`
@@ -86,23 +95,29 @@ describe('Dynamic Existence Check', () => {
   });
 
   describe('Variable Field Name Existence Check', () => {
-    it('AC-4: returns true when variable field name exists', async () => {
-      const result = await run(`
+    rule('existence.found').it(
+      'AC-4: returns true when variable field name exists',
+      async () => {
+        const result = await run(`
         "x" => $f
         dict[x: 1] => $data
         $data.?$f
       `);
-      expect(result).toBe(true);
-    });
+        expect(result).toBe(true);
+      }
+    );
 
-    it('returns false when variable field name does not exist', async () => {
-      const result = await run(`
+    rule('existence.missing', 'existence.variable').it(
+      'returns false when variable field name does not exist',
+      async () => {
+        const result = await run(`
         "missing" => $f
         dict[x: 1] => $data
         $data.?$f
       `);
-      expect(result).toBe(false);
-    });
+        expect(result).toBe(false);
+      }
+    );
 
     it('works with multiple variable keys', async () => {
       const result = await run(`
@@ -136,13 +151,16 @@ describe('Dynamic Existence Check', () => {
       expect(result).toBe(true);
     });
 
-    it('returns false for computed key that does not exist', async () => {
-      const result = await run(`
+    rule('existence.missing').it(
+      'returns false for computed key that does not exist',
+      async () => {
+        const result = await run(`
         dict[name: "alice"] => $data
         $data.?["missing"]
       `);
-      expect(result).toBe(false);
-    });
+        expect(result).toBe(false);
+      }
+    );
 
     it('works with complex computed expression', async () => {
       const result = await run(`
@@ -323,17 +341,20 @@ describe('Dynamic Existence Check', () => {
         ['list', 'list[1, 2, 3]', 'List index must be number, got string'],
       ];
       for (const [label, literal, message] of cases) {
-        it(`halts for variable key on ${label}`, async () => {
-          await expectHalt(
-            () =>
-              run(`
+        rule('existence.variable').it(
+          `halts for variable key on ${label}`,
+          async () => {
+            await expectHalt(
+              () =>
+                run(`
                 ${literal} => $value
                 "x" => $field
                 $value.?$field
               `),
-            { code: 'RILL_R002', messagePattern: message }
-          );
-        });
+              { code: 'RILL_R002', messagePattern: message }
+            );
+          }
+        );
 
         it(`halts for computed key on ${label}`, async () => {
           await expectHalt(() => run(`${literal} => $value\n$value.?["x"]`), {
@@ -355,23 +376,32 @@ describe('Dynamic Existence Check', () => {
         );
       });
 
-      it('returns false for a spelled field name on a scalar', async () => {
-        expect(await run('42 => $num\n$num.?field')).toBe(false);
-      });
+      rule('existence.missing').it(
+        'returns false for a spelled field name on a scalar',
+        async () => {
+          expect(await run('42 => $num\n$num.?field')).toBe(false);
+        }
+      );
 
-      it('halts for a variable key that is not a string or number', async () => {
-        await expectHalt(
-          () => run('list[1, 2] => $list\nlist[1] => $k\n$list.?$k'),
-          {
-            code: 'RILL_R002',
-            messagePattern: 'List index must be number, got list',
-          }
-        );
-      });
+      rule('existence.variable').it(
+        'halts for a variable key that is not a string or number',
+        async () => {
+          await expectHalt(
+            () => run('list[1, 2] => $list\nlist[1] => $k\n$list.?$k'),
+            {
+              code: 'RILL_R002',
+              messagePattern: 'List index must be number, got list',
+            }
+          );
+        }
+      );
 
-      it('returns false for an out-of-range list index', async () => {
-        expect(await run('list[1, 2].?[5]')).toBe(false);
-      });
+      rule('existence.missing').it(
+        'returns false for an out-of-range list index',
+        async () => {
+          expect(await run('list[1, 2].?[5]')).toBe(false);
+        }
+      );
 
       it('halts for a non-number selector on a list', async () => {
         await expectHalt(() => run('list[1, 2].?["a"]'), {

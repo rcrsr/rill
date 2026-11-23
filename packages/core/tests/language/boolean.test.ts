@@ -11,15 +11,15 @@ import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Boolean Expressions', () => {
   describe('Logical Negation (!)', () => {
-    rule('bool.literal').it('!true = false', async () => {
+    rule('bool.literal', 'logical.not').it('!true = false', async () => {
       expect(await run('!true')).toBe(false);
     });
 
-    rule('bool.literal').it('!false = true', async () => {
+    rule('bool.literal', 'logical.not').it('!false = true', async () => {
       expect(await run('!false')).toBe(true);
     });
 
-    it('double negation', async () => {
+    rule('logical.not').it('double negation', async () => {
       expect(await run('!!true')).toBe(true);
     });
 
@@ -117,19 +117,19 @@ describe('Rill Runtime: Boolean Expressions', () => {
   });
 
   describe('Logical AND (&&)', () => {
-    it('true && true = true', async () => {
+    rule('logical.and').it('true && true = true', async () => {
       expect(await run('(true && true)')).toBe(true);
     });
 
-    it('true && false = false', async () => {
+    rule('logical.and').it('true && false = false', async () => {
       expect(await run('(true && false)')).toBe(false);
     });
 
-    it('false && true = false', async () => {
+    rule('logical.and').it('false && true = false', async () => {
       expect(await run('(false && true)')).toBe(false);
     });
 
-    it('false && false = false', async () => {
+    rule('logical.and').it('false && false = false', async () => {
       expect(await run('(false && false)')).toBe(false);
     });
 
@@ -143,27 +143,30 @@ describe('Rill Runtime: Boolean Expressions', () => {
       expect(await run('(1 < 2 && 3 < 2)')).toBe(false);
     });
 
-    it('&& short-circuit evaluation', async () => {
-      // false && (expression) should not evaluate the right side
-      // We test this by using a variable that would error if accessed
-      expect(await run('(false && $undefined)')).toBe(false);
-    });
+    rule('logical.short-circuit').it(
+      '&& short-circuit evaluation',
+      async () => {
+        // false && (expression) should not evaluate the right side
+        // We test this by using a variable that would error if accessed
+        expect(await run('(false && $undefined)')).toBe(false);
+      }
+    );
   });
 
   describe('Logical OR (||)', () => {
-    it('true || true = true', async () => {
+    rule('logical.or').it('true || true = true', async () => {
       expect(await run('(true || true)')).toBe(true);
     });
 
-    it('true || false = true', async () => {
+    rule('logical.or').it('true || false = true', async () => {
       expect(await run('(true || false)')).toBe(true);
     });
 
-    it('false || true = true', async () => {
+    rule('logical.or').it('false || true = true', async () => {
       expect(await run('(false || true)')).toBe(true);
     });
 
-    it('false || false = false', async () => {
+    rule('logical.or').it('false || false = false', async () => {
       expect(await run('(false || false)')).toBe(false);
     });
 
@@ -177,31 +180,40 @@ describe('Rill Runtime: Boolean Expressions', () => {
       expect(await run('(1 > 2 || 3 < 2)')).toBe(false);
     });
 
-    it('|| short-circuit evaluation', async () => {
-      // true || (expression) should not evaluate the right side
-      expect(await run('(true || $undefined)')).toBe(true);
-    });
+    rule('logical.short-circuit').it(
+      '|| short-circuit evaluation',
+      async () => {
+        // true || (expression) should not evaluate the right side
+        expect(await run('(true || $undefined)')).toBe(true);
+      }
+    );
   });
 
   describe('Operator Precedence', () => {
-    it('&& binds tighter than ||', async () => {
+    rule('operator.precedence').it('&& binds tighter than ||', async () => {
       // true || false && false = true || (false && false) = true
       expect(await run('(true || false && false)')).toBe(true);
       // false && true || true = (false && true) || true = true
       expect(await run('(false && true || true)')).toBe(true);
     });
 
-    it('comparison binds tighter than &&', async () => {
-      // 1 < 2 && 3 > 2 = (1 < 2) && (3 > 2) = true
-      expect(await run('(1 < 2 && 3 > 2)')).toBe(true);
-    });
+    rule('operator.precedence').it(
+      'comparison binds tighter than &&',
+      async () => {
+        // 1 < 2 && 3 > 2 = (1 < 2) && (3 > 2) = true
+        expect(await run('(1 < 2 && 3 > 2)')).toBe(true);
+      }
+    );
 
-    it('arithmetic binds tighter than comparison', async () => {
-      // 1 + 1 > 1 = (1 + 1) > 1 = 2 > 1 = true
-      expect(await run('(1 + 1 > 1)')).toBe(true);
-    });
+    rule('operator.precedence').it(
+      'arithmetic binds tighter than comparison',
+      async () => {
+        // 1 + 1 > 1 = (1 + 1) > 1 = 2 > 1 = true
+        expect(await run('(1 + 1 > 1)')).toBe(true);
+      }
+    );
 
-    it('! binds tightest', async () => {
+    rule('operator.precedence').it('! binds tightest', async () => {
       // !false && true = (!false) && true = true && true = true
       expect(await run('(!false && true)')).toBe(true);
     });
@@ -244,25 +256,37 @@ describe('Rill Runtime: Boolean Expressions', () => {
   });
 
   describe('Type Safety: Logical Operators', () => {
-    it('&& rejects non-boolean left operand', async () => {
-      await expect(run('5 && 3')).rejects.toThrow('requires boolean operand');
-    });
+    rule('logical.bool-operands').it(
+      '&& rejects non-boolean left operand',
+      async () => {
+        await expect(run('5 && 3')).rejects.toThrow('requires boolean operand');
+      }
+    );
 
-    it('|| rejects non-boolean left operand', async () => {
-      await expect(run('0 || 7')).rejects.toThrow('requires boolean operand');
-    });
+    rule('logical.bool-operands').it(
+      '|| rejects non-boolean left operand',
+      async () => {
+        await expect(run('0 || 7')).rejects.toThrow('requires boolean operand');
+      }
+    );
 
-    it('|| rejects non-boolean string left operand', async () => {
-      await expect(run('"" || "x"')).rejects.toThrow(
-        'requires boolean operand'
-      );
-    });
+    rule('logical.bool-operands').it(
+      '|| rejects non-boolean string left operand',
+      async () => {
+        await expect(run('"" || "x"')).rejects.toThrow(
+          'requires boolean operand'
+        );
+      }
+    );
 
-    it('&& rejects non-boolean right operand', async () => {
-      await expect(run('true && 5')).rejects.toThrow(
-        'requires boolean operand'
-      );
-    });
+    rule('logical.bool-operands').it(
+      '&& rejects non-boolean right operand',
+      async () => {
+        await expect(run('true && 5')).rejects.toThrow(
+          'requires boolean operand'
+        );
+      }
+    );
   });
 
   describe('Type Safety: Negation Operator', () => {

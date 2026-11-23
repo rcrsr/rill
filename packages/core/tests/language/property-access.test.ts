@@ -440,27 +440,30 @@ describe('implicit $ property access bug', () => {
         expect(postfixResult).toBe(variableChainResult);
       });
 
-      it('an out-of-bounds index halts with the same error code on both forms', async () => {
-        const postfixCtx = createRuntimeContext({});
-        const variableChainCtx = createRuntimeContext({});
-        let postfixError: unknown;
-        let variableChainError: unknown;
-        try {
-          await execute(parse('list[1,2,3][10]'), postfixCtx);
-        } catch (err) {
-          postfixError = err;
+      rule('selection.range').it(
+        'an out-of-bounds index halts with the same error code on both forms',
+        async () => {
+          const postfixCtx = createRuntimeContext({});
+          const variableChainCtx = createRuntimeContext({});
+          let postfixError: unknown;
+          let variableChainError: unknown;
+          try {
+            await execute(parse('list[1,2,3][10]'), postfixCtx);
+          } catch (err) {
+            postfixError = err;
+          }
+          try {
+            await execute(parse('list[1,2,3] => $l\n$l[10]'), variableChainCtx);
+          } catch (err) {
+            variableChainError = err;
+          }
+          expect(postfixError).toHaveProperty('errorId', 'RILL-R009');
+          expect(variableChainError).toHaveProperty('errorId', 'RILL-R009');
+          expect((postfixError as { errorId: string }).errorId).toBe(
+            (variableChainError as { errorId: string }).errorId
+          );
         }
-        try {
-          await execute(parse('list[1,2,3] => $l\n$l[10]'), variableChainCtx);
-        } catch (err) {
-          variableChainError = err;
-        }
-        expect(postfixError).toHaveProperty('errorId', 'RILL-R009');
-        expect(variableChainError).toHaveProperty('errorId', 'RILL-R009');
-        expect((postfixError as { errorId: string }).errorId).toBe(
-          (variableChainError as { errorId: string }).errorId
-        );
-      });
+      );
     });
 
     describe('access parity for tuple indexing and non-indexable receivers (string)', () => {
@@ -471,25 +474,28 @@ describe('implicit $ property access bug', () => {
         expect(postfixResult).toBe(variableChainResult);
       });
 
-      it('"abc"[0] halts with the same error code as "abc" => $s then $s[0]', async () => {
-        let postfixError: unknown;
-        let variableChainError: unknown;
-        try {
-          await run('"abc"[0]');
-        } catch (err) {
-          postfixError = err;
+      rule('selection.string').it(
+        '"abc"[0] halts with the same error code as "abc" => $s then $s[0]',
+        async () => {
+          let postfixError: unknown;
+          let variableChainError: unknown;
+          try {
+            await run('"abc"[0]');
+          } catch (err) {
+            postfixError = err;
+          }
+          try {
+            await run('"abc" => $s\n$s[0]');
+          } catch (err) {
+            variableChainError = err;
+          }
+          expect(postfixError).toHaveProperty('errorId', 'RILL-R002');
+          expect(variableChainError).toHaveProperty('errorId', 'RILL-R002');
+          expect((postfixError as { errorId: string }).errorId).toBe(
+            (variableChainError as { errorId: string }).errorId
+          );
         }
-        try {
-          await run('"abc" => $s\n$s[0]');
-        } catch (err) {
-          variableChainError = err;
-        }
-        expect(postfixError).toHaveProperty('errorId', 'RILL-R002');
-        expect(variableChainError).toHaveProperty('errorId', 'RILL-R002');
-        expect((postfixError as { errorId: string }).errorId).toBe(
-          (variableChainError as { errorId: string }).errorId
-        );
-      });
+      );
     });
   });
 
@@ -558,11 +564,14 @@ describe('implicit $ property access bug', () => {
   });
 
   describe('non-integer and negative positional indexes', () => {
-    it('$l[1.5] halts with #INVALID_INPUT', async () => {
-      await expectHalt(() => run('list[1, 2, 3] => $l\n$l[1.5]'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('selection.index-integer').it(
+      '$l[1.5] halts with #INVALID_INPUT',
+      async () => {
+        await expectHalt(() => run('list[1, 2, 3] => $l\n$l[1.5]'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
     it('$l[1.5] is catchable via guard and keeps the INVALID_INPUT code', async () => {
       const result = await run(
@@ -571,9 +580,12 @@ describe('implicit $ property access bug', () => {
       expect(result).toBe(true);
     });
 
-    it('$l[-1] returns the last element', async () => {
-      expect(await run('list[1, 2, 3] => $l\n$l[-1]')).toBe(3);
-    });
+    rule('selection.negative').it(
+      '$l[-1] returns the last element',
+      async () => {
+        expect(await run('list[1, 2, 3] => $l\n$l[-1]')).toBe(3);
+      }
+    );
   });
 });
 
@@ -748,4 +760,61 @@ describe('a function read from a dict does not bind $', () => {
       run('dict[name: "t", f: fn(x) { $.name }] => $d\n$d.f(7)')
     ).rejects.toHaveProperty('errorId', 'RILL-P029');
   });
+});
+
+describe('selection on a receiver without named fields', () => {
+  rule('selection.no-name').it(
+    'halts RILL-R003 for .name on a list, tuple, or scalar held in a variable',
+    async () => {
+      for (const decl of [
+        'list[1] => $c',
+        'tuple[1] => $c',
+        '5 => $c',
+        '"abc" => $c',
+      ]) {
+        await expectHalt(() => runWithOptions(`${decl}\n$c.a`), {
+          code: 'RILL_R003',
+          hostErrorId: 'RILL-R003',
+          messagePattern: "Cannot access field 'a'",
+        });
+      }
+    }
+  );
+});
+
+describe('positional index forms', () => {
+  rule('selection.index-integer').it(
+    'halts #INVALID_INPUT for a non-integer index in every positional form',
+    async () => {
+      for (const src of [
+        'list[1, 2] => $l\n1.5 => $k\n$l.$k',
+        'list[1, 2] => $l\n$l.at(1.5)',
+        'list[1, 2] => $l\n1.5 -> $l',
+        'tuple[1, 2] => $t\n$t[1.5]',
+        'tuple[1, 2] => $t\n1.5 => $k\n$t.$k',
+        'tuple[1, 2] => $t\n1.5 -> $t',
+        'ordered[a: 1, b: 2] => $o\n$o[1.5]',
+        'ordered[a: 1, b: 2] => $o\n1.5 => $k\n$o.$k',
+        '"abc".at(1.5)',
+      ]) {
+        await expectHalt(() => runWithOptions(src), {
+          code: 'INVALID_INPUT',
+          messagePattern: 'index must be an integer, got 1.5',
+        });
+      }
+    }
+  );
+
+  rule('selection.negative').it(
+    'reads -1 as the last element through .at, .$k, and dispatch',
+    async () => {
+      expect(await runWithOptions('list[1, 2, 3] => $l\n$l.at(-1)')).toBe(3);
+      expect(await runWithOptions('list[1, 2, 3] => $l\n-1 -> $l')).toBe(3);
+      expect(await runWithOptions('tuple[1, 2, 3] => $t\n$t.at(-1)')).toBe(3);
+      expect(
+        await runWithOptions('tuple[1, 2, 3] => $t\n-1 => $k\n$t.$k')
+      ).toBe(3);
+      expect(await runWithOptions('"abc".at(-1)')).toBe('c');
+    }
+  );
 });

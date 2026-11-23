@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Expressions
  * Tests for pipes, methods, and function calls
@@ -6,7 +7,9 @@
 import { anyTypeValue, type RillValue } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
+import { expectHalt } from '../helpers/halt.js';
 import { createLogCollector, run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Expressions', () => {
   describe('Pipe Chains', () => {
@@ -14,7 +17,7 @@ describe('Rill Runtime: Expressions', () => {
       expect(await run('"x" -> identity')).toBe('x');
     });
 
-    it('evaluates multiple pipes', async () => {
+    rule('pipe.left-to-right').it('evaluates multiple pipes', async () => {
       expect(await run('"x" -> identity -> identity')).toBe('x');
     });
 
@@ -26,9 +29,12 @@ describe('Rill Runtime: Expressions', () => {
       expect(await run('true -> ? { "yes" } ! { "no" }')).toBe('yes');
     });
 
-    it('chains pipes with transformations', async () => {
-      expect(await run('"hello" -> .upper -> { $ }')).toBe('HELLO');
-    });
+    rule('pipe.left-to-right', 'pipe.method').it(
+      'chains pipes with transformations',
+      async () => {
+        expect(await run('"hello" -> .upper -> { $ }')).toBe('HELLO');
+      }
+    );
 
     it('preserves value through identity chain', async () => {
       expect(await run('"test" -> identity -> identity -> identity')).toBe(
@@ -55,7 +61,7 @@ describe('Rill Runtime: Expressions', () => {
       expect(logs).toEqual(['hello']);
     });
 
-    it('uses method in pipe', async () => {
+    rule('pipe.method').it('uses method in pipe', async () => {
       expect(await run('"hello" -> .contains("o")')).toBe(true);
     });
 
@@ -180,5 +186,262 @@ describe('Rill Runtime: Expressions', () => {
       const result = await run('"hello" -> identity($)');
       expect(result).toBe('hello');
     });
+  });
+
+  describe('Pipe target kinds', () => {
+    rule('pipe.no-literal').it(
+      'rejects a number, bool, or atom literal target with RILL-P001',
+      async () => {
+        for (const src of ['5 -> 3', '5 -> true', '5 -> #a']) {
+          await expect(run(src)).rejects.toMatchObject({
+            errorId: 'RILL-P001',
+          });
+        }
+      }
+    );
+
+    rule('pipe.type').it('converts through a type target', async () => {
+      expect(await run('"5" -> number')).toBe(5);
+    });
+
+    rule('pipe.data').it('selects through a data target', async () => {
+      expect(await run('0 -> list["a", "b"]')).toBe('a');
+      expect(await run('"b" -> dict[a: 1, b: 2]')).toBe(2);
+    });
+
+    rule('pipe.variable').it(
+      'acts as the value a variable target holds, and halts when it is undefined',
+      async () => {
+        expect(await run('fn(x) { $x * 2 } => $d\n4 -> $d')).toBe(8);
+        expect(await run('list[10, 20] => $l\n1 -> $l')).toBe(20);
+        await expectHalt(() => run('5 -> $undef'), {
+          code: 'RILL_R005',
+          hostErrorId: 'RILL-R005',
+        });
+      }
+    );
+
+    rule('pipe.variable-kind').it(
+      'halts naming the variable and the kind it holds',
+      async () => {
+        await expectHalt(() => run('3 => $n\n5 -> $n'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern: /cannot pipe into \$n: it holds a number/,
+        });
+        await expectHalt(() => run('dict[a: 3] => $d\n5 -> $d.a'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern:
+            /cannot pipe into a value selected from \$d: it is a number/,
+        });
+      }
+    );
+
+    rule('pipe.call-dollar').it(
+      'places the value at a written $ in a built-in call',
+      async () => {
+        expect(await run('3 -> range(0, $) -> seq({ $ })')).toEqual([0, 1, 2]);
+      }
+    );
+
+    rule('pipe.script-operand').it(
+      'does not prepend the value beside a spread argument',
+      async () => {
+        expect(
+          await run('fn(a, b) { $a - $b } => $h\n99 -> $h(...tuple[10, 3])')
+        ).toBe(7);
+      }
+    );
+
+    rule('pipe-target.invoke').it(
+      'halts $() on a value that is not a function',
+      async () => {
+        await expectHalt(() => run('5 -> $()'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+        });
+      }
+    );
+
+    rule('pipe-target.no-minus').it(
+      'rejects unary minus as a target and accepts negation',
+      async () => {
+        await expect(run('5 -> -$')).rejects.toMatchObject({
+          errorId: 'RILL-P001',
+        });
+        await expect(run('5 -> -1')).rejects.toMatchObject({
+          errorId: 'RILL-P001',
+        });
+        expect(await run('true -> !$')).toBe(false);
+      }
+    );
+  });
+
+  describe('Access forms', () => {
+    rule('access.field-name').it(
+      'rejects a dot with no name after it with RILL-P006',
+      async () => {
+        await expect(run('tuple[1] => $t\n$t.1')).rejects.toMatchObject({
+          errorId: 'RILL-P006',
+        });
+        await expect(run('dict[a: 1] => $d\n$d.')).rejects.toMatchObject({
+          errorId: 'RILL-P006',
+        });
+      }
+    );
+
+    rule('access.method-target').it(
+      'rejects a method target that is not a name with RILL-P001',
+      async () => {
+        await expect(run('tuple[1] => $t\n$t -> .1')).rejects.toMatchObject({
+          errorId: 'RILL-P001',
+        });
+      }
+    );
+
+    rule('access.any-receiver').it(
+      'applies a bracket to a literal, a group, and a call result',
+      async () => {
+        expect(await run('list[1, 2][0]')).toBe(1);
+        expect(await run('(list[1, 2])[1]')).toBe(2);
+        expect(await run('"a,b".split(",")[1]')).toBe('b');
+      }
+    );
+
+    rule('access.chain').it('applies access forms left to right', async () => {
+      expect(await run('dict[a: dict[b: list[5, 6]]] => $d\n$d.a.b[1]')).toBe(
+        6
+      );
+    });
+
+    rule('access.ordered-key').it(
+      'halts an ordered selector that is neither a string nor a number',
+      async () => {
+        for (const sel of ['true', 'list[1]']) {
+          await expectHalt(() => run(`ordered[a: 1] => $o\n$o[${sel}]`), {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: /Ordered index must be string or number/,
+          });
+        }
+      }
+    );
+  });
+
+  describe('Operators', () => {
+    rule('operator.no-chain').it(
+      'rejects a chained comparison with RILL-P001',
+      async () => {
+        for (const src of ['1 < 2 < 3', '1 == 1 == true', '1 < 2 == true']) {
+          await expect(run(src)).rejects.toMatchObject({
+            errorId: 'RILL-P001',
+          });
+        }
+      }
+    );
+
+    rule('operator.group').it(
+      'groups first and rejects empty parentheses',
+      async () => {
+        expect(await run('(1 + 2) * 3')).toBe(9);
+        await expect(run('()')).rejects.toMatchObject({ errorId: 'RILL-P001' });
+      }
+    );
+
+    rule('operator.before-pipe').it(
+      'completes an operator expression before the pipe',
+      async () => {
+        expect(await run('1 + 2 -> { $ * 10 }')).toBe(30);
+      }
+    );
+
+    rule('operator.precedence', 'operator.left').it(
+      'binds by precedence and groups each level from the left',
+      async () => {
+        expect(await run('1 + 2 * 3 - 4 / 2')).toBe(5);
+        expect(await run('true || false && false')).toBe(true);
+        expect(await run('24 / 4 / 2')).toBe(3);
+      }
+    );
+
+    rule('operator.ordering').it(
+      'halts ordering a collection, a function, a type, or an iterator',
+      async () => {
+        for (const src of [
+          'list[1] < list[2]',
+          'dict[a: 1] < dict[a: 2]',
+          'ordered[a: 1] < ordered[a: 2]',
+          'map["a": 1] < map["a": 2]',
+          'fn { 1 } => $f\n$f < $f',
+          'number < string',
+          'range(0, 1) < range(0, 2)',
+        ]) {
+          await expectHalt(() => run(src), {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: /Cannot compare \w+ with \w+ using </,
+          });
+        }
+      }
+    );
+
+    rule('arithmetic.modulo').it('keeps the sign of the dividend', async () => {
+      expect(await run('list[7 % 3, -7 % 3, 7 % -3, 7.5 % 2]')).toEqual([
+        1, -1, 1, 1.5,
+      ]);
+    });
+
+    rule('arithmetic.basic', 'arithmetic.negate').it(
+      'computes on numbers without truncating',
+      async () => {
+        expect(await run('list[10 / 4, -(2 + 3), --2]')).toEqual([2.5, -5, 2]);
+      }
+    );
+
+    rule('arithmetic.number-only').it(
+      'halts an operand that is not a number',
+      async () => {
+        for (const [src, kind] of [
+          ['true + 1', 'bool'],
+          ['list[1] + list[2]', 'list'],
+          ['5 / list[1]', 'list'],
+          ['dict[a: 1] * 2', 'dict'],
+          ['number + 1', 'type'],
+          ['range(0, 1) + 1', 'iterator'],
+          ['-list[1]', 'list'],
+          ['-true', 'bool'],
+        ]) {
+          await expectHalt(() => run(src!), {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: new RegExp(
+              `Arithmetic requires number, got ${kind}`
+            ),
+          });
+        }
+      }
+    );
+
+    rule('logical.not-operand').it(
+      'rejects ! with no operand with RILL-P004',
+      async () => {
+        await expect(run('"x" -> !')).rejects.toMatchObject({
+          errorId: 'RILL-P004',
+        });
+      }
+    );
+
+    rule('logical.short-circuit', 'logical.bool-operands').it(
+      'skips the right operand that cannot change the result',
+      async () => {
+        expect(await run('false && 1')).toBe(false);
+        expect(await run('true || 1')).toBe(true);
+        await expectHalt(() => run('false || 1'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+        });
+      }
+    );
   });
 });

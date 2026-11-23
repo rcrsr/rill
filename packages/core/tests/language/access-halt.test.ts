@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Access-halt gate (FR-ERR-14; SM5 access vs non-access)
  *
@@ -27,6 +28,7 @@ import {
 } from '@rcrsr/rill';
 import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
 
 /** Runs a script through parseWithRecovery + execute and returns its value. */
@@ -172,47 +174,65 @@ describe('Access-halt gate (FR-ERR-14)', () => {
     // path on a literal receiver rather than a variable.
 
     describe('out-of-bounds index halts with RILL-R009', () => {
-      it('list[1,2,3][10] halts with RILL-R009', async () => {
-        await expect(runOrThrow('list[1,2,3][10]')).rejects.toHaveProperty(
-          'errorId',
-          'RILL-R009'
-        );
-      });
+      rule('selection.range').it(
+        'list[1,2,3][10] halts with RILL-R009',
+        async () => {
+          await expect(runOrThrow('list[1,2,3][10]')).rejects.toHaveProperty(
+            'errorId',
+            'RILL-R009'
+          );
+        }
+      );
 
-      it('mirrors the variable-chain form: list[1,2,3] => $l then $l[10]', async () => {
-        await expect(
-          runOrThrow('list[1,2,3] => $l\n$l[10]')
-        ).rejects.toHaveProperty('errorId', 'RILL-R009');
-      });
+      rule('selection.range').it(
+        'mirrors the variable-chain form: list[1,2,3] => $l then $l[10]',
+        async () => {
+          await expect(
+            runOrThrow('list[1,2,3] => $l\n$l[10]')
+          ).rejects.toHaveProperty('errorId', 'RILL-R009');
+        }
+      );
 
-      it('negative out-of-bounds list[1,2,3][-10] halts with RILL-R009', async () => {
-        await expect(runOrThrow('list[1,2,3][-10]')).rejects.toHaveProperty(
-          'errorId',
-          'RILL-R009'
-        );
-      });
+      rule('selection.range').it(
+        'negative out-of-bounds list[1,2,3][-10] halts with RILL-R009',
+        async () => {
+          await expect(runOrThrow('list[1,2,3][-10]')).rejects.toHaveProperty(
+            'errorId',
+            'RILL-R009'
+          );
+        }
+      );
     });
 
     describe('non-number index halts with RILL-R002', () => {
-      it('list[1,2,3]["x"] halts with RILL-R002', async () => {
-        await expect(runOrThrow('list[1,2,3]["x"]')).rejects.toHaveProperty(
-          'errorId',
-          'RILL-R002'
-        );
-      });
+      rule('selection.index-type').it(
+        'list[1,2,3]["x"] halts with RILL-R002',
+        async () => {
+          await expect(runOrThrow('list[1,2,3]["x"]')).rejects.toHaveProperty(
+            'errorId',
+            'RILL-R002'
+          );
+        }
+      );
 
-      it('mirrors the variable-chain form: list[1,2,3] => $l then $l["x"]', async () => {
-        await expect(
-          runOrThrow('list[1,2,3] => $l\n$l["x"]')
-        ).rejects.toHaveProperty('errorId', 'RILL-R002');
-      });
+      rule('selection.index-type').it(
+        'mirrors the variable-chain form: list[1,2,3] => $l then $l["x"]',
+        async () => {
+          await expect(
+            runOrThrow('list[1,2,3] => $l\n$l["x"]')
+          ).rejects.toHaveProperty('errorId', 'RILL-R002');
+        }
+      );
 
-      it('list[1,2,3][true] halts with RILL-R002', async () => {
-        await expect(runOrThrow('list[1,2,3][true]')).rejects.toHaveProperty(
-          'errorId',
-          'RILL-R002'
-        );
-      });
+      rule('selection.index-type').it(
+        'list[1,2,3][true] halts with RILL-R002',
+        async () => {
+          await expect(runOrThrow('list[1,2,3][true]')).rejects.toHaveProperty(
+            'errorId',
+            'RILL-R002'
+          );
+        }
+      );
     });
 
     describe('tuple indexing, and non-indexable receivers halt with RILL-R002', () => {
@@ -220,14 +240,17 @@ describe('Access-halt gate (FR-ERR-14)', () => {
         await expect(runOrThrow('tuple[1,2][0]')).resolves.toBe(1);
       });
 
-      it('tuple[1,2]["x"] halts with RILL-R002 (non-number index)', async () => {
-        await expect(runOrThrow('tuple[1,2]["x"]')).rejects.toHaveProperty(
-          'errorId',
-          'RILL-R002'
-        );
-      });
+      rule('selection.index-type').it(
+        'tuple[1,2]["x"] halts with RILL-R002 (non-number index)',
+        async () => {
+          await expect(runOrThrow('tuple[1,2]["x"]')).rejects.toHaveProperty(
+            'errorId',
+            'RILL-R002'
+          );
+        }
+      );
 
-      it('"abc"[0] halts with RILL-R002', async () => {
+      rule('selection.string').it('"abc"[0] halts with RILL-R002', async () => {
         await expect(runOrThrow('"abc"[0]')).rejects.toHaveProperty(
           'errorId',
           'RILL-R002'
@@ -249,14 +272,17 @@ describe('Access-halt gate (FR-ERR-14)', () => {
       });
     });
 
-    it('variable-chain $d.bogus halts with RILL-R009 (Dict has no field)', async () => {
-      await expect(
-        runOrThrow('dict[a: 1] => $d\n$d.bogus')
-      ).rejects.toMatchObject({
-        errorId: 'RILL-R009',
-        message: expect.stringContaining("Dict has no field 'bogus'"),
-      });
-    });
+    rule('selection.missing').it(
+      'variable-chain $d.bogus halts with RILL-R009 (Dict has no field)',
+      async () => {
+        await expect(
+          runOrThrow('dict[a: 1] => $d\n$d.bogus')
+        ).rejects.toMatchObject({
+          errorId: 'RILL-R009',
+          message: expect.stringContaining("Dict has no field 'bogus'"),
+        });
+      }
+    );
 
     it('non-dict receiver "abc".bogus still halts with RILL-R007 (Unknown method)', async () => {
       await expect(runOrThrow('"abc".bogus')).rejects.toMatchObject({

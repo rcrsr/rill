@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Dynamic Field Access
  * Tests for variable keys (.$var), computed keys ([expr]),
@@ -5,6 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { anyTypeValue, createRillStream, type RillValue } from '@rcrsr/rill';
 
 import { expectHalt, expectThrowMessage } from '../helpers/halt.js';
 import { rule } from '../helpers/rule.js';
@@ -12,35 +14,44 @@ import { run } from '../helpers/runtime.js';
 
 describe('Dynamic Field Access', () => {
   describe('Variable Key (.$var)', () => {
-    it('resolves string variable to access dict field', async () => {
-      // AC-1: Variable key resolves string, accesses dict field
-      const code = `
+    rule('selection.variable').it(
+      'resolves string variable to access dict field',
+      async () => {
+        // AC-1: Variable key resolves string, accesses dict field
+        const code = `
         "name" => $key
         dict[name: "alice", age: 30] => $data
         $data.$key
       `;
-      expect(await run(code)).toBe('alice');
-    });
+        expect(await run(code)).toBe('alice');
+      }
+    );
 
-    it('resolves number variable to access list index', async () => {
-      // AC-2: Variable key resolves number, accesses list index
-      const code = `
+    rule('selection.variable').it(
+      'resolves number variable to access list index',
+      async () => {
+        // AC-2: Variable key resolves number, accesses list index
+        const code = `
         1 => $idx
         list["a", "b", "c"] => $list
         $list.$idx
       `;
-      expect(await run(code)).toBe('b');
-    });
+        expect(await run(code)).toBe('b');
+      }
+    );
 
-    it('resolves negative number variable to access list from end', async () => {
-      // AC-15: Negative list index resolves from end (existing behavior)
-      const code = `
+    rule('selection.negative').it(
+      'resolves negative number variable to access list from end',
+      async () => {
+        // AC-15: Negative list index resolves from end (existing behavior)
+        const code = `
         -1 => $idx
         list["a", "b", "c"] => $list
         $list.$idx
       `;
-      expect(await run(code)).toBe('c');
-    });
+        expect(await run(code)).toBe('c');
+      }
+    );
 
     it('resolves variable key in pipe chain', async () => {
       const code = `
@@ -69,26 +80,32 @@ describe('Dynamic Field Access', () => {
   });
 
   describe('Computed Key ([expr])', () => {
-    it('evaluates expression returning string to access dict field', async () => {
-      // AC-3: Computed expression returns string, accesses dict field
-      const code = `
+    rule('selection.computed').it(
+      'evaluates expression returning string to access dict field',
+      async () => {
+        // AC-3: Computed expression returns string, accesses dict field
+        const code = `
         "name" => $key1
         "age" => $key2
         dict[name: "alice", age: 30] => $data
         $data[true ? $key1 ! $key2]
       `;
-      expect(await run(code)).toBe('alice');
-    });
+        expect(await run(code)).toBe('alice');
+      }
+    );
 
-    it('evaluates expression returning number to access list index', async () => {
-      // AC-4: Computed expression returns number, accesses list index
-      const code = `
+    rule('selection.computed').it(
+      'evaluates expression returning number to access list index',
+      async () => {
+        // AC-4: Computed expression returns number, accesses list index
+        const code = `
         0 => $i
         list["a", "b", "c"] => $list
         $list[$i + 1]
       `;
-      expect(await run(code)).toBe('b');
-    });
+        expect(await run(code)).toBe('b');
+      }
+    );
 
     it('evaluates computed expression resulting in single character key', async () => {
       // AC-18: Computed expression with edge case string result
@@ -205,23 +222,29 @@ describe('Dynamic Field Access', () => {
       expect(await run(code)).toBe('default');
     });
 
-    it('handles variable key with null result and default', async () => {
-      const code = `
+    rule('selection.default').it(
+      'handles variable key with null result and default',
+      async () => {
+        const code = `
         "missing" => $key
         dict[name: "alice"] => $data
         $data.$key ?? "not-found"
       `;
-      expect(await run(code)).toBe('not-found');
-    });
+        expect(await run(code)).toBe('not-found');
+      }
+    );
 
-    it('handles computed key with null result and default', async () => {
-      const code = `
+    rule('selection.bracket-default').it(
+      'handles computed key with null result and default',
+      async () => {
+        const code = `
         10 => $i
         list["a", "b", "c"] => $list
         $list[$i * 10] ?? "out-of-bounds"
       `;
-      expect(await run(code)).toBe('out-of-bounds');
-    });
+        expect(await run(code)).toBe('out-of-bounds');
+      }
+    );
 
     it('handles zero index via variable key', async () => {
       const code = `
@@ -273,17 +296,22 @@ describe('Dynamic Field Access', () => {
 
   describe('Error Cases', () => {
     describe('Variable Key Errors', () => {
-      it('throws RILL-R005 when variable key is undefined', async () => {
-        // AC-9: Variable key undefined throws RILL-R005 [EC-1]
-        const code = `
+      rule('selection.variable').it(
+        'throws RILL-R005 when variable key is undefined',
+        async () => {
+          // AC-9: Variable key undefined throws RILL-R005 [EC-1]
+          const code = `
           dict[name: "alice", age: 30] => $data
           $data.$missingVar
         `;
-        await expect(run(code)).rejects.toMatchObject({
-          errorId: 'RILL-R005',
-          message: expect.stringMatching(/Variable 'missingVar' is undefined/),
-        });
-      });
+          await expect(run(code)).rejects.toMatchObject({
+            errorId: 'RILL-R005',
+            message: expect.stringMatching(
+              /Variable 'missingVar' is undefined/
+            ),
+          });
+        }
+      );
 
       it('halts #TYPE_MISMATCH when variable key is boolean', async () => {
         // AC-10: Variable key is boolean throws RILL-R002 [EC-2]
@@ -365,4 +393,137 @@ describe('Dynamic Field Access', () => {
       });
     });
   });
+});
+
+/** A host function returning a two-chunk stream. */
+const makeStream = {
+  params: [],
+  returnType: anyTypeValue,
+  fn: () =>
+    createRillStream({
+      chunks: (async function* (): AsyncGenerator<RillValue> {
+        yield 1;
+        yield 2;
+      })(),
+      resolve: async () => null,
+    }),
+};
+
+describe('Selector validation across selection forms', () => {
+  rule('selection.key-validation').it(
+    'rejects a string key on a list with one RILL-R002 message in every form',
+    async () => {
+      const decl = 'list[1, 2] => $l\n"a" => $k\n';
+      for (const form of [
+        '$l[$k]',
+        '$l.$k',
+        '$l.?[$k]',
+        '$l.?$k',
+        '$k -> $l',
+        '$l[$k] ?? 0',
+        '$l.$k ?? 0',
+        '$k -> $l ?? 0',
+      ]) {
+        await expectHalt(() => run(`${decl}${form}`), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern: 'List index must be number, got string',
+        });
+      }
+    }
+  );
+
+  rule('selection.key-validation').it(
+    'halts a string $k on a receiver without keys as $c[$k] does',
+    async () => {
+      for (const [decl, kind] of [
+        ['list[1, 2] => $c', 'List index must be number, got string'],
+        ['tuple[1, 2] => $c', 'Tuple index must be number, got string'],
+        ['#x => $c', 'Cannot index atom'],
+        ['fn(x) { $x } => $c', 'Cannot index fn'],
+        ['range(0, 3) => $c', 'Cannot index iterator'],
+        ['number => $c', 'Cannot index type'],
+      ] as const) {
+        for (const form of ['$c.$k', '$c[$k]']) {
+          await expectHalt(() => run(`${decl}\n"a" => $k\n${form}`), {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: kind,
+          });
+        }
+      }
+    }
+  );
+
+  rule('selection.key-validation').it(
+    'halts a number or bool key on a stream',
+    async () => {
+      for (const [key, type] of [
+        ['1', 'number'],
+        ['true', 'bool'],
+      ] as const) {
+        for (const form of ['$s.$k', '$s[$k]', '$s.$k ?? 0']) {
+          await expectHalt(
+            () =>
+              run(`make_stream() => $s\n${key} => $k\n${form}`, {
+                functions: { make_stream: makeStream },
+              }),
+            {
+              code: 'TYPE_MISMATCH',
+              messagePattern: `Dict key must be string, got ${type}`,
+            }
+          );
+        }
+      }
+    }
+  );
+
+  rule('selection.variable-miss').it(
+    "reports a missing $k with the bracket form's id and message",
+    async () => {
+      for (const form of ['$d.$k', '$d[$k]']) {
+        await expectHalt(() => run(`dict[a: 1] => $d\n"k" => $k\n${form}`), {
+          code: 'RILL_R009',
+          hostErrorId: 'RILL-R009',
+          messagePattern: 'Undefined dict key: k',
+        });
+        expect(await run(`dict[a: 1] => $d\n"k" => $k\n${form} ?? 7`)).toBe(7);
+      }
+      await expectHalt(() => run('dict[a: 1] => $d\n$d.k'), {
+        code: 'RILL_R009',
+        messagePattern: "Dict has no field 'k'",
+      });
+    }
+  );
+
+  rule('selection.string').it(
+    'halts RILL-R002 for a string indexed through .$k',
+    async () => {
+      for (const key of ['0', '"a"']) {
+        await expectHalt(() => run(`"abc" => $s\n${key} => $k\n$s.$k`), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern: 'Cannot index string',
+        });
+      }
+    }
+  );
+
+  rule('selection.index-type', 'selection.no-mask').it(
+    'halts RILL-R002 for a non-number selector in dispatch on a list or tuple, with or without ??',
+    async () => {
+      for (const [decl, kind] of [
+        ['list[1, 2] => $c', 'List'],
+        ['tuple[1, 2] => $c', 'Tuple'],
+      ] as const) {
+        for (const form of ['"a" -> $c', '"a" -> $c ?? 0', '$c["a"] ?? 0']) {
+          await expectHalt(() => run(`${decl}\n${form}`), {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: `${kind} index must be number, got string`,
+          });
+        }
+      }
+    }
+  );
 });

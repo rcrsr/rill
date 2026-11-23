@@ -16,11 +16,14 @@ describe('Rill Runtime: Arithmetic', () => {
       expect(await run('5 + 3')).toBe(8);
     });
 
-    it('respects operator precedence without parens', async () => {
-      expect(await run('2 + 3 * 4')).toBe(14);
-    });
+    rule('operator.precedence').it(
+      'respects operator precedence without parens',
+      async () => {
+        expect(await run('2 + 3 * 4')).toBe(14);
+      }
+    );
 
-    it('chains operations without parens', async () => {
+    rule('operator.left').it('chains operations without parens', async () => {
       expect(await run('10 - 4 - 2')).toBe(4);
     });
 
@@ -45,23 +48,23 @@ describe('Rill Runtime: Arithmetic', () => {
   });
 
   describe('Basic Operations', () => {
-    it('adds two numbers', async () => {
+    rule('arithmetic.basic').it('adds two numbers', async () => {
       expect(await run('(5 + 3)')).toBe(8);
     });
 
-    it('subtracts two numbers', async () => {
+    rule('arithmetic.basic').it('subtracts two numbers', async () => {
       expect(await run('(10 - 4)')).toBe(6);
     });
 
-    it('multiplies two numbers', async () => {
+    rule('arithmetic.basic').it('multiplies two numbers', async () => {
       expect(await run('(6 * 7)')).toBe(42);
     });
 
-    it('divides two numbers', async () => {
+    rule('arithmetic.basic').it('divides two numbers', async () => {
       expect(await run('(20 / 4)')).toBe(5);
     });
 
-    it('handles modulo', async () => {
+    rule('arithmetic.modulo').it('handles modulo', async () => {
       expect(await run('(17 % 5)')).toBe(2);
     });
 
@@ -71,15 +74,18 @@ describe('Rill Runtime: Arithmetic', () => {
   });
 
   describe('Operator Precedence', () => {
-    it('multiplication before addition', async () => {
-      expect(await run('(2 + 3 * 4)')).toBe(14);
-    });
+    rule('operator.precedence').it(
+      'multiplication before addition',
+      async () => {
+        expect(await run('(2 + 3 * 4)')).toBe(14);
+      }
+    );
 
-    it('division before subtraction', async () => {
+    rule('operator.precedence').it('division before subtraction', async () => {
       expect(await run('(10 - 8 / 2)')).toBe(6);
     });
 
-    it('respects parentheses', async () => {
+    rule('operator.group').it('respects parentheses', async () => {
       expect(await run('((2 + 3) * 4)')).toBe(20);
     });
 
@@ -89,7 +95,7 @@ describe('Rill Runtime: Arithmetic', () => {
   });
 
   describe('Unary Minus', () => {
-    it('negates a number', async () => {
+    rule('arithmetic.negate').it('negates a number', async () => {
       expect(await run('(-5)')).toBe(-5);
     });
 
@@ -97,13 +103,13 @@ describe('Rill Runtime: Arithmetic', () => {
       expect(await run('(10 + -3)')).toBe(7);
     });
 
-    it('double negation', async () => {
+    rule('arithmetic.negate').it('double negation', async () => {
       expect(await run('(--5)')).toBe(5);
     });
   });
 
   describe('With Variables', () => {
-    it('uses pipe variable', async () => {
+    rule('pipe.grouped').it('uses pipe variable', async () => {
       expect(await run('10 -> ($ + 5)')).toBe(15);
     });
 
@@ -139,7 +145,7 @@ describe('Rill Runtime: Arithmetic', () => {
       expect(await run('(3.5 + 2.5)')).toBe(6);
     });
 
-    it('handles decimal division', async () => {
+    rule('arithmetic.basic').it('handles decimal division', async () => {
       expect(await run('(7 / 2)')).toBe(3.5);
     });
   });

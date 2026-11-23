@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Spread and Collection Operators
  * Tests for sequential spread (@), map, and filter operators
@@ -7,6 +8,8 @@ import { describe, expect, it } from 'vitest';
 
 import { parse, ParseError } from '@rcrsr/rill';
 
+import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 import { run, runFull } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Collection Operators', () => {
@@ -367,4 +370,137 @@ describe('Rill Runtime: Reserved Method Protection', () => {
     const result = await run('dict[name: "test", key: "value", str: "custom"]');
     expect(result).toEqual({ name: 'test', key: 'value', str: 'custom' });
   });
+});
+
+describe('Spread reference rules', () => {
+  const sub = 'fn(a, b) { $a - $b } => $sub\n';
+
+  rule('spread.operand').it(
+    'rejects a bare ... in a collection literal with RILL-P004',
+    async () => {
+      await expect(run('list[1, ...]')).rejects.toMatchObject({
+        errorId: 'RILL-P004',
+      });
+    }
+  );
+
+  rule('spread.one-argument').it(
+    'rejects a second spread in one argument list with RILL-P007',
+    async () => {
+      await expect(
+        run(sub + '$sub(...tuple[1], ...tuple[2])')
+      ).rejects.toMatchObject({ errorId: 'RILL-P007' });
+    }
+  );
+
+  rule('spread.list-source').it(
+    'inserts list and tuple elements in order and rejects other kinds',
+    async () => {
+      expect(
+        await run('list[2, 3] => $m\ntuple[4, 5] => $t\nlist[1, ...$m, ...$t]')
+      ).toEqual([1, 2, 3, 4, 5]);
+      expect(
+        await run('tuple[1, ...list[2, 3]] -> { $ == tuple[1, 2, 3] }')
+      ).toBe(true);
+      await expectHalt(() => run('list[...range(0, 2)]'), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: 'got iterator',
+      });
+      await expectHalt(() => run('list[...dict[a: 1]]'), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: 'got dict',
+      });
+    }
+  );
+
+  rule('spread.dict').it(
+    'inserts dict and ordered fields in order and rejects other kinds',
+    async () => {
+      expect(
+        await run(
+          'dict[a: 1, b: 2] => $d\nordered[...$d, c: 3] -> { $ == ordered[a: 1, b: 2, c: 3] }'
+        )
+      ).toBe(true);
+      expect(await run('ordered[b: 1, a: 2] => $o\ndict[...$o]')).toEqual({
+        a: 2,
+        b: 1,
+      });
+      await expectHalt(() => run('dict[...list[1]]'), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+      });
+    }
+  );
+
+  rule('spread.dict-later').it(
+    'lets the entry written later win on a shared key',
+    async () => {
+      expect(await run('dict[a: 1] => $d\ndict[a: 0, ...$d]')).toEqual({
+        a: 1,
+      });
+      expect(await run('dict[a: 1] => $d\ndict[...$d, a: 0]')).toEqual({
+        a: 0,
+      });
+    }
+  );
+
+  rule('spread.arg-dict').it(
+    'passes dict fields by name, halting on an unknown name or a missing parameter',
+    async () => {
+      expect(await run(sub + '$sub(...dict[b: 1, a: 5])')).toBe(4);
+      await expectHalt(() => run(sub + '$sub(...dict[a: 5, c: 1])'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
+      await expect(run(sub + '$sub(...dict[a: 5])')).rejects.toMatchObject({
+        errorId: 'RILL-R044',
+      });
+    }
+  );
+
+  rule('spread.arg-tuple').it(
+    'passes tuple elements as positional arguments',
+    async () => {
+      expect(await run(sub + '$sub(...tuple[5, 1])')).toBe(4);
+    }
+  );
+
+  rule('spread.arg-ordered').it(
+    'passes ordered fields in order, halting when a name is out of position',
+    async () => {
+      expect(await run(sub + '$sub(...ordered[a: 5, b: 1])')).toBe(4);
+      await expectHalt(() => run(sub + '$sub(...ordered[b: 1, a: 5])'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
+    }
+  );
+
+  rule('spread.arg-other').it(
+    'halts RILL-R001 spreading a list or a string into arguments',
+    async () => {
+      await expectHalt(() => run(sub + '$sub(...list[5, 1])'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
+      await expectHalt(() => run(sub + '$sub(..."x")'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
+    }
+  );
+
+  rule('spread.piped').it(
+    'spreads the piped value for a bare ...',
+    async () => {
+      expect(await run(sub + 'tuple[5, 1] -> $sub(...)')).toBe(4);
+      expect(await run(sub + 'dict[b: 1, a: 5] -> $sub(...)')).toBe(4);
+      await expectHalt(() => run(sub + 'list[5, 1] -> $sub(...)'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
+    }
+  );
 });

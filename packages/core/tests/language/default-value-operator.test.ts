@@ -27,7 +27,7 @@ describe('Default Value Operator (??)', () => {
       expect(result).toBe('active');
     });
 
-    rule('vacancy.missing').it(
+    rule('vacancy.missing', 'selection.default').it(
       'returns default when field missing',
       async () => {
         const result = await run(`
@@ -53,7 +53,7 @@ describe('Default Value Operator (??)', () => {
       expect(result).toBe('default');
     });
 
-    it('works with variable key access', async () => {
+    rule('selection.default').it('works with variable key access', async () => {
       const result = await run(`
         dict[name: "test"] => $data
         "missing" => $key
@@ -62,14 +62,17 @@ describe('Default Value Operator (??)', () => {
       expect(result).toBe('not-found');
     });
 
-    it('works with computed key access', async () => {
-      const result = await run(`
+    rule('selection.bracket-default').it(
+      'works with computed key access',
+      async () => {
+        const result = await run(`
         dict[field1: "a", field2: "b"] => $data
         3 => $n
         $data["field{$n}"] ?? "missing"
       `);
-      expect(result).toBe('missing');
-    });
+        expect(result).toBe('missing');
+      }
+    );
   });
 
   describe('Function Call Results', () => {
@@ -631,17 +634,23 @@ describe('Default Value Operator (??)', () => {
     const DICT = 'dict[a: 1] => $d\n';
     const LIST = 'list[1, 2] => $l\n';
 
-    it('recovers an absent string key on a dict', async () => {
-      expect(await run(`${DICT}$d["b"] ?? 0`)).toBe(0);
-    });
+    rule('selection.bracket-default').it(
+      'recovers an absent string key on a dict',
+      async () => {
+        expect(await run(`${DICT}$d["b"] ?? 0`)).toBe(0);
+      }
+    );
 
     it('returns the present dict value', async () => {
       expect(await run(`${DICT}$d["a"] ?? 0`)).toBe(1);
     });
 
-    it('halts on an absent dict key without a default', async () => {
-      await expectHalt(() => run(`${DICT}$d["b"]`), { code: 'RILL_R009' });
-    });
+    rule('selection.missing').it(
+      'halts on an absent dict key without a default',
+      async () => {
+        await expectHalt(() => run(`${DICT}$d["b"]`), { code: 'RILL_R009' });
+      }
+    );
 
     rule('selection.key-no-mask').it(
       'halts #TYPE_MISMATCH on a number selector on a dict even with a default',
@@ -680,90 +689,144 @@ describe('Default Value Operator (??)', () => {
       });
     });
 
-    it('halts when the selector reads a missing field', async () => {
-      await expectHalt(() => run(`${DICT}$d[$d.zz] ?? 0`), {
-        code: 'RILL_R009',
-      });
-    });
+    rule('selection.default-last-step').it(
+      'halts when the selector reads a missing field',
+      async () => {
+        await expectHalt(() => run(`${DICT}$d[$d.zz] ?? 0`), {
+          code: 'RILL_R009',
+        });
+      }
+    );
 
-    it('halts when an earlier annotation step is missing', async () => {
-      await expectHalt(() => run('fn(x) { $x } => $f\n$f.^doc.x ?? 0'), {
-        code: 'RILL_R008',
-      });
-    });
+    rule('selection.default-last-step').it(
+      'halts when an earlier annotation step is missing',
+      async () => {
+        await expectHalt(() => run('fn(x) { $x } => $f\n$f.^doc.x ?? 0'), {
+          code: 'RILL_R008',
+        });
+      }
+    );
 
-    it('halts when an earlier pipe-variable step is missing', async () => {
-      await expectHalt(() => run('dict[a: 1] -> $.b.c ?? 0'), {
-        code: 'RILL_R009',
-      });
-    });
+    rule('selection.default-last-step').it(
+      'halts when an earlier pipe-variable step is missing',
+      async () => {
+        await expectHalt(() => run('dict[a: 1] -> $.b.c ?? 0'), {
+          code: 'RILL_R009',
+        });
+      }
+    );
 
-    it('halts when an earlier field step is missing', async () => {
-      await expectHalt(() => run(`${DICT}$d.b[1] ?? 0`), {
-        code: 'RILL_R009',
-      });
-    });
+    rule('selection.default-last-step').it(
+      'halts when an earlier field step is missing',
+      async () => {
+        await expectHalt(() => run(`${DICT}$d.b[1] ?? 0`), {
+          code: 'RILL_R009',
+        });
+      }
+    );
 
-    it('recovers through a pipe-variable bracket', async () => {
-      expect(await run(`${DICT}$d -> $["b"] ?? 0`)).toBe(0);
-    });
+    rule('selection.bracket-default').it(
+      'recovers through a pipe-variable bracket',
+      async () => {
+        expect(await run(`${DICT}$d -> $["b"] ?? 0`)).toBe(0);
+      }
+    );
 
-    it('recovers through a parenthesized receiver', async () => {
-      expect(await run(`${DICT}($d)["b"] ?? 0`)).toBe(0);
-    });
+    rule('selection.bracket-default').it(
+      'recovers through a parenthesized receiver',
+      async () => {
+        expect(await run(`${DICT}($d)["b"] ?? 0`)).toBe(0);
+      }
+    );
 
-    rule('vacancy.missing').it(
+    rule('vacancy.missing', 'selection.bracket-default').it(
       'recovers an out-of-range list index',
       async () => {
         expect(await run(`${LIST}$l[5] ?? 0`)).toBe(0);
       }
     );
 
-    it('recovers a negative index beyond the start', async () => {
-      expect(await run(`${LIST}$l[-3] ?? 0`)).toBe(0);
-    });
+    rule('selection.bracket-default').it(
+      'recovers a negative index beyond the start',
+      async () => {
+        expect(await run(`${LIST}$l[-3] ?? 0`)).toBe(0);
+      }
+    );
 
     it('returns the present list element', async () => {
       expect(await run(`${LIST}$l[1] ?? 0`)).toBe(2);
     });
 
-    it('halts on a string index into a list even with a default', async () => {
-      await expectHalt(() => run(`${LIST}$l["x"] ?? 0`), {
-        code: 'RILL_R002',
-      });
-    });
+    rule('selection.no-mask', 'selection.bracket-default').it(
+      'halts on a string index into a list even with a default',
+      async () => {
+        await expectHalt(() => run(`${LIST}$l["x"] ?? 0`), {
+          code: 'RILL_R002',
+        });
+      }
+    );
 
-    it('halts on a non-integer list index even with a default', async () => {
-      await expectHalt(() => run(`${LIST}$l[1.5] ?? 0`), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('selection.index-integer').it(
+      'halts on a non-integer list index even with a default',
+      async () => {
+        await expectHalt(() => run(`${LIST}$l[1.5] ?? 0`), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
-    it('recovers an out-of-range tuple index', async () => {
-      expect(await run('tuple[1, 2] => $t\n$t[9] ?? 0')).toBe(0);
-    });
+    rule('selection.bracket-default').it(
+      'recovers an out-of-range tuple index',
+      async () => {
+        expect(await run('tuple[1, 2] => $t\n$t[9] ?? 0')).toBe(0);
+      }
+    );
 
-    it('recovers an absent ordered key', async () => {
-      expect(await run('ordered[a: 1] => $o\n$o["b"] ?? 0')).toBe(0);
-    });
+    rule('selection.bracket-default').it(
+      'recovers an absent ordered key',
+      async () => {
+        expect(await run('ordered[a: 1] => $o\n$o["b"] ?? 0')).toBe(0);
+      }
+    );
 
-    it('halts a miss on an earlier bracket step of a chain', async () => {
-      await expectHalt(
-        () => run('dict[a: dict[b: 1]] => $d\n$d["x"]["b"] ?? 0'),
-        { code: 'RILL_R009' }
-      );
-    });
+    rule('selection.default-last-step').it(
+      'halts a miss on an earlier bracket step of a chain',
+      async () => {
+        await expectHalt(
+          () => run('dict[a: dict[b: 1]] => $d\n$d["x"]["b"] ?? 0'),
+          { code: 'RILL_R009' }
+        );
+      }
+    );
 
-    it('recovers a miss on the right-most bracket step of a chain', async () => {
-      expect(await run('dict[a: dict[b: 1]] => $d\n$d["a"]["x"] ?? 0')).toBe(0);
-    });
+    rule('selection.default-last-step').it(
+      'recovers a miss on the right-most bracket step of a chain',
+      async () => {
+        expect(await run('dict[a: dict[b: 1]] => $d\n$d["a"]["x"] ?? 0')).toBe(
+          0
+        );
+      }
+    );
 
     it('applies the default to an empty present value', async () => {
       expect(await run('dict[a: ""] => $d\n$d["a"] ?? "z"')).toBe('z');
     });
 
-    it('recovers a postfix index on a literal receiver', async () => {
-      expect(await run('list[1, 2][5] ?? 0')).toBe(0);
-    });
+    rule('selection.bracket-default').it(
+      'recovers a postfix index on a literal receiver',
+      async () => {
+        expect(await run('list[1, 2][5] ?? 0')).toBe(0);
+      }
+    );
   });
+});
+
+describe('Default on a missing dispatch or .at selection', () => {
+  rule('selection.default').it(
+    'yields the default for a missing dispatch key or .at index',
+    async () => {
+      expect(await run('dict[a: 1] => $d\n"b" -> $d ?? 9')).toBe(9);
+      expect(await run('list[1, 2] => $l\n$l.at(5) ?? 9')).toBe(9);
+    }
+  );
 });

@@ -222,34 +222,43 @@ describe('Unified Dispatch', () => {
   });
 
   describe('Dict Variable Dispatch', () => {
-    it('returns value for string key piped to dict variable (AC-4)', async () => {
-      // AC-4: String key "x" returns value 1 from dict
-      const result = await run(`
+    rule('dispatch.select').it(
+      'returns value for string key piped to dict variable (AC-4)',
+      async () => {
+        // AC-4: String key "x" returns value 1 from dict
+        const result = await run(`
         dict[x: 1, y: 2] => $dict
         "x" -> $dict
       `);
-      expect(result).toBe(1);
-    });
+        expect(result).toBe(1);
+      }
+    );
   });
 
   describe('List Variable Dispatch', () => {
-    it('returns first element when piped 0 to list variable (AC-5)', async () => {
-      // AC-5: Index 0 returns first element from list variable
-      const result = await run(`
+    rule('dispatch.select').it(
+      'returns first element when piped 0 to list variable (AC-5)',
+      async () => {
+        // AC-5: Index 0 returns first element from list variable
+        const result = await run(`
         list["a", "b", "c"] => $list
         0 -> $list
       `);
-      expect(result).toBe('a');
-    });
+        expect(result).toBe('a');
+      }
+    );
 
-    it('returns last element when piped -1 to list variable (AC-6)', async () => {
-      // AC-6: Negative index -1 returns last element from list variable
-      const result = await run(`
+    rule('dispatch.select').it(
+      'returns last element when piped -1 to list variable (AC-6)',
+      async () => {
+        // AC-6: Negative index -1 returns last element from list variable
+        const result = await run(`
         list["a", "b", "c"] => $list
         -1 -> $list
       `);
-      expect(result).toBe('c');
-    });
+        expect(result).toBe('c');
+      }
+    );
   });
 
   describe('Closure Auto-Invocation', () => {
@@ -263,15 +272,18 @@ describe('Unified Dispatch', () => {
       expect(result).toBe('result');
     });
 
-    it('auto-invokes closure value in list dispatch (AC-10)', async () => {
-      // AC-10: Closure value is auto-invoked when indexed
-      // The held block runs with $ bound to the index, 0
-      const result = await run(`
+    rule('dispatch.block-list').it(
+      'auto-invokes closure value in list dispatch (AC-10)',
+      async () => {
+        // AC-10: Closure value is auto-invoked when indexed
+        // The held block runs with $ bound to the index, 0
+        const result = await run(`
         list[{ "first" }] => $list
         0 -> $list
       `);
-      expect(result).toBe('first');
-    });
+        expect(result).toBe('first');
+      }
+    );
   });
 
   describe('Chaining After Dispatch', () => {
@@ -557,13 +569,19 @@ describe('Unified Dispatch', () => {
   });
 
   describe('Tuple and Ordered Variable Dispatch', () => {
-    it('selects a tuple element by position', async () => {
-      expect(await run('tuple[10, 20] => $t\n1 -> $t')).toBe(20);
-    });
+    rule('dispatch.tuple').it(
+      'selects a tuple element by position',
+      async () => {
+        expect(await run('tuple[10, 20] => $t\n1 -> $t')).toBe(20);
+      }
+    );
 
-    it('selects a tuple element by negative position', async () => {
-      expect(await run('tuple[10, 20] => $t\n-1 -> $t')).toBe(20);
-    });
+    rule('dispatch.tuple').it(
+      'selects a tuple element by negative position',
+      async () => {
+        expect(await run('tuple[10, 20] => $t\n-1 -> $t')).toBe(20);
+      }
+    );
 
     it('halts RILL-R009 for a tuple position out of bounds', async () => {
       await expectHalt(() => run('tuple[10, 20] => $t\n5 -> $t'), {
@@ -571,9 +589,12 @@ describe('Unified Dispatch', () => {
       });
     });
 
-    it('returns the default for a tuple position out of bounds', async () => {
-      expect(await run('tuple[10, 20] => $t\n5 -> $t ?? 0')).toBe(0);
-    });
+    rule('dispatch.miss-message').it(
+      'returns the default for a tuple position out of bounds',
+      async () => {
+        expect(await run('tuple[10, 20] => $t\n5 -> $t ?? 0')).toBe(0);
+      }
+    );
 
     it('halts RILL-R002 for a string key on a tuple', async () => {
       await expectHalt(() => run('tuple[10, 20] => $t\n"a" -> $t'), {
@@ -582,13 +603,19 @@ describe('Unified Dispatch', () => {
       });
     });
 
-    it('selects an ordered entry by name', async () => {
-      expect(await run('ordered[a: 1, b: 2] => $o\n"b" -> $o')).toBe(2);
-    });
+    rule('dispatch.ordered').it(
+      'selects an ordered entry by name',
+      async () => {
+        expect(await run('ordered[a: 1, b: 2] => $o\n"b" -> $o')).toBe(2);
+      }
+    );
 
-    it('returns the default for an absent ordered name', async () => {
-      expect(await run('ordered[a: 1] => $o\n"z" -> $o ?? 0')).toBe(0);
-    });
+    rule('dispatch.miss-message').it(
+      'returns the default for an absent ordered name',
+      async () => {
+        expect(await run('ordered[a: 1] => $o\n"z" -> $o ?? 0')).toBe(0);
+      }
+    );
 
     it('halts RILL-R009 for an absent ordered name', async () => {
       await expectHalt(() => run('ordered[a: 1] => $o\n"z" -> $o'), {
@@ -629,14 +656,17 @@ describe('Unified Dispatch', () => {
       expect(result).toBe('a');
     });
 
-    it('empty list with default returns default (AC-19)', async () => {
-      // AC-19: Empty list dispatch with default returns default value
-      const result = await run(`
+    rule('dispatch.miss-message').it(
+      'empty list with default returns default (AC-19)',
+      async () => {
+        // AC-19: Empty list dispatch with default returns default value
+        const result = await run(`
         list[] => $empty
         0 -> $empty ?? "default"
       `);
-      expect(result).toBe('default');
-    });
+        expect(result).toBe('default');
+      }
+    );
 
     it('match takes precedence over default in dict dispatch (AC-20)', async () => {
       // AC-20: When key matches, return value (not default)
@@ -677,5 +707,107 @@ describe('Unified Dispatch', () => {
         }
       );
     });
+  });
+
+  describe('Dispatch Selects As The Bracket Read Does', () => {
+    rule('dispatch.select').it(
+      'selects from a dict and a list variable as the bracket read does',
+      async () => {
+        const setup = 'dict[a: 1, b: 2] => $d\nlist[10, 20] => $l\n';
+        expect(await run(`${setup}"b" -> $d`)).toBe(
+          await run(`${setup}$d["b"]`)
+        );
+        expect(await run(`${setup}-1 -> $l`)).toBe(await run(`${setup}$l[-1]`));
+      }
+    );
+
+    rule('dispatch.tuple').it(
+      'selects from a tuple variable as the bracket read does',
+      async () => {
+        const setup = 'tuple["a", "b"] => $t\n';
+        expect(await run(`${setup}1 -> $t`)).toBe('b');
+        expect(await run(`${setup}$t[1]`)).toBe('b');
+      }
+    );
+
+    rule('dispatch.ordered').it(
+      'selects from an ordered variable by name and by index as the bracket read does',
+      async () => {
+        const setup = 'ordered[a: 1, b: 2] => $o\n';
+        expect(await run(`${setup}"b" -> $o`)).toBe(2);
+        expect(await run(`${setup}$o["b"]`)).toBe(2);
+        expect(await run(`${setup}1 -> $o`)).toBe(2);
+        expect(await run(`${setup}$o[1]`)).toBe(2);
+      }
+    );
+
+    rule('dispatch.empty-path').it(
+      'yields a dict variable unchanged for an empty path',
+      async () => {
+        expect(await run('dict[a: 1] => $d\nlist[] -> $d')).toEqual({ a: 1 });
+      }
+    );
+
+    rule('dispatch.block-list').it(
+      'runs a block at index 0 of a list variable with $ bound to 0',
+      async () => {
+        expect(await run('list[{ "got {$}" }] => $l\n0 -> $l')).toBe('got 0');
+      }
+    );
+  });
+
+  describe('Dispatch Misses Read As The Bracket Read', () => {
+    const misses: Array<[string, string, string, RegExp]> = [
+      ['dict', 'dict[a: 1] => $c\n', '"z"', /^Undefined dict key: z$/],
+      [
+        'ordered key',
+        'ordered[a: 1] => $c\n',
+        '"z"',
+        /^Undefined ordered key: z$/,
+      ],
+      [
+        'ordered index',
+        'ordered[a: 1] => $c\n',
+        '5',
+        /^Ordered index out of bounds: 5$/,
+      ],
+      ['list', 'list[1] => $c\n', '5', /^List index out of bounds: 5$/],
+      ['tuple', 'tuple[1] => $c\n', '5', /^Tuple index out of bounds: 5$/],
+    ];
+
+    for (const [kind, setup, sel, message] of misses) {
+      rule('dispatch.miss-message').it(
+        `halts a ${kind} miss with the bracket read error and message`,
+        async () => {
+          const expected = {
+            code: 'RILL_R009',
+            hostErrorId: 'RILL-R009',
+            messagePattern: message,
+          };
+          await expectHalt(() => run(`${setup}${sel} -> $c`), expected);
+          await expectHalt(() => run(`${setup}$c[${sel}]`), expected);
+        }
+      );
+
+      rule('dispatch.miss-message').it(
+        `recovers a ${kind} miss with ??`,
+        async () => {
+          expect(await run(`${setup}${sel} -> $c ?? 9`)).toBe(9);
+        }
+      );
+    }
+
+    rule('dispatch.miss-message').it(
+      'halts a hierarchical step miss with the bracket read error and message',
+      async () => {
+        const setup = 'dict[a: dict[x: 1]] => $d\n';
+        await expectHalt(() => run(`${setup}list["a", "z"] -> $d`), {
+          code: 'RILL_R009',
+          hostErrorId: 'RILL-R009',
+          messagePattern: /^Undefined dict key: z$/,
+        });
+        expect(await run(`${setup}list["a", "z"] -> $d ?? 7`)).toBe(7);
+      }
+    );
   });
 });

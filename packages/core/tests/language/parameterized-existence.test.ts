@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Parameterized Existence Checks
  * Tests for type-qualified existence checks with structural types:
@@ -11,6 +12,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Language: Parameterized Existence Check', () => {
   // ============================================================
@@ -18,13 +20,16 @@ describe('Rill Language: Parameterized Existence Check', () => {
   // ============================================================
 
   describe('AC-4: .?field&list(number) returns true for list of numbers', () => {
-    it('returns true when field exists and is list of numbers', async () => {
-      const result = await run(`
+    rule('existence.type').it(
+      'returns true when field exists and is list of numbers',
+      async () => {
+        const result = await run(`
         dict[items: list[1, 2, 3]] => $data
         $data.?items&list(number)
       `);
-      expect(result).toBe(true);
-    });
+        expect(result).toBe(true);
+      }
+    );
 
     it('returns true for single-element list of numbers', async () => {
       const result = await run(`
@@ -48,13 +53,16 @@ describe('Rill Language: Parameterized Existence Check', () => {
   // ============================================================
 
   describe('AC-5: .?field&list(number) returns false for list of strings', () => {
-    it('returns false when field is list of strings, not list of numbers', async () => {
-      const result = await run(`
+    rule('existence.type').it(
+      'returns false when field is list of strings, not list of numbers',
+      async () => {
+        const result = await run(`
         dict[items: list["a", "b"]] => $data
         $data.?items&list(number)
       `);
-      expect(result).toBe(false);
-    });
+        expect(result).toBe(false);
+      }
+    );
 
     it('returns false when field is a plain number, not list(number)', async () => {
       const result = await run(`
@@ -78,13 +86,16 @@ describe('Rill Language: Parameterized Existence Check', () => {
   // ============================================================
 
   describe('AC-6: .?field&dict(key: string) returns true for matching dict', () => {
-    it('returns true when field matches dict(key: string) shape', async () => {
-      const result = await run(`
+    rule('existence.type').it(
+      'returns true when field matches dict(key: string) shape',
+      async () => {
+        const result = await run(`
         dict[config: dict[key: "val"]] => $data
         $data.?config&dict(key: string)
       `);
-      expect(result).toBe(true);
-    });
+        expect(result).toBe(true);
+      }
+    );
 
     it('returns false when dict field type does not match schema', async () => {
       const result = await run(`

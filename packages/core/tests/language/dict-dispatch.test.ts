@@ -14,16 +14,22 @@ import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Dict Dispatch', () => {
   describe('Basic Key Matching', () => {
-    it('returns matched value for exact key', async () => {
-      // AC-25: Key match returns associated value
-      const result = await run('"a" -> dict[a: 1, b: 2]');
-      expect(result).toBe(1);
-    });
+    rule('dispatch.select').it(
+      'returns matched value for exact key',
+      async () => {
+        // AC-25: Key match returns associated value
+        const result = await run('"a" -> dict[a: 1, b: 2]');
+        expect(result).toBe(1);
+      }
+    );
 
-    it('returns matched value for second key', async () => {
-      const result = await run('"b" -> dict[a: 1, b: 2]');
-      expect(result).toBe(2);
-    });
+    rule('dispatch.select').it(
+      'returns matched value for second key',
+      async () => {
+        const result = await run('"b" -> dict[a: 1, b: 2]');
+        expect(result).toBe(2);
+      }
+    );
 
     it('returns matched value for different string keys', async () => {
       const result = await run(
@@ -50,16 +56,22 @@ describe('Rill Runtime: Dict Dispatch', () => {
   });
 
   describe('Closure Auto-Invocation', () => {
-    it('auto-invokes closure value with piped key as $', async () => {
-      // AC-27: Auto-invoke closure, $ is piped key
-      const result = await run('"x" -> dict[x: { $ -> .upper }]');
-      expect(result).toBe('X');
-    });
+    rule('dispatch.block').it(
+      'auto-invokes closure value with piped key as $',
+      async () => {
+        // AC-27: Auto-invoke closure, $ is piped key
+        const result = await run('"x" -> dict[x: { $ -> .upper }]');
+        expect(result).toBe('X');
+      }
+    );
 
-    it('auto-invokes closure with transform logic', async () => {
-      const result = await run('"hello" -> dict[hello: { "{$}!" }]');
-      expect(result).toBe('hello!');
-    });
+    rule('dispatch.block').it(
+      'auto-invokes closure with transform logic',
+      async () => {
+        const result = await run('"hello" -> dict[hello: { "{$}!" }]');
+        expect(result).toBe('hello!');
+      }
+    );
 
     it('auto-invokes closure that accesses dict', async () => {
       const result = await run(`
@@ -172,11 +184,14 @@ describe('Rill Runtime: Dict Dispatch', () => {
   });
 
   describe('Default Operator', () => {
-    it('returns default when no match (AC-26)', async () => {
-      // AC-26: Dict Dispatch Success - Default Operator
-      const result = await run('"c" -> dict[a: 1, b: 2] ?? 0');
-      expect(result).toBe(0);
-    });
+    rule('dispatch.miss-message').it(
+      'returns default when no match (AC-26)',
+      async () => {
+        // AC-26: Dict Dispatch Success - Default Operator
+        const result = await run('"c" -> dict[a: 1, b: 2] ?? 0');
+        expect(result).toBe(0);
+      }
+    );
 
     it('returns matched value when key exists (match takes precedence)', async () => {
       const result = await run('"a" -> dict[a: 1, b: 2] ?? 0');
@@ -202,16 +217,22 @@ describe('Rill Runtime: Dict Dispatch', () => {
   });
 
   describe('Multi-Key Dispatch', () => {
-    it('returns value for multi-key match with first element (AC-28)', async () => {
-      // AC-28: Multi-key dispatch - key "a" matches ["a", "b"]
-      const result = await run('"a" -> dict[list["a", "b"]: "found"]');
-      expect(result).toBe('found');
-    });
+    rule('dispatch.multi-key').it(
+      'returns value for multi-key match with first element (AC-28)',
+      async () => {
+        // AC-28: Multi-key dispatch - key "a" matches ["a", "b"]
+        const result = await run('"a" -> dict[list["a", "b"]: "found"]');
+        expect(result).toBe('found');
+      }
+    );
 
-    it('returns value for multi-key match with second element (AC-28)', async () => {
-      const result = await run('"b" -> dict[list["a", "b"]: "found"]');
-      expect(result).toBe('found');
-    });
+    rule('dispatch.multi-key').it(
+      'returns value for multi-key match with second element (AC-28)',
+      async () => {
+        const result = await run('"b" -> dict[list["a", "b"]: "found"]');
+        expect(result).toBe('found');
+      }
+    );
 
     it('returns value for multi-key match with middle element', async () => {
       const result = await run('"b" -> dict[list["a", "b", "c"]: "middle"]');
@@ -430,57 +451,78 @@ describe('Rill Runtime: Dict Dispatch', () => {
   });
 
   describe('Error Contracts', () => {
-    it('throws RUNTIME_PROPERTY_NOT_FOUND when no match and no default (EC-4)', async () => {
-      // EC-4: No matching key, no default → RuntimeError
-      await expectHalt(() => run('"z" -> dict[a: 1, b: 2]'), {
-        code: 'RILL_R009',
-        hostErrorId: 'RILL-R009',
-        messagePattern: /Undefined dict key: z/,
-      });
-    });
+    rule('dispatch.miss-message').it(
+      'throws RUNTIME_PROPERTY_NOT_FOUND when no match and no default (EC-4)',
+      async () => {
+        // EC-4: No matching key, no default → RuntimeError
+        await expectHalt(() => run('"z" -> dict[a: 1, b: 2]'), {
+          code: 'RILL_R009',
+          hostErrorId: 'RILL-R009',
+          messagePattern: /Undefined dict key: z/,
+        });
+      }
+    );
   });
 
   describe('Multi-Key Dict Error Cases', () => {
-    it('throws RUNTIME_TYPE_ERROR for empty multi-key list (AC-13, EC-4)', async () => {
-      // AC-13: Empty multi-key -> error message contains "Multi-key dict entry requires non-empty list"
-      // EC-4: Runtime error for empty key tuple
-      // Empty list [] as dict key is treated as multi-key, evaluates at runtime
-      await expectHalt(() => run('dict[list[]: 1]'), {
-        code: 'RILL_R002',
-        hostErrorId: 'RILL-R002',
-        messagePattern: /Multi-key dict entry requires non-empty list/i,
-      });
-    });
+    rule('dispatch.multi-key-string').it(
+      'throws RUNTIME_TYPE_ERROR for empty multi-key list (AC-13, EC-4)',
+      async () => {
+        // AC-13: Empty multi-key -> error message contains "Multi-key dict entry requires non-empty list"
+        // EC-4: Runtime error for empty key tuple
+        // Empty list [] as dict key is treated as multi-key, evaluates at runtime
+        await expectHalt(() => run('dict[list[]: 1]'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern: /Multi-key dict entry requires non-empty list/i,
+        });
+      }
+    );
 
-    it('halts with RILL-R002 when multi-key contains a list', async () => {
-      // The list element is not a string, so key validation rejects it.
-      await expectHalt(() => run('dict[list[list[1, 2], "valid"]: "value"]'), {
-        code: 'RILL_R002',
-        hostErrorId: 'RILL-R002',
-        messagePattern:
-          'Multi-key dict entry keys must be string, got list; quote the key',
-      });
-    });
+    rule('dispatch.multi-key-string').it(
+      'halts with RILL-R002 when multi-key contains a list',
+      async () => {
+        // The list element is not a string, so key validation rejects it.
+        await expectHalt(
+          () => run('dict[list[list[1, 2], "valid"]: "value"]'),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern:
+              'Multi-key dict entry keys must be string, got list; quote the key',
+          }
+        );
+      }
+    );
 
-    it('halts with RILL-R002 when multi-key contains a dict', async () => {
-      // Dict key validation rejects the dict element.
-      await expectHalt(() => run('dict[list[dict[a: 1], "valid"]: "value"]'), {
-        code: 'RILL_R002',
-        hostErrorId: 'RILL-R002',
-        messagePattern:
-          'Multi-key dict entry keys must be string, got dict; quote the key',
-      });
-    });
+    rule('dispatch.multi-key-string').it(
+      'halts with RILL-R002 when multi-key contains a dict',
+      async () => {
+        // Dict key validation rejects the dict element.
+        await expectHalt(
+          () => run('dict[list[dict[a: 1], "valid"]: "value"]'),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern:
+              'Multi-key dict entry keys must be string, got dict; quote the key',
+          }
+        );
+      }
+    );
 
-    it('halts with RILL-R002 when multi-key contains a closure', async () => {
-      // Dict key validation rejects the closure element.
-      await expectHalt(() => run('dict[list[fn() {1}, "valid"]: "value"]'), {
-        code: 'RILL_R002',
-        hostErrorId: 'RILL-R002',
-        messagePattern:
-          'Multi-key dict entry keys must be string, got fn; quote the key',
-      });
-    });
+    rule('dispatch.multi-key-string').it(
+      'halts with RILL-R002 when multi-key contains a closure',
+      async () => {
+        // Dict key validation rejects the closure element.
+        await expectHalt(() => run('dict[list[fn() {1}, "valid"]: "value"]'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern:
+            'Multi-key dict entry keys must be string, got fn; quote the key',
+        });
+      }
+    );
 
     it('halts when no key in a multi-key list is a string', async () => {
       // All elements are lists (arrays), so first one triggers the error
@@ -557,79 +599,106 @@ describe('Rill Runtime: Dict Dispatch', () => {
       expect(result).toEqual(['bool', 'bool', 'num', 'num']);
     });
 
-    it('halts when a multi-key element is a number', async () => {
-      await expectHalt(() => run('dict[list[0.50, 2]: "a"]'), {
-        code: 'RILL_R002',
-        hostErrorId: 'RILL-R002',
-        messagePattern:
-          'Multi-key dict entry keys must be string, got number; quote the key',
-      });
-    });
+    rule('dispatch.multi-key-string').it(
+      'halts when a multi-key element is a number',
+      async () => {
+        await expectHalt(() => run('dict[list[0.50, 2]: "a"]'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern:
+            'Multi-key dict entry keys must be string, got number; quote the key',
+        });
+      }
+    );
 
-    it('halts when a multi-key element is a bool', async () => {
-      await expectHalt(() => run('dict[list["a", true]: "x"]'), {
-        code: 'RILL_R002',
-        hostErrorId: 'RILL-R002',
-        messagePattern:
-          'Multi-key dict entry keys must be string, got bool; quote the key',
-      });
-    });
+    rule('dispatch.multi-key-string').it(
+      'halts when a multi-key element is a bool',
+      async () => {
+        await expectHalt(() => run('dict[list["a", true]: "x"]'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern:
+            'Multi-key dict entry keys must be string, got bool; quote the key',
+        });
+      }
+    );
 
-    it('halts when an ordered multi-key element is a number', async () => {
-      await expectHalt(() => run('ordered[list[1, 2]: "a"]'), {
-        code: 'RILL_R002',
-        hostErrorId: 'RILL-R002',
-        messagePattern:
-          'Multi-key dict entry keys must be string, got number; quote the key',
-      });
-    });
+    rule('dispatch.multi-key-string').it(
+      'halts when an ordered multi-key element is a number',
+      async () => {
+        await expectHalt(() => run('ordered[list[1, 2]: "a"]'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern:
+            'Multi-key dict entry keys must be string, got number; quote the key',
+        });
+      }
+    );
 
-    it('halts for a non-string element after a matching string element', async () => {
-      await expectHalt(() => run('"a" -> dict[list["a", 1]: "x"]'), {
-        code: 'RILL_R002',
-        messagePattern:
-          'Multi-key dict entry keys must be string, got number; quote the key',
-      });
-    });
+    rule('dispatch.multi-key-string').it(
+      'halts for a non-string element after a matching string element',
+      async () => {
+        await expectHalt(() => run('"a" -> dict[list["a", 1]: "x"]'), {
+          code: 'RILL_R002',
+          messagePattern:
+            'Multi-key dict entry keys must be string, got number; quote the key',
+        });
+      }
+    );
 
-    it('halts for a non-string element when the input matches no entry', async () => {
-      await expectHalt(() => run('"b" -> dict[list["a", 1]: "x"]'), {
-        code: 'RILL_R002',
-        messagePattern:
-          'Multi-key dict entry keys must be string, got number; quote the key',
-      });
-    });
+    rule('dispatch.multi-key-string').it(
+      'halts for a non-string element when the input matches no entry',
+      async () => {
+        await expectHalt(() => run('"b" -> dict[list["a", 1]: "x"]'), {
+          code: 'RILL_R002',
+          messagePattern:
+            'Multi-key dict entry keys must be string, got number; quote the key',
+        });
+      }
+    );
 
-    it('halts for a malformed entry after a matching spelled entry', async () => {
-      await expectHalt(() => run('"a" -> dict[a: 1, list[1]: "x"]'), {
-        code: 'RILL_R002',
-        messagePattern:
-          'Multi-key dict entry keys must be string, got number; quote the key',
-      });
-    });
+    rule('dispatch.multi-key-string').it(
+      'halts for a malformed entry after a matching spelled entry',
+      async () => {
+        await expectHalt(() => run('"a" -> dict[a: 1, list[1]: "x"]'), {
+          code: 'RILL_R002',
+          messagePattern:
+            'Multi-key dict entry keys must be string, got number; quote the key',
+        });
+      }
+    );
 
-    it('halts for a malformed entry whatever the input type', async () => {
-      await expectHalt(() => run('1 -> dict[list[1, 2]: "x"]'), {
-        code: 'RILL_R002',
-        messagePattern:
-          'Multi-key dict entry keys must be string, got number; quote the key',
-      });
-    });
+    rule('dispatch.multi-key-string').it(
+      'halts for a malformed entry whatever the input type',
+      async () => {
+        await expectHalt(() => run('1 -> dict[list[1, 2]: "x"]'), {
+          code: 'RILL_R002',
+          messagePattern:
+            'Multi-key dict entry keys must be string, got number; quote the key',
+        });
+      }
+    );
 
-    it('halts for an empty multi-key list in a dispatch table', async () => {
-      await expectHalt(() => run('"a" -> dict[a: 1, list[]: "x"]'), {
-        code: 'RILL_R002',
-        messagePattern: 'Multi-key dict entry requires non-empty list',
-      });
-    });
+    rule('dispatch.multi-key-string').it(
+      'halts for an empty multi-key list in a dispatch table',
+      async () => {
+        await expectHalt(() => run('"a" -> dict[a: 1, list[]: "x"]'), {
+          code: 'RILL_R002',
+          messagePattern: 'Multi-key dict entry requires non-empty list',
+        });
+      }
+    );
 
-    it('halts when a dispatch table multi-key element is a number', async () => {
-      await expectHalt(() => run('"1" -> dict[list[1, 2]: "a"]'), {
-        code: 'RILL_R002',
-        messagePattern:
-          'Multi-key dict entry keys must be string, got number; quote the key',
-      });
-    });
+    rule('dispatch.multi-key-string').it(
+      'halts when a dispatch table multi-key element is a number',
+      async () => {
+        await expectHalt(() => run('"1" -> dict[list[1, 2]: "a"]'), {
+          code: 'RILL_R002',
+          messagePattern:
+            'Multi-key dict entry keys must be string, got number; quote the key',
+        });
+      }
+    );
 
     it('expands multi-key with complex values', async () => {
       const result = await run(`
@@ -649,5 +718,18 @@ describe('Rill Runtime: Dict Dispatch', () => {
       `);
       expect(result).toBe(true);
     });
+  });
+
+  describe('Multi-Key Ordered Literals', () => {
+    rule('dispatch.multi-key-string').it(
+      'halts for an empty multi-key list in an ordered literal',
+      async () => {
+        await expectHalt(() => run('ordered[list[]: 1]'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern: 'Multi-key dict entry requires non-empty list',
+        });
+      }
+    );
   });
 });
