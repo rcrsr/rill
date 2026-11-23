@@ -95,21 +95,6 @@ Concepts stated here but not built for 0.24.0. Their open questions do not block
 
 ## Known inconsistencies
 
-Observed disagreements between built rules, or between a rule and the runtime, collected before
-anyone decides them. Each is a candidate for a decision, not a rule. None has an issue yet, and
-none blocks 0.24.0. When one is decided, file the issue, write the pending rule, and remove the
-row. `pnpm ref check` does not read this table.
-
-### Host property functions and `self`
-
-`selection.property` calls a host property function the host counterpart of a held block
-(`code-block.access`). The two behave differently in each row below.
-
-| Inconsistency | Held block | Host property function | Concept |
-|---------------|------------|------------------------|---------|
-| What the body sees on access | The enclosing `$` (`code-block.access`), so `$d.c` at top level halts RILL-R005. Dispatch binds the selector (`code-block.dispatch`) | The collection it is selected from, as `self`, under every selecting form | `selection`, `code-block` |
-| Reads that select no entry | Halt `#TYPE_MISMATCH` (`code-block.non-selecting`) | Pass the function through uncalled: `.values`, `.entries`, and `seq` yield it as a value | `selection`, `code-block` |
-| Receivers that run it | A list or tuple element runs on selection | Only a dict or ordered receiver runs it: `list[$p] => $l` then `$l[0]` returns it uncalled | `selection` |
-| Shape of `self` | Not applicable | A dict arrives as a plain record, an ordered as its internal `__rill_ordered` form | `selection`, `host-boundary` |
-| An argument replaces `self` | Not applicable | `self` is the function's first parameter, so `$d.f(1)` passes `1` as `self` and drops the receiver | `selection`, `invocation` |
-| A bare call | Not applicable | `$p()` halts RILL-R044 naming the parameter `self`, not the rule that the function runs only when selected | `invocation` |
+[INCONSISTENCIES.md](INCONSISTENCIES.md) collects observed disagreements between built rules, or
+between a rule and the runtime, that nobody has decided yet. None is a rule. 0.24.0 does not ship
+until [#670](https://github.com/rcrsr/rill/issues/670) decides each one.
