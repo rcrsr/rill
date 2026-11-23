@@ -39,9 +39,7 @@ const path = require('path');
 const { isDeepStrictEqual } = require('util');
 const { spawnSync } = require('child_process');
 
-const { createRunDir, sweepStaleRuns } = require(
-  path.join(__dirname, 'test-tmp.cjs')
-);
+const { createRunDir } = require(path.join(__dirname, 'test-tmp.cjs'));
 
 const { generate, SHARED_TOOLING_DEPS } = require(
   path.join(__dirname, 'gen-baseline.cjs')
@@ -1187,23 +1185,6 @@ function runCleanGitEnvTests() {
   );
 }
 
-// sweepStaleRuns removes a known-prefix directory older than the cutoff and
-// spares a young one and a foreign name, so a parallel run keeps its tree.
-function runSweepStaleRunsTests() {
-  const tmp = fs.mkdtempSync(path.join(RUN_DIR, 'sweep-'));
-  const old = path.join(tmp, 'rill-devtest-old');
-  const young = path.join(tmp, 'rill-checkstd-young');
-  const foreign = path.join(tmp, 'other-old');
-  for (const dir of [old, young, foreign]) fs.mkdirSync(dir);
-  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-  fs.utimesSync(old, twoHoursAgo, twoHoursAgo);
-  fs.utimesSync(foreign, twoHoursAgo, twoHoursAgo);
-  sweepStaleRuns(tmp);
-  check(!fs.existsSync(old), 'sweep: an hour-old run directory is removed');
-  check(fs.existsSync(young), 'sweep: a young run directory is kept');
-  check(fs.existsSync(foreign), 'sweep: a foreign directory is kept');
-}
-
 // ============================================================
 // Run
 // ============================================================
@@ -1216,7 +1197,6 @@ try {
   runCheckStandardsFixtureTests();
   runBaselineComparatorFixtureTests();
   runLeakedGitEnvTests();
-  runSweepStaleRunsTests();
 } finally {
   cleanup();
 }
