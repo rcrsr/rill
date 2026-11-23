@@ -104,7 +104,7 @@ One row per PR. Tick a row when its PR merges.
 | 8 | `types/scalars` | 7 | 124 | 0 | #676 |
 | 9 | `types/typing` | 8 | 122 | 0 | #676 |
 | 10 | `variables` | 3 | 27 | 0 | #676 |
-| 11 | `expressions` | 13 | 137 | 2 | |
+| 11 | `expressions` | 13 | 137 | 2 | #676 |
 | 12 | `callables` | 3 | 33 | 15 | |
 | 13 | `control-flow` | 5 | 43 | 31 | |
 | 14 | `collections` | 7 | 53 | 47 | |
