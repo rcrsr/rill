@@ -3,7 +3,7 @@
 *Observed disagreements in the reference, collected before anyone decides them.*
 
 Each row is a disagreement between two built rules, or between a rule and the runtime. A row is a
-candidate for a decision, never a rule. `pnpm ref lint` and `pnpm ref check` do not read this file.
+candidate for a decision, never a rule. `pnpm ref lint` and `pnpm ref check` do not treat this file as a concept.
 
 [#670](https://github.com/rcrsr/rill/issues/670) reviews every concept file and decides every row
 here. 0.24.0 does not ship until it closes.

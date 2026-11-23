@@ -7,6 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { anyTypeValue, type RillValue } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
 
@@ -18,10 +19,32 @@ describe('Rill Runtime: declared list literal with mixed elements', () => {
     });
   });
 
-  it('halts at the literal, before the capture binds', async () => {
-    await expectHalt(() => run('list(number)[1, "a"] => $x\n"unreached"'), {
-      code: 'TYPE_MISMATCH',
-    });
+  it('halts at the literal, before the value reaches its pipe target', async () => {
+    const received: RillValue[] = [];
+    await expectHalt(
+      () =>
+        run('list(number)[1, "a"] -> see', {
+          functions: {
+            see: {
+              params: [
+                {
+                  name: 'v',
+                  type: undefined,
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
+              returnType: anyTypeValue,
+              fn: (args: Record<string, RillValue>): RillValue => {
+                received.push(args['v'] ?? null);
+                return '';
+              },
+            },
+          },
+        }),
+      { code: 'TYPE_MISMATCH' }
+    );
+    expect(received).toEqual([]);
   });
 
   it('recovers through guard with code #TYPE_MISMATCH', async () => {

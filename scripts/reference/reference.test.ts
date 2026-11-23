@@ -315,6 +315,18 @@ describe('checkCorpus', () => {
     expect(checkRepo({ 'reference/one/alpha.md': one })).toEqual([]);
   });
 
+  it('keeps the files that describe the reference out of the corpus', () => {
+    const exempt = ['FORMAT.md', 'CLAUDE.md', 'INCONSISTENCIES.md'];
+    const files: Record<string, string> = { 'reference/one/alpha.md': one };
+    for (const name of exempt) {
+      files[`reference/${name}`] = `# ${name}\n\n## Not a section\n`;
+    }
+    const root = makeRepo(files);
+    const corpus = loadCorpus(root, path.join(root, 'reference'));
+    expect(corpus.files.map((f) => f.path)).toEqual(['reference/one/alpha.md']);
+    expect(checkRepo(files)).toEqual([]);
+  });
+
   it('rejects duplicate concept ids and rule ids across files', () => {
     const codes = checkRepo({
       'reference/one/alpha.md': one,
