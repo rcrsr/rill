@@ -3,7 +3,7 @@
 acc d523d5e611c5 break.seq@e47b3a30461b fold.arity@cb3ad938d3ab
 acc.result 0d21f65369ea
 acc.threading 969feccaedba fold.accumulator@e19bdd8e9418 fold.order@5265485c3760 fold.seed-required@ce6ea3aae1d0 fold.unnamed@03ced95fe53b
-annotation 9dc93bf06a29 introspection.annotations@b4c71df09996 introspection.annotations-tuple@b8ad2c2fd7fa
+annotation 4d28dc2fd296 annotation.spread-dict@4e60ef06a20c introspection.annotations@b4c71df09996 introspection.annotations-tuple@b8ad2c2fd7fa
 annotation-access 8b3d6b558d16 annotation-access.no-params@3d47ace54fa0 annotation.attach@31bfd3e68c4d introspection.annotations@b4c71df09996 introspection.type-probe@98d4ed5945dd
 annotation-access.fallback 04bd31e1f425 vacancy.fallback@a8ddb8c219f9
 annotation-access.missing db2b8f7c2690
@@ -16,11 +16,15 @@ annotation.attach 31bfd3e68c4d
 annotation.inert 085a07fc0f22
 annotation.key fbb35a86fb42
 annotation.limit-in-call 7562e390efe5
+annotation.newline bb47c3af6468
 annotation.positions 87659aeb21af
 annotation.repeat-key baba8a6ebf2f
 annotation.reserved 1c783a27813a
 annotation.shorthand 775a2d4447b1
+annotation.spread 4d9983deb3dd annotation.repeat-key@baba8a6ebf2f
+annotation.spread-dict 4e60ef06a20c
 annotation.stack 2490423f9120
+annotation.target 134fe3feb1a4
 annotation.values 1a314342136c
 any 6ac6864f3c91 dict.empty-parens@c8b91cfc3a0e fn.empty@c49f1cdccf0d introspection.bare@4675364a5ade introspection.leaf@c3102e0c1886 list.unspecified@546466e216ff ordered.empty-parens@dee46359e906 stream.unspecified@6d472df28d3e tuple.unspecified@171dd6d58c4c union.empty@1f0396741c84
 any.admits 7b4420687b3a
@@ -381,6 +385,13 @@ fold.order 5265485c3760
 fold.result a5af7216b700
 fold.seed-required ce6ea3aae1d0
 fold.unnamed 03ced95fe53b
+frontmatter 4fa10cf5eaa6 frontmatter.extra-dash@441bbe08e668 frontmatter.position@577f758aa193 frontmatter.removed-key@f19008e24bfa frontmatter.unclosed@a8d6a6fea972 source-text.bom@001bee70e496 statement.empty@becdea941ba2
+frontmatter.close 57cf308d4d19
+frontmatter.extra-dash 441bbe08e668
+frontmatter.inert bd2a9d84392a frontmatter.removed-key@f19008e24bfa
+frontmatter.position 577f758aa193
+frontmatter.removed-key f19008e24bfa
+frontmatter.unclosed a8d6a6fea972
 guard.catch bf78f704cbc6
 guard.dollar 1f03b764b461
 guard.non-catchable 8144d6897ddd halt.non-catchable@8eb8c26644b7
@@ -705,12 +716,18 @@ spread.list-uniform 0fe0b7347088
 spread.one-argument e60c846f1c3a
 spread.operand c72f7d9eace7
 spread.piped 8148896d97d1
+statement c4e01486297b declaration.newline@4940ddd989bc statement.empty@becdea941ba2 statement.leading-operator@a7ccbe804d60 whitespace.comment@ba7e0874142f
 statement.block-dollar 35d308739644
 statement.continuation 64a317c3fb8c
+statement.empty becdea941ba2
+statement.leading-bracket 9ca93a8be55d
+statement.leading-operator a7ccbe804d60
 statement.no-carry 4dadd2889ba7
 statement.order 98a74d8dbe9c
 statement.result 4c84cfa0816c
 statement.return 231d6a34b48f
+statement.same-line 8f05b22c7bb9
+statement.trailing-operator 2500dddd9eaf
 statement.variables f7af6b5ed81e
 stream.accepts 4f01ef73eede
 stream.chunk 6198ae79278a

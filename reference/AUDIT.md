@@ -97,7 +97,7 @@ One row per PR. Tick a row when its PR merges.
 | 1 | Setup and sweeps | 68 | 837 | 606 | #676 |
 | 2 | `conventions` | 2 | 15 | 1 | #676 |
 | 3 | `lexical` (write) | 5 | 23 | 0 | #676 |
-| 4 | `program` | 2 | 17 | 17 | |
+| 4 | `program` | 3 | 32 | 0 | |
 | 5 | `values` | 3 | 29 | 27 | |
 | 6 | `types/constructors` | 8 | 149 | 61 | |
 | 7 | `types/model` | 6 | 70 | 54 | |
@@ -143,8 +143,9 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `program/annotation.md` | 10 | 10 | | | | |
-| `program/statement.md` | 7 | 7 | | | | |
+| `program/annotation.md` | 14 | 0 | x | x | x | x |
+| `program/frontmatter.md` | 6 | 0 | x | x | x | x |
+| `program/statement.md` | 12 | 0 | x | x | x | x |
 
 ### `values`
 
@@ -284,19 +285,6 @@ Each gets a table when its PR splits it into concepts.
 What the sweeps found that no rule states yet, routed to the slice that owns it. A slice works its
 backlog in the Complete and Cited columns: probe each item, then write a rule or record why none is
 needed. Strike nothing here; the slice PR deletes the items it settles.
-
-### `program`
-
-- Grammar: `frontmatter`, `yaml-line`, `yaml-char`, `annotation`, `annotation-arg`,
-  `annotation-args`, `annotated-expr`.
-- Errors: RILL-P023 (malformed frontmatter close), RILL-R060 (removed frontmatter key).
-- Tests: `frontmatter.test.ts`, `whitespace-continuations.test.ts`.
-- Docs: frontmatter at the top of a script; the leading continuation set (`?`, `!`, `.name`,
-  `.?`, beyond `->` and `=>`); a binary operator such as `&&` or `+` at line start halts
-  RILL-P001; a block with statements on its brace lines; the script result as an exit code.
-- Two statements may share a line: `1 2` yields `2`. An empty or comment-only script halts
-  RILL-R043.
-- Docs: an annotation on an argument or entry attaches to the function or held block.
 
 ### `types/constructors`
 
@@ -467,3 +455,8 @@ at a897cfc3 unless they say otherwise.
 | `lexical/token.md` | An unclosed `{` or bare `(` halts RILL-P001; an unclosed `(1 + 2` or `list[` halts RILL-P005 | Collected in INCONSISTENCIES.md |
 | `lexical/source-text.md` | A lone carriage return is a space outside strings but ends a one-line string with RILL-L001 | Collected in INCONSISTENCIES.md |
 | `host-boundary/use.md`, `expressions/destruct.md`, `expressions/slice.md` | `destruct <` and `slice <` halt RILL-P001; `use <` halts RILL-P007 | Collected in INCONSISTENCIES.md |
+| `program/statement.md` | A leading `.name`, `:type`, `.?`, or `.!`, and a trailing `.`, `.?`, or `??`, continue a line after some receivers and not others | Collected in INCONSISTENCIES.md |
+| `program/statement.md` | A leading binary operator halts RILL-P001 at statement level and RILL-P005 inside brackets | Collected in INCONSISTENCIES.md |
+| `program/annotation.md` | A spread stores the reserved keys; a later string sets `description`; `^(limit: N)` halts in every expression position; type arguments take annotations unevenly | Collected in INCONSISTENCIES.md |
+| `program/annotation.md`, `program/frontmatter.md` | The `annotation-arg` and `yaml-char` productions disagree with the runtime and the rules | Collected in INCONSISTENCIES.md |
+| `program/frontmatter.md` | Text after a delimiter on its line is accepted: frontmatter text on the opening line, a statement on the closing line | Collected in INCONSISTENCIES.md |

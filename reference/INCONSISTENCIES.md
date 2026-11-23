@@ -58,3 +58,31 @@ filed as a defect.
 | A carriage return with no line feed after it | `source-text.line-end` names only LF and CR LF | Outside a string, `1` CR `+ 2` returns 3 and a comment runs past it, so it acts as a space. Inside a one-line string it halts RILL-L001, pinned by `lexer.test.ts`. Probed at a70ec9dc | `source-text`, `string` |
 | Whitespace between an angle-opener keyword and `<` | `use.adjacent` halts RILL-P007, and the RILL-P007 registry entry names `use<`, `destruct<`, and `slice<` | `list[1, 2] -> destruct <$a, $b>` and `slice <0:1>` halt RILL-P001. Probed at a70ec9dc | `use`, `destruct`, `slice` |
 | Halts that carry only an error code | `halt.error-id`: every halt carries an error id | `1 == "1"` halts `#TYPE_MISMATCH` and a call after `dispose()` halts `#DISPOSED`, each a `RuntimeHaltSignal` with no `errorId`. `error`, `assert`, and RILL-R010 halts carry one. Probed at 0a3f5a6b | `halt` |
+| A reserved annotation key reached through a spread | `annotation.reserved`: the keys `type` and `effective` are rejected with RILL-P001 | `dict[type: 1, effective: 2] => $o` then `^(...$o) fn(x) { $x } => $f` stores both: `$f.?^type` and `$f.?^effective` are `true`. Probed at 43a2995e | `annotation` |
+| A string after the first annotation argument | `annotation.shorthand` and the `annotation-args` production: only a leading string is the description | `^(k: 1, "d") fn(x) { $x }` sets `description` to `"d"`, and `^("a", "b")` sets it to `"b"`. Probed at 43a2995e | `annotation` |
+| Annotation argument values | The `annotation-arg` production: `identifier , ":" , literal`, with no spread | `annotation.values` and `annotation.spread` accept any expression and `...$d`, and the runtime agrees with them. Probed at 43a2995e | `annotation` |
+| Characters on a frontmatter line | The `yaml-char` production allows letters, digits, and `: -_.[],'"` | `---`, `k: é 😀 @ # $ ! ;`, `---`, `1` returns `1`, and `frontmatter.test.ts` pins Unicode, `@`, `#`, `$`, and `!`. Probed at 43a2995e | `frontmatter` |
+
+## Line continuation
+
+Forms that read alike continue across a line ending in some places and not others. Probed at
+43a2995e.
+
+| Inconsistency | One form | The other form | Concept |
+|---------------|----------|----------------|---------|
+| A leading `.name` or `:type` | After a variable, a value literal, a grouped expression, or a member access it continues: `list[1, 2]` then `.len` yields `2`, and `5` then `:?number` yields `true`, both pinned by `whitespace-continuations.test.ts` and `statement-boundaries.test.ts` | After a `fn` literal both halt RILL-P001, and `fn(x) { $x }` then `.len` is pinned as two statements. After `-> number` `.^type` halts RILL-P001. After `-> { $ }` `.len` starts a statement and `:string` halts RILL-P001. After `true ? "ab" ! "c"`, `.len` joins the else branch and the result is `"ab"` | `statement`, `selection`, `assertion` |
+| A trailing `.` | After a variable or a pipe target it continues: `$d.` then `a` yields `1`, and `"hello" -> .` then `upper` is pinned by `whitespace-continuations.test.ts` | After a literal it halts RILL-P001: `"ab".` then `len`, and `dict[a: 1].` then `a` | `statement`, `selection` |
+| A leading `.?` | After a variable or an index it continues: `$d` then `.?a` yields `true` | After a literal it halts RILL-P001: `"ab"` then `.?len`, and `dict[a: 1]` then `.?a`. A leading `.name` continues after both | `statement`, `existence` |
+| `.!` and `.?` across a line ending | A trailing `.!` continues: `$d.!` then `a` reads `$d.!a`. A leading `.?` continues after a variable | A leading `.!` halts RILL-P001: `$d` then `.!a`, and `5` then `.!`. A trailing `.?` does not continue: `$d.?` then `a` calls `a` and halts RILL-R006 | `statement`, `existence` |
+| A trailing `??` | Every other binary operator continues: `1 +` then `2` yields `3` (`statement.trailing-operator`) | `1 ??` then `2` halts RILL-P001 "Unexpected token: newline", also inside `(...)` | `statement` |
+| A leading binary operator inside brackets | At the top level of a statement it halts RILL-P001 (`statement.leading-operator`) | Inside `(...)` or `[...]` it halts RILL-P005: `(1` then `+ 2)`, `(true` then `&& false)`, and `dict[a: 1` then `+ 1]` | `statement` |
+
+## Annotation and frontmatter forms
+
+Probed at 43a2995e.
+
+| Inconsistency | One form | The other form | Concept |
+|---------------|----------|----------------|---------|
+| An annotation before a type argument | `annotation.positions`: rejected before a `list` element type. `list(^(k: 1) number)`, `map(^(k: 1) string, number)`, `union(^(k: 1) number, string)`, and `fn(x: list(^(k: 1) number))` halt RILL-P001 | `stream(^(k: 1) number)` returns `stream(number)`, and `dict(a: list(^(k: 1) number))` returns `dict(a: list(number))` | `annotation` |
+| Where `^(limit: N)` is rejected | `annotation.limit-in-call`: before a function argument it halts RILL-R081 | It halts RILL-R081 before any annotated expression: a dict entry, a list element, and a conditional branch. At statement level `^(limit: 5) fn(x) { $x } => $f` is accepted and `$f.^limit` is `5` | `annotation` |
+| Text after a frontmatter delimiter | The `frontmatter` production: each delimiter is `---` then a line ending. A closing `----` halts RILL-P023 (`frontmatter.extra-dash`) | An opening `----` or `--- x` is accepted and `-` or `x` becomes the first line of frontmatter text. A closing `--- 2` is accepted and `2` runs as a statement | `frontmatter` |
