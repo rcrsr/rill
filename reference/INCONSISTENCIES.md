@@ -23,7 +23,8 @@ here. 0.24.0 does not ship until it closes.
 3. Write the decided behavior as a `{pending #N}` rule in the owning concept.
 4. Remove the row. Remove the heading when no row remains under it.
 
-A defect, where the runtime breaks a rule nobody disputes, is not a row here. File it as an issue.
+A defect, where the runtime breaks a rule nobody disputes, is not a row here. While the audit is
+open it goes in the [AUDIT.md](AUDIT.md) Findings table; otherwise file it as an issue.
 
 ## Host property functions and `self`
 

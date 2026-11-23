@@ -21,6 +21,7 @@ concept.
 | Do the unwritten chapters gate 0.24.0? | Yes, all three. |
 | Where do citations go? | In the locked suite. A `rule(...)` citation on an existing test, or a new test for an untested rule, is an allowed lock change. One lock update per PR, with `bash scripts/check-test-lock.sh --update`. Never change an existing test's body to make a rule pass. |
 | How does the work land? | One PR per slice in the Progress table, in that order. |
+| When are defects filed? | After the last chapter slice. Each slice adds its defects to [Findings](#findings) as `Collected`, with the probe evidence. Slice 19 groups them by root cause and files one issue per group. A defect that blocks a slice is filed at once. |
 
 ## Per-file checklist
 
@@ -29,7 +30,7 @@ A file is done when all four columns are ticked in the Files tables below.
 1. **Correct.** Probe every rule against `packages/core/dist`, per [CLAUDE.md](CLAUDE.md) "Probing
    the runtime", edges included: empty input, wrong kind, extra and missing arguments, nesting,
    and `guard`. Verify each Catchable cell by running the source inside `guard`. A rule the runtime
-   breaks is a defect: file it and list it under Findings. Never edit the rule to match.
+   breaks is a defect: add it to Findings as `Collected`. Never edit the rule to match.
 2. **Consistent.** Compare each rule with its own examples and Notes, with the concepts it cites,
    and with every equivalent form elsewhere (the "Consistency over scope" rule in the root
    `CLAUDE.md`). Remove a fact stated by two owners from the one it does not belong to. Record
@@ -80,7 +81,7 @@ The last row in Progress:
 
 - `pnpm ref check` reports 0 `uncited-rule`. `uncited-rule` becomes an error, so a new uncited rule
   fails CI.
-- [INCONSISTENCIES.md](INCONSISTENCIES.md) has no rows.
+- [INCONSISTENCIES.md](INCONSISTENCIES.md) has no rows, and no Findings row is `Collected`.
 - The README "Test citation is incomplete during the pilot" sentence and the matching line in
   [CLAUDE.md](CLAUDE.md) "Tests" are removed.
 - `pnpm ref lint`, `pnpm ref check`, `pnpm ref check --issues`, `pnpm test:examples`, and `pnpm check`
@@ -110,8 +111,9 @@ One row per PR. Tick a row when its PR merges.
 | 16 | `limits` (write) | 0 | 0 | 0 | |
 | 17 | `host-boundary` | 1 | 14 | 11 | |
 | 18 | `builtins` (write) | 0 | 0 | 0 | |
-| 19 | Decide the inconsistencies | | | | |
-| 20 | Close the audit | | | | |
+| 19 | Group and file defects | | | | |
+| 20 | Decide the inconsistencies | | | | |
+| 21 | Close the audit | | | | |
 
 At the start, on `main` at 3e0f88f7: 68 files, 837 rules, 606 uncited.
 
@@ -382,8 +384,8 @@ needed. Strike nothing here; the slice PR deletes the items it settles.
 
 - Unstated: the output cap of `take`, `batch`, `window`, `start_when`, and `stop_when`; the
   `take` and `skip` step walk; call depth (`maxCallDepth`, 1000); calls in flight; the host
-  `timeout` option (RILL-R012); parser nesting (RILL-P015, #673); `.repeat` and `.pad_*` result
-  size; the datetime range (#673); the `use<>` branding cap (RILL-R090).
+  `timeout` option (RILL-R012); parser nesting (RILL-P015); `.repeat` and `.pad_*` result size;
+  the datetime range; the `use<>` branding cap (RILL-R090).
 - Partial: `timeout` expiry names no error id; the `iterate` step cap is only implied by
   `iteration.expansion`.
 - Which RILL-R010 sites are catchable, which `halt.non-catchable` leaves unnamed.
@@ -406,7 +408,7 @@ needed. Strike nothing here; the slice PR deletes the items it settles.
 - `duration`, 12 with no rule: the component readers, `total_ms`, `display`, `zero`, `add`,
   `subtract`, `multiply`. `vector`, 7 with no rule: `dimensions`, `model`, `similarity`, `dot`,
   `distance`, `norm`, `normalize`.
-- Errors: RILL-R007 (undefined method, #672), RILL-R011 (regex), RILL-R040, RILL-R074 (vector).
+- Errors: RILL-R007 (undefined method), RILL-R011 (regex), RILL-R040, RILL-R074 (vector).
 - Tests: `methods.test.ts`, `variable-method-calls.test.ts`, `chain.test.ts`,
   `collection-slicing.test.ts`, `iterate.test.ts`.
 - `datetime.md` and `duration.md` point forward to this chapter; repoint them when it lands.
@@ -426,14 +428,26 @@ script.
 
 ## Findings
 
-Defects filed and decisions made during the audit. An omission or inconsistency fixed in a PR needs
-no row; the PR names it.
+Defects and decisions found during the audit. An omission or inconsistency fixed in a PR needs no
+row; the PR names it. A defect stays `Collected` until slice 19 files it, then its Outcome names
+the issue. Each row carries enough evidence to file without probing again. Rows below were probed
+at a897cfc3 unless they say otherwise.
 
 | File | Finding | Outcome |
 |------|---------|---------|
-| `expressions/selection.md` | `.name` on a list, tuple, or string literal halts RILL-R007, not RILL-R003 (`selection.no-name`) | Filed #672 |
-| `limits` | The timer ceiling, datetime range, and parser nesting limits apply inconsistently | Filed #673 |
-| `docs/llm/`, error registry | Six doc claims and two error resolutions contradict the reference or runtime | Filed #674 |
+| `expressions/selection.md` | `.name` on a literal receiver halts RILL-R007, not RILL-R003 (`selection.no-name`): `list[1].a`, `tuple[1, 2].a`, and `"abc".a` halt RILL-R007 "Unknown method". `$l.a` and `$n.a` on variables halt RILL-R003 | Collected |
+| `expressions/selection.md`, `builtins` | RILL-R003 catchability differs by site: `list[1] -> .keys` halts RILL-R003 and escapes `guard`; `$l.a` halts RILL-R003 and `guard` catches it | Collected |
+| `limits` | The 2147483647 ms timer ceiling applies to `timeout(...)` only. `range(0, 2) -> debounce(duration(...dict[ms: 2147483648]))` returns; `throttle`, `sample`, and `batch(idle_flush:)` also skip the check | Collected |
+| `limits`, `types/scalars/datetime.md` | The datetime range is checked only on print: `datetime(...dict[unix: 8640000000000001])` builds and returns `.unix`; interpolating it halts `#INVALID_INPUT` | Collected |
+| `limits` | RILL-P015 `MAX_NESTING` is 150, but it fires at 75 nested parentheses or `list[`, and 76 nested blocks | Collected |
+| `docs/llm/cheatsheet.txt:55` | Says failures are "uncatchable"; `guard { 1 == "1" }` catches `#TYPE_MISMATCH` (`halt.catchable`) | Collected |
+| `docs/llm/cheatsheet.txt:92`, `anti-patterns.txt:400` | Say a space after `#` is required; `1 #1` and `1 #!x` run as comments (`atom.comment`) | Collected |
+| `docs/llm/errors.txt:141` | Lists `0` and `false` as vacant; `0 ?? 5` is `0` (`vacancy.zero-false`) | Collected |
+| `docs/llm/stdlib.txt:260,266`, `control-flow.txt:157-176` | Show `start_when` on a list returning a stream; it returns a list | Collected |
+| `docs/llm/anti-patterns.txt:290` | Says `.len` is not a method call; `list[1, 2] -> .len()` returns 2 | Collected |
+| `docs/llm/anti-patterns.txt:235` | `$l -> list(number)[0]` halts RILL-R009 because `$l` acts as a dispatch path, not for the reason given | Collected |
+| `error-registry.ts` RILL-R012 | Recommends a `^(timeout: ms)` annotation; `^(timeout: 10) slow()` on a 200 ms host function returns | Collected |
+| `error-registry.ts` RILL-R010 | Says to raise the iteration limit "via RuntimeOptions"; no such option exists | Collected |
 | `collections/iteration.md` | RILL-R010 from `take` and `skip` is catchable; the Errors row says No | Collected in INCONSISTENCIES.md |
 | `expressions/interpolation.md` | A datetime interpolates, but its string conversion halts RILL-R036 | Collected in INCONSISTENCIES.md |
 | `callables/code-block.md` | A suffix on a construct body checks the construct's result, not each run | Collected in INCONSISTENCIES.md |
