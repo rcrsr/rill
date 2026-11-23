@@ -61,29 +61,44 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
   // ── Success Cases ────────────────────────────────────────────────────────
 
   describe('Success Cases', () => {
-    it('AC-1: seq maps list elements sequentially', async () => {
-      expect(await run('list[1, 2, 3] -> seq({ $ * 2 })')).toEqual([2, 4, 6]);
-    });
+    rule('seq.result', 'iteration.list').it(
+      'AC-1: seq maps list elements sequentially',
+      async () => {
+        expect(await run('list[1, 2, 3] -> seq({ $ * 2 })')).toEqual([2, 4, 6]);
+      }
+    );
 
-    it('AC-2: fan maps list elements in parallel', async () => {
-      expect(await run('list[1, 2, 3] -> fan({ $ * 2 })')).toEqual([2, 4, 6]);
-    });
+    rule('fan.result').it(
+      'AC-2: fan maps list elements in parallel',
+      async () => {
+        expect(await run('list[1, 2, 3] -> fan({ $ * 2 })')).toEqual([2, 4, 6]);
+      }
+    );
 
-    it('AC-3: fold reduces list to final accumulator value', async () => {
-      expect(await run('list[1, 2, 3] -> fold(0, { $@ + $ })')).toBe(6);
-    });
+    rule('fold.accumulator', 'fold.result').it(
+      'AC-3: fold reduces list to final accumulator value',
+      async () => {
+        expect(await run('list[1, 2, 3] -> fold(0, { $@ + $ })')).toBe(6);
+      }
+    );
 
-    it('AC-4: acc builds running total (scan pattern)', async () => {
-      expect(await run('list[1, 2, 3] -> acc(0, { $@ + $ })')).toEqual([
-        1, 3, 6,
-      ]);
-    });
+    rule('acc.result').it(
+      'AC-4: acc builds running total (scan pattern)',
+      async () => {
+        expect(await run('list[1, 2, 3] -> acc(0, { $@ + $ })')).toEqual([
+          1, 3, 6,
+        ]);
+      }
+    );
 
-    it('AC-5: filter keeps elements where predicate is true', async () => {
-      expect(await run('list[1, 2, 3, 4] -> filter({ ($ % 2) == 0 })')).toEqual(
-        [2, 4]
-      );
-    });
+    rule('filter.keep').it(
+      'AC-5: filter keeps elements where predicate is true',
+      async () => {
+        expect(
+          await run('list[1, 2, 3, 4] -> filter({ ($ % 2) == 0 })')
+        ).toEqual([2, 4]);
+      }
+    );
 
     it('AC-6: fan with method-call body', async () => {
       expect(await run('list["a", "b"] -> fan({ $.upper() })')).toEqual([
@@ -92,13 +107,16 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       ]);
     });
 
-    it('AC-7: seq with variable-bound callable', async () => {
-      const script = `
+    rule('iteration.dollar').it(
+      'AC-7: seq with variable-bound callable',
+      async () => {
+        const script = `
         fn(x) { $x * 10 } => $fn
         list[1, 2] -> seq($fn)
       `;
-      expect(await run(script)).toEqual([10, 20]);
-    });
+        expect(await run(script)).toEqual([10, 20]);
+      }
+    );
 
     it('AC-8: fold with single named-param function halts RILL-R045', async () => {
       // fold passes element and accumulator; a one-param function takes an excess argument.
@@ -108,17 +126,23 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       );
     });
 
-    it('AC-9 (acc): two-type anonymous closure parses and binds in acc', async () => {
-      expect(
-        await run('list[1, 2, 3] -> acc(0, fn(number, number) { $@ + $ })')
-      ).toEqual([1, 3, 6]);
-    });
+    rule('acc.threading').it(
+      'AC-9 (acc): two-type anonymous closure parses and binds in acc',
+      async () => {
+        expect(
+          await run('list[1, 2, 3] -> acc(0, fn(number, number) { $@ + $ })')
+        ).toEqual([1, 3, 6]);
+      }
+    );
 
-    it('AC-9 (fold): two-type anonymous closure parses and binds in fold', async () => {
-      expect(
-        await run('list[1, 2, 3] -> fold(0, fn(number, number) { $@ + $ })')
-      ).toBe(6);
-    });
+    rule('fold.unnamed').it(
+      'AC-9 (fold): two-type anonymous closure parses and binds in fold',
+      async () => {
+        expect(
+          await run('list[1, 2, 3] -> fold(0, fn(number, number) { $@ + $ })')
+        ).toBe(6);
+      }
+    );
 
     it('AC-10: fan with concurrency cap processes all elements in order', async () => {
       const items = Array.from({ length: 20 }, (_, i) => i + 1);
@@ -153,11 +177,14 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       expect(await run('list[1, 2, 3] -> fold(0, { $@ + $ })')).toBe(6);
     });
 
-    it('fold string concatenation reduces to joined string', async () => {
-      expect(await run('list["a", "b", "c"] -> fold("", { "{$@}{$}" })')).toBe(
-        'abc'
-      );
-    });
+    rule('fold.order').it(
+      'fold string concatenation reduces to joined string',
+      async () => {
+        expect(
+          await run('list["a", "b", "c"] -> fold("", { "{$@}{$}" })')
+        ).toBe('abc');
+      }
+    );
 
     it('fold product reduction', async () => {
       expect(await run('list[1, 2, 3, 4] -> fold(1, { $@ * $ })')).toBe(24);
@@ -218,29 +245,47 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
   // ── Boundary Conditions ──────────────────────────────────────────────────
 
   describe('Boundary Conditions', () => {
-    it('AC-27/BC-1: empty list through seq returns empty list', async () => {
-      expect(await run('list[] -> seq({ $ * 2 })')).toEqual([]);
-    });
+    rule('seq.result', 'iteration.empty').it(
+      'AC-27/BC-1: empty list through seq returns empty list',
+      async () => {
+        expect(await run('list[] -> seq({ $ * 2 })')).toEqual([]);
+      }
+    );
 
-    it('BC-2: empty list through fan returns empty list', async () => {
-      expect(await run('list[] -> fan({ $ * 2 })')).toEqual([]);
-    });
+    rule('fan.result').it(
+      'BC-2: empty list through fan returns empty list',
+      async () => {
+        expect(await run('list[] -> fan({ $ * 2 })')).toEqual([]);
+      }
+    );
 
-    it('BC-3: empty list through filter returns empty list', async () => {
-      expect(await run('list[] -> filter({ $ > 0 })')).toEqual([]);
-    });
+    rule('filter.keep').it(
+      'BC-3: empty list through filter returns empty list',
+      async () => {
+        expect(await run('list[] -> filter({ $ > 0 })')).toEqual([]);
+      }
+    );
 
-    it('AC-28/BC-NOD-2: empty list through fold returns seed unchanged', async () => {
-      expect(await run('list[] -> fold(10, { $@ + $ })')).toBe(10);
-    });
+    rule('fold.result').it(
+      'AC-28/BC-NOD-2: empty list through fold returns seed unchanged',
+      async () => {
+        expect(await run('list[] -> fold(10, { $@ + $ })')).toBe(10);
+      }
+    );
 
-    it('AC-29/BC-NOD-3: empty list through acc returns empty list', async () => {
-      expect(await run('list[] -> acc(10, { $@ + $ })')).toEqual([]);
-    });
+    rule('acc.result').it(
+      'AC-29/BC-NOD-3: empty list through acc returns empty list',
+      async () => {
+        expect(await run('list[] -> acc(10, { $@ + $ })')).toEqual([]);
+      }
+    );
 
-    it('AC-30/BC-4: string input through seq returns list of processed characters', async () => {
-      expect(await run('"abc" -> seq({ $.upper })')).toEqual(['A', 'B', 'C']);
-    });
+    rule('iteration.string').it(
+      'AC-30/BC-4: string input through seq returns list of processed characters',
+      async () => {
+        expect(await run('"abc" -> seq({ $.upper })')).toEqual(['A', 'B', 'C']);
+      }
+    );
 
     it('AC-31/BC-5: dict input through fan returns list of values', async () => {
       const result = (await run(
@@ -251,9 +296,14 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       expect(result).toContain(2);
     });
 
-    it('AC-32/BC-6: iterator (range) input through seq', async () => {
-      expect(await run('range(0, 3) -> seq({ $ * 10 })')).toEqual([0, 10, 20]);
-    });
+    rule('iteration.iterator').it(
+      'AC-32/BC-6: iterator (range) input through seq',
+      async () => {
+        expect(await run('range(0, 3) -> seq({ $ * 10 })')).toEqual([
+          0, 10, 20,
+        ]);
+      }
+    );
 
     it('AC-33/BC-7: stream input through fan dispatches parallel', async () => {
       const script = `
@@ -267,11 +317,14 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       ).toEqual([2, 4, 6]);
     });
 
-    it('AC-34/BC-8: iteration count > 10000 raises RILL-R010', async () => {
-      await expect(run('range(0, 10001) -> seq({ $ })')).rejects.toThrow(
-        expect.objectContaining({ errorId: 'RILL-R010' })
-      );
-    });
+    rule('iteration.expansion').it(
+      'AC-34/BC-8: iteration count > 10000 raises RILL-R010',
+      async () => {
+        await expect(run('range(0, 10001) -> seq({ $ })')).rejects.toThrow(
+          expect.objectContaining({ errorId: 'RILL-R010' })
+        );
+      }
+    );
 
     it('AC-35/BC-9: fan with concurrency > element count completes without error', async () => {
       expect(
@@ -279,12 +332,15 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       ).toEqual([2, 4]);
     });
 
-    it('AC-36/BC-10: seq called with extra dict arg raises arity error', async () => {
-      await expectRuntimeError(
-        () => run('list[1, 2, 3] -> seq({ $ * 2 }, [concurrency: 8])'),
-        { code: 'RILL-R045' }
-      );
-    });
+    rule('seq.arguments').it(
+      'AC-36/BC-10: seq called with extra dict arg raises arity error',
+      async () => {
+        await expectRuntimeError(
+          () => run('list[1, 2, 3] -> seq({ $ * 2 }, [concurrency: 8])'),
+          { code: 'RILL-R045' }
+        );
+      }
+    );
 
     it('single element collection through seq', async () => {
       expect(await run('list[42] -> seq({ $ * 2 })')).toEqual([84]);
@@ -306,26 +362,35 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
   // ── Error Cases ──────────────────────────────────────────────────────────
 
   describe('Error Cases', () => {
-    it('AC-18/EC-1 (seq): non-callable body halts with catchable #TYPE_MISMATCH', async () => {
-      await expectHalt(() => run('list[1] -> seq(42)'), {
-        code: 'TYPE_MISMATCH',
-        messagePattern: /seq: body must be a function/,
-      });
-    });
+    rule('iteration.callable').it(
+      'AC-18/EC-1 (seq): non-callable body halts with catchable #TYPE_MISMATCH',
+      async () => {
+        await expectHalt(() => run('list[1] -> seq(42)'), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: /seq: body must be a function/,
+        });
+      }
+    );
 
-    it('EC-1 (fold): non-callable body halts with catchable #TYPE_MISMATCH', async () => {
-      await expectHalt(() => run('list[1] -> fold(0, 42)'), {
-        code: 'TYPE_MISMATCH',
-        messagePattern: /fold: body must be a function/,
-      });
-    });
+    rule('iteration.callable').it(
+      'EC-1 (fold): non-callable body halts with catchable #TYPE_MISMATCH',
+      async () => {
+        await expectHalt(() => run('list[1] -> fold(0, 42)'), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: /fold: body must be a function/,
+        });
+      }
+    );
 
-    it('EC-1 (filter): non-callable body halts with catchable #TYPE_MISMATCH', async () => {
-      await expectHalt(() => run('list[1] -> filter(42)'), {
-        code: 'TYPE_MISMATCH',
-        messagePattern: /filter: body must be a function/,
-      });
-    });
+    rule('iteration.callable').it(
+      'EC-1 (filter): non-callable body halts with catchable #TYPE_MISMATCH',
+      async () => {
+        await expectHalt(() => run('list[1] -> filter(42)'), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: /filter: body must be a function/,
+        });
+      }
+    );
 
     it('AC-19/EC-2 (fold): 3-parameter named closure raises arity mismatch', async () => {
       await expectRuntimeError(
@@ -353,19 +418,25 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       });
     });
 
-    it('AC-22/EC-10 (fan): negative concurrency halts with catchable #INVALID_INPUT', async () => {
-      await expectHalt(
-        () => run('list[1, 2, 3] -> fan({ $ * 2 }, [concurrency: -1])'),
-        { code: 'INVALID_INPUT' }
-      );
-    });
+    rule('fan.options-positive').it(
+      'AC-22/EC-10 (fan): negative concurrency halts with catchable #INVALID_INPUT',
+      async () => {
+        await expectHalt(
+          () => run('list[1, 2, 3] -> fan({ $ * 2 }, [concurrency: -1])'),
+          { code: 'INVALID_INPUT' }
+        );
+      }
+    );
 
-    it('AC-23/EC-9 (filter): non-number concurrency halts with catchable #TYPE_MISMATCH', async () => {
-      await expectHalt(
-        () => run('list[1, 2] -> filter({ $ > 0 }, [concurrency: "8"])'),
-        { code: 'TYPE_MISMATCH' }
-      );
-    });
+    rule('filter.options').it(
+      'AC-23/EC-9 (filter): non-number concurrency halts with catchable #TYPE_MISMATCH',
+      async () => {
+        await expectHalt(
+          () => run('list[1, 2] -> filter({ $ > 0 }, [concurrency: "8"])'),
+          { code: 'TYPE_MISMATCH' }
+        );
+      }
+    );
 
     it('AC-24/EC-5: non-iterable input to seq raises error', async () => {
       await expect(run('42 -> seq({ $ })')).rejects.toThrow(
@@ -380,12 +451,15 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       );
     });
 
-    it('AC-26/EC-11 (fold): typed closure with mismatched element type raises RILL-R001', async () => {
-      // fn(string, number) declares $ as string, but list has numbers.
-      await expect(
-        run('list[1, 2, 3] -> fold(0, fn(string, number) { $@ + $ })')
-      ).rejects.toThrow(expect.objectContaining({ errorId: 'RILL-R001' }));
-    });
+    rule('fold.unnamed').it(
+      'AC-26/EC-11 (fold): typed closure with mismatched element type raises RILL-R001',
+      async () => {
+        // fn(string, number) declares $ as string, but list has numbers.
+        await expect(
+          run('list[1, 2, 3] -> fold(0, fn(string, number) { $@ + $ })')
+        ).rejects.toThrow(expect.objectContaining({ errorId: 'RILL-R001' }));
+      }
+    );
 
     it('EC-4: bare $ reference at module scope without pipe provider raises error', async () => {
       await expectHalt(() => run('$ + 1'), {
@@ -401,24 +475,30 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       ).rejects.toThrow('Collection operators require');
     });
 
-    it('EC-8 (filter): options not a dict halts with catchable #TYPE_MISMATCH', async () => {
-      await expectHalt(() => run('list[1] -> filter({ $ > 0 }, 42)'), {
-        code: 'TYPE_MISMATCH',
-      });
-    });
+    rule('filter.options').it(
+      'EC-8 (filter): options not a dict halts with catchable #TYPE_MISMATCH',
+      async () => {
+        await expectHalt(() => run('list[1] -> filter({ $ > 0 }, 42)'), {
+          code: 'TYPE_MISMATCH',
+        });
+      }
+    );
 
-    it('EC-10 (filter): negative concurrency halts with catchable #INVALID_INPUT', async () => {
-      await expectHalt(
-        () => run('list[1, 2] -> filter({ $ > 0 }, [concurrency: -1])'),
-        { code: 'INVALID_INPUT' }
-      );
-    });
+    rule('filter.options').it(
+      'EC-10 (filter): negative concurrency halts with catchable #INVALID_INPUT',
+      async () => {
+        await expectHalt(
+          () => run('list[1, 2] -> filter({ $ > 0 }, [concurrency: -1])'),
+          { code: 'INVALID_INPUT' }
+        );
+      }
+    );
   });
 
   // ── Tuple and Ordered Sources ─────────────────────────────────────────────
 
   describe('Tuple and ordered sources', () => {
-    it('seq iterates a tuple in order', async () => {
+    rule('iteration.tuple').it('seq iterates a tuple in order', async () => {
       expect(await run('tuple[1, 2, 3] -> seq({ $ * 2 })')).toEqual([2, 4, 6]);
     });
 
@@ -440,12 +520,15 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       ]);
     });
 
-    it('seq yields entry dicts of an ordered in own order', async () => {
-      expect(await run('ordered[b: 2, a: 1] -> seq({ $ })')).toEqual([
-        { key: 'b', value: 2 },
-        { key: 'a', value: 1 },
-      ]);
-    });
+    rule('iteration.ordered').it(
+      'seq yields entry dicts of an ordered in own order',
+      async () => {
+        expect(await run('ordered[b: 2, a: 1] -> seq({ $ })')).toEqual([
+          { key: 'b', value: 2 },
+          { key: 'a', value: 1 },
+        ]);
+      }
+    );
 
     it('fan yields entry dicts of an ordered in own order', async () => {
       expect(await run('ordered[b: 2, a: 1] -> fan({ $.key })')).toEqual([
@@ -492,15 +575,18 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
 
     for (const operator of operators) {
       for (const [kind, expr] of sources) {
-        it(`${operator.split('(')[0]} on ${kind} halts RILL-R002`, async () => {
-          const vec = createVector(new Float32Array([1.0, 2.0]), 'model-a');
-          const error = await run(`${expr} -> ${operator}`, {
-            variables: { v: vec },
-          }).catch((e: unknown) => e as Error);
-          expect(error).toMatchObject({ errorId: 'RILL-R002' });
-          expect((error as Error).message).toContain(`got ${kind}`);
-          expect((error as Error).message).not.toContain('object');
-        });
+        rule('iteration.other-source').it(
+          `${operator.split('(')[0]} on ${kind} halts RILL-R002`,
+          async () => {
+            const vec = createVector(new Float32Array([1.0, 2.0]), 'model-a');
+            const error = await run(`${expr} -> ${operator}`, {
+              variables: { v: vec },
+            }).catch((e: unknown) => e as Error);
+            expect(error).toMatchObject({ errorId: 'RILL-R002' });
+            expect((error as Error).message).toContain(`got ${kind}`);
+            expect((error as Error).message).not.toContain('object');
+          }
+        );
       }
     }
   });
@@ -1278,5 +1364,250 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
         ]);
       }
     );
+  });
+});
+
+describe('Collection operator reference rules', () => {
+  // Host function that sleeps $ ms and records calls in flight.
+  function tracker() {
+    const state = { inFlight: 0, maxInFlight: 0, starts: [] as number[] };
+    const wait = {
+      returnType: anyTypeValue,
+      params: [
+        {
+          name: 'ms',
+          type: { kind: 'number' },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ] as RillParam[],
+      fn: async (args: Record<string, RillValue>): Promise<number> => {
+        const ms = args['ms'] as number;
+        state.starts.push(ms);
+        state.inFlight += 1;
+        state.maxInFlight = Math.max(state.maxInFlight, state.inFlight);
+        await new Promise((resolve) => {
+          setTimeout(resolve, ms);
+        });
+        state.inFlight -= 1;
+        return ms;
+      },
+    };
+    return { state, functions: { wait } };
+  }
+
+  describe('call order and overlap', () => {
+    rule('fan.concurrent', 'fan.result').it(
+      'fan overlaps calls and yields results in source order',
+      async () => {
+        const { state, functions } = tracker();
+        expect(
+          await run('list[30, 10, 20] -> fan({ wait($) })', { functions })
+        ).toEqual([30, 10, 20]);
+        expect(state.maxInFlight).toBe(3);
+      }
+    );
+
+    rule('fan.concurrency').it(
+      'concurrency caps the fan calls in flight',
+      async () => {
+        const { state, functions } = tracker();
+        expect(
+          await run(
+            'list[30, 10, 20, 5] -> fan({ wait($) }, dict[concurrency: 2])',
+            { functions }
+          )
+        ).toEqual([30, 10, 20, 5]);
+        expect(state.maxInFlight).toBe(2);
+      }
+    );
+
+    rule('seq.order').it('seq runs one call at a time in order', async () => {
+      const { state, functions } = tracker();
+      expect(
+        await run('list[30, 10, 20] -> seq({ wait($) })', { functions })
+      ).toEqual([30, 10, 20]);
+      expect(state.maxInFlight).toBe(1);
+      expect(state.starts).toEqual([30, 10, 20]);
+    });
+
+    rule('fold.order').it('fold runs one call at a time in order', async () => {
+      const { state, functions } = tracker();
+      expect(
+        await run('list[30, 10, 20] -> fold(0, { wait($) + $@ })', {
+          functions,
+        })
+      ).toBe(60);
+      expect(state.maxInFlight).toBe(1);
+      expect(state.starts).toEqual([30, 10, 20]);
+    });
+  });
+
+  describe('fan options', () => {
+    rule('fan.options-dict').it(
+      'a non-dict options argument halts #TYPE_MISMATCH',
+      async () => {
+        await expectHalt(() => run('list[1] -> fan({ $ }, 5)'), {
+          code: 'TYPE_MISMATCH',
+        });
+      }
+    );
+
+    rule('fan.options-number').it(
+      'a non-number concurrency halts #TYPE_MISMATCH',
+      async () => {
+        await expectHalt(
+          () => run('list[1] -> fan({ $ }, dict[concurrency: "2"])'),
+          { code: 'TYPE_MISMATCH' }
+        );
+      }
+    );
+
+    rule('fan.options-positive').it(
+      'a zero or fractional concurrency halts #INVALID_INPUT',
+      async () => {
+        await expectHalt(
+          () => run('list[1] -> fan({ $ }, dict[concurrency: 0])'),
+          { code: 'INVALID_INPUT' }
+        );
+        await expectHalt(
+          () => run('list[1] -> fan({ $ }, dict[concurrency: 1.5])'),
+          { code: 'INVALID_INPUT' }
+        );
+      }
+    );
+
+    rule('fan.options-unknown', 'filter.options').it(
+      'an unknown option halts #INVALID_INPUT in fan and filter',
+      async () => {
+        await expectHalt(() => run('list[1] -> fan({ $ }, dict[foo: 1])'), {
+          code: 'INVALID_INPUT',
+        });
+        await expectHalt(
+          () => run('list[1] -> filter({ true }, dict[foo: 1])'),
+          { code: 'INVALID_INPUT' }
+        );
+      }
+    );
+  });
+
+  describe('filter', () => {
+    rule('filter.bool').it(
+      'a non-bool predicate result halts #TYPE_MISMATCH',
+      async () => {
+        await expectHalt(() => run('list[1, 2] -> filter({ $ })'), {
+          code: 'TYPE_MISMATCH',
+        });
+      }
+    );
+
+    rule('filter.element').it(
+      'filter keeps the characters of a string and the entries of a dict',
+      async () => {
+        expect(await run('"hello" -> filter({ $ != "l" })')).toEqual([
+          'h',
+          'e',
+          'o',
+        ]);
+        expect(
+          await run('dict[a: 1, b: 5] -> filter({ $.value > 2 })')
+        ).toEqual([{ key: 'b', value: 5 }]);
+      }
+    );
+  });
+
+  describe('fold', () => {
+    rule('fold.seed-required').it(
+      'fold with only a function halts RILL-R044',
+      async () => {
+        await expectRuntimeError(() => run('list[1, 2] -> fold({ $@ + $ })'), {
+          code: 'RILL-R044',
+        });
+      }
+    );
+  });
+
+  describe('sources', () => {
+    rule('iteration.string').it(
+      'a string yields one element per code point',
+      async () => {
+        expect(await run('"\u{1F389}a" -> seq({ $ })')).toEqual([
+          '\u{1F389}',
+          'a',
+        ]);
+        expect(await run('"é" -> seq({ $ })')).toEqual(['e', '́']);
+      }
+    );
+
+    rule('iteration.dict').it(
+      'a dict yields its keys in UTF-16 code unit order',
+      async () => {
+        expect(await run('dict[b: 1, a: 2, B: 3] -> seq({ $.key })')).toEqual([
+          'B',
+          'a',
+          'b',
+        ]);
+      }
+    );
+  });
+
+  describe('iteration limit', () => {
+    const big = 'range(0, 10000) -> seq({ $ }) => $big\n';
+
+    for (const op of ['seq({ $ })', 'fold(0, { $@ })', 'acc(0, { $@ })']) {
+      rule('iteration.sequential-limit').it(
+        `${op.split('(')[0]} over 10,001 list elements halts RILL-R010`,
+        async () => {
+          await expect(
+            run(`${big}list[...$big, 0] -> ${op}`)
+          ).rejects.toMatchObject({ errorId: 'RILL-R010' });
+        }
+      );
+    }
+
+    for (const op of ['fan({ $ })', 'filter({ true })', 'sort']) {
+      rule('iteration.ceiling').it(
+        `${op.split('(')[0]} over 10,001 list elements halts RILL-R010`,
+        async () => {
+          await expect(
+            run(`${big}list[...$big, 0] -> ${op}`)
+          ).rejects.toMatchObject({ errorId: 'RILL-R010' });
+        }
+      );
+    }
+
+    rule('iteration.limit-first').it(
+      'an over-limit list, tuple, or string halts before any call',
+      async () => {
+        const { state, functions } = tracker();
+        for (const source of [
+          `${big}list[...$big, 0]`,
+          `${big}tuple[...$big, 0]`,
+          '"abcdefghij" -> .repeat(1001)',
+        ]) {
+          await expect(
+            run(`${source} -> seq({ wait($ -> .len) })`, { functions })
+          ).rejects.toMatchObject({ errorId: 'RILL-R010' });
+        }
+        expect(state.starts).toEqual([]);
+      }
+    );
+  });
+
+  describe('extra arguments', () => {
+    for (const src of [
+      'list[1] -> fan({ $ }, dict[concurrency: 1], 3)',
+      'list[1] -> filter({ true }, dict[concurrency: 1], 3)',
+      'list[1] -> fold(0, { $@ + $ }, 3)',
+      'list[1] -> acc(0, { $@ + $ }, 3)',
+      'list[1] -> sort({ $ }, 3)',
+    ]) {
+      rule('iteration.extra-argument').it(
+        `${src.split(' -> ')[1]?.split('(')[0]} with one argument too many halts RILL-R045`,
+        async () => {
+          await expectRuntimeError(() => run(src), { code: 'RILL-R045' });
+        }
+      );
+    }
   });
 });

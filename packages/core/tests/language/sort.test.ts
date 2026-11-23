@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: sort primitive
  *
@@ -37,6 +38,7 @@ import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
 import { createVector, type RillValue } from '@rcrsr/rill';
 import { isOrdered, orderedEntries } from '../helpers/ordered.js';
+import { rule } from '../helpers/rule.js';
 
 // Helper: extract key-order from an ordered value
 function orderedKeys(value: unknown): string[] {
@@ -61,47 +63,61 @@ describe('Rill Language: sort primitive', () => {
   // ── Success Cases ─────────────────────────────────────────────────────────
 
   describe('Success Cases', () => {
-    it('AC-SORT-3: list[3, 1, 2] -> sort returns [1, 2, 3]', async () => {
-      expect(await run('list[3, 1, 2] -> sort')).toEqual([1, 2, 3]);
-    });
+    rule('sort.ascending', 'sort.to-list').it(
+      'AC-SORT-3: list[3, 1, 2] -> sort returns [1, 2, 3]',
+      async () => {
+        expect(await run('list[3, 1, 2] -> sort')).toEqual([1, 2, 3]);
+      }
+    );
 
-    it('AC-SORT-4: sort by key is stable for equal keys (score ascending)', async () => {
-      // Three dicts with score 5, 2, 5 — result must be [score:2, score:5(first), score:5(second)]
-      const script = `
+    rule('sort.key-fn', 'sort.stable').it(
+      'AC-SORT-4: sort by key is stable for equal keys (score ascending)',
+      async () => {
+        // Three dicts with score 5, 2, 5 — result must be [score:2, score:5(first), score:5(second)]
+        const script = `
         dict[score: 5, id: "first"] => $a
         dict[score: 2, id: "second"] => $b
         dict[score: 5, id: "third"] => $c
         list[$a, $b, $c] -> sort({ $.score })
       `;
-      const result = (await run(script)) as Array<Record<string, unknown>>;
-      expect(result).toHaveLength(3);
-      expect(result[0]?.['score']).toBe(2);
-      expect(result[1]?.['score']).toBe(5);
-      expect(result[1]?.['id']).toBe('first');
-      expect(result[2]?.['score']).toBe(5);
-      expect(result[2]?.['id']).toBe('third');
-    });
+        const result = (await run(script)) as Array<Record<string, unknown>>;
+        expect(result).toHaveLength(3);
+        expect(result[0]?.['score']).toBe(2);
+        expect(result[1]?.['score']).toBe(5);
+        expect(result[1]?.['id']).toBe('first');
+        expect(result[2]?.['score']).toBe(5);
+        expect(result[2]?.['id']).toBe('third');
+      }
+    );
 
-    it('AC-SORT-5: multi-key sort via tuple projection preserves date order on equal score', async () => {
-      const script = `
+    rule('sort.comparable').it(
+      'AC-SORT-5: multi-key sort via tuple projection preserves date order on equal score',
+      async () => {
+        const script = `
         dict[score: 2, date: "2026-01-01"] => $a
         dict[score: 2, date: "2026-01-02"] => $b
         list[$a, $b] -> sort({ tuple[$.score, $.date] })
       `;
-      const result = (await run(script)) as Array<Record<string, unknown>>;
-      expect(result).toHaveLength(2);
-      expect(result[0]?.['date']).toBe('2026-01-01');
-      expect(result[1]?.['date']).toBe('2026-01-02');
-    });
+        const result = (await run(script)) as Array<Record<string, unknown>>;
+        expect(result).toHaveLength(2);
+        expect(result[0]?.['date']).toBe('2026-01-01');
+        expect(result[1]?.['date']).toBe('2026-01-02');
+      }
+    );
 
-    it('AC-SORT-6: dict default sort by key returns ordered with keys a, b, c', async () => {
-      const result = await run('[c: 3, a: 1, b: 2] -> sort');
-      expect(isOrdered(result)).toBe(true);
-      expect(orderedKeys(result)).toEqual(['a', 'b', 'c']);
-    });
+    rule('sort.dict').it(
+      'AC-SORT-6: dict default sort by key returns ordered with keys a, b, c',
+      async () => {
+        const result = await run('[c: 3, a: 1, b: 2] -> sort');
+        expect(isOrdered(result)).toBe(true);
+        expect(orderedKeys(result)).toEqual(['a', 'b', 'c']);
+      }
+    );
 
-    it('AC-SORT-7: dict sort by extracted value.score returns ordered by score ascending', async () => {
-      const script = `
+    rule('sort.dict').it(
+      'AC-SORT-7: dict sort by extracted value.score returns ordered by score ascending',
+      async () => {
+        const script = `
         dict[
           alice: dict[score: 3],
           bob: dict[score: 1],
@@ -109,14 +125,15 @@ describe('Rill Language: sort primitive', () => {
         ] => $emails_dict
         $emails_dict -> sort({ $.value.score })
       `;
-      const result = await run(script);
-      expect(isOrdered(result)).toBe(true);
-      const entries = orderedEntries(result);
-      const scores = entries.map(
-        ([, v]) => (v as Record<string, unknown>)['score']
-      );
-      expect(scores).toEqual([1, 2, 3]);
-    });
+        const result = await run(script);
+        expect(isOrdered(result)).toBe(true);
+        const entries = orderedEntries(result);
+        const scores = entries.map(
+          ([, v]) => (v as Record<string, unknown>)['score']
+        );
+        expect(scores).toEqual([1, 2, 3]);
+      }
+    );
 
     it('AC-SORT-8: list -> sort -> .reverse produces descending order', async () => {
       const script = `
@@ -126,9 +143,12 @@ describe('Rill Language: sort primitive', () => {
       expect(await run(script)).toEqual([3, 2, 1]);
     });
 
-    it('AC-SORT-9: range iterator input is materialized and sorted', async () => {
-      expect(await run('range(0, 5) -> sort')).toEqual([0, 1, 2, 3, 4]);
-    });
+    rule('sort.to-list').it(
+      'AC-SORT-9: range iterator input is materialized and sorted',
+      async () => {
+        expect(await run('range(0, 5) -> sort')).toEqual([0, 1, 2, 3, 4]);
+      }
+    );
   });
 
   // ── Boundary Cases ─────────────────────────────────────────────────────────
@@ -155,34 +175,43 @@ describe('Rill Language: sort primitive', () => {
       expect(orderedKeys(result)).toEqual(['x']);
     });
 
-    it('AC-BOUND-3: all-equal-key list preserves original order (maximum tie density)', async () => {
-      // All elements have the same sort key; stable sort must keep original order.
-      const script = `
+    rule('sort.stable').it(
+      'AC-BOUND-3: all-equal-key list preserves original order (maximum tie density)',
+      async () => {
+        // All elements have the same sort key; stable sort must keep original order.
+        const script = `
         dict[score: 1, id: "first"] => $a
         dict[score: 1, id: "second"] => $b
         dict[score: 1, id: "third"] => $c
         list[$a, $b, $c] -> sort({ $.score })
       `;
-      const result = (await run(script)) as Array<Record<string, unknown>>;
-      expect(result).toHaveLength(3);
-      expect(result[0]?.['id']).toBe('first');
-      expect(result[1]?.['id']).toBe('second');
-      expect(result[2]?.['id']).toBe('third');
-    });
+        const result = (await run(script)) as Array<Record<string, unknown>>;
+        expect(result).toHaveLength(3);
+        expect(result[0]?.['id']).toBe('first');
+        expect(result[1]?.['id']).toBe('second');
+        expect(result[2]?.['id']).toBe('third');
+      }
+    );
   });
 
   // ── Tuple and Ordered Sources ─────────────────────────────────────────────
 
   describe('Tuple and Ordered Sources', () => {
-    it('tuple[3, 1] -> sort returns list[1, 3]', async () => {
-      expect(await run('tuple[3, 1] -> sort')).toEqual([1, 3]);
-    });
+    rule('sort.to-list').it(
+      'tuple[3, 1] -> sort returns list[1, 3]',
+      async () => {
+        expect(await run('tuple[3, 1] -> sort')).toEqual([1, 3]);
+      }
+    );
 
-    it('ordered -> sort returns an ordered sorted by key', async () => {
-      const result = await run('ordered[b: 1, a: 2] -> sort');
-      expect(isOrdered(result)).toBe(true);
-      expect(orderedKeys(result)).toEqual(['a', 'b']);
-    });
+    rule('sort.ordered-source').it(
+      'ordered -> sort returns an ordered sorted by key',
+      async () => {
+        const result = await run('ordered[b: 1, a: 2] -> sort');
+        expect(isOrdered(result)).toBe(true);
+        expect(orderedKeys(result)).toEqual(['a', 'b']);
+      }
+    );
 
     it('ordered with key_fn keeps own order on tied keys', async () => {
       const result = await run(
@@ -196,17 +225,20 @@ describe('Rill Language: sort primitive', () => {
   // ── Error Cases ────────────────────────────────────────────────────────────
 
   describe('Error Cases', () => {
-    it('AC-ERR-1 / EC-1: mixed-type keys from extractor halt with #TYPE_MISMATCH', async () => {
-      // [SPEC] list[1, "2"] fails at list construction (RILL-R002) before sort runs.
-      // Host-inject a mixed-type list to reach sort's comparison logic directly.
-      await expectHalt(
-        () =>
-          run('$items -> sort', {
-            variables: { items: [1, 'two'] },
-          }),
-        { code: 'TYPE_MISMATCH' }
-      );
-    });
+    rule('sort.incomparable').it(
+      'AC-ERR-1 / EC-1: mixed-type keys from extractor halt with #TYPE_MISMATCH',
+      async () => {
+        // [SPEC] list[1, "2"] fails at list construction (RILL-R002) before sort runs.
+        // Host-inject a mixed-type list to reach sort's comparison logic directly.
+        await expectHalt(
+          () =>
+            run('$items -> sort', {
+              variables: { items: [1, 'two'] },
+            }),
+          { code: 'TYPE_MISMATCH' }
+        );
+      }
+    );
 
     it('number-spelled dict keys sort as strings by the default extractor', async () => {
       // Every dict key is a string, so "10" sorts before "9".
@@ -215,37 +247,46 @@ describe('Rill Language: sort primitive', () => {
       );
     });
 
-    it('AC-ERR-2 / EC-2: extractor returning vacant value halts with #INVALID_INPUT', async () => {
-      // [SPEC] $.score on a dict missing that field raises RILL-R009, not null.
-      // Host-inject null as the extractor return value to reach sort's INVALID_INPUT check.
-      await expectHalt(
-        () =>
-          run('$items -> sort(fn(x) { $nullval })', {
-            variables: { items: [1, 2], nullval: null },
-          }),
-        { code: 'INVALID_INPUT' }
-      );
-    });
+    rule('sort.vacant-key').it(
+      'AC-ERR-2 / EC-2: extractor returning vacant value halts with #INVALID_INPUT',
+      async () => {
+        // [SPEC] $.score on a dict missing that field raises RILL-R009, not null.
+        // Host-inject null as the extractor return value to reach sort's INVALID_INPUT check.
+        await expectHalt(
+          () =>
+            run('$items -> sort(fn(x) { $nullval })', {
+              variables: { items: [1, 2], nullval: null },
+            }),
+          { code: 'INVALID_INPUT' }
+        );
+      }
+    );
 
-    it('AC-ERR-4 / EC-5: non-callable key_fn halts with #TYPE_MISMATCH', async () => {
-      // Passing a string literal as the second arg to sort triggers the EC-5 check.
-      await expectHalt(() => run('list[1, 2, 3] -> sort("not callable")'), {
-        code: 'TYPE_MISMATCH',
-      });
-    });
+    rule('sort.key-callable').it(
+      'AC-ERR-4 / EC-5: non-callable key_fn halts with #TYPE_MISMATCH',
+      async () => {
+        // Passing a string literal as the second arg to sort triggers the EC-5 check.
+        await expectHalt(() => run('list[1, 2, 3] -> sort("not callable")'), {
+          code: 'TYPE_MISMATCH',
+        });
+      }
+    );
 
-    it('EC-3: closure that halts inside extractor propagates the inner halt', async () => {
-      // The key extractor fires error "inner boom" (RILL-R016).
-      // sort must not wrap or swallow the inner halt.
-      await expectHalt(
-        () => run('list[1, 2, 3] -> sort(fn(x) { error "inner boom" })'),
-        {
-          code: 'RILL_R016',
-          hostErrorId: 'RILL-R016',
-          messagePattern: 'inner boom',
-        }
-      );
-    });
+    rule('iteration.halt').it(
+      'EC-3: closure that halts inside extractor propagates the inner halt',
+      async () => {
+        // The key extractor fires error "inner boom" (RILL-R016).
+        // sort must not wrap or swallow the inner halt.
+        await expectHalt(
+          () => run('list[1, 2, 3] -> sort(fn(x) { error "inner boom" })'),
+          {
+            code: 'RILL_R016',
+            hostErrorId: 'RILL-R016',
+            messagePattern: 'inner boom',
+          }
+        );
+      }
+    );
 
     it('EC-6: iteration exceeding MAX_ITER propagates #RILL_R010 before sort', async () => {
       // [SPEC] range() iterators hit the dict path in sort (not getIterableElements).
@@ -294,4 +335,33 @@ describe('Rill Language: sort primitive', () => {
       ]);
     });
   });
+});
+
+describe('sort: temporal keys', () => {
+  rule('sort.temporal').it('durations sort ascending', async () => {
+    expect(
+      await run(
+        'list[duration(...dict[ms: 2]), duration(...dict[ms: 1])] -> sort -> seq({ $.total_ms })'
+      )
+    ).toEqual([1, 2]);
+  });
+
+  rule('sort.temporal').it('datetimes sort by instant', async () => {
+    expect(
+      await run(
+        'list[datetime(...dict[unix: 2000]), datetime(...dict[unix: 1000])] -> sort -> seq({ $.unix })'
+      )
+    ).toEqual([1000, 2000]);
+  });
+
+  rule('sort.temporal').it(
+    'durations that disagree in months and milliseconds halt RILL-R002',
+    async () => {
+      await expect(
+        run(
+          'list[duration(...dict[months: 1]), duration(...dict[ms: 99999999999])] -> sort'
+        )
+      ).rejects.toMatchObject({ errorId: 'RILL-R002' });
+    }
+  );
 });

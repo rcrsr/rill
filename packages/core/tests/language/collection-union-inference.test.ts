@@ -231,13 +231,16 @@ describe('Rill Language: collection union inference', () => {
       ).toBe(true);
     });
 
-    it('seq over the values of a mixed dict infers the union of the values', async () => {
-      expect(
-        await run(
-          '(dict[a: 1, b: "x"] -> seq({ $.value }) -> .^type) == list(union(number, string))'
-        )
-      ).toBe(true);
-    });
+    rule('seq.result-type').it(
+      'seq over the values of a mixed dict infers the union of the values',
+      async () => {
+        expect(
+          await run(
+            '(dict[a: 1, b: "x"] -> seq({ $.value }) -> .^type) == list(union(number, string))'
+          )
+        ).toBe(true);
+      }
+    );
 
     it('seq over a mixed dict infers the union of its entry types', async () => {
       expect(
