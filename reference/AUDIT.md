@@ -97,7 +97,7 @@ One row per PR. Tick a row when its PR merges.
 | 1 | Setup and sweeps | 68 | 837 | 606 | #676 |
 | 2 | `conventions` | 2 | 15 | 1 | #676 |
 | 3 | `lexical` (write) | 5 | 23 | 0 | #676 |
-| 4 | `program` | 3 | 32 | 0 | |
+| 4 | `program` | 3 | 32 | 0 | #676 |
 | 5 | `values` | 3 | 29 | 27 | |
 | 6 | `types/constructors` | 8 | 149 | 61 | |
 | 7 | `types/model` | 6 | 70 | 54 | |
