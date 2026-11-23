@@ -4,7 +4,7 @@ title: Construct options
 status: normative
 since: 0.24.0
 issues: []
-grammar: []
+grammar: [positive-integer]
 errors: [INVALID_INPUT, RILL-P004, RILL-P025, RILL-P027, RILL-R002, TYPE_MISMATCH]
 depends: [loop, pass]
 tests: [construct-options.test.ts, timeout.test.ts, throttling.test.ts]
@@ -15,6 +15,10 @@ tests: [construct-options.test.ts, timeout.test.ts, throttling.test.ts]
 A control statement takes its options as a dict in parentheses between its keyword and its body.
 
 ## Syntax
+
+```ebnf
+positive-integer  = nonzero-digit , { digit } ;
+```
 
 ```text
 keyword(name: value, ...) { body }

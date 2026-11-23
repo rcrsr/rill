@@ -64,7 +64,7 @@ earlier one.
 | Chapter | Covers |
 |---------|--------|
 | [conventions](conventions/) | Notation and the vocabulary of halts |
-| lexical (not yet written) | Source text, tokens, comments, literals |
+| [lexical](lexical/) | Source text, whitespace and comments, identifiers, keywords, tokens |
 | [program](program/) | Scripts, frontmatter, statements, annotations, the return value |
 | [values](values/) | The value model, equality, vacancy |
 | [types](types/) | Type values, type forms, built-in types, maps, declarations, assertions, carried types, type locks, conversion |

@@ -21,6 +21,7 @@ concept.
 | Do the unwritten chapters gate 0.24.0? | Yes, all three. |
 | Where do citations go? | In the locked suite. A `rule(...)` citation on an existing test, or a new test for an untested rule, is an allowed lock change. One lock update per PR, with `bash scripts/check-test-lock.sh --update`. Never change an existing test's body to make a rule pass. |
 | How does the work land? | One PR per slice in the Progress table, in that order. |
+| Who decides findings during chapter slices? | Nobody. A chapter slice captures each disputed or under-specified case in [INCONSISTENCIES.md](INCONSISTENCIES.md) and keeps working; a new rule states only behavior consistent with every equivalent form. Slice 20 decides every row. |
 | When are defects filed? | After the last chapter slice. Each slice adds its defects to [Findings](#findings) as `Collected`, with the probe evidence. Slice 19 groups them by root cause and files one issue per group. A defect that blocks a slice is filed at once. |
 
 ## Per-file checklist
@@ -95,7 +96,7 @@ One row per PR. Tick a row when its PR merges.
 |---|-------|-------|-------|---------|----|
 | 1 | Setup and sweeps | 68 | 837 | 606 | #676 |
 | 2 | `conventions` | 2 | 15 | 1 | #676 |
-| 3 | `lexical` (write) | 0 | 0 | 0 | |
+| 3 | `lexical` (write) | 5 | 23 | 0 | |
 | 4 | `program` | 2 | 17 | 17 | |
 | 5 | `values` | 3 | 29 | 27 | |
 | 6 | `types/constructors` | 8 | 149 | 61 | |
@@ -127,6 +128,16 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 |------|-------|---------|---------|------------|----------|-------|
 | `conventions/halt.md` | 9 | 1 | x | x | x | |
 | `conventions/notation.md` | 6 | 0 | x | x | x | x |
+
+### `lexical`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `lexical/identifier.md` | 3 | 0 | x | x | x | x |
+| `lexical/keyword.md` | 4 | 0 | x | x | x | x |
+| `lexical/source-text.md` | 5 | 0 | x | x | x | x |
+| `lexical/token.md` | 4 | 0 | x | x | x | x |
+| `lexical/whitespace.md` | 7 | 0 | x | x | x | x |
 
 ### `program`
 
@@ -265,7 +276,6 @@ Each gets a table when its PR splits it into concepts.
 
 | Chapter | Covers |
 |---------|--------|
-| `lexical` | Source text, tokens, comments, literals |
 | `limits` | Iteration, concurrency, call depth, timeouts |
 | `builtins` | Built-in methods and functions |
 
@@ -277,12 +287,15 @@ needed. Strike nothing here; the slice PR deletes the items it settles.
 
 ### `program`
 
-- Grammar: `frontmatter`, `annotation`, `annotation-arg`, `annotation-args`, `annotated-expr`.
+- Grammar: `frontmatter`, `yaml-line`, `yaml-char`, `annotation`, `annotation-arg`,
+  `annotation-args`, `annotated-expr`.
 - Errors: RILL-P023 (malformed frontmatter close), RILL-R060 (removed frontmatter key).
 - Tests: `frontmatter.test.ts`, `whitespace-continuations.test.ts`.
 - Docs: frontmatter at the top of a script; the leading continuation set (`?`, `!`, `.name`,
   `.?`, beyond `->` and `=>`); a binary operator such as `&&` or `+` at line start halts
   RILL-P001; a block with statements on its brace lines; the script result as an exit code.
+- Two statements may share a line: `1 2` yields `2`. An empty or comment-only script halts
+  RILL-R043.
 - Docs: an annotation on an argument or entry attaches to the function or held block.
 
 ### `types/constructors`
@@ -292,7 +305,9 @@ needed. Strike nothing here; the slice PR deletes the items it settles.
   `fn-param`, `fn-type`, `body`.
 - Tests: `anonymous-typed-closure.test.ts`, `anonymous-typed-closure-reflection.test.ts`,
   `bare-syntax.test.ts`, `dict.test.ts`, `dict-key-form.test.ts`, `dict-variable-keys.test.ts`,
-  `string-dict-keys.test.ts`, `identifier-prototype-names.test.ts`.
+  `string-dict-keys.test.ts`, `identifier-prototype-names.test.ts`, and the dict-key cases of
+  `parser-syntax-errors.test.ts` (its negation cases go to `expressions`, its branch-shape cases
+  to `conditional`).
 - `dict`: a variable or computed key that is not a string halts RILL-R002; the 8 dict method
   names are reserved keys (`dict[len: 1]` halts RILL-R002); dicts have no ordering.
 - `tuple`: tuples order lexicographically; a length or slot type mismatch halts `#TYPE_MISMATCH`.
@@ -326,6 +341,7 @@ needed. Strike nothing here; the slice PR deletes the items it settles.
   `method-name`. For `existence`: `existence-check`, `status-probe`.
 - Tests: `expressions.test.ts`, `parameterized-destruct.test.ts`,
   `parameterized-existence.test.ts`.
+- `selection`: `$t.1` halts RILL-P006 and `$t -> .1` halts RILL-P001.
 - `selection`: a wrong key type on an ordered halts RILL-R002. `pipe`: a pipe target's result
   takes a postfix index (`sort[0]`). `dispatch`: an empty hierarchical path returns its input.
 
@@ -356,6 +372,7 @@ needed. Strike nothing here; the slice PR deletes the items it settles.
 ### `errors`
 
 - Grammar: `guard-block`, `retry-block`.
+- `error`: `error` with no message halts RILL-P002, the only site that raises it.
 - Errors: RILL-R084 (invalidation code outside the core error set).
 - Tests: `trace-frames.test.ts`.
 - `retry`: each failed attempt appends a `guard-caught` trace frame.
@@ -369,16 +386,6 @@ needed. Strike nothing here; the slice PR deletes the items it settles.
 - `use`: a `guard` around `use<>` catches RILL-R057; `app::fetch()` halts RILL-P012.
 - Hosts cannot add error codes; `toNative` reports the own type; a default in a host signature
   string halts RILL-R091.
-
-### `lexical` (write)
-
-- Grammar: `digit`, `digits`, `nonzero-digit`, `positive-integer`, `letter`,
-  `lowercase-letter`, `uppercase-letter`, `newline`, `literal`, `yaml-char`, `yaml-line`.
-- Errors: RILL-L002, RILL-P002, RILL-P005, RILL-P009 (removed sigils).
-- Tests: `lexer.test.ts`, `parser-recovery.test.ts`, `parser-spans.test.ts`,
-  `parser-syntax-errors.test.ts`.
-- Docs: `for` is not a keyword (RILL-R006); `.1` on a tuple halts RILL-P001; spaces around `.`
-  and a tight `->` still parse.
 
 ### `limits` (write)
 
@@ -425,6 +432,8 @@ script.
 - Host registration and policy: RILL-R059, RILL-R061, RILL-R068 to RILL-R073, RILL-R075,
   RILL-R086 to RILL-R089.
 - Test files: `ref-llms-full-assertions.test.ts` checks `docs/`, not the language.
+  `parser-recovery.test.ts` and `parser-spans.test.ts` test the `parseWithRecovery` host API and
+  AST spans.
 
 ## Findings
 
@@ -455,3 +464,6 @@ at a897cfc3 unless they say otherwise.
 | `expressions/selection.md` | `.name` on a literal receiver halts RILL-R007, and a locked test pins it; `selection.no-name` says RILL-R003 | Collected in INCONSISTENCIES.md |
 | `conventions/halt.md` | `#TYPE_MISMATCH` and `#DISPOSED` halts carry no error id; `halt.error-id` says every halt does | Collected in INCONSISTENCIES.md |
 | `conventions/notation.md` | `notation.code` and `notation.result` cannot be proven by any check | Demoted to definitions |
+| `lexical/token.md` | An unclosed `{` or bare `(` halts RILL-P001; an unclosed `(1 + 2` or `list[` halts RILL-P005 | Collected in INCONSISTENCIES.md |
+| `lexical/source-text.md` | A lone carriage return is a space outside strings but ends a one-line string with RILL-L001 | Collected in INCONSISTENCIES.md |
+| `host-boundary/use.md`, `expressions/destruct.md`, `expressions/slice.md` | `destruct <` and `slice <` halt RILL-P001; `use <` halts RILL-P007 | Collected in INCONSISTENCIES.md |

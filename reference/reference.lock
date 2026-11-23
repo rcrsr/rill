@@ -400,6 +400,10 @@ halt.non-catchable 8eb8c26644b7
 halt.parse 6d138afba141
 halt.signals 8be052dc02e2
 halt.table f8ef9cf52762
+identifier 2d8b27bbed3b identifier.ascii@37b68fc5f280 keyword.reserved@572e9a506274 number.malformed@247ef493dd4c variable.name@27ee6f9bc3aa
+identifier.ascii 37b68fc5f280 source-text.charset@3d61ec59b868
+identifier.case 5c7e51dcc247
+identifier.form b9570193d0cb
 inference.describes 306f89e5178c
 inference.dict-iteration 307bade8ba08
 inference.empty d047fb333dc7
@@ -482,6 +486,11 @@ iteration.source-kinds 3049616c8e6f
 iteration.stream 6f2c2ae58f1d value.stream@840cdafa18cd
 iteration.string 89b1c92e7911
 iteration.tuple d651f9b75b66
+keyword 71294b38c238 bool.case@d815210cafeb keyword.other@11d39ac6f7d5
+keyword.lowercase 79562d28001f
+keyword.name 263bfd7f342b
+keyword.other 11d39ac6f7d5
+keyword.reserved 572e9a506274
 list f953d598d67d type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
 list.argument c095b936d9af
 list.argument-count f196f166f68a
@@ -677,6 +686,12 @@ sort.ordered-source debcf2259409 sort.dict@abbf3f2fa53e
 sort.stable fbea85ff9a18
 sort.to-list 90ec9e8ab5af iteration.string@89b1c92e7911
 sort.vacant-key 80736937d5a9
+source-text b1d52407de14 source-text.bom-elsewhere@f17bc9bc5fdf source-text.charset@3d61ec59b868 statement.continuation@64a317c3fb8c string.single-line@4d4b9d77b5eb whitespace.blank@2e7dced23e0c
+source-text.bom 001bee70e496
+source-text.bom-elsewhere f17bc9bc5fdf
+source-text.charset 3d61ec59b868
+source-text.free-text e2c72af9a492
+source-text.line-end 3ddb381ffede
 spread ed95d4813db8 map.no-spread@325cc72c6508
 spread.arg-dict 60818904593b
 spread.arg-ordered a60effbc023a
@@ -764,6 +779,11 @@ structural-typing.overlap-scalar 1a7f2b54468e
 structural-typing.overlap-union daece0e2cc16
 structural-typing.present-typed 8e32e38e694b
 structural-typing.structural 797742672410
+token 92bf5ff3960b token.longest@587be0ba712e token.removed-sigil@fe4bc9eb9f7f token.split@1dd82dcb8ba4 token.stray-closer@53705d99f299
+token.longest 587be0ba712e
+token.removed-sigil fe4bc9eb9f7f
+token.split 1dd82dcb8ba4
+token.stray-closer 53705d99f299
 tuple 39d4491d4bc3 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
 tuple.any-position 6a86bee75040
 tuple.bare ffddbd638c71
@@ -865,7 +885,7 @@ value.no-alias 6913672db6e8
 value.no-null a9093d28f071
 value.stream 840cdafa18cd
 value.valid-invalid 0ded6c93b509
-variable 35ca4409ba4a capture.assert@a76c0ca450db
+variable 7564324e99db capture.assert@a76c0ca450db identifier.form@b9570193d0cb
 variable.bind f20795fb5186
 variable.callable 2c032af1f6de
 variable.host 21063b8cb0d5
@@ -874,3 +894,11 @@ variable.read 0d933aae6256
 variable.reserved e3d005cb28f6
 variable.sigil fe7d31c54f54
 variable.undefined 85bf0064e8ab
+whitespace d54a9bc7d82e atom.comment@ba74cf5b3c40 atom.spelling@8896d6ca9ade number.negative@28b80927e50e statement.continuation@64a317c3fb8c use.adjacent@c8bb82d1cbb7 whitespace.other@ea14e22854e0
+whitespace.blank 2e7dced23e0c
+whitespace.comment ba7e0874142f
+whitespace.comment-text 907bfacd1431
+whitespace.member 07cff6b9c16e
+whitespace.optional 383266d8321d token.longest@587be0ba712e
+whitespace.other ea14e22854e0
+whitespace.string-hash 54ecc17fb7d4

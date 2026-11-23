@@ -6,7 +6,7 @@ since: 0.24.0
 issues: []
 grammar: [identifier]
 errors: [RILL-L003, RILL-P001, RILL-R005]
-depends: [capture, statement]
+depends: [identifier, capture, statement]
 tests: [capture-types.test.ts, late-bound-closures.test.ts]
 ---
 
@@ -20,8 +20,7 @@ A variable is a name written `$name` that holds one value, bound by a capture.
 identifier = ( letter | "_" ) , { letter | digit | "_" } ;
 ```
 
-A variable is `$` followed by an identifier: `$total`, `$_tmp`, `$row2`. A letter is an ASCII
-letter. snake_case is the convention, not a rule.
+A variable is `$` followed by an identifier (`identifier.form`): `$total`, `$_tmp`, `$row2`.
 
 ## Static rules
 
