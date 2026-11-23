@@ -23,10 +23,15 @@ describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
 
   describe('AC-1: dict with missing field gets default from sig', () => {
-    it('[b: "b"] -> dict(b: string, a: string = "a") produces [a: "a", b: "b"]', async () => {
-      const result = await run('[b: "b"] -> dict(b: string, a: string = "a")');
-      expect(result).toEqual({ a: 'a', b: 'b' });
-    });
+    rule('conversion.fill', 'defaults.fill').it(
+      '[b: "b"] -> dict(b: string, a: string = "a") produces [a: "a", b: "b"]',
+      async () => {
+        const result = await run(
+          '[b: "b"] -> dict(b: string, a: string = "a")'
+        );
+        expect(result).toEqual({ a: 'a', b: 'b' });
+      }
+    );
   });
 
   // ============================================================
@@ -68,13 +73,16 @@ describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
 
   describe('AC-4: extra fields omitted during dict conversion', () => {
-    it('[a: "a", b: "b", c: "c"] -> dict(a: string, b: string) omits c', async () => {
-      const result = await run(
-        '[a: "a", b: "b", c: "c"] -> dict(a: string, b: string)'
-      );
-      expect(result).toEqual({ a: 'a', b: 'b' });
-      expect((result as Record<string, unknown>)['c']).toBeUndefined();
-    });
+    rule('conversion.drop').it(
+      '[a: "a", b: "b", c: "c"] -> dict(a: string, b: string) omits c',
+      async () => {
+        const result = await run(
+          '[a: "a", b: "b", c: "c"] -> dict(a: string, b: string)'
+        );
+        expect(result).toEqual({ a: 'a', b: 'b' });
+        expect((result as Record<string, unknown>)['c']).toBeUndefined();
+      }
+    );
   });
 
   // ============================================================
@@ -126,13 +134,16 @@ describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
 
   describe('AC-8: hydrated value ^type shows no defaults in inferred type', () => {
-    it('^type of hydrated dict shows inferred structural type without defaults', async () => {
-      const result = await run(
-        '[b: "b"] -> dict(b: string, a: string = "a") -> .^type -> string'
-      );
-      // Inferred type has no defaults — just dict(a: string, b: string)
-      expect(result).toBe('dict(a: string, b: string)');
-    });
+    rule('defaults.hydrated-type').it(
+      '^type of hydrated dict shows inferred structural type without defaults',
+      async () => {
+        const result = await run(
+          '[b: "b"] -> dict(b: string, a: string = "a") -> .^type -> string'
+        );
+        // Inferred type has no defaults — just dict(a: string, b: string)
+        expect(result).toBe('dict(a: string, b: string)');
+      }
+    );
   });
 
   // ============================================================
@@ -207,12 +218,15 @@ describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
 
   describe('AC-14 (EC-2): default value type mismatch causes typed-atom halt', () => {
-    it('dict(a: string = 42) halts when default is wrong type', async () => {
-      await expectHalt(() => run('dict(a: string = 42)'), {
-        code: 'TYPE_MISMATCH',
-        messagePattern: /Default value for field 'a' must be string/,
-      });
-    });
+    rule('defaults.type-match').it(
+      'dict(a: string = 42) halts when default is wrong type',
+      async () => {
+        await expectHalt(() => run('dict(a: string = 42)'), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: /Default value for field 'a' must be string/,
+        });
+      }
+    );
   });
 
   // ============================================================
@@ -459,7 +473,7 @@ describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
 
   describe('AC-1 (1.11): tuple : assertion accepts value omitting trailing defaulted fields', () => {
-    rule('structural-typing.exact-position').it(
+    rule('structural-typing.exact-position', 'assertion.variable').it(
       'tuple["x"] passes :$t where $t = tuple(string, number = 0)',
       async () => {
         const result = await run(
@@ -513,12 +527,15 @@ describe('Rill Language: Structural Type Default Values', () => {
       expect(result).toBe(true);
     });
 
-    it('tuple: tuple["x"] :?$t returns true where $t = tuple(string, number = 0)', async () => {
-      const result = await run(
-        'tuple(string, number = 0) => $t\ntuple["x"] -> :?$t'
-      );
-      expect(result).toBe(true);
-    });
+    rule('assertion.variable').it(
+      'tuple: tuple["x"] :?$t returns true where $t = tuple(string, number = 0)',
+      async () => {
+        const result = await run(
+          'tuple(string, number = 0) => $t\ntuple["x"] -> :?$t'
+        );
+        expect(result).toBe(true);
+      }
+    );
 
     it('ordered: ordered[a: "x"] :?$t returns true where $t = ordered(a: string, b: number = 0)', async () => {
       const result = await run(
@@ -639,13 +656,16 @@ describe('Rill Language: Structural Type Default Values', () => {
     // Explicit empty default hydrated through nested type
     // ============================================================
 
-    it('hydrates explicit empty dict default through nested type', async () => {
-      // [:] is the empty dict literal accepted by parseLiteral; dict[] is not valid in default position
-      const result = await run(
-        'dict[] -> dict(cfg: dict(x: number = 42) = [:])'
-      );
-      expect(result).toEqual({ cfg: { x: 42 } });
-    });
+    rule('defaults.nested').it(
+      'hydrates explicit empty dict default through nested type',
+      async () => {
+        // [:] is the empty dict literal accepted by parseLiteral; dict[] is not valid in default position
+        const result = await run(
+          'dict[] -> dict(cfg: dict(x: number = 42) = [:])'
+        );
+        expect(result).toEqual({ cfg: { x: 42 } });
+      }
+    );
 
     // ============================================================
     // Multi-level nesting (3 levels deep)
@@ -755,6 +775,41 @@ describe('Rill Language: Structural Type Default Values', () => {
     it('a variable reference is still rejected as a field default', () => {
       expect(() => parse('dict(a: number = $x)')).toThrow(ParseError);
     });
+
+    rule('defaults.operator').it(
+      'an operator after a literal field default raises RILL-P014',
+      () => {
+        expect(() => parse('dict(a: number = 1 + 1)')).toThrow(
+          expect.objectContaining({ errorId: 'RILL-P014' })
+        );
+      }
+    );
+
+    rule('defaults.arg-hydrate', 'defaults.hydration-union').it(
+      'a call hydrates against the narrowest accepting union member in either order',
+      async () => {
+        const wide = 'dict(a: number, b: number = 9, c: number = 1)';
+        const narrow = 'dict(a: number, b: number = 8)';
+        for (const members of [`${wide}, ${narrow}`, `${narrow}, ${wide}`]) {
+          expect(
+            await run(`fn(v: union(${members})) { $v } => $f\n$f(dict[a: 1])`)
+          ).toEqual({ a: 1, b: 8 });
+        }
+      }
+    );
+
+    rule('defaults.hydration-tie').it(
+      'a call breaks a hydration tie between equal-width members by canonical order',
+      async () => {
+        const withC = 'dict(a: number, c: number = 7)';
+        const withB = 'dict(a: number, b: number = 9)';
+        for (const members of [`${withC}, ${withB}`, `${withB}, ${withC}`]) {
+          expect(
+            await run(`fn(v: union(${members})) { $v } => $f\n$f(dict[a: 1])`)
+          ).toEqual({ a: 1, b: 9 });
+        }
+      }
+    );
   });
 
   // ============================================================
@@ -763,10 +818,15 @@ describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
 
   describe('inline type assertion and check accept field defaults', () => {
-    it('assertion with a default returns the input without hydrating', async () => {
-      const result = await run('dict[a: 1] -> :dict(a: number, b: number = 0)');
-      expect(result).toEqual({ a: 1 });
-    });
+    rule('assertion.unchanged').it(
+      'assertion with a default returns the input without hydrating',
+      async () => {
+        const result = await run(
+          'dict[a: 1] -> :dict(a: number, b: number = 0)'
+        );
+        expect(result).toEqual({ a: 1 });
+      }
+    );
 
     it('check with a default returns true', async () => {
       const result = await run(
@@ -775,12 +835,15 @@ describe('Rill Language: Structural Type Default Values', () => {
       expect(result).toBe(true);
     });
 
-    it('postfix assertion with a default returns the input without hydrating', async () => {
-      const result = await run(
-        'dict[a: 1] => $d\n$d:dict(a: number, b: number = 0)'
-      );
-      expect(result).toEqual({ a: 1 });
-    });
+    rule('assertion.unchanged', 'assertion.position').it(
+      'postfix assertion with a default returns the input without hydrating',
+      async () => {
+        const result = await run(
+          'dict[a: 1] => $d\n$d:dict(a: number, b: number = 0)'
+        );
+        expect(result).toEqual({ a: 1 });
+      }
+    );
 
     it('postfix check with a default returns true', async () => {
       const result = await run(

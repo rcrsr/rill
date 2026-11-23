@@ -208,12 +208,15 @@ describe('Rill Runtime: Capture Type Assertions', () => {
       });
     });
 
-    it('type-locks variable after first assignment', async () => {
-      // Variables are type-locked after first assignment
-      const script = `"string" => $v
+    rule('type-lock.first').it(
+      'type-locks variable after first assignment',
+      async () => {
+        // Variables are type-locked after first assignment
+        const script = `"string" => $v
 42 => $v`;
-      await expect(run(script)).rejects.toThrow('Type mismatch');
-    });
+        await expect(run(script)).rejects.toThrow('Type mismatch');
+      }
+    );
 
     it('allows reassignment of same type', async () => {
       const script = `"first" => $v
@@ -259,6 +262,17 @@ $s`);
   });
 
   describe('Inferred structure lock', () => {
+    rule('type-lock.halt').it(
+      'halts RILL-R001 at the capture, naming the variable and the locked type',
+      async () => {
+        await expectHalt(() => run('"hi" => $name\n42 => $name'), {
+          code: 'RILL_R001',
+          hostErrorId: 'RILL-R001',
+          messagePattern: 'cannot assign number to $name (locked as string)',
+        });
+      }
+    );
+
     rule('type-lock.list', 'type-lock.narrowest').it(
       'locks a list to its element type',
       async () => {
@@ -359,6 +373,22 @@ $s`);
         await expectHalt(() => run('list[1] => $x:any\nlist["a"] => $x'), {
           code: 'RILL_R001',
         });
+      }
+    );
+
+    rule('type-lock.asserted').it(
+      'locks to the asserted union a captured value carries',
+      async () => {
+        expect(
+          await run('1 -> :union(number, string) => $x\n"a" => $x\n$x')
+        ).toBe('a');
+        await expectHalt(
+          () => run('1 -> :union(number, string) => $x\ntrue => $x'),
+          {
+            code: 'RILL_R001',
+            messagePattern: /locked as union\(number, string\)/,
+          }
+        );
       }
     );
 

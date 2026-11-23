@@ -13,6 +13,7 @@ import { describe, expect, it } from 'vitest';
 
 import { run, runWithContext } from '../helpers/runtime.js';
 import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Vector Type', () => {
   describe('.^type typeName [AC-9]', () => {
@@ -195,7 +196,7 @@ describe('Rill Runtime: Vector Type', () => {
   describe('string form', () => {
     const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
 
-    it.each([
+    rule('conversion.no-string-vector').it.each([
       ['interpolation', '"Vector: {$v}"', /cannot convert vector to string/],
       [
         'interpolation with surrounding text',

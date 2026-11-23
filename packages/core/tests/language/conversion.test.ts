@@ -24,12 +24,15 @@ describe('Rill Language: -> Conversion Operator', () => {
   // ============================================================
 
   describe('list -> tuple (AC-11)', () => {
-    it('converts list[1, 2] to tuple with elements 1 and 2', async () => {
-      const result = await run('list[1, 2] -> tuple');
-      expect(isTuple(result)).toBe(true);
-      const tupleResult = result as { entries: unknown[] };
-      expect(tupleResult.entries).toEqual([1, 2]);
-    });
+    rule('conversion.pipe', 'conversion.list-tuple').it(
+      'converts list[1, 2] to tuple with elements 1 and 2',
+      async () => {
+        const result = await run('list[1, 2] -> tuple');
+        expect(isTuple(result)).toBe(true);
+        const tupleResult = result as { entries: unknown[] };
+        expect(tupleResult.entries).toEqual([1, 2]);
+      }
+    );
 
     it('converts empty list to empty tuple', async () => {
       const result = await run('list[] -> tuple');
@@ -47,10 +50,13 @@ describe('Rill Language: -> Conversion Operator', () => {
   });
 
   describe('tuple -> list (AC-11b)', () => {
-    it('converts tuple[1, 2] to list with elements 1 and 2', async () => {
-      const result = await run('tuple[1, 2] -> list');
-      expect(result).toEqual([1, 2]);
-    });
+    rule('conversion.list-tuple').it(
+      'converts tuple[1, 2] to list with elements 1 and 2',
+      async () => {
+        const result = await run('tuple[1, 2] -> list');
+        expect(result).toEqual([1, 2]);
+      }
+    );
 
     it('converts empty tuple to empty list', async () => {
       const result = await run('tuple[] -> list');
@@ -81,10 +87,13 @@ describe('Rill Language: -> Conversion Operator', () => {
   });
 
   describe('ordered -> dict (AC-12)', () => {
-    it('converts ordered[a: 1, b: 2] to dict with keys a and b', async () => {
-      const result = await run('ordered[a: 1, b: 2] -> dict');
-      expect(result).toEqual({ a: 1, b: 2 });
-    });
+    rule('conversion.ordered-dict').it(
+      'converts ordered[a: 1, b: 2] to dict with keys a and b',
+      async () => {
+        const result = await run('ordered[a: 1, b: 2] -> dict');
+        expect(result).toEqual({ a: 1, b: 2 });
+      }
+    );
 
     it('converts empty ordered to empty dict', async () => {
       const result = await run('ordered[] -> dict');
@@ -93,34 +102,43 @@ describe('Rill Language: -> Conversion Operator', () => {
   });
 
   describe('dict -> ordered(sig) (AC-13, AC-49)', () => {
-    it('converts dict[a: 1, b: 2] to ordered using field order from sig (AC-13)', async () => {
-      const result = await run(
-        'dict[a: 1, b: 2] -> ordered(a: number, b: number)'
-      );
-      expect(isOrdered(result)).toBe(true);
-      const entries = orderedEntries(result);
-      expect(entries).toEqual([
-        ['a', 1],
-        ['b', 2],
-      ]);
-    });
+    rule('conversion.dict-ordered').it(
+      'converts dict[a: 1, b: 2] to ordered using field order from sig (AC-13)',
+      async () => {
+        const result = await run(
+          'dict[a: 1, b: 2] -> ordered(a: number, b: number)'
+        );
+        expect(isOrdered(result)).toBe(true);
+        const entries = orderedEntries(result);
+        expect(entries).toEqual([
+          ['a', 1],
+          ['b', 2],
+        ]);
+      }
+    );
 
-    it('uses type signature field order, not dict order (AC-49)', async () => {
-      const result = await run(
-        'dict[b: 2, a: 1] -> ordered(b: number, a: number)'
-      );
-      expect(isOrdered(result)).toBe(true);
-      const entries = orderedEntries(result);
-      expect(entries[0]![0]).toBe('b');
-      expect(entries[1]![0]).toBe('a');
-    });
+    rule('conversion.dict-ordered').it(
+      'uses type signature field order, not dict order (AC-49)',
+      async () => {
+        const result = await run(
+          'dict[b: 2, a: 1] -> ordered(b: number, a: number)'
+        );
+        expect(isOrdered(result)).toBe(true);
+        const entries = orderedEntries(result);
+        expect(entries[0]![0]).toBe('b');
+        expect(entries[1]![0]).toBe('a');
+      }
+    );
   });
 
   describe('string -> number (AC-14)', () => {
-    rule('number.from-string').it('converts "5" to integer 5', async () => {
-      const result = await run('"5" -> number');
-      expect(result).toBe(5);
-    });
+    rule('number.from-string', 'conversion.scalar').it(
+      'converts "5" to integer 5',
+      async () => {
+        const result = await run('"5" -> number');
+        expect(result).toBe(5);
+      }
+    );
 
     rule('number.from-string').it('converts "3.14" to decimal', async () => {
       const result = await run('"3.14" -> number');
@@ -177,81 +195,121 @@ describe('Rill Language: -> Conversion Operator', () => {
   // ============================================================
 
   describe('dynamic -> $t type variable (AC-15)', () => {
-    it('converts list[1, 2] to tuple using type variable $t', async () => {
-      const result = await run('tuple => $t\nlist[1, 2] -> $t');
-      expect(isTuple(result)).toBe(true);
-      const tupleResult = result as { entries: unknown[] };
-      expect(tupleResult.entries).toEqual([1, 2]);
-    });
+    rule('conversion.variable').it(
+      'converts list[1, 2] to tuple using type variable $t',
+      async () => {
+        const result = await run('tuple => $t\nlist[1, 2] -> $t');
+        expect(isTuple(result)).toBe(true);
+        const tupleResult = result as { entries: unknown[] };
+        expect(tupleResult.entries).toEqual([1, 2]);
+      }
+    );
 
-    it('throws when dict -> $t where $t is ordered type (no sig available)', async () => {
-      // dict -> ordered without a structural signature always errors (EC-11)
-      await expect(
-        run('ordered => $t\ndict[a: 1, b: 2] -> $t')
-      ).rejects.toThrow(/structural type signature/);
-    });
+    rule('conversion.variable', 'conversion.no-signature').it(
+      'throws when dict -> $t where $t is ordered type (no sig available)',
+      async () => {
+        // dict -> ordered without a structural signature always errors (EC-11)
+        await expect(
+          run('ordered => $t\ndict[a: 1, b: 2] -> $t')
+        ).rejects.toThrow(/structural type signature/);
+      }
+    );
 
     it('passes through same type via variable (AC-47)', async () => {
       const result = await run('list => $t\nlist[1, 2] -> $t');
       expect(result).toEqual([1, 2]);
     });
 
-    it('fills a missing field default through a held dict type', async () => {
-      const result = await run(
-        'dict(a: number, b: number = 5) => $t\ndict[a: 1] -> $t'
-      );
-      expect(result).toEqual({ a: 1, b: 5 });
-    });
+    rule('conversion.variable', 'conversion.fill').it(
+      'fills a missing field default through a held dict type',
+      async () => {
+        const result = await run(
+          'dict(a: number, b: number = 5) => $t\ndict[a: 1] -> $t'
+        );
+        expect(result).toEqual({ a: 1, b: 5 });
+      }
+    );
 
-    it('drops extra keys through a held dict type', async () => {
-      const result = await run('dict(a: number) => $t\ndict[a: 1, z: 9] -> $t');
-      expect(result).toEqual({ a: 1 });
-    });
+    rule('conversion.variable', 'conversion.drop').it(
+      'drops extra keys through a held dict type',
+      async () => {
+        const result = await run(
+          'dict(a: number) => $t\ndict[a: 1, z: 9] -> $t'
+        );
+        expect(result).toEqual({ a: 1 });
+      }
+    );
 
-    it('converts the inner field type through a held dict type', async () => {
-      const result = await run('dict(a: string) => $t\ndict[a: 1] -> $t');
-      expect(result).toEqual({ a: '1' });
-    });
+    rule('conversion.variable', 'conversion.deep').it(
+      'converts the inner field type through a held dict type',
+      async () => {
+        const result = await run('dict(a: string) => $t\ndict[a: 1] -> $t');
+        expect(result).toEqual({ a: '1' });
+      }
+    );
 
-    it('halts naming the failing field through a held dict type', async () => {
-      await expectHalt(() => run('dict(a: number) => $t\ndict[a: "x"] -> $t'), {
-        code: 'RILL_R038',
-        messagePattern: /field 'a'/,
-      });
-    });
+    rule('conversion.variable', 'conversion.failure').it(
+      'halts naming the failing field through a held dict type',
+      async () => {
+        await expectHalt(
+          () => run('dict(a: number) => $t\ndict[a: "x"] -> $t'),
+          {
+            code: 'RILL_R038',
+            messagePattern: /field 'a'/,
+          }
+        );
+      }
+    );
 
-    it('converts list elements to a parameterized list type', async () => {
-      expect(await run('list[1, 2] -> list(string)')).toEqual(['1', '2']);
-      expect(await run('list["1", "2"] -> list(number)')).toEqual([1, 2]);
-      expect(await run('list[list[1]] -> list(list(string))')).toEqual([['1']]);
-    });
+    rule('conversion.deep').it(
+      'converts list elements to a parameterized list type',
+      async () => {
+        expect(await run('list[1, 2] -> list(string)')).toEqual(['1', '2']);
+        expect(await run('list["1", "2"] -> list(number)')).toEqual([1, 2]);
+        expect(await run('list[list[1]] -> list(list(string))')).toEqual([
+          ['1'],
+        ]);
+      }
+    );
 
-    it('converts a tuple to a parameterized list type', async () => {
-      expect(await run('tuple[1, 2] -> list(string)')).toEqual(['1', '2']);
-    });
+    rule('conversion.deep').it(
+      'converts a tuple to a parameterized list type',
+      async () => {
+        expect(await run('tuple[1, 2] -> list(string)')).toEqual(['1', '2']);
+      }
+    );
 
-    it('converts positions of a tuple signature', async () => {
-      const result = await run('list[1, 2] -> tuple(string, string)');
-      expect(isTuple(result) ? result.entries : result).toEqual(['1', '2']);
-    });
+    rule('conversion.deep').it(
+      'converts positions of a tuple signature',
+      async () => {
+        const result = await run('list[1, 2] -> tuple(string, string)');
+        expect(isTuple(result) ? result.entries : result).toEqual(['1', '2']);
+      }
+    );
 
-    it('converts dict fields', async () => {
+    rule('conversion.deep').it('converts dict fields', async () => {
       expect(await run('dict[a: 1] -> dict(a: string)')).toEqual({ a: '1' });
     });
 
-    it('converts ordered fields', async () => {
+    rule('conversion.deep').it('converts ordered fields', async () => {
       const result = await run('ordered[a: 1] -> ordered(a: string)');
       expect(isOrdered(result) ? orderedEntries(result) : result).toEqual([
         ['a', '1'],
       ]);
     });
 
-    it('halts RILL-R036 naming the element for a list element that matches no member', async () => {
-      await expectHalt(() => run('list[true] -> list(union(number, string))'), {
-        code: 'RILL_R036',
-        messagePattern: /element 0/,
-      });
-    });
+    rule('conversion.failure').it(
+      'halts RILL-R036 naming the element for a list element that matches no member',
+      async () => {
+        await expectHalt(
+          () => run('list[true] -> list(union(number, string))'),
+          {
+            code: 'RILL_R036',
+            messagePattern: /element 0/,
+          }
+        );
+      }
+    );
 
     it('returns a list unchanged when every element matches a member', async () => {
       expect(await run('list[1, "a"] -> list(union(number, string))')).toEqual([
@@ -260,19 +318,25 @@ describe('Rill Language: -> Conversion Operator', () => {
       ]);
     });
 
-    it('halts RILL-R038 naming the failing list element', async () => {
-      await expectHalt(() => run('list["1", "x"] -> list(number)'), {
-        code: 'RILL_R038',
-        messagePattern: /element 1/,
-      });
-    });
+    rule('conversion.failure').it(
+      'halts RILL-R038 naming the failing list element',
+      async () => {
+        await expectHalt(() => run('list["1", "x"] -> list(number)'), {
+          code: 'RILL_R038',
+          messagePattern: /element 1/,
+        });
+      }
+    );
 
-    it('halts RILL-R038 naming the failing tuple position', async () => {
-      await expectHalt(() => run('tuple["x", 1] -> tuple(number, number)'), {
-        code: 'RILL_R038',
-        messagePattern: /position 0/,
-      });
-    });
+    rule('conversion.failure').it(
+      'halts RILL-R038 naming the failing tuple position',
+      async () => {
+        await expectHalt(() => run('tuple["x", 1] -> tuple(number, number)'), {
+          code: 'RILL_R038',
+          messagePattern: /position 0/,
+        });
+      }
+    );
 
     it('still halts #TYPE_MISMATCH on the assertion path', async () => {
       await expectHalt(() => run('list[1, 2] -> :list(string)'), {
@@ -297,12 +361,15 @@ describe('Rill Language: -> Conversion Operator', () => {
       expect((result as { entries: unknown[] }).entries).toEqual([1, 9]);
     });
 
-    it('halts R044 for a missing required field through a held dict type', async () => {
-      await expectHalt(() => run('dict(a: number) => $t\ndict[] -> $t'), {
-        code: 'RILL_R044',
-        messagePattern: /missing required field 'a'/,
-      });
-    });
+    rule('conversion.variable', 'conversion.fill').it(
+      'halts R044 for a missing required field through a held dict type',
+      async () => {
+        await expectHalt(() => run('dict(a: number) => $t\ndict[] -> $t'), {
+          code: 'RILL_R044',
+          messagePattern: /missing required field 'a'/,
+        });
+      }
+    );
   });
 
   // ============================================================
@@ -346,13 +413,21 @@ describe('Rill Language: -> Conversion Operator', () => {
   // ============================================================
 
   describe('removed .str and .num methods (AC-23, AC-24)', () => {
-    it('throws unknown method error: "123" -> .num (AC-23)', async () => {
-      await expect(run('"123" -> .num')).rejects.toThrow(/Unknown method: num/);
-    });
+    rule('conversion.pipe').it(
+      'throws unknown method error: "123" -> .num (AC-23)',
+      async () => {
+        await expect(run('"123" -> .num')).rejects.toThrow(
+          /Unknown method: num/
+        );
+      }
+    );
 
-    it('throws unknown method error: 42 -> .str (AC-24)', async () => {
-      await expect(run('42 -> .str')).rejects.toThrow(/Unknown method: str/);
-    });
+    rule('conversion.pipe').it(
+      'throws unknown method error: 42 -> .str (AC-24)',
+      async () => {
+        await expect(run('42 -> .str')).rejects.toThrow(/Unknown method: str/);
+      }
+    );
   });
 
   // ============================================================
@@ -360,17 +435,23 @@ describe('Rill Language: -> Conversion Operator', () => {
   // ============================================================
 
   describe('error contracts', () => {
-    it('throws runtime error: "hello" -> tuple (AC-28, EC-10)', async () => {
-      await expect(run('"hello" -> tuple')).rejects.toThrow(
-        /cannot convert string to tuple/
-      );
-    });
+    rule('conversion.missing').it(
+      'throws runtime error: "hello" -> tuple (AC-28, EC-10)',
+      async () => {
+        await expect(run('"hello" -> tuple')).rejects.toThrow(
+          /cannot convert string to tuple/
+        );
+      }
+    );
 
-    it('throws runtime error: dict -> ordered without signature (AC-29, EC-11)', async () => {
-      await expect(run('dict[a: 1] -> ordered')).rejects.toThrow(
-        /structural type signature/
-      );
-    });
+    rule('conversion.no-signature').it(
+      'throws runtime error: dict -> ordered without signature (AC-29, EC-11)',
+      async () => {
+        await expect(run('dict[a: 1] -> ordered')).rejects.toThrow(
+          /structural type signature/
+        );
+      }
+    );
 
     rule('number.from-string-fail').it(
       'throws runtime error: "five" -> number (AC-33, EC-12)',
@@ -391,6 +472,32 @@ describe('Rill Language: -> Conversion Operator', () => {
         /cannot pipe into \$n: it holds a number/
       );
     });
+
+    rule('conversion.missing').it(
+      'halts RILL-R036 for a source with no conversion to the target',
+      async () => {
+        await expectHalt(() => run('5 -> list'), {
+          code: 'RILL_R036',
+          hostErrorId: 'RILL-R036',
+          messagePattern: /cannot convert number to list/,
+        });
+      }
+    );
+
+    rule('conversion.any').it(
+      'halts RILL-R036 for a pipe into any',
+      async () => {
+        await expectHalt(() => run('5 -> any'), {
+          code: 'RILL_R036',
+          hostErrorId: 'RILL-R036',
+          messagePattern: /cannot convert number to any/,
+        });
+        await expectHalt(() => run('list[1] -> any'), {
+          code: 'RILL_R036',
+          hostErrorId: 'RILL-R036',
+        });
+      }
+    );
 
     it('throws runtime error: list -> dict (incompatible)', async () => {
       await expect(run('list[1, 2] -> dict')).rejects.toThrow(
@@ -424,7 +531,7 @@ describe('Rill Language: -> Conversion Operator', () => {
       }
     );
 
-    rule('string.from-bool').it(
+    rule('string.from-bool', 'conversion.scalar').it(
       'converts bool true to string "true" (AC-2)',
       async () => {
         const result = await run('true -> string');
@@ -652,25 +759,31 @@ describe('Rill Language: -> Conversion Operator', () => {
       );
     });
 
-    it('throws RILL-R036: closure -> string (no string form)', async () => {
-      await expectHalt(() => run('fn() { 42 } -> string'), {
-        code: 'RILL_R036',
-        hostErrorId: 'RILL-R036',
-        messagePattern: /cannot convert fn to string/,
-      });
-    });
+    rule('conversion.no-string-form').it(
+      'throws RILL-R036: closure -> string (no string form)',
+      async () => {
+        await expectHalt(() => run('fn() { 42 } -> string'), {
+          code: 'RILL_R036',
+          hostErrorId: 'RILL-R036',
+          messagePattern: /cannot convert fn to string/,
+        });
+      }
+    );
 
-    it('throws RILL-R036: iterator -> string (no string form)', async () => {
-      await expectHalt(() => run('range(0, 3) -> string'), {
-        code: 'RILL_R036',
-        hostErrorId: 'RILL-R036',
-        messagePattern: /cannot convert iterator to string/,
-      });
-    });
+    rule('conversion.no-string-form').it(
+      'throws RILL-R036: iterator -> string (no string form)',
+      async () => {
+        await expectHalt(() => run('range(0, 3) -> string'), {
+          code: 'RILL_R036',
+          hostErrorId: 'RILL-R036',
+          messagePattern: /cannot convert iterator to string/,
+        });
+      }
+    );
 
     const NESTED_PRELUDE = 'fn() { 42 } => $f\nrange(0, 3) => $it\n';
 
-    it.each([
+    rule('conversion.no-string-nested').it.each([
       [
         'list holding a closure',
         'list[$f] -> string',
@@ -805,20 +918,23 @@ describe('Rill Language: -> Conversion Operator', () => {
   // ============================================================
 
   describe('legacy :> migration error (UCP-EC-1, AC-EC-1, AC-EC-6)', () => {
-    it('raises RILL-R078 parse error for "42" -> :>number', () => {
-      let thrown: unknown = undefined;
-      try {
-        parse('"42" -> :>number');
-      } catch (err) {
-        thrown = err;
+    rule('conversion.legacy-operator').it(
+      'raises RILL-R078 parse error for "42" -> :>number',
+      () => {
+        let thrown: unknown = undefined;
+        try {
+          parse('"42" -> :>number');
+        } catch (err) {
+          thrown = err;
+        }
+        expect(thrown).toBeInstanceOf(ParseError);
+        const parseErr = thrown as ParseError;
+        expect(parseErr.errorId).toBe('RILL-R078');
+        // Message must cite both `:>` and `-> type`
+        expect(parseErr.message).toMatch(/:>/);
+        expect(parseErr.message).toMatch(/-> type/);
       }
-      expect(thrown).toBeInstanceOf(ParseError);
-      const parseErr = thrown as ParseError;
-      expect(parseErr.errorId).toBe('RILL-R078');
-      // Message must cite both `:>` and `-> type`
-      expect(parseErr.message).toMatch(/:>/);
-      expect(parseErr.message).toMatch(/-> type/);
-    });
+    );
 
     it('migration error terminates the pipe chain (AC-EC-6)', async () => {
       // Parse error surfaces before any downstream stage runs, halting
@@ -834,35 +950,50 @@ describe('Rill Language: -> Conversion Operator', () => {
   });
 
   describe('type-value-via-variable dispatch (UCP-AC-3, UCP-EC-3, UCP-EC-4, UCP-EC-5)', () => {
-    it('number => $t; "42" -> $t returns numeric 42 (UCP-AC-3, slot-6 dispatch)', async () => {
-      const result = await run('number => $t\n"42" -> $t');
-      expect(result).toBe(42);
-    });
+    rule('conversion.variable').it(
+      'number => $t; "42" -> $t returns numeric 42 (UCP-AC-3, slot-6 dispatch)',
+      async () => {
+        const result = await run('number => $t\n"42" -> $t');
+        expect(result).toBe(42);
+      }
+    );
 
-    it('string => $t; 42 -> $t returns "42"', async () => {
-      const result = await run('string => $t\n42 -> $t');
-      expect(result).toBe('42');
-    });
+    rule('conversion.variable').it(
+      'string => $t; 42 -> $t returns "42"',
+      async () => {
+        const result = await run('string => $t\n42 -> $t');
+        expect(result).toBe('42');
+      }
+    );
 
-    it('closure => $t; 42 -> $t raises RILL-R036 (UCP-EC-3 unsupported via variable)', async () => {
-      await expect(run('fn => $t\n42 -> $t')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R036'
-      );
-    });
+    rule('conversion.variable').it(
+      'closure => $t; 42 -> $t raises RILL-R036 (UCP-EC-3 unsupported via variable)',
+      async () => {
+        await expect(run('fn => $t\n42 -> $t')).rejects.toHaveProperty(
+          'errorId',
+          'RILL-R036'
+        );
+      }
+    );
 
-    it('ordered => $t; dict[a: 1] -> $t raises RILL-R037 (UCP-EC-4 via variable)', async () => {
-      await expect(
-        run('ordered => $t\ndict[a: 1] -> $t')
-      ).rejects.toHaveProperty('errorId', 'RILL-R037');
-    });
+    rule('conversion.variable').it(
+      'ordered => $t; dict[a: 1] -> $t raises RILL-R037 (UCP-EC-4 via variable)',
+      async () => {
+        await expect(
+          run('ordered => $t\ndict[a: 1] -> $t')
+        ).rejects.toHaveProperty('errorId', 'RILL-R037');
+      }
+    );
 
-    it('number => $t; "abc" -> $t raises RILL-R038 (UCP-EC-5 via variable)', async () => {
-      await expect(run('number => $t\n"abc" -> $t')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R038'
-      );
-    });
+    rule('conversion.variable').it(
+      'number => $t; "abc" -> $t raises RILL-R038 (UCP-EC-5 via variable)',
+      async () => {
+        await expect(run('number => $t\n"abc" -> $t')).rejects.toHaveProperty(
+          'errorId',
+          'RILL-R038'
+        );
+      }
+    );
   });
 
   describe('bare identifier fall-through (UCP-EC-2)', () => {

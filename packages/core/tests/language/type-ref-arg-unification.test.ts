@@ -32,12 +32,15 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
   // ============================================================
 
   describe('AC-1: dict with default field, invoke/convert with empty dict', () => {
-    it('closure param annotation hydrates dict default to 5', async () => {
-      const result = await run(
-        'fn(a: dict(b: number = 5)) { $a } => $fn\n$fn(dict[])'
-      );
-      expect(result).toEqual({ b: 5 });
-    });
+    rule('defaults.arg-hydrate').it(
+      'closure param annotation hydrates dict default to 5',
+      async () => {
+        const result = await run(
+          'fn(a: dict(b: number = 5)) { $a } => $fn\n$fn(dict[])'
+        );
+        expect(result).toEqual({ b: 5 });
+      }
+    );
 
     it('accessing hydrated default field returns 5', async () => {
       const result = await run(
@@ -162,10 +165,13 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
       expect(result).toBe(true);
     });
 
-    it('dict(a: number = 5) != dict(a: number) is true', async () => {
-      const result = await run('dict(a: number = 5) != dict(a: number)');
-      expect(result).toBe(true);
-    });
+    rule('defaults.equality').it(
+      'dict(a: number = 5) != dict(a: number) is true',
+      async () => {
+        const result = await run('dict(a: number = 5) != dict(a: number)');
+        expect(result).toBe(true);
+      }
+    );
   });
 
   // ============================================================

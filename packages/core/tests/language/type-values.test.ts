@@ -151,20 +151,29 @@ describe('Rill Language: Type Value Expressions', () => {
       expect(result.typeName).toBe('dict');
     });
 
-    it('"hello".^type == string evaluates to true (literal receiver)', async () => {
-      const result = await run('"hello".^type == string');
-      expect(result).toBe(true);
-    });
+    rule('inference.scalar').it(
+      '"hello".^type == string evaluates to true (literal receiver)',
+      async () => {
+        const result = await run('"hello".^type == string');
+        expect(result).toBe(true);
+      }
+    );
 
-    it('42.^type == number evaluates to true (literal receiver)', async () => {
-      const result = await run('42.^type == number');
-      expect(result).toBe(true);
-    });
+    rule('inference.scalar').it(
+      '42.^type == number evaluates to true (literal receiver)',
+      async () => {
+        const result = await run('42.^type == number');
+        expect(result).toBe(true);
+      }
+    );
 
-    it('true.^type == bool evaluates to true (literal receiver)', async () => {
-      const result = await run('true.^type == bool');
-      expect(result).toBe(true);
-    });
+    rule('inference.scalar').it(
+      'true.^type == bool evaluates to true (literal receiver)',
+      async () => {
+        const result = await run('true.^type == bool');
+        expect(result).toBe(true);
+      }
+    );
 
     it('[1, 2].^type.name == "list" evaluates to true (literal receiver)', async () => {
       const result = await run('list[1, 2].^type.name == "list"');

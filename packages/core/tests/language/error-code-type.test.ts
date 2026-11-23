@@ -143,7 +143,7 @@ describe('Rill Language: error_code type', () => {
       ).toBe(true);
     });
 
-    rule('error-code.is-atom').it(
+    rule('error-code.is-atom', 'inference.scalar').it(
       'leaves the type of an atom value as atom',
       async () => {
         expect(await run('#TIMEOUT.^type == atom')).toBe(true);

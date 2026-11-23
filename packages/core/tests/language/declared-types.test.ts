@@ -38,23 +38,35 @@ async function expectLocked(
 
 describe('Rill Language: declared types', () => {
   describe('variables and pipe', () => {
-    it('reports the declared type for .^type', async () => {
-      expect(await run(`${DECL}$x.^type == ${U}`)).toBe(true);
-    });
+    rule('carried-type.type-probe', 'assertion.label').it(
+      'reports the declared type for .^type',
+      async () => {
+        expect(await run(`${DECL}$x.^type == ${U}`)).toBe(true);
+      }
+    );
 
-    it('reports the own type for .^effective', async () => {
-      expect(await run(`${DECL}$x.^effective == number`)).toBe(true);
-    });
+    rule('carried-type.effective-probe').it(
+      'reports the own type for .^effective',
+      async () => {
+        expect(await run(`${DECL}$x.^effective == number`)).toBe(true);
+      }
+    );
 
-    it('carries the declaration through $ in a block', async () => {
-      expect(await run(`${DECL}$x -> { $.^type } => $t\n$t == ${U}`)).toBe(
-        true
-      );
-    });
+    rule('carried-type.carriage').it(
+      'carries the declaration through $ in a block',
+      async () => {
+        expect(await run(`${DECL}$x -> { $.^type } => $t\n$t == ${U}`)).toBe(
+          true
+        );
+      }
+    );
 
-    it('carries the declaration through a plain capture', async () => {
-      expect(await run(`${DECL}$x => $y\n$y.^type == ${U}`)).toBe(true);
-    });
+    rule('carried-type.carriage').it(
+      'carries the declaration through a plain capture',
+      async () => {
+        expect(await run(`${DECL}$x => $y\n$y.^type == ${U}`)).toBe(true);
+      }
+    );
 
     it('allows a different member after capturing a declared value', async () => {
       expect(await run(`${DECL}$x => $y\n"a" => $y\n$y`)).toBe('a');
@@ -66,28 +78,40 @@ describe('Rill Language: declared types', () => {
       );
     });
 
-    it('carries the declaration through a grouped expression', async () => {
-      expect(await run(`${DECL}($x).^type == ${U}`)).toBe(true);
-    });
+    rule('carried-type.carriage').it(
+      'carries the declaration through a grouped expression',
+      async () => {
+        expect(await run(`${DECL}($x).^type == ${U}`)).toBe(true);
+      }
+    );
 
-    it('carries the asserted type through an assertion', async () => {
-      expect(await run(`1 -> :${U} -> .^type => $t\n$t == ${U}`)).toBe(true);
-    });
+    rule('assertion.label').it(
+      'carries the asserted type through an assertion',
+      async () => {
+        expect(await run(`1 -> :${U} -> .^type => $t\n$t == ${U}`)).toBe(true);
+      }
+    );
 
     it('keeps the union when a bare capture reassigns the variable', async () => {
       expect(await run(`${DECL}"a" => $x\n$x.^type == ${U}`)).toBe(true);
     });
 
-    it('keeps value equality independent of the declaration', async () => {
-      expect(await run(`${DECL}$x == 1`)).toBe(true);
-    });
+    rule('carried-type.equality').it(
+      'keeps value equality independent of the declaration',
+      async () => {
+        expect(await run(`${DECL}$x == 1`)).toBe(true);
+      }
+    );
 
-    it('replaces the declaration with an assertion after checking the value', async () => {
-      expect(await run(`${DECL}$x -> :number => $y\n$y.^type == number`)).toBe(
-        true
-      );
-      await expectLocked(`${DECL}$x -> :number => $y\n"a" => $y`);
-    });
+    rule('carried-type.replace').it(
+      'replaces the declaration with an assertion after checking the value',
+      async () => {
+        expect(
+          await run(`${DECL}$x -> :number => $y\n$y.^type == number`)
+        ).toBe(true);
+        await expectLocked(`${DECL}$x -> :number => $y\n"a" => $y`);
+      }
+    );
 
     it('replaces the declaration with a new capture declaration', async () => {
       expect(await run(`${DECL}$x => $z:number\n$z.^type == number`)).toBe(
@@ -101,11 +125,14 @@ describe('Rill Language: declared types', () => {
       ).toBe(true);
     });
 
-    it('keeps the declaration through pass', async () => {
-      expect(
-        await run(`${DECL}$x -> pass { 1 } -> .^type => $t\n$t == ${U}`)
-      ).toBe(true);
-    });
+    rule('carried-type.carriage').it(
+      'keeps the declaration through pass',
+      async () => {
+        expect(
+          await run(`${DECL}$x -> pass { 1 } -> .^type => $t\n$t == ${U}`)
+        ).toBe(true);
+      }
+    );
 
     it('reports the own type for .^effective on an undeclared value', async () => {
       expect(await run('1 => $a\n$a.^effective == number')).toBe(true);
@@ -113,24 +140,30 @@ describe('Rill Language: declared types', () => {
   });
 
   describe('own-type paths', () => {
-    it('takes the own type for a binary result', async () => {
-      await expectLocked(`${DECL}$x + 1 => $y\n"a" => $y`);
-    });
+    rule('carried-type.computed').it(
+      'takes the own type for a binary result',
+      async () => {
+        await expectLocked(`${DECL}$x + 1 => $y\n"a" => $y`);
+      }
+    );
 
     it('takes the own type for a binary result with an equal value', async () => {
       await expectLocked(`${DECL}$x * 1 => $y\n"a" => $y`);
     });
 
-    it('takes the own type for a method result', async () => {
-      await expectLocked(
-        `"A" => $s:union(string, number)\n$s -> .upper => $t\n1 => $t`
-      );
-      expect(
-        await run(
-          '"a" => $s:union(number, string)\n$s -> .upper -> .^type => $t\n$t == string'
-        )
-      ).toBe(true);
-    });
+    rule('carried-type.computed').it(
+      'takes the own type for a method result',
+      async () => {
+        await expectLocked(
+          `"A" => $s:union(string, number)\n$s -> .upper => $t\n1 => $t`
+        );
+        expect(
+          await run(
+            '"a" => $s:union(number, string)\n$s -> .upper -> .^type => $t\n$t == string'
+          )
+        ).toBe(true);
+      }
+    );
 
     it('takes the own type for a unary result', async () => {
       await expectLocked(
@@ -138,15 +171,21 @@ describe('Rill Language: declared types', () => {
       );
     });
 
-    it('takes the own type for a conditional result', async () => {
-      await expectLocked(`${DECL}(true ? $x ! 2) => $y\n"a" => $y`);
-    });
+    rule('carried-type.computed').it(
+      'takes the own type for a conditional result',
+      async () => {
+        await expectLocked(`${DECL}(true ? $x ! 2) => $y\n"a" => $y`);
+      }
+    );
 
-    it('takes the own type for a loop result', async () => {
-      await expectLocked(
-        `${DECL}0 -> while ($ < 1) do { $x } => $y\n"a" => $y`
-      );
-    });
+    rule('carried-type.computed').it(
+      'takes the own type for a loop result',
+      async () => {
+        await expectLocked(
+          `${DECL}0 -> while ($ < 1) do { $x } => $y\n"a" => $y`
+        );
+      }
+    );
 
     it('takes the own type for loop $ after the first body run', async () => {
       expect(
@@ -156,13 +195,19 @@ describe('Rill Language: declared types', () => {
       ).toBe(9);
     });
 
-    it('takes the own type for a guard result', async () => {
-      await expectLocked(`${DECL}guard { $x } => $y\n"a" => $y`);
-    });
+    rule('carried-type.computed').it(
+      'takes the own type for a guard result',
+      async () => {
+        await expectLocked(`${DECL}guard { $x } => $y\n"a" => $y`);
+      }
+    );
 
-    it('takes the own type for a retry result', async () => {
-      await expectLocked(`${DECL}retry(attempts: 2) { $x } => $y\n"a" => $y`);
-    });
+    rule('carried-type.computed').it(
+      'takes the own type for a retry result',
+      async () => {
+        await expectLocked(`${DECL}retry(attempts: 2) { $x } => $y\n"a" => $y`);
+      }
+    );
 
     it('takes the own type for a timeout result', async () => {
       await expectLocked(
@@ -215,9 +260,14 @@ describe('Rill Language: declared types', () => {
       ).toEqual([true]);
     });
 
-    it('takes the own type for a closure result', async () => {
-      await expectLocked(`${DECL}fn(a) { $a } => $f\n$f($x) => $y\n"a" => $y`);
-    });
+    rule('carried-type.computed').it(
+      'takes the own type for a closure result',
+      async () => {
+        await expectLocked(
+          `${DECL}fn(a) { $a } => $f\n$f($x) => $y\n"a" => $y`
+        );
+      }
+    );
 
     it('takes the own type for a closure result with a declared return type', async () => {
       expect(
@@ -245,9 +295,12 @@ describe('Rill Language: declared types', () => {
       ).toBe(true);
     });
 
-    it('takes the own type for a block result', async () => {
-      await expectLocked(`${DECL}$x -> { $ } => $y\n"a" => $y`);
-    });
+    rule('carried-type.computed').it(
+      'takes the own type for a block result',
+      async () => {
+        await expectLocked(`${DECL}$x -> { $ } => $y\n"a" => $y`);
+      }
+    );
 
     it('takes the own type for stream chunks', async () => {
       const chunks: RillValue[] = [1, 2];
@@ -279,10 +332,13 @@ describe('Rill Language: declared types', () => {
   });
 
   describe('any is not a declaration', () => {
-    it('locks the variable as number after capturing into any', async () => {
-      await expectLocked('1 => $x:any\n"a" => $x');
-      expect(await run('1 => $x:any\n$x.^type == number')).toBe(true);
-    });
+    rule('assertion.any').it(
+      'locks the variable as number after capturing into any',
+      async () => {
+        await expectLocked('1 => $x:any\n"a" => $x');
+        expect(await run('1 => $x:any\n$x.^type == number')).toBe(true);
+      }
+    );
 
     it('reports the argument own type for an any param', async () => {
       expect(await run('fn(v: any) { $v.^type == number } => $f\n$f(1)')).toBe(
@@ -330,10 +386,13 @@ describe('Rill Language: declared types', () => {
   });
 
   describe('parameters', () => {
-    it('reports the declared param type for .^type and own type for .^effective', async () => {
-      const f = `fn(v: union(string, number)) { list[$v.^type == union(string, number), $v.^effective == number] } => $f\n`;
-      expect(await run(`${f}$f(1)`)).toEqual([true, true]);
-    });
+    rule('assertion.label').it(
+      'reports the declared param type for .^type and own type for .^effective',
+      async () => {
+        const f = `fn(v: union(string, number)) { list[$v.^type == union(string, number), $v.^effective == number] } => $f\n`;
+        expect(await run(`${f}$f(1)`)).toEqual([true, true]);
+      }
+    );
 
     it('halts when a param body reassigns a variable from the child scope', async () => {
       await expectHalt(() => run('fn(x: number) { "a" => $x } => $f\n$f(1)'), {
@@ -343,34 +402,46 @@ describe('Rill Language: declared types', () => {
       });
     });
 
-    it('locks a capture of a typed param to the declared param type', async () => {
-      await expectHalt(
-        () => run(`fn(k: ${U}) { $k => $y\ntrue => $y\n$y } => $f\n$f(1)`),
-        {
-          code: 'RILL_R001',
-          hostErrorId: 'RILL-R001',
-          messagePattern: `locked as ${U}`,
-        }
-      );
-    });
+    rule('type-lock.parameter').it(
+      'locks a capture of a typed param to the declared param type',
+      async () => {
+        await expectHalt(
+          () => run(`fn(k: ${U}) { $k => $y\ntrue => $y\n$y } => $f\n$f(1)`),
+          {
+            code: 'RILL_R001',
+            hostErrorId: 'RILL-R001',
+            messagePattern: `locked as ${U}`,
+          }
+        );
+      }
+    );
 
-    it('lets a union param accept another member after a capture', async () => {
-      expect(
-        await run(`fn(k: ${U}) { $k => $y\n"a" => $y\n$y } => $f\n$f(1)`)
-      ).toBe('a');
-    });
+    rule('type-lock.parameter').it(
+      'lets a union param accept another member after a capture',
+      async () => {
+        expect(
+          await run(`fn(k: ${U}) { $k => $y\n"a" => $y\n$y } => $f\n$f(1)`)
+        ).toBe('a');
+      }
+    );
 
-    it('carries the caller declaration into an untyped param by positional call', async () => {
-      expect(await run(`${DECL}fn(v) { $v.^type == ${U} } => $f\n$f($x)`)).toBe(
-        true
-      );
-    });
+    rule('carried-type.carriage-param').it(
+      'carries the caller declaration into an untyped param by positional call',
+      async () => {
+        expect(
+          await run(`${DECL}fn(v) { $v.^type == ${U} } => $f\n$f($x)`)
+        ).toBe(true);
+      }
+    );
 
-    it('carries the caller declaration into an untyped param by pipe', async () => {
-      expect(
-        await run(`${DECL}fn(v) { $v.^type == ${U} } => $f\n$x -> $f`)
-      ).toBe(true);
-    });
+    rule('carried-type.carriage-param').it(
+      'carries the caller declaration into an untyped param by pipe',
+      async () => {
+        expect(
+          await run(`${DECL}fn(v) { $v.^type == ${U} } => $f\n$x -> $f`)
+        ).toBe(true);
+      }
+    );
 
     it('dispatches on .^effective.name under a declared union', async () => {
       const f = `fn(v: union(string, number)) { $v.^effective.name -> dict[string: "s", number: "n"] } => $f\n`;
@@ -443,12 +514,15 @@ describe('Rill Language: declared types', () => {
   });
 
   describe('bare kind annotation', () => {
-    it('reports the bare kind for .^type and the inferred structure for .^effective', async () => {
-      expect(await run('list[1, 2] => $l:list\n$l.^type == list')).toBe(true);
-      expect(
-        await run('list[1, 2] => $l:list\n$l.^effective == list(number)')
-      ).toBe(true);
-    });
+    rule('assertion.bare-kind').it(
+      'reports the bare kind for .^type and the inferred structure for .^effective',
+      async () => {
+        expect(await run('list[1, 2] => $l:list\n$l.^type == list')).toBe(true);
+        expect(
+          await run('list[1, 2] => $l:list\n$l.^effective == list(number)')
+        ).toBe(true);
+      }
+    );
   });
 
   describe('status code', () => {
@@ -486,26 +560,56 @@ describe('Rill Language: declared types', () => {
       expect(calls).toBe(1);
     });
 
-    it('calls a closure once for a postfix assertion', async () => {
-      let calls = 0;
-      const counted = await run('count():number', {
-        functions: {
-          count: {
-            params: [],
-            returnType: anyTypeValue,
-            fn: (): RillValue => ++calls,
+    rule('assertion.once').it(
+      'calls a closure once for a postfix assertion',
+      async () => {
+        let calls = 0;
+        const counted = await run('count():number', {
+          functions: {
+            count: {
+              params: [],
+              returnType: anyTypeValue,
+              fn: (): RillValue => ++calls,
+            },
           },
-        },
-      });
-      expect(counted).toBe(1);
-      expect(calls).toBe(1);
-    });
+        });
+        expect(counted).toBe(1);
+        expect(calls).toBe(1);
+      }
+    );
   });
 
   describe('parsing', () => {
-    it('rejects ^(effective: 1) as a reserved annotation key', () => {
-      expect(() => parse('^(effective: 1) fn(x) { $x }')).toThrow(ParseError);
-    });
+    rule('carried-type.reserved-key').it(
+      'rejects ^(effective: 1) as a reserved annotation key',
+      () => {
+        expect(() => parse('^(effective: 1) fn(x) { $x }')).toThrow(ParseError);
+      }
+    );
+
+    rule('carried-type.reserved-key').it(
+      'raises RILL-P001 for ^(effective: ...) on a capture and on a closure',
+      () => {
+        for (const src of [
+          '^(effective: 1) 5 => $x',
+          '^(effective: 1) fn(x) { $x } => $f',
+        ]) {
+          const err = (() => {
+            try {
+              parse(src);
+              return undefined;
+            } catch (e) {
+              return e;
+            }
+          })();
+          expect(err).toBeInstanceOf(ParseError);
+          expect((err as ParseError).errorId).toBe('RILL-P001');
+          expect((err as ParseError).message).toContain(
+            'Annotation key "effective" is reserved'
+          );
+        }
+      }
+    );
   });
 
   describe('declarations', () => {
@@ -541,6 +645,54 @@ describe('Rill Language: declared types', () => {
           'list(union(number, string))'
         );
         expect(await run(`${src}$l.^effective.signature`)).toBe('list(number)');
+      }
+    );
+  });
+
+  describe('carried type reads', () => {
+    rule('carried-type.effective-probe').it(
+      'agrees with .^type when the value carries no type',
+      async () => {
+        expect(await run('1 => $a\n$a.^type == $a.^effective')).toBe(true);
+        expect(await run('list[1, "a"] => $l\n$l.^type == $l.^effective')).toBe(
+          true
+        );
+      }
+    );
+
+    rule('carried-type.fallback').it(
+      'keeps the carried type of the selected left operand of ??',
+      async () => {
+        expect(await run(`42 => $x:${U}\n($x ?? 1).^type.signature`)).toBe(U);
+      }
+    );
+
+    rule('carried-type.destruct').it(
+      'gives each destructured variable the carried element or field type',
+      async () => {
+        expect(
+          await run(
+            `list[1] -> :list(${U}) -> destruct<$a>\n$a.^type.signature`
+          )
+        ).toBe(U);
+        expect(
+          await run(
+            `dict[k: 1] -> :dict(k: ${U}) -> destruct<k: $b>\n$b.^type.signature`
+          )
+        ).toBe(U);
+      }
+    );
+
+    rule('carried-type.no-part').it(
+      'gives elements their own type under a bare kind, list(any), or a union',
+      async () => {
+        for (const t of ['list', 'list(any)', `union(list(${U}), string)`]) {
+          const src = `list[1, "a"] => $l:${t}\n`;
+          expect(await run(`${src}$l[0].^type.signature`)).toBe('number');
+          await expectHalt(() => run(`${src}$l -> seq({ $ == "a" })`), {
+            code: 'TYPE_MISMATCH',
+          });
+        }
       }
     );
   });

@@ -62,12 +62,15 @@ describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
 
   describe('Tuple structural types (AC-6 to AC-9)', () => {
-    it('AC-6: tuple[1, "hello", true].^type == tuple(number, string, bool)', async () => {
-      const result = await run(
-        'tuple[1, "hello", true].^type == tuple(number, string, bool)'
-      );
-      expect(result).toBe(true);
-    });
+    rule('inference.positions').it(
+      'AC-6: tuple[1, "hello", true].^type == tuple(number, string, bool)',
+      async () => {
+        const result = await run(
+          'tuple[1, "hello", true].^type == tuple(number, string, bool)'
+        );
+        expect(result).toBe(true);
+      }
+    );
 
     rule('tuple.equality').it(
       'AC-7: tuple(number, string) != tuple(string, number) is true',
@@ -100,12 +103,15 @@ describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
 
   describe('Ordered structural types (AC-10 to AC-12)', () => {
-    it('AC-10: ordered[a: 1, b: "hello"].^type == ordered(a: number, b: string)', async () => {
-      const result = await run(
-        'ordered[a: 1, b: "hello"].^type == ordered(a: number, b: string)'
-      );
-      expect(result).toBe(true);
-    });
+    rule('inference.fields').it(
+      'AC-10: ordered[a: 1, b: "hello"].^type == ordered(a: number, b: string)',
+      async () => {
+        const result = await run(
+          'ordered[a: 1, b: "hello"].^type == ordered(a: number, b: string)'
+        );
+        expect(result).toBe(true);
+      }
+    );
 
     rule('ordered.order').it(
       'AC-11: ordered(a: number, b: string) != ordered(b: string, a: number) is true',
@@ -128,12 +134,15 @@ describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
 
   describe('Dict structural types (AC-13 to AC-17)', () => {
-    it('AC-13: [name: "alice", age: 30].^type == dict(name: string, age: number) is true', async () => {
-      const result = await run(
-        'dict[name: "alice", age: 30].^type == dict(name: string, age: number)'
-      );
-      expect(result).toBe(true);
-    });
+    rule('inference.fields').it(
+      'AC-13: [name: "alice", age: 30].^type == dict(name: string, age: number) is true',
+      async () => {
+        const result = await run(
+          'dict[name: "alice", age: 30].^type == dict(name: string, age: number)'
+        );
+        expect(result).toBe(true);
+      }
+    );
 
     rule('dict.field-equality').it(
       'AC-14: dict(a: number, b: string) == dict(b: string, a: number) is true (field-order-insensitive)',

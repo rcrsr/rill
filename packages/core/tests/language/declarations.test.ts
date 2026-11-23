@@ -111,7 +111,7 @@ describe('Rill Language: declarations', () => {
       }
     );
 
-    rule('declaration.form').it(
+    rule('declaration.form', 'declaration.newline').it(
       'parses list(number) then a newline then [1] as two statements',
       () => {
         expect(parse('list(number)\n[1]').statements).toHaveLength(2);
@@ -188,6 +188,17 @@ describe('Rill Language: declarations', () => {
         expect(await run('union("a", "b") "a" => $x\n$x.^type.signature')).toBe(
           'union("a", "b")'
         );
+      }
+    );
+
+    rule('declaration.written').it(
+      'indexes a $ variable holding a type instead of constructing a value',
+      async () => {
+        await expectHalt(() => run('list(number) => $t\n$t[1]'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern: 'Cannot index type',
+        });
       }
     );
 

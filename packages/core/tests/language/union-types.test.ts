@@ -522,28 +522,40 @@ describe('union(...) types', () => {
   });
 
   describe('conversion', () => {
-    it('halts R036 for a conversion into a union', async () => {
-      await expect(run('"x" -> union("c")')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R036'
-      );
-    });
+    rule('conversion.union-miss').it(
+      'halts R036 for a conversion into a union',
+      async () => {
+        await expect(run('"x" -> union("c")')).rejects.toHaveProperty(
+          'errorId',
+          'RILL-R036'
+        );
+      }
+    );
 
-    it('returns a string unchanged when a member already matches', async () => {
-      expect(await run('"5" -> union(number, string)')).toBe('5');
-    });
+    rule('conversion.union').it(
+      'returns a string unchanged when a member already matches',
+      async () => {
+        expect(await run('"5" -> union(number, string)')).toBe('5');
+      }
+    );
 
-    it('halts RILL-R036 when no member matches the value', async () => {
-      await expectHalt(() => run('"5" -> union(number, list)'), {
-        code: 'RILL_R036',
-      });
-    });
+    rule('conversion.union-miss').it(
+      'halts RILL-R036 when no member matches the value',
+      async () => {
+        await expectHalt(() => run('"5" -> union(number, list)'), {
+          code: 'RILL_R036',
+        });
+      }
+    );
 
-    it('halts RILL-R036 rather than TYPE_MISMATCH for a bool into number|string', async () => {
-      await expectHalt(() => run('true -> union(number, string)'), {
-        code: 'RILL_R036',
-      });
-    });
+    rule('conversion.union-miss').it(
+      'halts RILL-R036 rather than TYPE_MISMATCH for a bool into number|string',
+      async () => {
+        await expectHalt(() => run('true -> union(number, string)'), {
+          code: 'RILL_R036',
+        });
+      }
+    );
 
     it('halts RILL-R036 through a held union type', async () => {
       await expectHalt(() => run('union(number, string) => $T\ntrue -> $T'), {
@@ -555,11 +567,14 @@ describe('union(...) types', () => {
       expect(await run('union(number, string) => $T\n"5" -> $T')).toBe('5');
     });
 
-    it('carries the union as the declared type of the result', async () => {
-      expect(
-        await run('5 -> union(number, string) => $v\n$v.^type -> .signature')
-      ).toBe('union(number, string)');
-    });
+    rule('conversion.union').it(
+      'carries the union as the declared type of the result',
+      async () => {
+        expect(
+          await run('5 -> union(number, string) => $v\n$v.^type -> .signature')
+        ).toBe('union(number, string)');
+      }
+    );
 
     it('carries the union through a held union type', async () => {
       expect(

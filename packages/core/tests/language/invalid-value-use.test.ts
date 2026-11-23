@@ -17,6 +17,7 @@ import {
   type RillValue,
 } from '@rcrsr/rill';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 const HELD = 'guard(on: list[#NOT_A_CODE]) { 1 } => $x\n';
 
@@ -49,23 +50,29 @@ describe('Invalid value in string interpolation', () => {
     expect(await runRecovered(`${HELD}"{$x.!code}"`)).toBe('#R001');
   });
 
-  it('halts RILL-R036 when a closure is interpolated', async () => {
-    await expectHalt(() => runRecovered('fn(a) { $a } => $fn\n"{$fn}"'), {
-      code: 'RILL_R036',
-      hostErrorId: 'RILL-R036',
-      messagePattern: /cannot convert fn to string/,
-    });
-  });
+  rule('conversion.no-string-form').it(
+    'halts RILL-R036 when a closure is interpolated',
+    async () => {
+      await expectHalt(() => runRecovered('fn(a) { $a } => $fn\n"{$fn}"'), {
+        code: 'RILL_R036',
+        hostErrorId: 'RILL-R036',
+        messagePattern: /cannot convert fn to string/,
+      });
+    }
+  );
 
-  it('halts RILL-R036 when an iterator is interpolated', async () => {
-    await expectHalt(() => runRecovered('range(0, 3) => $it\n"{$it}"'), {
-      code: 'RILL_R036',
-      hostErrorId: 'RILL-R036',
-      messagePattern: /cannot convert iterator to string/,
-    });
-  });
+  rule('conversion.no-string-form').it(
+    'halts RILL-R036 when an iterator is interpolated',
+    async () => {
+      await expectHalt(() => runRecovered('range(0, 3) => $it\n"{$it}"'), {
+        code: 'RILL_R036',
+        hostErrorId: 'RILL-R036',
+        messagePattern: /cannot convert iterator to string/,
+      });
+    }
+  );
 
-  it.each([
+  rule('conversion.no-string-nested').it.each([
     ['list', '"{list[$f]}"', /cannot convert list to string: contains fn/],
     ['dict', '"{dict[a: $f]}"', /cannot convert dict to string: contains fn/],
     [
