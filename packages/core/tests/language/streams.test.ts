@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Streams
  *
@@ -24,6 +25,7 @@ import {
 import { getNextFn, hostParam } from '../helpers/host.js';
 import { run, runFull } from '../helpers/runtime.js';
 import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 // ============================================================
 // HELPERS
@@ -453,18 +455,21 @@ describe('Streams: Success Cases', () => {
 describe('Streams: Error Cases', () => {
   // AC-E1: Re-iterating consumed stream halts with RILL-R002
   describe('AC-E1: re-iteration of consumed stream', () => {
-    it('halts when re-iterating exhausted stream', async () => {
-      await expect(
-        run(
-          `
+    rule('value.stream').it(
+      'halts when re-iterating exhausted stream',
+      async () => {
+        await expect(
+          run(
+            `
             make_stream() => $s
             $s -> seq({ $ })
             $s -> seq({ $ })
           `,
-          { functions: { make_stream: makeStreamFn([1, 2]) } }
-        )
-      ).rejects.toThrow('Stream already consumed');
-    });
+            { functions: { make_stream: makeStreamFn([1, 2]) } }
+          )
+        ).rejects.toThrow('Stream already consumed');
+      }
+    );
   });
 
   // AC-E2: Stale .next() halts with error

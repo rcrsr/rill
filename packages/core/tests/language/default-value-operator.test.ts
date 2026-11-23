@@ -27,13 +27,16 @@ describe('Default Value Operator (??)', () => {
       expect(result).toBe('active');
     });
 
-    it('returns default when field missing', async () => {
-      const result = await run(`
+    rule('vacancy.missing').it(
+      'returns default when field missing',
+      async () => {
+        const result = await run(`
         dict[name: "test"] => $data
         $data.status ?? "unknown"
       `);
-      expect(result).toBe('unknown');
-    });
+        expect(result).toBe('unknown');
+      }
+    );
 
     it('works with nested field access', async () => {
       const result = await run(`
@@ -709,9 +712,12 @@ describe('Default Value Operator (??)', () => {
       expect(await run(`${DICT}($d)["b"] ?? 0`)).toBe(0);
     });
 
-    it('recovers an out-of-range list index', async () => {
-      expect(await run(`${LIST}$l[5] ?? 0`)).toBe(0);
-    });
+    rule('vacancy.missing').it(
+      'recovers an out-of-range list index',
+      async () => {
+        expect(await run(`${LIST}$l[5] ?? 0`)).toBe(0);
+      }
+    );
 
     it('recovers a negative index beyond the start', async () => {
       expect(await run(`${LIST}$l[-3] ?? 0`)).toBe(0);

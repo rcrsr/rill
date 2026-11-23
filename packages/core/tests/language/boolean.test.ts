@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Boolean Expressions
  * Tests for logical operators (&&, ||, !) and comparisons
@@ -6,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Boolean Expressions', () => {
   describe('Logical Negation (!)', () => {
@@ -47,11 +49,11 @@ describe('Rill Runtime: Boolean Expressions', () => {
       expect(await run('"a" == "b"')).toBe(false);
     });
 
-    it('!= different values', async () => {
+    rule('equality.not').it('!= different values', async () => {
       expect(await run('1 != 2')).toBe(true);
     });
 
-    it('!= same values', async () => {
+    rule('equality.not').it('!= same values', async () => {
       expect(await run('1 != 1')).toBe(false);
     });
 

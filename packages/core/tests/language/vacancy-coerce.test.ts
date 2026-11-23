@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Vacancy coerce (??)
  *
@@ -20,13 +21,17 @@
 import { describe, expect, it } from 'vitest';
 import { createRuntimeContext, execute, parseWithRecovery } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Vacancy coerce (??) — Phase 1 reachable behavior', () => {
   describe('AC-6: valid non-empty LHS passes through', () => {
-    it('returns the string literal when LHS is a non-empty string', async () => {
-      const result = await run('"value" ?? "default"');
-      expect(result).toBe('value');
-    });
+    rule('vacancy.fallback').it(
+      'returns the string literal when LHS is a non-empty string',
+      async () => {
+        const result = await run('"value" ?? "default"');
+        expect(result).toBe('value');
+      }
+    );
 
     it('returns the number when LHS is a non-zero number', async () => {
       const result = await run('42 ?? 0');
@@ -62,15 +67,21 @@ describe('Vacancy coerce (??) — Phase 1 reachable behavior', () => {
       expect(result).toEqual({ a: 1 });
     });
 
-    it('returns 0 unchanged: zero is a valid number, not vacant', async () => {
-      const result = await run('0 => $y\n$y ?? -1');
-      expect(result).toBe(0);
-    });
+    rule('vacancy.zero-false').it(
+      'returns 0 unchanged: zero is a valid number, not vacant',
+      async () => {
+        const result = await run('0 => $y\n$y ?? -1');
+        expect(result).toBe(0);
+      }
+    );
 
-    it('returns false unchanged: false is a valid boolean, not vacant', async () => {
-      const result = await run('false => $y\n$y ?? true');
-      expect(result).toBe(false);
-    });
+    rule('vacancy.zero-false').it(
+      'returns false unchanged: false is a valid boolean, not vacant',
+      async () => {
+        const result = await run('false => $y\n$y ?? true');
+        expect(result).toBe(false);
+      }
+    );
   });
 
   describe('Precedence and composition', () => {
@@ -111,26 +122,32 @@ describe('Vacancy coerce (??) — Phase 1 reachable behavior', () => {
 // ============================================================
 
 describe('Vacancy coerce full semantics (Phase 2)', () => {
-  it('substitutes default when LHS carries invalid status', async () => {
-    // Task 2.2: widen `??` trigger from null-only to cover invalid
-    // values (status.code != #ok) for bare variables. Uses
-    // parseWithRecovery to produce an invalid value in rill source:
-    // the out-of-set selector `guard(on: list[#NOT_A_CODE]) { 1 }` (parser rejects strict
-    // shape) becomes a RecoveryErrorNode that execute() materialises
-    // as an invalid #R001 value.
-    const src = 'guard(on: list[#NOT_A_CODE]) { 1 } => $x\n$x ?? "fallback"';
-    const parsed = parseWithRecovery(src);
-    const ctx = createRuntimeContext({});
-    const result = await execute(parsed.ast, ctx);
-    expect(result.result).toBe('fallback');
-  });
+  rule('vacancy.vacant').it(
+    'substitutes default when LHS carries invalid status',
+    async () => {
+      // Task 2.2: widen `??` trigger from null-only to cover invalid
+      // values (status.code != #ok) for bare variables. Uses
+      // parseWithRecovery to produce an invalid value in rill source:
+      // the out-of-set selector `guard(on: list[#NOT_A_CODE]) { 1 }` (parser rejects strict
+      // shape) becomes a RecoveryErrorNode that execute() materialises
+      // as an invalid #R001 value.
+      const src = 'guard(on: list[#NOT_A_CODE]) { 1 } => $x\n$x ?? "fallback"';
+      const parsed = parseWithRecovery(src);
+      const ctx = createRuntimeContext({});
+      const result = await execute(parsed.ast, ctx);
+      expect(result.result).toBe('fallback');
+    }
+  );
 
-  it('substitutes default when LHS is an empty string (widened trigger)', async () => {
-    // Expression-position `??` now uses isVacant, firing on empty valid primitives.
-    // Pipe-target position retains the narrow trigger so AC-19 dispatch still works.
-    const result = await run('"" => $x\n$x ?? "fallback"');
-    expect(result).toBe('fallback');
-  });
+  rule('vacancy.vacant', 'vacancy.fallback').it(
+    'substitutes default when LHS is an empty string (widened trigger)',
+    async () => {
+      // Expression-position `??` now uses isVacant, firing on empty valid primitives.
+      // Pipe-target position retains the narrow trigger so AC-19 dispatch still works.
+      const result = await run('"" => $x\n$x ?? "fallback"');
+      expect(result).toBe('fallback');
+    }
+  );
 
   it('keeps pipe-target default-dispatch path when LHS is an empty list', async () => {
     const result = await run(`

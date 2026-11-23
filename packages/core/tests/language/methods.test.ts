@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Built-in Methods
  * Tests for string methods, pattern methods, comparison methods
@@ -7,10 +8,11 @@ import { describe, expect, it } from 'vitest';
 
 import { createLogCollector, run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Built-in Methods', () => {
   describe('.empty', () => {
-    it('returns true for empty string', async () => {
+    rule('vacancy.empty').it('returns true for empty string', async () => {
       expect(await run('"" -> .empty')).toBe(true);
     });
 
@@ -24,7 +26,7 @@ describe('Rill Runtime: Built-in Methods', () => {
       );
     });
 
-    it('returns true for empty list', async () => {
+    rule('vacancy.empty').it('returns true for empty list', async () => {
       expect(await run('list[] -> .empty')).toBe(true);
     });
 
@@ -32,7 +34,7 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('list[1] -> .empty')).toBe(false);
     });
 
-    it('returns true for empty dict', async () => {
+    rule('vacancy.empty').it('returns true for empty dict', async () => {
       expect(await run('dict[] -> .empty')).toBe(true);
     });
 
@@ -52,7 +54,7 @@ describe('Rill Runtime: Built-in Methods', () => {
       );
     });
 
-    it('returns true for empty tuple', async () => {
+    rule('vacancy.empty').it('returns true for empty tuple', async () => {
       expect(await run('tuple[] -> .empty')).toBe(true);
     });
 
@@ -60,7 +62,7 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('tuple[1, 2] -> .empty')).toBe(false);
     });
 
-    it('returns true for empty ordered', async () => {
+    rule('vacancy.empty').it('returns true for empty ordered', async () => {
       expect(await run('ordered[] -> .empty')).toBe(true);
     });
 

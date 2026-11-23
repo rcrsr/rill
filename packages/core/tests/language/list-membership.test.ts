@@ -104,7 +104,7 @@ describe('Rill Runtime: List Membership Methods', () => {
         }
       );
 
-      rule('equality.methods').it(
+      rule('equality.methods', 'equality.membership').it(
         'checks a mixed list against its inferred element type',
         async () => {
           expect(await run('list[1, "a"] -> .has("a")')).toBe(true);
@@ -275,9 +275,12 @@ describe('Rill Runtime: List Membership Methods', () => {
         }
       );
 
-      it('accepts candidates that overlap a mixed element type', async () => {
-        expect(await run('list[1, "a"] -> .has_any(list["a"])')).toBe(true);
-      });
+      rule('equality.membership').it(
+        'accepts candidates that overlap a mixed element type',
+        async () => {
+          expect(await run('list[1, "a"] -> .has_any(list["a"])')).toBe(true);
+        }
+      );
 
       it('finds matching types', async () => {
         expect(await run('list[1, 2, 3] -> .has_any(list[4, 2, 5])')).toBe(

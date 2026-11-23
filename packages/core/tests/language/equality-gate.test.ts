@@ -77,7 +77,7 @@ describe('Rill Language: equality gate', () => {
     }
   );
 
-  rule('structural-typing.overlap-union').it(
+  rule('structural-typing.overlap-union', 'equality.kind').it(
     'compares a union-declared variable with a member type without halting',
     async () => {
       expect(await run('42 => $x:union(string, number)\n$x == "a"')).toBe(
@@ -171,15 +171,21 @@ describe('Rill Language: equality gate', () => {
       );
     });
 
-    it('keeps two undeclared atoms comparable', async () => {
-      expect(await run('#TIMEOUT == #TIMEUOT')).toBe(false);
-    });
+    rule('equality.closed-set').it(
+      'keeps two undeclared atoms comparable',
+      async () => {
+        expect(await run('#TIMEOUT == #TIMEUOT')).toBe(false);
+      }
+    );
 
-    it('halts a declared string literal union compared with an outside value', async () => {
-      await expectHalt(() => run('"c" => $u:union("c", "f")\n$u == "x"'), {
-        code: 'TYPE_MISMATCH',
-      });
-    });
+    rule('equality.closed-set').it(
+      'halts a declared string literal union compared with an outside value',
+      async () => {
+        await expectHalt(() => run('"c" => $u:union("c", "f")\n$u == "x"'), {
+          code: 'TYPE_MISMATCH',
+        });
+      }
+    );
   });
 
   rule('equality.no-overlap', 'structural-typing.overlap-fields').it(
@@ -245,13 +251,16 @@ describe('Rill Language: equality gate', () => {
     }
   );
 
-  it('halts RILL-R002 when the right operand is a stream', async () => {
-    await expectHalt(
-      () =>
-        run('make_stream() => $s\n1 == $s', {
-          functions: { make_stream: makeStreamFn([1]) },
-        }),
-      { code: 'RILL_R002', hostErrorId: 'RILL-R002' }
-    );
-  });
+  rule('equality.stream').it(
+    'halts RILL-R002 when the right operand is a stream',
+    async () => {
+      await expectHalt(
+        () =>
+          run('make_stream() => $s\n1 == $s', {
+            functions: { make_stream: makeStreamFn([1]) },
+          }),
+        { code: 'RILL_R002', hostErrorId: 'RILL-R002' }
+      );
+    }
+  );
 });

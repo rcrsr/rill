@@ -45,9 +45,14 @@ describe('Rill Language: collection union inference', () => {
       ).toBe(true);
     });
 
-    it('member order does not change the inferred type', async () => {
-      expect(await run('list["a", 1].^type == list[1, "a"].^type')).toBe(true);
-    });
+    rule('equality.type').it(
+      'member order does not change the inferred type',
+      async () => {
+        expect(await run('list["a", 1].^type == list[1, "a"].^type')).toBe(
+          true
+        );
+      }
+    );
 
     it('a number and a list infer a union of both', async () => {
       expect(

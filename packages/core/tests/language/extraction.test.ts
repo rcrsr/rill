@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Extraction Operators
  * Tests for destruct<> (destructure), slice<> (slice), and enumerate() function
@@ -6,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { run, runWithContext } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Extraction Operators', () => {
   describe('Destructure destruct<>', () => {
@@ -361,7 +363,7 @@ describe('Rill Runtime: Extraction Operators', () => {
         expect(result).toBe(false);
       });
 
-      it('compares nested lists', async () => {
+      rule('equality.nested').it('compares nested lists', async () => {
         const result = await run(
           `list[list[1, 2], list[3, 4]] -> .eq(list[list[1, 2], list[3, 4]]) ? true ! false`
         );
@@ -370,12 +372,15 @@ describe('Rill Runtime: Extraction Operators', () => {
     });
 
     describe('Dict equality', () => {
-      it('compares dicts by content (order-independent)', async () => {
-        const result = await run(
-          `dict[a: 1, b: 2] -> .eq(dict[b: 2, a: 1]) ? true ! false`
-        );
-        expect(result).toBe(true);
-      });
+      rule('equality.keyed').it(
+        'compares dicts by content (order-independent)',
+        async () => {
+          const result = await run(
+            `dict[a: 1, b: 2] -> .eq(dict[b: 2, a: 1]) ? true ! false`
+          );
+          expect(result).toBe(true);
+        }
+      );
 
       it('detects unequal dicts', async () => {
         const result = await run(

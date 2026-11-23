@@ -181,11 +181,14 @@ describe('Rill Language: Duration Type', () => {
   // ============================================================
 
   describe('comparison', () => {
-    it('equates equivalent durations 48h == 2d [AC-18]', async () => {
-      // duration(hours: 48) == duration(days: 2)
-      const result = await run('duration("48h") == duration("2d")');
-      expect(result).toBe(true);
-    });
+    rule('equality.content').it(
+      'equates equivalent durations 48h == 2d [AC-18]',
+      async () => {
+        // duration(hours: 48) == duration(days: 2)
+        const result = await run('duration("48h") == duration("2d")');
+        expect(result).toBe(true);
+      }
+    );
 
     it('returns false for unequal durations', async () => {
       const result = await run('duration("1h") == duration("2h")');

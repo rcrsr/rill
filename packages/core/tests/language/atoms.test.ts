@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Atom literals and `:atom` primitive
  *
@@ -25,6 +26,7 @@ import {
 } from '@rcrsr/rill';
 import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
 import { RuntimeHaltSignal } from '../../src/runtime/core/types/halt.js';
+import { rule } from '../helpers/rule.js';
 
 /** Run a script and return its final value. */
 async function runScript(src: string): Promise<unknown> {
@@ -128,11 +130,11 @@ describe('Atoms are identified by name', () => {
     expect(a.name).toBe(b.name);
   });
 
-  it('#TIMEOUT == #TIMEOUT is true', async () => {
+  rule('equality.atom').it('#TIMEOUT == #TIMEOUT is true', async () => {
     expect(await runScript('#TIMEOUT == #TIMEOUT')).toBe(true);
   });
 
-  it('#TIMEOUT == #NOT_FOUND is false', async () => {
+  rule('equality.atom').it('#TIMEOUT == #NOT_FOUND is false', async () => {
     expect(await runScript('#TIMEOUT == #NOT_FOUND')).toBe(false);
   });
 
@@ -140,7 +142,7 @@ describe('Atoms are identified by name', () => {
     expect(await runScript('#TIMEOUT -> string')).toBe('TIMEOUT');
   });
 
-  it('"TIMEOUT" -> atom equals #TIMEOUT', async () => {
+  rule('equality.content').it('"TIMEOUT" -> atom equals #TIMEOUT', async () => {
     expect(await runScript('("TIMEOUT" -> atom) == #TIMEOUT')).toBe(true);
   });
 
