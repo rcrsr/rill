@@ -298,52 +298,67 @@ describe('Rill Runtime: Annotations', () => {
 
   describe('Reflection Access', () => {
     describe('Annotation Reflection (.^key)', () => {
-      it('accesses closure-level annotation (AC-2)', async () => {
-        const script = `
+      rule('annotation-access.read').it(
+        'accesses closure-level annotation (AC-2)',
+        async () => {
+          const script = `
           ^(min: 0, max: 100) fn(x) { $x } => $fn
           $fn.^min
         `;
-        expect(await run(script)).toBe(0);
-      });
+          expect(await run(script)).toBe(0);
+        }
+      );
 
-      it('accesses multiple closure annotations', async () => {
-        const script = `
+      rule('annotation-access.read').it(
+        'accesses multiple closure annotations',
+        async () => {
+          const script = `
           ^(min: 0, max: 100) fn(x) { $x } => $fn
           list[$fn.^min, $fn.^max]
         `;
-        expect(await run(script)).toEqual([0, 100]);
-      });
+          expect(await run(script)).toEqual([0, 100]);
+        }
+      );
 
-      it('throws RILL-R008 when annotation is missing on ScriptCallable (AC-3, EC-4)', async () => {
-        const script = `
+      rule('annotation-access.missing').it(
+        'throws RILL-R008 when annotation is missing on ScriptCallable (AC-3, EC-4)',
+        async () => {
+          const script = `
           fn(x) { $x } => $fn
           $fn.^missing
         `;
-        try {
-          await run(script);
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId', 'RILL-R008');
+          try {
+            await run(script);
+            expect.fail('Should have thrown');
+          } catch (err) {
+            expect(err).toHaveProperty('errorId', 'RILL-R008');
+          }
         }
-      });
+      );
 
-      it('supports coalescing with default value (AC-4)', async () => {
-        const script = `
+      rule('annotation-access.fallback').it(
+        'supports coalescing with default value (AC-4)',
+        async () => {
+          const script = `
           fn(x) { $x } => $fn
           $fn.^timeout ?? 30
         `;
-        expect(await run(script)).toBe(30);
-      });
+          expect(await run(script)).toBe(30);
+        }
+      );
 
-      it('throws when accessing annotation on non-closure (AC-9, EC-5)', async () => {
-        const script = `
+      rule('annotation-access.non-function').it(
+        'throws when accessing annotation on non-closure (AC-9, EC-5)',
+        async () => {
+          const script = `
           "hello" => $str
           $str.^key
         `;
-        await expect(run(script)).rejects.toThrow(
-          /annotation not found: \^key/
-        );
-      });
+          await expect(run(script)).rejects.toThrow(
+            /annotation not found: \^key/
+          );
+        }
+      );
 
       it('accesses complex annotation values (AC-14)', async () => {
         const script = `
@@ -361,45 +376,57 @@ describe('Rill Runtime: Annotations', () => {
         expect(await run(script)).toBe('a');
       });
 
-      it('throws error for annotation access on number', async () => {
-        const script = `
+      rule('annotation-access.non-function').it(
+        'throws error for annotation access on number',
+        async () => {
+          const script = `
           42 => $num
           $num.^key
         `;
-        await expect(run(script)).rejects.toThrow(
-          /annotation not found: \^key/
-        );
-      });
+          await expect(run(script)).rejects.toThrow(
+            /annotation not found: \^key/
+          );
+        }
+      );
 
-      it('throws error for annotation access on boolean', async () => {
-        const script = `
+      rule('annotation-access.non-function').it(
+        'throws error for annotation access on boolean',
+        async () => {
+          const script = `
           true => $bool
           $bool.^key
         `;
-        await expect(run(script)).rejects.toThrow(
-          /annotation not found: \^key/
-        );
-      });
+          await expect(run(script)).rejects.toThrow(
+            /annotation not found: \^key/
+          );
+        }
+      );
 
-      it('throws error for annotation access on list', async () => {
-        const script = `
+      rule('annotation-access.non-function').it(
+        'throws error for annotation access on list',
+        async () => {
+          const script = `
           list[1, 2, 3] => $list
           $list.^key
         `;
-        await expect(run(script)).rejects.toThrow(
-          /annotation not found: \^key/
-        );
-      });
+          await expect(run(script)).rejects.toThrow(
+            /annotation not found: \^key/
+          );
+        }
+      );
 
-      it('throws error for annotation access on dict', async () => {
-        const script = `
+      rule('annotation-access.non-function').it(
+        'throws error for annotation access on dict',
+        async () => {
+          const script = `
           dict[name: "test"] => $dict
           $dict.^key
         `;
-        await expect(run(script)).rejects.toThrow(
-          /annotation not found: \^key/
-        );
-      });
+          await expect(run(script)).rejects.toThrow(
+            /annotation not found: \^key/
+          );
+        }
+      );
 
       it('throws RILL-R003 for annotation access .^input on number (AC-10)', async () => {
         const script = `
@@ -1438,22 +1465,31 @@ describe('Rill Runtime: Annotations', () => {
   });
 
   describe('.?^key annotation presence', () => {
-    it('is true for a stored annotation and false without it', async () => {
-      expect(await run('^(a: 1) fn(x) { $x } => $f\n$f.?^a')).toBe(true);
-      expect(await run('fn(x) { $x } => $f\n$f.?^a')).toBe(false);
-    });
+    rule('annotation-access.presence').it(
+      'is true for a stored annotation and false without it',
+      async () => {
+        expect(await run('^(a: 1) fn(x) { $x } => $f\n$f.?^a')).toBe(true);
+        expect(await run('fn(x) { $x } => $f\n$f.?^a')).toBe(false);
+      }
+    );
 
-    it('is false for non-callable values', async () => {
-      expect(await run('5 => $v\n$v.?^a')).toBe(false);
-      expect(await run('dict[a: 1] => $d\n$d.?^a')).toBe(false);
-    });
+    rule('annotation-access.presence-other').it(
+      'is false for non-callable values',
+      async () => {
+        expect(await run('5 => $v\n$v.?^a')).toBe(false);
+        expect(await run('dict[a: 1] => $d\n$d.?^a')).toBe(false);
+      }
+    );
 
-    it('is false for description unless stored', async () => {
-      expect(await run('fn(x) { $x } => $f\n$f.?^description')).toBe(false);
-      expect(await run('^("d") fn(x) { $x } => $f\n$f.?^description')).toBe(
-        true
-      );
-    });
+    rule('annotation-access.presence').it(
+      'is false for description unless stored',
+      async () => {
+        expect(await run('fn(x) { $x } => $f\n$f.?^description')).toBe(false);
+        expect(await run('^("d") fn(x) { $x } => $f\n$f.?^description')).toBe(
+          true
+        );
+      }
+    );
 
     it('requires the stored value to match a type suffix', async () => {
       expect(await run('^(a: 1) fn(x) { $x } => $f\n$f.?^a&number')).toBe(true);
@@ -1466,9 +1502,12 @@ describe('Rill Runtime: Annotations', () => {
       expect(await run('^(a: 1) fn(x) { $x } => $f\n$f -> .?^a')).toBe(true);
     });
 
-    it('is false for type when not stored', async () => {
-      expect(await run('fn(x) { $x } => $f\n$f.?^type')).toBe(false);
-    });
+    rule('annotation-access.presence').it(
+      'is false for type when not stored',
+      async () => {
+        expect(await run('fn(x) { $x } => $f\n$f.?^type')).toBe(false);
+      }
+    );
 
     it('is true for an annotation on a host callable', async () => {
       const hostFn: ApplicationCallable = {
@@ -1608,6 +1647,29 @@ describe('Rill Runtime: Annotations', () => {
         expect(
           await run('^(note: "inert") 0 -> while ($ < 3) do { $ + 1 }')
         ).toBe(3);
+      }
+    );
+  });
+
+  describe('.^key fallback', () => {
+    rule('annotation-access.fallback').it(
+      'replaces a vacant annotation value and keeps a non-vacant one',
+      async () => {
+        expect(await run('^(u: "") fn(x) { $x } => $f\n$f.^u ?? "none"')).toBe(
+          'none'
+        );
+        expect(await run('^(u: 0) fn(x) { $x } => $f\n$f.^u ?? "none"')).toBe(
+          0
+        );
+      }
+    );
+
+    rule('annotation-access.fallback').it(
+      'does not replace the halt on a value that is not a function',
+      async () => {
+        await expectHalt(() => run('5 => $v\n$v.^a ?? "none"'), {
+          code: 'RILL_R003',
+        });
       }
     );
   });

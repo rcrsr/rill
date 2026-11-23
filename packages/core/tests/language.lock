@@ -6,7 +6,7 @@
 #
 # 129 files.
 5ee9d41562a87d606286f3b239f646d649f42e1cacb2bae4899fd4c66eb76413  packages/core/tests/language/access-halt.test.ts
-6d4f1ec40b463eea1fcf258ff4c159ffc8fd001d0fb311d4b202a99207af5382  packages/core/tests/language/annotations.test.ts
+44dbc8e016cb9c5258cf8cda6ad8bfc599b9b2d1904749218e72043c9c43db33  packages/core/tests/language/annotations.test.ts
 e9429ce7f9f6b86135dbf7db16a8a3d3f05c85eb7b2841d1cdd72d57e20e8de5  packages/core/tests/language/anonymous-typed-closure-reflection.test.ts
 64e254854e40a7b10e05ba11c79f5ce6cf3fdd621bce0bf7cf4e73a7ce750bf4  packages/core/tests/language/anonymous-typed-closure.test.ts
 b07383bf79f913247b5c51abbe06c8468f58815cda6eaf6404a956b4a2939165  packages/core/tests/language/args.test.ts
@@ -25,8 +25,8 @@ d9f12ec5bbce9497911f959f2fd130e1371f703bcba755ac8828969ed5c3deaf  packages/core/
 1484f6298d0919ee504dc7b9cea86b7073a76c35e2f955ebc5ea4e966e4597c7  packages/core/tests/language/closure-auto-invoke.test.ts
 51e482cf4483d0cb9f1cc0dfc9b1328413a342c1d4f731f38a691fe50a5d65cd  packages/core/tests/language/closure-equality.test.ts
 52b06c16d40d9b7c8abaf11bc31031e30090036bc4e130d2bea4c579f6baa17f  packages/core/tests/language/closure-hoist-validation.test.ts
-83f814a7c1d2f05574ac535172963e6252766176adacb7dea08856e2bd586c9b  packages/core/tests/language/closure-semantics.test.ts
-5995c935b92d5fffd4bbbb6107f979b268dbd9129b7960e55bc40ae29fbf0eaa  packages/core/tests/language/code-block.test.ts
+2350b7ce66bdf618dda1c82d62761229782c58a4cc2d3afe006640b583f5693a  packages/core/tests/language/closure-semantics.test.ts
+a802a8f14a6f7c9c224eec96c6f34a99f4b02eb12ad3a99e64238d8e203c5f23  packages/core/tests/language/code-block.test.ts
 ede87942e10a16cbccd0815cbf324bae7d3899055c79f025a045a7745e32aa81  packages/core/tests/language/collection-literals.test.ts
 6b23052979dd8ea649089be826a8756124a7c3411bf4c66e9e030d1465e377a1  packages/core/tests/language/collection-operators.test.ts
 54b15819a75896c74ba1c6bc22e3b2e398683df6c6b47e572e70ce7b3247202c  packages/core/tests/language/collection-slicing.test.ts
@@ -57,7 +57,7 @@ ad8fe8437c715a9636e9b210a9dbe9542ac6a6fad4107e0240b6ff6c7a547277  packages/core/
 7ba8111d172252af489c6093a194ef72d06590a96905415e5f923e6055abc7f2  packages/core/tests/language/fn-literal.test.ts
 fd655d31ee6e86cc070429166352ade5981dcdd814f733df2a775f2b8db48e73  packages/core/tests/language/fn-type.test.ts
 1ee68b226f774123a5b9b9e6d5ab3c8c8cc9857f8070c276ead3ff0376b45efc  packages/core/tests/language/frontmatter.test.ts
-54fc559fe08afc8c094d887bdb248c6c463130de62a1bd7fae13b68feb5ca36f  packages/core/tests/language/functions.test.ts
+8e8c54d0720cacf45f3463ca54a831cc0cc57bf4f653fa36d98fa07ff7e87ec3  packages/core/tests/language/functions.test.ts
 db53cce69cbc728fc711fc0752a05ce74dcf13f952f599a520816ecd2abf2a83  packages/core/tests/language/guard-retry.test.ts
 b8c855a78db146b1d62319c2d4b7bb4fa4a86fa93cb824e5504946d0b5cbf2e5  packages/core/tests/language/halt-catchability.test.ts
 5291c2ac1e2b3f5d0c7a13f6a47b5e2f83d9db2880f515a46514c939efddf199  packages/core/tests/language/hierarchical-dispatch.test.ts
@@ -118,7 +118,7 @@ f0c7e19f34b9aa0a0287b1df5c4e1e5a0f72c0fcc36b593c46757f450254ed40  packages/core/
 d65e132848d39f431579cfa0b0e9da9de5e283d01e4198bd9ee5f56320440e4e  packages/core/tests/language/type-constructors.test.ts
 e90d2c92179d6d21ff6f85b612384c09ece88b42ad92359000db0652a98c8e24  packages/core/tests/language/type-field-keys.test.ts
 7dc035624ee8dc2f01b8f0b57172c4dfec1e1ad0e13a585fe1777067a01bd263  packages/core/tests/language/type-form-outer.test.ts
-8e3cc32540a386ee4df6ea8466d16392dcf29f5583265b35afe79be8d3defe37  packages/core/tests/language/type-inner-outer.test.ts
+f85aae7389e5b1b14d3891d741760355e86b867e8a683629e5af726e7cbbb01c  packages/core/tests/language/type-inner-outer.test.ts
 673704c79811a5bbb7d0381e722aeea518b1023613637c27bf0fdb0044bfc166  packages/core/tests/language/type-ref-arg-unification.test.ts
 fb7c6f99baa7b1c57c97b7e6d892e136bf510dcf60853051998b74486445510d  packages/core/tests/language/type-values.test.ts
 76c2c53d87246c8aad29dd7b288454aec71e29d2a9a24ee3a8c5934f9597c480  packages/core/tests/language/type-var-positions.test.ts

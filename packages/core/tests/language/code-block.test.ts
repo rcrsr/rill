@@ -1249,4 +1249,92 @@ describe('Rill Language: Code Blocks', () => {
       }
     );
   });
+
+  describe('positions, constructs, and parameters', () => {
+    const hasClosure = (source: string): boolean =>
+      JSON.stringify(parse(source)).includes('"type":"Closure"');
+
+    rule('code-block.positions').it(
+      'parses a block outside a function literal or an argument as no function',
+      () => {
+        for (const source of [
+          '{ 5 }',
+          '({ 5 })',
+          '1 -> { $ }',
+          'list[{ 5 }]',
+          'tuple[{ 5 }]',
+          'dict[a: { 5 }]',
+          'ordered[a: { 5 }]',
+          'true ? { 5 } ! { 6 }',
+          'guard { 5 }',
+        ]) {
+          expect(hasClosure(source)).toBe(false);
+        }
+        expect(hasClosure('fn { 5 }')).toBe(true);
+      }
+    );
+
+    rule('code-block.construct').it(
+      'runs a construct body as its construct directs',
+      async () => {
+        expect(await run('true ? { 5 } ! { 6 }')).toBe(5);
+        expect(await run('false ? { 5 } ! { 6 }')).toBe(6);
+        expect(await run('0 -> while ($ < 3) do { $ + 1 }')).toBe(3);
+        expect(await run('guard { 5 }')).toBe(5);
+        expect(await run('retry(attempts: 2) { 7 }')).toBe(7);
+        expect(await run('5 -> pass { "a" }')).toBe(5);
+      }
+    );
+
+    rule('code-block.no-params').it(
+      'resolves $ and $@ lexically to the bindings around the block',
+      async () => {
+        expect(await run('7 -> { { $ + 1 } }')).toBe(8);
+        expect(await run('list[1, 2] -> fold(0, { 1 -> { $@ + $ } })')).toBe(2);
+      }
+    );
+  });
+
+  describe('a call on an accessed held block', () => {
+    const held = 'dict[a: { fn(x) { $x * 10 } }] => $d\n';
+
+    rule('code-block.access-call').it(
+      'runs the held block, then calls its result with the arguments',
+      async () => {
+        expect(await run(`${held}$d.a(3)`)).toBe(30);
+        expect(await run(`${held}"a" => $k\n$d.$k(3)`)).toBe(30);
+        expect(await run(`${held}$d["a"](3)`)).toBe(30);
+        expect(await run('list[{ fn(x) { $x * 10 } }] => $l\n$l[0](3)')).toBe(
+          30
+        );
+      }
+    );
+
+    rule('code-block.access-call').it(
+      'runs the held block with the enclosing $',
+      async () => {
+        expect(
+          await run(
+            '4 -> {\n  dict[a: { $ => $n\n fn(x) { $x * $n } }] => $d\n  $d.a(3)\n}'
+          )
+        ).toBe(12);
+      }
+    );
+  });
+
+  describe('.len and .keys on held blocks', () => {
+    rule('code-block.shape-reads').it(
+      'counts and names held entries without running them',
+      async () => {
+        expect(
+          await run('dict[a: { error "ran" }] => $d\nlist[$d.len, $d.keys]')
+        ).toEqual([1, ['a']]);
+        expect(
+          await run('ordered[a: { error "ran" }] => $o\nlist[$o.len, $o.keys]')
+        ).toEqual([1, ['a']]);
+        expect(await run('list[{ error "ran" }, 2] => $l\n$l.len')).toBe(2);
+        expect(await run('tuple[{ error "ran" }] => $t\n$t.len')).toBe(1);
+      }
+    );
+  });
 });

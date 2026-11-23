@@ -621,19 +621,25 @@ describe('type value properties read directly on an expression', () => {
   });
 
   describe('retired reflection probes', () => {
-    it('halts RILL-R008 for input on a callable and names the replacement', async () => {
-      await expectHalt(() => run('fn(a) { $a } => $f\n$f.^input'), {
-        code: 'RILL_R008',
-        messagePattern: '$f.^type.inner',
-      });
-    });
+    rule('annotation-access.no-input').it(
+      'halts RILL-R008 for input on a callable and names the replacement',
+      async () => {
+        await expectHalt(() => run('fn(a) { $a } => $f\n$f.^input'), {
+          code: 'RILL_R008',
+          messagePattern: '$f.^type.inner',
+        });
+      }
+    );
 
-    it('halts RILL-R008 for output on a callable and names the replacement', async () => {
-      await expectHalt(() => run('fn(a) { $a } => $f\n$f.^output'), {
-        code: 'RILL_R008',
-        messagePattern: '$f.^type.outer',
-      });
-    });
+    rule('annotation-access.no-input').it(
+      'halts RILL-R008 for output on a callable and names the replacement',
+      async () => {
+        await expectHalt(() => run('fn(a) { $a } => $f\n$f.^output'), {
+          code: 'RILL_R008',
+          messagePattern: '$f.^type.outer',
+        });
+      }
+    );
 
     it('halts RILL-R003 for chunk and output on a stream and names the replacement', async () => {
       const stream = 'fn(v: number):stream(number):string { $v } => $f\n';
@@ -647,11 +653,14 @@ describe('type value properties read directly on an expression', () => {
       });
     });
 
-    it('reads input as an ordinary annotation key', async () => {
-      expect(await run('^(input: "x") fn(a) { $a } => $f\n$f.^input')).toBe(
-        'x'
-      );
-    });
+    rule('annotation-access.no-input').it(
+      'reads input as an ordinary annotation key',
+      async () => {
+        expect(await run('^(input: "x") fn(a) { $a } => $f\n$f.^input')).toBe(
+          'x'
+        );
+      }
+    );
   });
 });
 
