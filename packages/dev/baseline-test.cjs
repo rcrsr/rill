@@ -24,7 +24,9 @@
  *
  * Fixtures are minimal repository trees written to a temp directory, since
  * `generate(root)` reads real files (root package.json, .oxlintrc.json, and the
- * two published manifests). Every tree is removed on exit.
+ * two published manifests). All trees sit under one per-run directory, removed
+ * on exit. Each run first sweeps run directories older than an hour that a
+ * killed run left behind (see test-tmp.cjs).
  *
  * Run standalone: `node baseline-test.cjs` from the package root.
  * Wired into: this package's `test` script.
@@ -33,10 +35,13 @@
 'use strict';
 
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 const { isDeepStrictEqual } = require('util');
 const { spawnSync } = require('child_process');
+
+const { createRunDir, sweepStaleRuns } = require(
+  path.join(__dirname, 'test-tmp.cjs')
+);
 
 const { generate, SHARED_TOOLING_DEPS } = require(
   path.join(__dirname, 'gen-baseline.cjs')
@@ -63,7 +68,8 @@ function check(condition, label, detail) {
 // Fixture trees — real files on disk, since generate() reads them.
 // ============================================================
 
-const createdRoots = [];
+// Every fixture nests under this run's directory (see test-tmp.cjs).
+const { dir: RUN_DIR, cleanup } = createRunDir();
 
 // Fixture versions for the shared-tooling pins, keyed by name so the fixture
 // can be built by mapping over gen-baseline.cjs's exported SHARED_TOOLING_DEPS
@@ -113,8 +119,7 @@ function baseSpec() {
 }
 
 function buildTree(spec) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rill-baseline-'));
-  createdRoots.push(root);
+  const root = fs.mkdtempSync(path.join(RUN_DIR, 'baseline-'));
   fs.writeFileSync(
     path.join(root, 'package.json'),
     JSON.stringify(spec.pkg, null, 2)
@@ -145,16 +150,6 @@ function generateFrom(mutate) {
   const spec = baseSpec();
   if (mutate) mutate(spec);
   return generate(buildTree(spec));
-}
-
-function cleanup() {
-  for (const root of createdRoots) {
-    try {
-      fs.rmSync(root, { recursive: true, force: true });
-    } catch {
-      /* best-effort */
-    }
-  }
 }
 
 // ============================================================
@@ -225,8 +220,7 @@ function runGit(args, root) {
 // `git add -A` alone is enough: `git ls-files` reads the index, not HEAD, so
 // no commit is needed.
 function writeFixtureTree(files) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rill-checkstd-'));
-  createdRoots.push(root);
+  const root = fs.mkdtempSync(path.join(RUN_DIR, 'checkstd-'));
   for (const [rel, content] of Object.entries(files)) {
     const full = path.join(root, rel);
     fs.mkdirSync(path.dirname(full), { recursive: true });
@@ -1111,8 +1105,7 @@ function runContractTests() {
 // enclosing repository instead of the fixture. This leaks them on purpose and
 // checks the fixture still gets its own repository.
 function runLeakedGitEnvTests() {
-  const sentinel = fs.mkdtempSync(path.join(os.tmpdir(), 'rill-sentinel-'));
-  createdRoots.push(sentinel);
+  const sentinel = fs.mkdtempSync(path.join(RUN_DIR, 'sentinel-'));
   const names = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'];
   const saved = Object.fromEntries(names.map((n) => [n, process.env[n]]));
   process.env.GIT_DIR = path.join(sentinel, 'leaked.git');
@@ -1194,6 +1187,23 @@ function runCleanGitEnvTests() {
   );
 }
 
+// sweepStaleRuns removes a known-prefix directory older than the cutoff and
+// spares a young one and a foreign name, so a parallel run keeps its tree.
+function runSweepStaleRunsTests() {
+  const tmp = fs.mkdtempSync(path.join(RUN_DIR, 'sweep-'));
+  const old = path.join(tmp, 'rill-devtest-old');
+  const young = path.join(tmp, 'rill-checkstd-young');
+  const foreign = path.join(tmp, 'other-old');
+  for (const dir of [old, young, foreign]) fs.mkdirSync(dir);
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+  fs.utimesSync(old, twoHoursAgo, twoHoursAgo);
+  fs.utimesSync(foreign, twoHoursAgo, twoHoursAgo);
+  sweepStaleRuns(tmp);
+  check(!fs.existsSync(old), 'sweep: an hour-old run directory is removed');
+  check(fs.existsSync(young), 'sweep: a young run directory is kept');
+  check(fs.existsSync(foreign), 'sweep: a foreign directory is kept');
+}
+
 // ============================================================
 // Run
 // ============================================================
@@ -1206,6 +1216,7 @@ try {
   runCheckStandardsFixtureTests();
   runBaselineComparatorFixtureTests();
   runLeakedGitEnvTests();
+  runSweepStaleRunsTests();
 } finally {
   cleanup();
 }
