@@ -544,14 +544,12 @@ map.type-equality c4a36c604073
 map.unspecified 9eff5ecc70ed
 map.value-type 9c23ee639152
 map.values 711b96dda3c6
-notation.code cdf2bd130660
 notation.ebnf 19e6596014c2
 notation.excerpt 537334072dca
 notation.informative 32065531531a
 notation.keywords 4c583fa8816b
 notation.marker 5653ae3fe69c
 notation.pending e54a85500eed
-notation.result 4950eec5dc30
 number e9055499414f equality.no-overlap@39f213f599cf
 number.bare-point 142fad515b4d
 number.equality ed5f9eab2815

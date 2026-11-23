@@ -4,7 +4,7 @@
 # An entry changing here means the arbiter changed. That must be a language
 # spec change, never a fix to make an implementation change pass.
 #
-# 126 files.
+# 127 files.
 0e6245d86483ec5673a12bb563682a7ae27449c9d08884fcf1daad7d5c65d03c  packages/core/tests/language/access-halt.test.ts
 0930c28c23f016c32f187635622bedce2f4efb2f3fb6e0a1d33fbfbda7fa947c  packages/core/tests/language/annotations.test.ts
 e9429ce7f9f6b86135dbf7db16a8a3d3f05c85eb7b2841d1cdd72d57e20e8de5  packages/core/tests/language/anonymous-typed-closure-reflection.test.ts
@@ -49,7 +49,7 @@ f5b2ba2477a9b4b91d37a34e902b9d999eb3717d5bd4c70f92920e81bd233cd7  packages/core/
 c857f646d242488862cada59c2cba3a36539d64be4d485ebad0cb6f0414a3996  packages/core/tests/language/dynamic-field-access.test.ts
 02aff189cc3f0d08b5dfbf418b6279c0fc410c9eea905d54e81910afe47056b7  packages/core/tests/language/equality-gate.test.ts
 73fa37262d082b354f56f9a390d4f09c6d6900c026f8ab922d94c8a275e16025  packages/core/tests/language/error-code-type.test.ts
-37006f991707cf31e902dee71e07c31f8ff934b4c7229970f62a8287f1351c5b  packages/core/tests/language/error.test.ts
+40f0b7fb67bb10d3be63681fb95d4dab047da34133dfb52e4e175b2b6f02005f  packages/core/tests/language/error.test.ts
 93a1df4b6c6ddaada1a4dc0a3957a9c0a4f6e4b1a874c12b4d861704d2591036  packages/core/tests/language/existence-check-dynamic.test.ts
 fd311f135a203fba7dc334511b450093e2a413a5a5ff5bcf444538536eaaaeb2  packages/core/tests/language/existence-check.test.ts
 e206794dd98c58587943797fa7fb8697017eaf596a74e22b6d57ad2264ea3db0  packages/core/tests/language/expressions.test.ts
@@ -58,7 +58,8 @@ e206794dd98c58587943797fa7fb8697017eaf596a74e22b6d57ad2264ea3db0  packages/core/
 fd655d31ee6e86cc070429166352ade5981dcdd814f733df2a775f2b8db48e73  packages/core/tests/language/fn-type.test.ts
 8404933a2906ab4933edb51715298329d254add516323342a634a206ab1cb549  packages/core/tests/language/frontmatter.test.ts
 54fc559fe08afc8c094d887bdb248c6c463130de62a1bd7fae13b68feb5ca36f  packages/core/tests/language/functions.test.ts
-8989ee7fbca4db5457ee5b7013d14eede78585839a54f6c9364ffeaaf5584246  packages/core/tests/language/guard-retry.test.ts
+db53cce69cbc728fc711fc0752a05ce74dcf13f952f599a520816ecd2abf2a83  packages/core/tests/language/guard-retry.test.ts
+b8c855a78db146b1d62319c2d4b7bb4fa4a86fa93cb824e5504946d0b5cbf2e5  packages/core/tests/language/halt-catchability.test.ts
 81f23cc323862ea502b0dbeb0379d9474e3dc43a9055f23ee8c700078a329c46  packages/core/tests/language/hierarchical-dispatch.test.ts
 ff07b487b387728b8584144e423ec660d434ab1c42ac9f386f9928c65fe69490  packages/core/tests/language/identifier-prototype-names.test.ts
 93899cddc19610cb85ef0e9ee3cafca1d075634a1e29f00e9341456b79f7a93c  packages/core/tests/language/interpolation-locations.test.ts

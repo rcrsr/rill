@@ -42,8 +42,9 @@ open it goes in the [AUDIT.md](AUDIT.md) Findings table; otherwise file it as an
 
 ## Rules the runtime contradicts
 
-Found by the slice 1 sweeps of [AUDIT.md](AUDIT.md) and probed on `main` at a897cfc3. In each row
-the runtime may be the intended behavior, so the row is collected rather than filed as a defect.
+Found by the [AUDIT.md](AUDIT.md) slices and probed on `main` at a897cfc3 unless a row names another
+commit. In each row the runtime may be the intended behavior, so the row is collected rather than
+filed as a defect.
 
 | Inconsistency | Rule says | Runtime does | Concept |
 |---------------|-----------|--------------|---------|
@@ -52,3 +53,5 @@ the runtime may be the intended behavior, so the row is collected rather than fi
 | An assertion suffix on a construct body | `code-block.assert`: a construct body asserts on every run | `5 -> pass { "a" }:string` halts `#TYPE_MISMATCH` "expected string, got number", and `0 -> while ($ < 3) do { $ + 1 }:?number` returns `true`: the suffix checks the construct's result | `code-block`, `pass`, `loop` |
 | A non-callable operator argument | `iteration.callable`: halts `#TYPE_MISMATCH` | `start_when(5)`, `stop_when(5)`, and `chain(5)` halt RILL-R040, catchable. `seq(5)` halts `#TYPE_MISMATCH` | `iteration` |
 | A filter predicate that returns an invalid value | `filter.bool`: a non-bool result halts `#TYPE_MISMATCH` | An invalid result halts RILL-R001 "filter: predicate returned an invalid value", catchable. A number result halts `#TYPE_MISMATCH` | `filter`, `invalid-value` |
+| `.name` on a receiver with no named fields | `selection.no-name`: `.name` on a list, tuple, or scalar halts RILL-R003 | `list[1].a`, `tuple[1, 2].a`, and `"abc".a` halt RILL-R007 "Unknown method", and the locked tests in `access-halt.test.ts` pin RILL-R007 for `"abc".bogus` and `5.bogus`. On a variable, `$l.a` and `$n.a` halt RILL-R003 | `selection` |
+| Halts that carry only an error code | `halt.error-id`: every halt carries an error id | `1 == "1"` halts `#TYPE_MISMATCH` and a call after `dispose()` halts `#DISPOSED`, each a `RuntimeHaltSignal` with no `errorId`. `error`, `assert`, and RILL-R010 halts carry one. Probed at 0a3f5a6b | `halt` |

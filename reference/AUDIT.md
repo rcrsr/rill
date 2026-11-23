@@ -93,8 +93,8 @@ One row per PR. Tick a row when its PR merges.
 
 | # | Slice | Files | Rules | Uncited | PR |
 |---|-------|-------|-------|---------|----|
-| 1 | Setup and sweeps | 68 | 837 | 606 | #675 |
-| 2 | `conventions` | 2 | 17 | 17 | |
+| 1 | Setup and sweeps | 68 | 837 | 606 | #676 |
+| 2 | `conventions` | 2 | 15 | 1 | #676 |
 | 3 | `lexical` (write) | 0 | 0 | 0 | |
 | 4 | `program` | 2 | 17 | 17 | |
 | 5 | `values` | 3 | 29 | 27 | |
@@ -125,8 +125,8 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `conventions/halt.md` | 9 | 9 | | | | |
-| `conventions/notation.md` | 8 | 8 | | | | |
+| `conventions/halt.md` | 9 | 1 | x | x | x | |
+| `conventions/notation.md` | 6 | 0 | x | x | x | x |
 
 ### `program`
 
@@ -435,7 +435,6 @@ at a897cfc3 unless they say otherwise.
 
 | File | Finding | Outcome |
 |------|---------|---------|
-| `expressions/selection.md` | `.name` on a literal receiver halts RILL-R007, not RILL-R003 (`selection.no-name`): `list[1].a`, `tuple[1, 2].a`, and `"abc".a` halt RILL-R007 "Unknown method". `$l.a` and `$n.a` on variables halt RILL-R003 | Collected |
 | `expressions/selection.md`, `builtins` | RILL-R003 catchability differs by site: `list[1] -> .keys` halts RILL-R003 and escapes `guard`; `$l.a` halts RILL-R003 and `guard` catches it | Collected |
 | `limits` | The 2147483647 ms timer ceiling applies to `timeout(...)` only. `range(0, 2) -> debounce(duration(...dict[ms: 2147483648]))` returns; `throttle`, `sample`, and `batch(idle_flush:)` also skip the check | Collected |
 | `limits`, `types/scalars/datetime.md` | The datetime range is checked only on print: `datetime(...dict[unix: 8640000000000001])` builds and returns `.unix`; interpolating it halts `#INVALID_INPUT` | Collected |
@@ -453,3 +452,6 @@ at a897cfc3 unless they say otherwise.
 | `callables/code-block.md` | A suffix on a construct body checks the construct's result, not each run | Collected in INCONSISTENCIES.md |
 | `collections/iteration.md` | `start_when`, `stop_when`, and `chain` halt RILL-R040, not `#TYPE_MISMATCH` | Collected in INCONSISTENCIES.md |
 | `collections/filter.md` | An invalid predicate result halts RILL-R001, not `#TYPE_MISMATCH` | Collected in INCONSISTENCIES.md |
+| `expressions/selection.md` | `.name` on a literal receiver halts RILL-R007, and a locked test pins it; `selection.no-name` says RILL-R003 | Collected in INCONSISTENCIES.md |
+| `conventions/halt.md` | `#TYPE_MISMATCH` and `#DISPOSED` halts carry no error id; `halt.error-id` says every halt does | Collected in INCONSISTENCIES.md |
+| `conventions/notation.md` | `notation.code` and `notation.result` cannot be proven by any check | Demoted to definitions |

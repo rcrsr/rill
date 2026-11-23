@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Guard / Retry Recovery Blocks (Phase 2, Task 2.3)
  *
@@ -50,6 +51,7 @@ import { createTraceFrame } from '../../src/runtime/core/types/trace.js';
 import { RuntimeHaltSignal } from '../../src/runtime/core/types/halt.js';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 /**
  * Produce an invalid RillValue via parse-recovery. The selector in
@@ -228,15 +230,21 @@ describe('Nested guard frame appends (AC-B4)', () => {
 });
 
 describe('Non-catchable halts: `error` and `assert` (AC-E2, AC-E3)', () => {
-  it('AC-E2 / EC-8: `guard { error "msg" }` propagates the error', async () => {
-    await expect(run('guard { error "boom" }')).rejects.toThrow('boom');
-  });
+  rule('halt.non-catchable').it(
+    'AC-E2 / EC-8: `guard { error "msg" }` propagates the error',
+    async () => {
+      await expect(run('guard { error "boom" }')).rejects.toThrow('boom');
+    }
+  );
 
-  it('AC-E3 / EC-9: `guard { assert false "msg" }` propagates the assertion', async () => {
-    await expect(
-      run('guard { false -> assert $ "must be true" }')
-    ).rejects.toThrow(/must be true/);
-  });
+  rule('halt.non-catchable').it(
+    'AC-E3 / EC-9: `guard { assert false "msg" }` propagates the assertion',
+    async () => {
+      await expect(
+        run('guard { false -> assert $ "must be true" }')
+      ).rejects.toThrow(/must be true/);
+    }
+  );
 
   it('AC-E2: retry does not swallow a non-catchable error either', async () => {
     await expect(run('retry(attempts: 3) { error "boom" }')).rejects.toThrow(
@@ -266,15 +274,18 @@ describe('Guard `<on:>` filter (AC-E7)', () => {
     ).rejects.toBeDefined();
   });
 
-  it('AC-E7 inverse: guard(on: list[#R001]) catches the matching halt', async () => {
-    const src = `
+  rule('halt.error-code').it(
+    'AC-E7 inverse: guard(on: list[#R001]) catches the matching halt',
+    async () => {
+      const src = `
       guard(on: list[#NOT_A_CODE]) { 1 } => $x
       guard(on: list[#R001]) { $x.foo }
     `;
-    const result = await runRecovered(src);
-    expect(isInvalid(result as never)).toBe(true);
-    expect(getStatus(result as never).code).toBe(resolveAtom('R001'));
-  });
+      const result = await runRecovered(src);
+      expect(isInvalid(result as never)).toBe(true);
+      expect(getStatus(result as never).code).toBe(resolveAtom('R001'));
+    }
+  );
 });
 
 describe('Retry exhaustion (AC-E8)', () => {
@@ -323,11 +334,14 @@ describe('Guard with on-codes outside the core error set (EC-14)', () => {
 });
 
 describe('Recovery composed with default operator (??)', () => {
-  it('guard catching type-coercion halt falls back via ??', async () => {
-    const result = await run('guard { "a" -> number } ?? 0');
-    expect(result).toBe(0);
-    expect(isInvalid(result as never)).toBe(false);
-  });
+  rule('halt.catchable').it(
+    'guard catching type-coercion halt falls back via ??',
+    async () => {
+      const result = await run('guard { "a" -> number } ?? 0');
+      expect(result).toBe(0);
+      expect(isInvalid(result as never)).toBe(false);
+    }
+  );
   it('guard fallback to string default', async () => {
     const result = await run('guard { "a" -> number } ?? "fallback"');
     expect(result).toBe('fallback');

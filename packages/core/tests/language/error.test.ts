@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Error Statement
  * Tests for error statement syntax and behavior
@@ -6,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Language: Error Statement', () => {
   describe('Success Cases', () => {
@@ -315,19 +317,22 @@ describe('Rill Language: Error Statement', () => {
       await expect(run(script)).rejects.toThrow('Value: not found');
     });
 
-    it('halts execution immediately (does not continue)', async () => {
-      const script = `
+    rule('halt.definition').it(
+      'halts execution immediately (does not continue)',
+      async () => {
+        const script = `
         "step 1" => $step1
         error "halted"
         "step 2" => $step2
       `;
-      try {
-        await run(script);
-        expect.fail('Should have thrown');
-      } catch (err: any) {
-        expect(err.message).toContain('halted');
+        try {
+          await run(script);
+          expect.fail('Should have thrown');
+        } catch (err: any) {
+          expect(err.message).toContain('halted');
+        }
       }
-    });
+    );
   });
 
   describe('Edge Cases', () => {
