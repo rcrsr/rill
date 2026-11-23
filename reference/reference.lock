@@ -293,11 +293,12 @@ duration.string-malformed 8b2174fd7ba0
 duration.unknown-key 69aa6a35ba5d
 duration.value 27f61a90f6a3
 duration.years 9867c2f5c9ca
-equality 94e444e83928 carried-type.equality@e57cad672ddc
+equality 0bf7e8e2a0ec carried-type.equality@e57cad672ddc
 equality.atom 505ad5a65ec2
 equality.closed-set 8173ab218988 structural-typing.overlap-literal@ab0a5013ddfd
 equality.content 654a7056b375
 equality.function 780a229ffda3
+equality.iterator a0f36496ba8b
 equality.keyed d85d782acb49
 equality.kind 65342655309f equality.no-overlap@39f213f599cf
 equality.membership 1c4703573aa1
@@ -901,7 +902,7 @@ value.kinds 6a08eff164f4
 value.no-alias 6913672db6e8
 value.no-null a9093d28f071
 value.stream 840cdafa18cd
-value.valid-invalid 0ded6c93b509
+value.valid-invalid be3776ad109d
 variable 7564324e99db capture.assert@a76c0ca450db identifier.form@b9570193d0cb
 variable.bind f20795fb5186
 variable.callable 2c032af1f6de

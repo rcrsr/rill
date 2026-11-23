@@ -98,7 +98,7 @@ One row per PR. Tick a row when its PR merges.
 | 2 | `conventions` | 2 | 15 | 1 | #676 |
 | 3 | `lexical` (write) | 5 | 23 | 0 | #676 |
 | 4 | `program` | 3 | 32 | 0 | #676 |
-| 5 | `values` | 3 | 29 | 27 | |
+| 5 | `values` | 3 | 30 | 0 | |
 | 6 | `types/constructors` | 8 | 149 | 61 | |
 | 7 | `types/model` | 6 | 70 | 54 | |
 | 8 | `types/scalars` | 7 | 123 | 113 | |
@@ -151,9 +151,9 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `values/equality.md` | 15 | 13 | | | | |
-| `values/vacancy.md` | 6 | 6 | | | | |
-| `values/value.md` | 8 | 8 | | | | |
+| `values/equality.md` | 16 | 0 | x | x | x | x |
+| `values/vacancy.md` | 6 | 0 | x | x | x | x |
+| `values/value.md` | 8 | 0 | x | x | x | x |
 
 ### `types/constructors`
 
@@ -460,3 +460,6 @@ at a897cfc3 unless they say otherwise.
 | `program/annotation.md` | A spread stores the reserved keys; a later string sets `description`; `^(limit: N)` halts in every expression position; type arguments take annotations unevenly | Collected in INCONSISTENCIES.md |
 | `program/annotation.md`, `program/frontmatter.md` | The `annotation-arg` and `yaml-char` productions disagree with the runtime and the rules | Collected in INCONSISTENCIES.md |
 | `program/frontmatter.md` | Text after a delimiter on its line is accepted: frontmatter text on the opening line, a statement on the closing line | Collected in INCONSISTENCIES.md |
+| `values/equality.md` | `equality.methods`: the methods compare as `==` does, including its halts. With `$s` a host stream, `$s == $s` and `$s != 1` halt RILL-R002, but `$s -> .eq($s)` and `list[$s] -> .has($s)` yield `true`. With `range(0, 3) => $i`, `$i == $i` halts RILL-R002, but `$i -> .eq($i)` and `list[$i] -> .has($i)` yield `true`. Probed at c611430c | Collected |
+| `values/equality.md` | `equality.kind` names an `any` operand, but no probed operand carries `any` | Collected in INCONSISTENCIES.md |
+| `values/value.md`, `values/vacancy.md` | `value.kinds` omits iterators and vectors; an iterator or stream that yields nothing is not vacant; `value.no-alias` and `scope.late-binding` disagree | Collected in INCONSISTENCIES.md |

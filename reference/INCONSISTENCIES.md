@@ -62,6 +62,18 @@ filed as a defect.
 | A string after the first annotation argument | `annotation.shorthand` and the `annotation-args` production: only a leading string is the description | `^(k: 1, "d") fn(x) { $x }` sets `description` to `"d"`, and `^("a", "b")` sets it to `"b"`. Probed at 43a2995e | `annotation` |
 | Annotation argument values | The `annotation-arg` production: `identifier , ":" , literal`, with no spread | `annotation.values` and `annotation.spread` accept any expression and `...$d`, and the runtime agrees with them. Probed at 43a2995e | `annotation` |
 | Characters on a frontmatter line | The `yaml-char` production allows letters, digits, and `: -_.[],'"` | `---`, `k: é 😀 @ # $ ! ;`, `---`, `1` returns `1`, and `frontmatter.test.ts` pins Unicode, `@`, `#`, `$`, and `!`. Probed at 43a2995e | `frontmatter` |
+| An operand that carries `any` | `equality.kind`: an `any` operand compared with a value of another kind yields false. `carried-type.element` gives an element of a `list(any)` the element type `any` | `1 => $x:any` then `$x == "a"`, `fn(x: any) { $x == "a" }` called with `1`, and `list[1, "a"] => $l:list(any)` then `$l -> seq({ $ == "a" })` each halt `#TYPE_MISMATCH` "Cannot compare number with string", catchable. No probed form makes an operand carry `any`. Probed at c611430c | `equality`, `carried-type`, `any` |
+
+## Values
+
+Rules in the `values` chapter that disagree with another rule or leave a probed case unstated.
+Probed at c611430c.
+
+| Inconsistency | One form | The other form | Concept |
+|---------------|----------|----------------|---------|
+| Kinds the value list omits | `value.kinds` lists every kind a value can have, with error code apart from atom | `range(0, 3).^type.signature` is `"iterator"`, and `iteration.source-kinds` names iterators. Hosts supply vectors. `#TIMEOUT.^type.signature` is `"atom"` | `value`, `iteration`, `error-code` |
+| A source that yields nothing | An empty list, string, dict, tuple, ordered, or map is vacant, so `list[] ?? 5` yields `5` (`vacancy.empty`) | `range(0, 0) ?? 5` yields the iterator, and a host stream with no chunks passes `??` unchanged. `.empty` on either halts RILL-R003, catchable. `vacancy.empty` names neither kind | `vacancy`, `iteration` |
+| A function and a later rebinding | `value.no-alias`: rebinding a variable does not change the value a function or collection holds. `equality.function` compares the values captured variables hold | `scope.late-binding`: `"a" => $x`, `fn { $x } => $f`, `list[$f] => $l`, `"b" => $x`, then `$l[0]()` yields `"b"`. Two functions built before and after the rebinding compare equal | `value`, `equality`, `scope` |
 
 ## Line continuation
 
