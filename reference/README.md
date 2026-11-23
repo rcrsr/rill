@@ -69,7 +69,7 @@ earlier one.
 | [values](values/) | The value model, equality, vacancy |
 | [types](types/) | Type values, type forms, built-in types, maps, declarations, assertions, carried types, type locks, conversion |
 | [variables](variables/) | Variables, `$` binding, scope, capture |
-| [expressions](expressions/) | Pipes, selection, dispatch, existence, destructure, slice, spread, interpolation |
+| [expressions](expressions/) | Operators, arithmetic, logical operators, pipes, pipe targets, access forms, selection, dispatch, existence, destructure, slice, spread, interpolation |
 | [callables](callables/) | Blocks, functions, parameters, invocation |
 | [control-flow](control-flow/) | Control statements and their options, loops |
 | [collections](collections/) | `seq`, `fan`, `filter`, `fold`, `acc`, `sort`, slicing |

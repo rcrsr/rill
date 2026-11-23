@@ -134,6 +134,16 @@ Rules in the `variables` chapter that leave a probed case unstated. Probed at 9b
 |---------------|----------|----------------|---------|
 | A capture into a parameter inside its body | `scope.parameter`: a parameter is bound in the function's own scope. `capture.rebind`: a capture into a variable bound in the same scope replaces it | `fn(x) { 2 => $x` then `$x } => $f`, then `$f(1)` halts RILL-R001 "Cannot reassign outer variable $x from child scope", catchable. `fn(x: number)` with `"a" => $x` halts the same way. The body acts as a child of the parameter scope, and `scope.child` does not say which scope a function body's parent is | `scope`, `capture`, `fn` |
 
+## Expressions
+
+Rules in the `expressions` chapter that leave a probed case unstated. Probed at 21eecdfb.
+
+| Inconsistency | One form | The other form | Concept |
+|---------------|----------|----------------|---------|
+| A tuple or ordered literal as a dispatch target | A list or dict literal is a target: `0 -> list[{ 5 }]` yields 5 (`dispatch.block-literal`), and `"a" -> dict[a: 1]` yields 1. A tuple or ordered held in a variable dispatches: `tuple[{ "t{$}" }] => $t` then `0 -> $t` yields `"t0"` (`dispatch.tuple`, `dispatch.block-held`) | `0 -> tuple[{ "t{$}" }]`, `1 -> tuple[0, 1]`, and `"a" -> ordered[a: 1]` halt RILL-P001 "Expected pipe target". The `pipe-target` production lists `list` and `dict` only | `dispatch`, `pipe-target` |
+| A spread into a list of another element type | `spread.list-uniform`: the spread elements join the list's element type check, so `list[1, ...$strings]` halts as a mixed list literal does | `inference.literal-union`: a mixed list literal infers a union and does not halt. `list[1, "a"]` yields `list[1, "a"]`, and `list["a"] => $s` then `list[1, ...$s]` yields `list[1, "a"]`. The two rules disagree, so `spread.list-uniform` is uncited | `spread`, `inference` |
+| Positional arguments before a dict spread | `spread.arg-positional`: positional arguments written beside a dict spread fill the parameters the spread leaves without a value. With `fn(a, b, c) { "{$a}{$b}{$c}" } => $f`, `$f(...dict[c: "y"], "x", "z")` yields `"xzy"` | `$f("x", "z", ...dict[b: "y"])` halts RILL-R001 "Duplicate binding for parameter 'b': already bound positionally", catchable: arguments before the spread fill `a` and `b` in order. "Beside" does not say before or after, so `spread.arg-positional` is uncited | `spread`, `invocation` |
+
 ## Line continuation
 
 Forms that read alike continue across a line ending in some places and not others. Probed at

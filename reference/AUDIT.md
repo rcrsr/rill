@@ -104,7 +104,7 @@ One row per PR. Tick a row when its PR merges.
 | 8 | `types/scalars` | 7 | 124 | 0 | #676 |
 | 9 | `types/typing` | 8 | 122 | 0 | #676 |
 | 10 | `variables` | 3 | 27 | 0 | #676 |
-| 11 | `expressions` | 8 | 111 | 89 | |
+| 11 | `expressions` | 13 | 137 | 2 | |
 | 12 | `callables` | 3 | 33 | 15 | |
 | 13 | `control-flow` | 5 | 43 | 31 | |
 | 14 | `collections` | 7 | 53 | 47 | |
@@ -217,14 +217,19 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `expressions/destruct.md` | 12 | 12 | | | | |
-| `expressions/dispatch.md` | 13 | 9 | | | | |
-| `expressions/existence.md` | 11 | 7 | | | | |
-| `expressions/interpolation.md` | 8 | 8 | | | | |
-| `expressions/pipe.md` | 17 | 16 | | | | |
-| `expressions/selection.md` | 28 | 15 | | | | |
-| `expressions/slice.md` | 10 | 10 | | | | |
-| `expressions/spread.md` | 12 | 12 | | | | |
+| `expressions/access.md` | 5 | 0 | x | x | x | x |
+| `expressions/arithmetic.md` | 4 | 0 | x | x | x | x |
+| `expressions/destruct.md` | 12 | 0 | x | x | x | x |
+| `expressions/dispatch.md` | 14 | 0 | x | x | x | x |
+| `expressions/existence.md` | 11 | 0 | x | x | x | x |
+| `expressions/interpolation.md` | 8 | 0 | x | x | x | x |
+| `expressions/logical.md` | 6 | 0 | x | x | x | x |
+| `expressions/operator.md` | 6 | 0 | x | x | x | x |
+| `expressions/pipe.md` | 17 | 0 | x | x | x | x |
+| `expressions/pipe-target.md` | 4 | 0 | x | x | x | x |
+| `expressions/selection.md` | 28 | 0 | x | x | x | x |
+| `expressions/slice.md` | 10 | 0 | x | x | x | x |
+| `expressions/spread.md` | 12 | 2 | x | x | x | |
 
 ### `callables`
 
@@ -287,20 +292,6 @@ What the sweeps found that no rule states yet, routed to the slice that owns it.
 backlog in the Complete and Cited columns: probe each item, then write a rule or record why none is
 needed. Strike nothing here; the slice PR deletes the items it settles.
 
-### `expressions`
-
-- No concept owns the operators. Grammar: `expression`, `value-expr`, `logical-or`,
-  `logical-and`, `comparison`, `comparison-op`, `additive`, `multiplicative`, `unary`,
-  `postfix-expr`, `primary`, `grouped-expr`, `implicit-primary`. Docs: the precedence table.
-- Grammar for `pipe`: `pipe-target`, `pipe-invoke`, `pipe-error`, `chain-terminator`. For
-  `selection`: `field-access`, `bracket-access`, `property-access`, `method-call`,
-  `method-name`. For `existence`: `existence-check`, `status-probe`.
-- Tests: `expressions.test.ts`, `parameterized-destruct.test.ts`,
-  `parameterized-existence.test.ts`, and the negation cases of `parser-syntax-errors.test.ts`.
-- `selection`: `$t.1` halts RILL-P006 and `$t -> .1` halts RILL-P001.
-- `selection`: a wrong key type on an ordered halts RILL-R002. `pipe`: a pipe target's result
-  takes a postfix index (`sort[0]`). `dispatch`: an empty hierarchical path returns its input.
-
 ### `callables`
 
 - Grammar: `fn-call`, `host-call`, `host-name`, `argument`, `arguments`.
@@ -314,7 +305,7 @@ needed. Strike nothing here; the slice PR deletes the items it settles.
 
 ### `control-flow`
 
-- Grammar: `else-clause`, `loop`, `pass`, `pass-block`, `construct-options`, `timeout-block`,
+- Grammar: `chain-terminator`, `else-clause`, `loop`, `pass`, `pass-block`, `construct-options`, `timeout-block`,
   and `body`, the conditional branch (`pipe-chain`), which no `fn` literal uses.
 - Tests: the branch-shape cases of `parser-syntax-errors.test.ts`.
 - Errors: RILL-R079 and RILL-R080 (removed `@` loop forms), RILL-P010 (`@` expression),
@@ -329,7 +320,7 @@ needed. Strike nothing here; the slice PR deletes the items it settles.
 
 ### `errors`
 
-- Grammar: `guard-block`, `retry-block`.
+- Grammar: `guard-block`, `retry-block`, `pipe-error`, `status-probe` (`invalid-value`).
 - `error`: `error` with no message halts RILL-P002, the only site that raises it.
 - Errors: RILL-R084 (invalidation code outside the core error set).
 - Tests: `trace-frames.test.ts`.
@@ -442,3 +433,5 @@ at a897cfc3 unless they say otherwise.
 | `types/scalars` | The ISO 8601 subset `datetime` accepts; a fractional unix count truncates; a unix count drops time components; a string piped into `datetime` halts RILL-R036 while `duration` parses it. Probed at c7ef8720 | Collected in INCONSISTENCIES.md |
 | `types/typing` | A bracket after a postfix bare-kind assertion; dict iteration under a carried type; the carried type of a `??` right operand; union defaults in conversion against a call. Probed at c2fdd19f | Collected in INCONSISTENCIES.md |
 | `variables/scope.md` | A capture into a parameter inside its own body halts RILL-R001 as an outer rebinding; no rule says which scope a function body's parent is. Probed at 9b5a9c67 | Collected in INCONSISTENCIES.md |
+| `expressions/selection.md` | `selection.at`: `.at` on a dict or an ordered halts RILL-R003, and the Errors row says Yes. `dict[a: 1].at(0)` and `ordered[a: 1].at(0)` halt RILL-R003 "Cannot call .at() on object" and escape `guard`. Shares the root cause of the `.keys` row above. Probed at 21eecdfb | Collected |
+| `expressions` | A tuple or ordered literal is not a dispatch target, while a list or dict literal is; `spread.list-uniform` contradicts `inference.literal-union`; `spread.arg-positional` does not say whether positional arguments may precede the spread. Probed at 21eecdfb | Collected in INCONSISTENCIES.md |

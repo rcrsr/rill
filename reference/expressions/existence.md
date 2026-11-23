@@ -4,10 +4,10 @@ title: Existence check
 status: normative
 since: 0.24.0
 issues: []
-grammar: []
+grammar: [existence-check]
 errors: [RILL-R009, INVALID_INPUT, TYPE_MISMATCH]
 depends: [selection]
-tests: [existence-check.test.ts, existence-check-dynamic.test.ts, map-selection.test.ts, map-membership.test.ts]
+tests: [existence-check.test.ts, existence-check-dynamic.test.ts, map-selection.test.ts, map-membership.test.ts, parameterized-existence.test.ts]
 ---
 
 # Existence check
@@ -15,6 +15,13 @@ tests: [existence-check.test.ts, existence-check-dynamic.test.ts, map-selection.
 The existence check `.?` yields whether a selection exists, as a bool, without halting on a missing key.
 
 ## Syntax
+
+```ebnf
+existence-check = ".?" , ( identifier
+                         | "$" , identifier
+                         | "[" , pipe-chain , "]" )
+                , [ "&" , type-name ] ;
+```
 
 ```text
 $c.?name      by name               $c.?$k       by a selector in a variable

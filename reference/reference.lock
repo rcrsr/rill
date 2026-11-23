@@ -3,6 +3,11 @@
 acc d523d5e611c5 break.seq@e47b3a30461b fold.arity@cb3ad938d3ab
 acc.result 0d21f65369ea
 acc.threading 969feccaedba fold.accumulator@e19bdd8e9418 fold.order@5265485c3760 fold.seed-required@ce6ea3aae1d0 fold.unnamed@03ced95fe53b
+access.any-receiver f0ffb382b26c
+access.chain 3374148bbf75
+access.field-name dd80884e3d51
+access.method-target e5fcfe58c1b6
+access.ordered-key 1391744093d9
 annotation 4d28dc2fd296 annotation.spread-dict@4e60ef06a20c introspection.annotations@b4c71df09996 introspection.annotations-tuple@b8ad2c2fd7fa
 annotation-access 8b3d6b558d16 annotation-access.no-params@3d47ace54fa0 annotation.attach@31bfd3e68c4d introspection.annotations@b4c71df09996 introspection.type-probe@98d4ed5945dd
 annotation-access.fallback 04bd31e1f425 vacancy.fallback@a8ddb8c219f9
@@ -33,6 +38,11 @@ any.collection 9eed6a0e2a9b
 any.name d8433fc4575b
 any.signature cc8b086f6ffb any.signature@cc8b086f6ffb
 any.union e3ddd2323cc8
+arithmetic b786bdb5f914 atom.no-arithmetic@0ce4b1fe19c2 datetime.no-arithmetic@1d96a4928f74 duration.no-arithmetic@9931212f7c77 number.finite@d4b05f2414c4 string.no-arithmetic@55f51ec345e0
+arithmetic.basic 4a55e674bb40
+arithmetic.modulo 1b58a8a0b30b
+arithmetic.negate 6ecbec03f899
+arithmetic.number-only c6c5c30245a2
 assert.bool 5a7e8e9cfc46
 assert.dollar 191bc4e9bb97
 assert.fail 8b58b422606f
@@ -271,6 +281,7 @@ dispatch.block eea8f694c93e
 dispatch.block-held 88a79ab26f9d
 dispatch.block-list 1e9e1042a47d
 dispatch.block-literal c42861d95d4a
+dispatch.empty-path 2af702fe9577
 dispatch.fn a115a855126a selection.property@a2c17ab01fb9
 dispatch.map-block a1b02dbb9d77
 dispatch.miss-message fa10b117b81a
@@ -534,6 +545,13 @@ list.no-outer f24347f57047
 list.print 9f843c264e5a inference.empty@d047fb333dc7
 list.unspecified 546466e216ff
 list.value-print 76033699edff
+logical f2236875f493 bool.no-truthiness@c07f38cffcdd
+logical.and 2db8f2af116a
+logical.bool-operands 76feaf2c76cc logical.short-circuit@142a7e9b729b
+logical.not 6c71deb89749
+logical.not-operand c96171d24c24
+logical.or 803683c9a91b
+logical.short-circuit 142a7e9b729b
 loop.accumulate 7080c69b7e01
 loop.bool 857e8d9a91e0
 loop.do-required cde369c28522
@@ -607,6 +625,13 @@ number.precision 72e91dffc612
 number.print 48a1ee322f61
 number.print-exponent bbcacfa268f6
 number.value 51a06e4cfb4e
+operator 53b32ddef832 atom.unordered@22539c6dd264 bool.unordered@3b55c75110e5 datetime.ordering@29064f640869 duration.ordering@ad0a26752d18 number.ordering@5576feb3fc7f string.ordering@41321e526500 tuple.order@96d724b34cc1
+operator.before-pipe c225cb7554e6
+operator.group 40bddb1926a5
+operator.left c241dff5e995
+operator.no-chain 9ef46ac603ff
+operator.ordering 8b5497ecc0c5
+operator.precedence 0cc5008ea7a5
 ordered 07fc970c6b87 structural-typing.bare-ordered@194efa7a1fef structural-typing.exact-position@cb3617c378f1 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
 ordered.empty-parens dee46359e906
 ordered.field-inner 9b3eea08a977
@@ -626,6 +651,10 @@ pass.identity daaa2d6b9355
 pass.ignore 8ad8770f2b06
 pass.target-body 03087cb442a9
 pipe faaad1e8e067 conditional.piped@933b1fa68341 loop.seed@ece9a46ff7a0
+pipe-target.invoke 139b1a2ca846
+pipe-target.method-head 7b1cdab383dd
+pipe-target.no-minus 6a0b8318d3d6
+pipe-target.postfix e1ad01f14b99
 pipe.block 00f69bfcf9d1 code-block.pipe-target@10cd486fec05
 pipe.call-dollar 1e84710e8b4d
 pipe.call-operand 3a33d5a45012
