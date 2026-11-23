@@ -167,6 +167,13 @@ has_script() { node -e "process.exit(((require('./package.json').scripts)||{})['
 # shape as the STD-PROC-7 label-sync read below and the ci.yml scan the
 # STD-SCRIPT reachability check runs: join backslash continuations with sed,
 # then drop lines that are comments once joined.
+#
+# The last grep reads its input to the end and discards the output, never
+# `grep -q`. `grep -q` exits at the first match while grep -v may still be
+# writing; that write dies of SIGPIPE, and under `pipefail` the 141 becomes the
+# status, so a token that is present reads as absent. A file larger than one
+# pipe write with the match near the top lost this race in about 1 run in 25
+# under CPU load. Same trap as has_ts below.
 grep_noncomment() {
   local flags=()
   if [ "$1" = "-i" ]; then
@@ -177,7 +184,7 @@ grep_noncomment() {
   shift
   sed -e :a -e '/\\$/N; s/\\\n//; ta' "$@" 2>/dev/null |
     grep -v '^[[:space:]]*#' |
-    grep -q ${flags[@]+"${flags[@]}"} -- "$pattern"
+    grep ${flags[@]+"${flags[@]}"} -- "$pattern" >/dev/null
 }
 
 # has_ts <dir> — does the directory hold TypeScript of its own? Read find to
@@ -421,7 +428,7 @@ if [ "$REMOTE" -eq 1 ]; then
     # A 404 still returns a body, so emptiness is not the test. Require the
     # response to carry the field every repository object has.
     node -p "try{JSON.parse(process.argv[1]).full_name?0:1}catch(e){1}" "$SETTINGS" 2>/dev/null |
-      grep -q '^0$' || SETTINGS=""
+      grep '^0$' >/dev/null || SETTINGS=""
     # Three states, not two. `.url` is present exactly when the branch is
     # protected, and the API answers an unprotected branch with a body carrying
     # no `.url` at all — so testing only that field reported the dominant
@@ -623,8 +630,8 @@ else
   # Both halves of the element. Reordering the two steps keeps `cache: 'pnpm'`
   # in the file and breaks the install: setup-node resolves the pnpm cache by
   # running pnpm, which corepack is what puts on PATH.
-  COREPACK_LINE="$(grep -n 'corepack enable' .github/workflows/ci.yml 2>/dev/null | head -1 | cut -d: -f1)"
-  SETUPNODE_LINE="$(grep -n 'uses: *actions/setup-node' .github/workflows/ci.yml 2>/dev/null | head -1 | cut -d: -f1)"
+  COREPACK_LINE="$(grep -n -m 1 'corepack enable' .github/workflows/ci.yml 2>/dev/null | cut -d: -f1)"
+  SETUPNODE_LINE="$(grep -n -m 1 'uses: *actions/setup-node' .github/workflows/ci.yml 2>/dev/null | cut -d: -f1)"
   { grep -q "cache: *'pnpm'" .github/workflows/ci.yml 2>/dev/null &&
     [ -n "$COREPACK_LINE" ] && [ -n "$SETUPNODE_LINE" ] &&
     [ "$COREPACK_LINE" -lt "$SETUPNODE_LINE" ]; } &&
@@ -985,7 +992,7 @@ if [ -f "$LINTRC" ]; then
   # Naming a plugins array replaces the tool defaults, so unicorn is off unless
   # relisted. Its absence is the silent case STD-LINT-8 exists to catch.
   if grep -q '"plugins"' "$LINTRC"; then
-    grep -A2 '"plugins"' "$LINTRC" | grep -q 'unicorn' &&
+    grep -A2 '"plugins"' "$LINTRC" | grep 'unicorn' >/dev/null &&
       ok "STD-LINT-8" "default-on plugins relisted explicitly" ||
       bad "STD-LINT-8" "default-on plugins relisted explicitly" \
         "plugins array does not list unicorn, which the CLI enables by default"
@@ -1395,7 +1402,7 @@ fi
 section "§8 Package manager, §9 Supply chain"
 
 PM="$(pkg_field '.packageManager')"
-pkg_has '.packageManager' && echo "$PM" | grep -q 'sha512' &&
+pkg_has '.packageManager' && grep 'sha512' >/dev/null <<<"$PM" &&
   ok "STD-PM-1" "packageManager pinned with its hash" ||
   bad "STD-PM-1" "packageManager pinned with its hash" "packageManager=$PM"
 
@@ -1707,8 +1714,8 @@ if [ -f lefthook.yml ]; then
     bad "STD-HOOK-3" "pre-commit runs piped" "no piped: true under pre-commit"
 
   # Format before lint; the reverse lets the formatter undo a lint fix.
-  FMT_LINE="$(grep -n 'oxfmt' lefthook.yml | head -1 | cut -d: -f1)"
-  LINT_LINE="$(grep -n 'oxlint' lefthook.yml | head -1 | cut -d: -f1)"
+  FMT_LINE="$(grep -n -m 1 'oxfmt' lefthook.yml | cut -d: -f1)"
+  LINT_LINE="$(grep -n -m 1 'oxlint' lefthook.yml | cut -d: -f1)"
   if [ -n "$FMT_LINE" ] && [ -n "$LINT_LINE" ]; then
     [ "$FMT_LINE" -lt "$LINT_LINE" ] &&
       ok "STD-HOOK-2" "pre-commit formats before linting" ||
@@ -1733,8 +1740,8 @@ if [ -f lefthook.yml ]; then
     PREPUSH_NONCOMMENT="$(printf '%s\n' "$PREPUSH_BLOCK" | grep -v '^[[:space:]]*#')"
     HAS_TC=0
     HAS_TEST=0
-    printf '%s\n' "$PREPUSH_NONCOMMENT" | grep -q 'typecheck' && HAS_TC=1
-    printf '%s\n' "$PREPUSH_NONCOMMENT" | grep -Eq '(^|[^a-zA-Z])tests?([^a-zA-Z]|$)' && HAS_TEST=1
+    grep 'typecheck' >/dev/null <<<"$PREPUSH_NONCOMMENT" && HAS_TC=1
+    grep -E '(^|[^a-zA-Z])tests?([^a-zA-Z]|$)' >/dev/null <<<"$PREPUSH_NONCOMMENT" && HAS_TEST=1
     if [ "$HAS_TC" -eq 1 ] && [ "$HAS_TEST" -eq 1 ]; then
       ok "STD-HOOK-4" "pre-push runs typecheck and tests"
     elif [ "$HAS_TC" -eq 0 ] && [ "$HAS_TEST" -eq 0 ]; then
