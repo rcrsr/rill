@@ -38,3 +38,16 @@ A defect, where the runtime breaks a rule nobody disputes, is not a row here. Fi
 | Shape of `self` | Not applicable | A dict arrives as a plain record, an ordered as its internal `__rill_ordered` form | `selection`, `host-boundary` |
 | An argument replaces `self` | Not applicable | `self` is the function's first parameter, so `$d.f(1)` passes `1` as `self` and drops the receiver | `selection`, `invocation` |
 | A bare call | Not applicable | `$p()` halts RILL-R044 naming the parameter `self`, not the rule that the function runs only when selected | `invocation` |
+
+## Rules the runtime contradicts
+
+Found by the slice 1 sweeps of [AUDIT.md](AUDIT.md) and probed on `main` at a897cfc3. In each row
+the runtime may be the intended behavior, so the row is collected rather than filed as a defect.
+
+| Inconsistency | Rule says | Runtime does | Concept |
+|---------------|-----------|--------------|---------|
+| Catchability of the 10,000-step iterator limit | `iteration.expansion` and its Errors row: RILL-R010, not catchable | `range(0, 20000) -> take(10001)` and `skip(10001)` halt RILL-R010 and `guard` catches it. `range(0, 10001) -> seq({ $ })` halts RILL-R010 and escapes `guard` | `iteration` |
+| Interpolating a datetime | `interpolation.printed`: a value inserts as the string conversion yields it | `"at {$d}"` inserts `2024-01-15T00:00:00.000Z`, while `$d -> string` halts RILL-R036 | `interpolation`, `datetime`, `conversion` |
+| An assertion suffix on a construct body | `code-block.assert`: a construct body asserts on every run | `5 -> pass { "a" }:string` halts `#TYPE_MISMATCH` "expected string, got number", and `0 -> while ($ < 3) do { $ + 1 }:?number` returns `true`: the suffix checks the construct's result | `code-block`, `pass`, `loop` |
+| A non-callable operator argument | `iteration.callable`: halts `#TYPE_MISMATCH` | `start_when(5)`, `stop_when(5)`, and `chain(5)` halt RILL-R040, catchable. `seq(5)` halts `#TYPE_MISMATCH` | `iteration` |
+| A filter predicate that returns an invalid value | `filter.bool`: a non-bool result halts `#TYPE_MISMATCH` | An invalid result halts RILL-R001 "filter: predicate returned an invalid value", catchable. A number result halts `#TYPE_MISMATCH` | `filter`, `invalid-value` |
