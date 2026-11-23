@@ -106,7 +106,7 @@ One row per PR. Tick a row when its PR merges.
 | 10 | `variables` | 3 | 27 | 0 | #676 |
 | 11 | `expressions` | 13 | 137 | 2 | #676 |
 | 12 | `callables` | 3 | 37 | 0 | #676 |
-| 13 | `control-flow` | 5 | 52 | 4 | |
+| 13 | `control-flow` | 5 | 52 | 4 | #676 |
 | 14 | `collections` | 7 | 53 | 47 | |
 | 15 | `errors` | 5 | 33 | 32 | |
 | 16 | `limits` (write) | 0 | 0 | 0 | |
