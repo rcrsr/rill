@@ -353,8 +353,10 @@ error-code.status-lock 3f3b9d6f9ece
 error-code.status-value 968f4dc2232e
 error.halt 47e4fdc51d64
 error.interpolation d6109c97e3c9
+error.no-message 379553b98df8
 error.non-catchable 5384696a5840 halt.non-catchable@8eb8c26644b7
 error.string ad262088c62d
+error.written-message dcbdfd9448de
 existence.bracket 34f6bc46ea46
 existence.chain 2782e18dc1fa
 existence.found e543db21d88e
@@ -427,6 +429,7 @@ frontmatter.unclosed a8d6a6fea972
 guard.catch bf78f704cbc6
 guard.dollar 1f03b764b461
 guard.non-catchable 8144d6897ddd halt.non-catchable@8eb8c26644b7
+guard.not-target 00f6cb30f842
 guard.on-codes 2937862d4b07
 guard.on-empty 65db40915a6d
 guard.on-runtime c32ccd79a3ca
@@ -495,7 +498,7 @@ introspection.presence 0bcfe8c44eaa
 introspection.print-bare 53cda9338c61
 introspection.signature d11d5cc8fffc
 introspection.type-probe 98d4ed5945dd carried-type.effective-probe@da1ca7bbf1a7 carried-type.type-probe@eaad72137ace
-invalid-value 94bba088c0f7 error-code.status@6c04aa70d1af halt.catchable@929ad6135c87 vacancy.vacant@93e05a6e4241
+invalid-value 4db11b845c80 error-code.status@6c04aa70d1af halt.catchable@929ad6135c87 vacancy.vacant@93e05a6e4241
 invalid-value.access 6b0c47fbf977
 invalid-value.collection b164fa8d8e42
 invalid-value.hold 57118413b4f8
@@ -504,6 +507,9 @@ invalid-value.map 0cf8609c4ce9
 invalid-value.origin f59e88d4cf82
 invalid-value.probe 024c35ff18e2
 invalid-value.status 7d727ece29c6
+invalid-value.trace-access ce4f15dc4b3b
+invalid-value.trace-catch 297e7f66a14b
+invalid-value.trace-order 53e4a23c153b
 invalid-value.valid-status 413a1a114f6b
 invocation f9fc60ad111f defaults.param@4bd0a3bd35c5 defaults.param-required@94b94909db07 halt.non-catchable@8eb8c26644b7 keyword.other@11d39ac6f7d5 pipe.call-operand@3a33d5a45012 pipe.script-operand@6cce33562a21 scope.child@fb0f345c5707 scope.late-binding@80ad28cdc782 selection.property@a2c17ab01fb9 spread.arg-dict@60818904593b spread.arg-tuple@ca06a765a105
 invocation.arguments-first 506b39f747fd
@@ -692,7 +698,9 @@ retry.attempts d068f109fa31 construct-options.literal-bound@77e40601f298
 retry.attempts-name ac7fc2d95a27
 retry.exhaust f6b05f39b670
 retry.guard f0791b01e0d5
+retry.not-target ed7525e992c2
 retry.success b3ed4a875ec6
+retry.trace 53e7ac030c4d invalid-value.trace-catch@297e7f66a14b
 scope 98320569dcef capture.rebind@d0ae2424696b loop.accumulate@7080c69b7e01 scope.no-rebind@0a3a0e588524
 scope.child fb0f345c5707
 scope.closure de41448c0bbd

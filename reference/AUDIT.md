@@ -108,7 +108,7 @@ One row per PR. Tick a row when its PR merges.
 | 12 | `callables` | 3 | 37 | 0 | #676 |
 | 13 | `control-flow` | 5 | 52 | 4 | #676 |
 | 14 | `collections` | 7 | 56 | 0 | #676 |
-| 15 | `errors` | 5 | 33 | 32 | |
+| 15 | `errors` | 5 | 41 | 0 | |
 | 16 | `limits` (write) | 0 | 0 | 0 | |
 | 17 | `host-boundary` | 1 | 14 | 11 | |
 | 18 | `builtins` (write) | 0 | 0 | 0 | |
@@ -265,11 +265,11 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `errors/assert.md` | 5 | 5 | | | | |
-| `errors/error.md` | 4 | 4 | | | | |
-| `errors/guard.md` | 10 | 10 | | | | |
-| `errors/invalid-value.md` | 9 | 8 | | | | |
-| `errors/retry.md` | 5 | 5 | | | | |
+| `errors/assert.md` | 5 | 0 | x | x | x | x |
+| `errors/error.md` | 6 | 0 | x | x | x | x |
+| `errors/guard.md` | 11 | 0 | x | x | x | x |
+| `errors/invalid-value.md` | 12 | 0 | x | x | x | x |
+| `errors/retry.md` | 7 | 0 | x | x | x | x |
 
 ### `host-boundary`
 
@@ -292,21 +292,10 @@ What the sweeps found that no rule states yet, routed to the slice that owns it.
 backlog in the Complete and Cited columns: probe each item, then write a rule or record why none is
 needed. Strike nothing here; the slice PR deletes the items it settles.
 
-### `errors`
-
-- Grammar: `guard-block`, `retry-block`, `pipe-error`, `status-probe` (`invalid-value`).
-- `error`: `error` with no message halts RILL-P002, the only site that raises it.
-- Errors: RILL-R084 (invalidation code outside the core error set).
-- Tests: `trace-frames.test.ts`.
-- `retry`: each failed attempt appends a `guard-caught` trace frame.
-- `error-code` (in `types/scalars`): the 36 `#RILL_R###` atoms in the core set; no rule lists
-  the set. `error_code.inner` holds 50 atoms at c7ef8720, including `#R001` and `#R999`, the
-  codes host throws reshape to.
-
 ### `host-boundary`
 
 - Errors: RILL-P020, RILL-P021, RILL-R050 to RILL-R053, RILL-R057, RILL-R062, RILL-R063,
-  RILL-R076, RILL-R091.
+  RILL-R076, RILL-R084 (a host invalidation code outside the core error set), RILL-R091.
 - `use`: a `guard` around `use<>` catches RILL-R057; `app::fetch()` halts RILL-P012.
 - Hosts cannot add error codes; `toNative` reports the own type; a default in a host signature
   string halts RILL-R091.
@@ -413,3 +402,5 @@ at a897cfc3 unless they say otherwise.
 | `callables` | An empty `fn` body parses and halts RILL-R043 on call while every other empty block halts RILL-P004; `$d.a()` on a non-function field halts RILL-R007 while `$n()` halts RILL-R002; a call suffix after a method in a pipe target starts a new statement; `annotation-existence` omits the `&T` suffix the runtime accepts. Probed at 97c5b292 | Collected in INCONSISTENCIES.md |
 | `collections` | `seq` and `acc` read an iterator lazily, so `break` beats the limit `iteration.sequential-limit` states for every kind; `fold` reads it eagerly while `acc` does not; `sort` key calls overlap with no `concurrency` option. Probed at 5d3bb63f | Collected in INCONSISTENCIES.md |
 | `control-flow` | Which body `return` ends; `break` inside a called function; a bare `break` with no `$`; a halt in an async `pass` body; an empty `pass` body; `timeout` with no parentheses. Probed at 23491968 | Collected in INCONSISTENCIES.md |
+| `errors/invalid-value.md` | `invalid-value.access`: an operator on an invalid value raises the halt it holds. An invalid value used directly as a bool operand halts RILL-R002 "requires boolean, got dict" instead. With `guard { 1 == "a" } => $r`, `!$r`, `$r && true`, `$r \|\| true`, `$r ? 1 ! 2`, `assert $r`, and `while ($r) do { 1 }` halt RILL-R002, while `$r -> ($ ? 1 ! 2)` and `$r == 1` raise `#TYPE_MISMATCH`. Probed at e7d4d0cd | Collected |
+| `errors` | Text after `assert cond` starts a new statement while `error` rejects it; `.!foo` yields `""`; no rule lists the core error set; trace origin frames have no named vocabulary. Probed at e7d4d0cd | Collected in INCONSISTENCIES.md |

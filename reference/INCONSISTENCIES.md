@@ -202,3 +202,14 @@ Probed at 43a2995e.
 | An annotation before a type argument | `annotation.positions`: rejected before a `list` element type. `list(^(k: 1) number)`, `map(^(k: 1) string, number)`, `union(^(k: 1) number, string)`, and `fn(x: list(^(k: 1) number))` halt RILL-P001 | `stream(^(k: 1) number)` returns `stream(number)`, and `dict(a: list(^(k: 1) number))` returns `dict(a: list(number))` | `annotation` |
 | Where `^(limit: N)` is rejected | `annotation.limit-in-call`: before a function argument it halts RILL-R081 | It halts RILL-R081 before any annotated expression: a dict entry, a list element, and a conditional branch. At statement level `^(limit: 5) fn(x) { $x } => $f` is accepted and `$f.^limit` is `5` | `annotation` |
 | Text after a frontmatter delimiter | The `frontmatter` production: each delimiter is `---` then a line ending. A closing `----` halts RILL-P023 (`frontmatter.extra-dash`) | An opening `----` or `--- x` is accepted and `-` or `x` becomes the first line of frontmatter text. A closing `--- 2` is accepted and `2` runs as a statement | `frontmatter` |
+
+## Errors
+
+Probed at e7d4d0cd.
+
+| Inconsistency | Evidence | Concept |
+|---------------|----------|---------|
+| What may follow the keyword on its line | `5 -> assert ($ > 3) 42` yields 42, a second statement (`statement.same-line`). `"m" => $m` then `5 -> assert ($ > 9) $m` halts RILL-R015 "Assertion failed" and drops `$m`. `error 42`, `error $m`, and `error ("a" -> .upper)` are rejected with RILL-P004, and a locked test pins it | `assert`, `error`, `statement` |
+| A status field no rule names | `5 => $v` then `$v.!foo` yields `""`, and so does `.!foo` on an invalid value. `status-probe` takes any identifier, and `invalid-value.probe` names five fields | `invalid-value` |
+| Which atoms the core error set holds | No rule lists the set. `#R001 -> :?error_code` is `true` and `guard(on: #R001) { 1 }` parses; `guard(on: #RILL_P001)` and `guard(on: #RILL_R999)` are rejected with RILL-P004. `error_code.^type.inner` halts RILL-R003 | `error-code`, `guard` |
+| What a trace frame's origin is called | `guard { 1 / 0 }` starts its trace with `kind: "host"`, `fn: "evaluateArithmetic"`, though no host function ran. `guard { 1 == "a" }` starts with `kind: "type"`. No rule names the origin kinds or fields | `invalid-value` |
