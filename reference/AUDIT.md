@@ -101,7 +101,7 @@ One row per PR. Tick a row when its PR merges.
 | 5 | `values` | 3 | 30 | 0 | #676 |
 | 6 | `types/constructors` | 9 | 160 | 0 | #676 |
 | 7 | `types/model` | 6 | 69 | 0 | #676 |
-| 8 | `types/scalars` | 7 | 123 | 113 | |
+| 8 | `types/scalars` | 7 | 124 | 0 | |
 | 9 | `types/typing` | 8 | 121 | 68 | |
 | 10 | `variables` | 3 | 24 | 24 | |
 | 11 | `expressions` | 8 | 111 | 89 | |
@@ -184,13 +184,13 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `types/scalars/atom.md` | 16 | 16 | | | | |
-| `types/scalars/bool.md` | 13 | 13 | | | | |
-| `types/scalars/datetime.md` | 19 | 19 | | | | |
-| `types/scalars/duration.md` | 20 | 13 | | | | |
-| `types/scalars/error-code.md` | 13 | 12 | | | | |
-| `types/scalars/number.md` | 19 | 18 | | | | |
-| `types/scalars/string.md` | 23 | 22 | | | | |
+| `types/scalars/atom.md` | 14 | 0 | x | x | x | x |
+| `types/scalars/bool.md` | 13 | 0 | x | x | x | x |
+| `types/scalars/datetime.md` | 21 | 0 | x | x | x | x |
+| `types/scalars/duration.md` | 22 | 0 | x | x | x | x |
+| `types/scalars/error-code.md` | 13 | 0 | x | x | x | x |
+| `types/scalars/number.md` | 18 | 0 | x | x | x | x |
+| `types/scalars/string.md` | 23 | 0 | x | x | x | x |
 
 ### `types/typing`
 
@@ -294,6 +294,8 @@ needed. Strike nothing here; the slice PR deletes the items it settles.
 - `assertion`: `$l:list [0]` halts RILL-P001.
 - `carried-type`: a declaration carries through pipe selection and destructure; a bare `list`,
   `list(any)`, or union projects no element type.
+- `conversion`: `conversion.value-fail` restates `number.from-string-fail`, which
+  `conversion.scalar` names as the owner of the route.
 
 ### `variables`
 
@@ -349,7 +351,8 @@ needed. Strike nothing here; the slice PR deletes the items it settles.
 - Tests: `trace-frames.test.ts`.
 - `retry`: each failed attempt appends a `guard-caught` trace frame.
 - `error-code` (in `types/scalars`): the 36 `#RILL_R###` atoms in the core set; no rule lists
-  the set.
+  the set. `error_code.inner` holds 50 atoms at c7ef8720, including `#R001` and `#R999`, the
+  codes host throws reshape to.
 
 ### `host-boundary`
 
@@ -451,3 +454,4 @@ at a897cfc3 unless they say otherwise.
 | `scripts/reference/check.ts` | `grammar-syntax` drops the first production after a `text` fence. `parseProductions` splits the joined Syntax fences on `;` and keeps a statement only when it starts with `name =`. A `text` fence has no `;`, so its text joins the first production of the next `ebnf` fence. With the `text` fence first, `map.md`, `ordered.md`, and `tuple.md` failed for `map`, `ordered`, and `tuple`, while `map-entry` and `map-key` passed. Putting the `ebnf` fence first clears it. Probed at 289206aa | Collected |
 | `types/constructors` | Dict method names as keys; dict duplicates through multi-key and computed keys; `.entries` on mixed values; the halt for unordered operands; extra stream arguments; a stream's printed form | Collected in INCONSISTENCIES.md |
 | `types/model` | RILL-P014 from a non-type expression that starts with a type name; `number()` and `any(number)` differ by position; RILL-P001 for an outer on a scalar in a type position; `??` after an early missing read; the type a literal operand carries in an overlap check. Probed at 6cc38b29 | Collected in INCONSISTENCIES.md |
+| `types/scalars` | The ISO 8601 subset `datetime` accepts; a fractional unix count truncates; a unix count drops time components; a string piped into `datetime` halts RILL-R036 while `duration` parses it. Probed at c7ef8720 | Collected in INCONSISTENCIES.md |

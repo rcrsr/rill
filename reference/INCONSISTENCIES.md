@@ -102,6 +102,18 @@ or leave a probed case unstated. Probed at 6cc38b29.
 | `??` after a chain that reads a missing property early | `introspection.fallback`: `??` supplies its right operand when the left side reads a property the type lacks | `number.inner ?? any` yields `any`, but `number.inner.inner ?? 3` and `number.inner.name ?? 3` halt RILL-R003. Dicts agree: `dict[a: dict[]].a.c ?? 3` yields `3`, and `dict[a: 1].b.c ?? 3` halts RILL-R009. Only a miss on the last read recovers | `introspection`, `vacancy` |
 | The type a literal operand carries in an overlap check | `structural-typing.overlap-literal`: a literal type overlaps its scalar kind. `equality.closed-set` halts only when the union is all literals | With `"a" => $x:union("a", number)`, `$x == "b"` and `"b" == $x` halt `#TYPE_MISMATCH` "Cannot compare union(number, "a") with string", and so does `"b" => $s` then `$s == $x`. `"b" => $s:string` then `$s == $x` yields `false`. The operand acts as the literal `"b"`, but the message names `string` | `structural-typing`, `equality`, `carried-type` |
 
+## Scalar types
+
+Rules in the `types/scalars` chapter that disagree with an equivalent form, or leave a probed case
+unstated. Probed at c7ef8720.
+
+| Inconsistency | One form | The other form | Concept |
+|---------------|----------|----------------|---------|
+| Which ISO 8601 strings `datetime` accepts | `datetime.invalid`: a string that is not ISO 8601 halts `#INVALID_INPUT`. `datetime("2026-03-13T02:00Z")`, with no seconds, and `datetime("2026-03-13T02:00:00.5Z")` are accepted | `datetime("2026-03")` (reduced precision), `datetime("20260313")` (basic format), and `datetime("2026-03-13 02:00:00Z")` halt `#INVALID_INPUT`, though the first two are ISO 8601. No rule names the accepted subset | `datetime` |
+| A fractional datetime count | `datetime.out-of-range`: a component outside its range halts. `datetime(...dict[year: 2026, month: 3, day: 1.5])` halts `#INVALID_INPUT` | `datetime(...dict[unix: 1.5])` yields `1970-01-01T00:00:00.001Z`, the count truncated. No rule says whether `unix` must be an integer | `datetime` |
+| A unix count with a time component | `datetime.one-form`: a unix count with `year`, `month`, or `day` halts `#INVALID_INPUT` | `datetime(...dict[unix: 0, ms: 1])` yields `1970-01-01T00:00:00.000Z`, silently dropping `ms`. `hour`, `minute`, and `second` beside `unix` are dropped the same way | `datetime` |
+| A string piped into a time type | `duration.from-pipe`: `"500ms" -> duration` parses as `duration("500ms")` does | `"2026-03-13" -> datetime` halts RILL-R036, though `datetime("2026-03-13")` parses. `datetime -> string` also halts (`string.from-datetime`), while `duration -> string` converts | `datetime`, `duration`, `string` |
+
 ## Line continuation
 
 Forms that read alike continue across a line ending in some places and not others. Probed at
