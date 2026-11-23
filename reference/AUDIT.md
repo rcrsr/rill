@@ -102,7 +102,7 @@ One row per PR. Tick a row when its PR merges.
 | 6 | `types/constructors` | 9 | 160 | 0 | #676 |
 | 7 | `types/model` | 6 | 69 | 0 | #676 |
 | 8 | `types/scalars` | 7 | 124 | 0 | #676 |
-| 9 | `types/typing` | 8 | 121 | 68 | |
+| 9 | `types/typing` | 8 | 122 | 0 | |
 | 10 | `variables` | 3 | 24 | 24 | |
 | 11 | `expressions` | 8 | 111 | 89 | |
 | 12 | `callables` | 3 | 33 | 15 | |
@@ -196,14 +196,14 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `types/typing/assertion.md` | 17 | 14 | | | | |
-| `types/typing/carried-type.md` | 13 | 9 | | | | |
-| `types/typing/conversion.md` | 20 | 19 | | | | |
-| `types/typing/declaration.md` | 13 | 3 | | | | |
-| `types/typing/defaults.md` | 18 | 10 | | | | |
-| `types/typing/inference.md` | 15 | 8 | | | | |
-| `types/typing/strict-mode.md` | 10 | 0 | | | | |
-| `types/typing/type-lock.md` | 14 | 4 | | | | |
+| `types/typing/assertion.md` | 17 | 0 | x | x | x | x |
+| `types/typing/carried-type.md` | 15 | 0 | x | x | x | x |
+| `types/typing/conversion.md` | 20 | 0 | x | x | x | x |
+| `types/typing/declaration.md` | 13 | 0 | x | x | x | x |
+| `types/typing/defaults.md` | 18 | 0 | x | x | x | x |
+| `types/typing/inference.md` | 15 | 0 | x | x | x | x |
+| `types/typing/strict-mode.md` | 10 | 0 | x | x | x | x |
+| `types/typing/type-lock.md` | 14 | 0 | x | x | x | x |
 
 ### `variables`
 
@@ -286,16 +286,6 @@ Each gets a table when its PR splits it into concepts.
 What the sweeps found that no rule states yet, routed to the slice that owns it. A slice works its
 backlog in the Complete and Cited columns: probe each item, then write a rule or record why none is
 needed. Strike nothing here; the slice PR deletes the items it settles.
-
-### `types/typing`
-
-- Grammar: `type-conversion`.
-- Errors: RILL-R077 (invalid parameter default), RILL-R078 (removed `:>` conversion).
-- `assertion`: `$l:list [0]` halts RILL-P001.
-- `carried-type`: a declaration carries through pipe selection and destructure; a bare `list`,
-  `list(any)`, or union projects no element type.
-- `conversion`: `conversion.value-fail` restates `number.from-string-fail`, which
-  `conversion.scalar` names as the owner of the route.
 
 ### `variables`
 
@@ -405,7 +395,8 @@ script.
 - CLI and config: RILL-C001 to RILL-C004.
 - Extension packages: RILL-R017 to RILL-R035.
 - Host registration and policy: RILL-R059, RILL-R061, RILL-R068 to RILL-R073, RILL-R075,
-  RILL-R086 to RILL-R089.
+  RILL-R077, RILL-R086 to RILL-R089. A script parameter default of the wrong type halts
+  `#TYPE_MISMATCH` instead (`defaults.type-match`).
 - Test files: `ref-llms-full-assertions.test.ts` checks `docs/`, not the language.
   `parser-recovery.test.ts` and `parser-spans.test.ts` test the `parseWithRecovery` host API and
   AST spans.
@@ -455,3 +446,4 @@ at a897cfc3 unless they say otherwise.
 | `types/constructors` | Dict method names as keys; dict duplicates through multi-key and computed keys; `.entries` on mixed values; the halt for unordered operands; extra stream arguments; a stream's printed form | Collected in INCONSISTENCIES.md |
 | `types/model` | RILL-P014 from a non-type expression that starts with a type name; `number()` and `any(number)` differ by position; RILL-P001 for an outer on a scalar in a type position; `??` after an early missing read; the type a literal operand carries in an overlap check. Probed at 6cc38b29 | Collected in INCONSISTENCIES.md |
 | `types/scalars` | The ISO 8601 subset `datetime` accepts; a fractional unix count truncates; a unix count drops time components; a string piped into `datetime` halts RILL-R036 while `duration` parses it. Probed at c7ef8720 | Collected in INCONSISTENCIES.md |
+| `types/typing` | A bracket after a postfix bare-kind assertion; dict iteration under a carried type; the carried type of a `??` right operand; union defaults in conversion against a call. Probed at c2fdd19f | Collected in INCONSISTENCIES.md |

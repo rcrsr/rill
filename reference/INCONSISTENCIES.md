@@ -114,6 +114,18 @@ unstated. Probed at c7ef8720.
 | A unix count with a time component | `datetime.one-form`: a unix count with `year`, `month`, or `day` halts `#INVALID_INPUT` | `datetime(...dict[unix: 0, ms: 1])` yields `1970-01-01T00:00:00.000Z`, silently dropping `ms`. `hour`, `minute`, and `second` beside `unix` are dropped the same way | `datetime` |
 | A string piped into a time type | `duration.from-pipe`: `"500ms" -> duration` parses as `duration("500ms")` does | `"2026-03-13" -> datetime` halts RILL-R036, though `datetime("2026-03-13")` parses. `datetime -> string` also halts (`string.from-datetime`), while `duration -> string` converts | `datetime`, `duration`, `string` |
 
+## Typing
+
+Rules in the `types/typing` chapter that disagree with an equivalent form, or leave a probed case
+unstated. Probed at c2fdd19f.
+
+| Inconsistency | One form | The other form | Concept |
+|---------------|----------|----------------|---------|
+| A bracket after a postfix assertion | After a type with arguments it indexes the asserted value: with `list[1] => $l`, `$l:list(number)[0]` yields `1` | After a bare kind it halts RILL-P001 "Expected type name", with or without a space: `$l:list[0]`, `$l:list [0]`, and `$l:?list [0]`. `($l:list)[0]` yields `1` | `assertion`, `declaration` |
+| Iterating a dict with a carried type | `carried-type.element`: a read by `[i]`, `.name`, `.$k`, or iteration gives the part the asserted field type. With `$d:dict(a: union(number, string))` holding `dict[a: 1]`, `$d.a` and `$d.$k` carry `union(number, string)` | `$d -> seq({ $.value.^type.signature })` yields `list["number"]`, and each entry carries `dict(key: string, value: number)`. No rule says whether a dict's iteration element is the entry or the field value | `carried-type`, `iteration` |
+| The carried type of a `??` right operand | `carried-type.fallback`: `a ?? b` yields the selected operand with its carried type. The left operand keeps it: with `1 => $x:union(string, number)`, `($x ?? 2).^type.signature` is `"union(number, string)"` | When `??` selects its right operand the type drops: with `dict[a: 1] => $d`, `($d.zz ?? $x).^type.signature` is `"number"`, and `($d.zz ?? $x) => $y` then `"a" => $y` halts RILL-R001 "locked as number". `declared-types.test.ts` "takes the own type for the ?? default branch" pins the drop | `carried-type`, `type-lock` |
+| Defaults from a union member, conversion against call | `defaults.hydration-union` and `defaults.hydration-tie`: hydration against a union takes the narrowest accepting member's defaults, ties broken by canonical order. A call does: with `$f` taking `union(dict(a: number, c: number = 7), dict(a: number, b: number = 9))`, `$f(dict[a: 1])` yields `dict[a: 1, b: 9]` | `conversion.union`: a value that has a member passes unchanged. `dict[a: 1] -> union(dict(a: number, b: number = 9), dict(a: number, c: number = 7))` yields `dict[a: 1]`, also as a field of a dict conversion. The `defaults` example fills only because `union.reduce` leaves one member | `defaults`, `conversion`, `union` |
+
 ## Line continuation
 
 Forms that read alike continue across a line ending in some places and not others. Probed at

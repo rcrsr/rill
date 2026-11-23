@@ -58,6 +58,14 @@ Reading an element or field from a collection with no carried type MUST give the
 type, so `.^type` and `equality.no-overlap` judge its own type. This holds for `[i]`, `.name`,
 `.$k`, and iteration. The collection keeps its inferred type (`inference.literal-union`).
 
+r[carried-type.destruct] Destructuring a labeled collection carries the part into each variable
+A `destruct<...>` of a list or dict with a carried type MUST give each bound variable the carried
+element or field type, as `carried-type.element` gives a read.
+
+r[carried-type.no-part] A carried type with no element type gives elements their own type
+A read from a collection whose carried type is a bare kind such as `list`, is `list(any)`, or is a
+union MUST give the element no carried type, as `carried-type.own-element` states.
+
 r[carried-type.type-probe] The type probe reports the carried type
 `.^type` MUST report the most recent carried type the value has, and its own type when it
 carries none.

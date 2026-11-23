@@ -4,8 +4,8 @@ title: Conversion
 status: normative
 since: 0.24.0
 issues: []
-grammar: []
-errors: [RILL-R036, RILL-R037, RILL-R038, RILL-R044]
+grammar: [type-conversion]
+errors: [RILL-R036, RILL-R037, RILL-R038, RILL-R044, RILL-R078]
 depends: [type-value, structural-typing, any, union, defaults, carried-type, inference, list, dict, tuple, ordered]
 tests: [conversion.test.ts, structural-type-defaults.test.ts, vectors.test.ts, type-assertions.test.ts, union-types.test.ts]
 ---
@@ -13,6 +13,15 @@ tests: [conversion.test.ts, structural-type-defaults.test.ts, vectors.test.ts, t
 # Conversion
 
 A conversion is a pipe into a type that returns a value having that type, and an assertion `-> :T` only checks.
+
+## Syntax
+
+```ebnf
+type-conversion = type-ref | type-constructor ;
+```
+
+r[conversion.legacy-operator] The colon-arrow conversion operator is rejected
+`:>T` after a value MUST raise RILL-R078, whose message names `->` as the replacement.
 
 ## Evaluation
 
@@ -62,9 +71,6 @@ r[conversion.no-string-time] A nested datetime or duration has no string route
 datetime or a duration at any depth, though a datetime halts alone (`string.from-datetime`) and a
 duration alone converts (`string.from-duration`).
 
-r[conversion.value-fail] A string that is not a number halts with a value error
-`"abc" -> number` MUST halt with RILL-R038. The scalar files state the other value failures.
-
 r[conversion.any] A pipe into any halts
 `value -> any` MUST halt with RILL-R036.
 
@@ -92,7 +98,8 @@ MUST NOT be tried in turn.
 r[conversion.scalar] Scalar routes belong to the scalar types
 The routes into `number`, `string`, `bool`, and `atom` MUST be those stated by `number.from-string`,
 `number.from-bool`, `string.from-number`, `string.from-bool`, `string.from-collection`,
-`bool.from-number`, `bool.from-string`, `atom.from-string`, and `atom.to-string`. The routes into
+`bool.from-number`, `bool.from-string`, `atom.from-string`, and `atom.to-string`, and a string
+that is not a decimal halts as `number.from-string-fail` states. The routes into
 `duration` are `duration.from-pipe`, and the route out of one into `string` is `string.from-duration`.
 
 ## Errors
@@ -101,9 +108,10 @@ The routes into `number`, `string`, `bool`, and `atom` MUST be those stated by `
 |-----------|-------|-----------|
 | No conversion exists between the source and the target | RILL-R036 | Yes |
 | `dict` converts to `ordered` with no signature | RILL-R037 | Yes |
-| A string that is not a number is converted to number | RILL-R038 | Yes |
+| A string that is not a decimal is converted to number (`number.from-string-fail`) | RILL-R038 | Yes |
 | The value omits a field or position with no default | RILL-R044 | Yes |
 | A part of a parameterized target fails to convert | RILL-R036, RILL-R038 | Yes |
+| `:>T` is written | RILL-R078 | No |
 
 ## Examples
 
@@ -162,7 +170,8 @@ RILL-R036.
 
 On 0.23.0 a conversion through a variable skips fill and drop, and does not check field types.
 
-`conversion.variable-call` is superseded by `pipe.function`.
+`conversion.variable-call` is superseded by `pipe.function`. `conversion.value-fail` is superseded
+by `number.from-string-fail`.
 
 The instance methods `.str` and `.num` are removed, so `-> string` and `-> number` are the only
 conversions of a scalar.
