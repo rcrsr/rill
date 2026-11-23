@@ -437,4 +437,38 @@ describe('Rill Runtime: Type Assertions', () => {
       expect((err as ParseError).errorId).toBe('RILL-P001');
     });
   });
+
+  describe('Scalar membership', () => {
+    const cases: Array<[string, string, string[]]> = [
+      ['atom', '#a', ['"a"', '5']],
+      ['bool', 'true', ['1', '"true"']],
+      ['datetime', 'datetime("2026-03-13")', ['"2026-03-13"']],
+      ['duration', 'duration("1ms")', ['1']],
+      ['error_code', '#TIMEOUT', ['#ok', '#wired', '"TIMEOUT"']],
+      ['number', '1', ['"1"']],
+      ['string', '"a"', ['1', '#a']],
+    ];
+
+    rule(
+      'atom.membership',
+      'bool.membership',
+      'datetime.membership',
+      'duration.membership',
+      'error-code.membership',
+      'number.membership',
+      'string.membership'
+    ).it(
+      'a scalar satisfies its own type and any other value halts #TYPE_MISMATCH',
+      async () => {
+        for (const [type, member, others] of cases) {
+          expect(await run(`${member} -> :?${type}`)).toBe(true);
+          for (const other of others) {
+            await expectHalt(() => run(`${other} -> :${type}`), {
+              code: 'TYPE_MISMATCH',
+            });
+          }
+        }
+      }
+    );
+  });
 });

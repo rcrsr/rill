@@ -65,13 +65,16 @@ describe('Atom literals (#NAME)', () => {
       });
     });
 
-    it('parses a well-formed but unregistered atom #FOO', () => {
-      const primary = firstPrimary('#FOO');
-      expect(primary).toMatchObject({
-        type: 'AtomLiteral',
-        name: 'FOO',
-      });
-    });
+    rule('atom.free').it(
+      'parses a well-formed but unregistered atom #FOO',
+      () => {
+        const primary = firstPrimary('#FOO');
+        expect(primary).toMatchObject({
+          type: 'AtomLiteral',
+          name: 'FOO',
+        });
+      }
+    );
 
     it('parses underscored uppercase names #RATE_LIMIT', () => {
       const primary = firstPrimary('#RATE_LIMIT');
@@ -95,7 +98,7 @@ describe('Atom literals (#NAME)', () => {
       });
     });
 
-    it('parses #A1_b as an atom', () => {
+    rule('atom.spelling').it('parses #A1_b as an atom', () => {
       expect(firstPrimary('#A1_b')).toMatchObject({
         type: 'AtomLiteral',
         name: 'A1_b',
@@ -138,7 +141,7 @@ describe('Atoms are identified by name', () => {
     expect(await runScript('#TIMEOUT == #NOT_FOUND')).toBe(false);
   });
 
-  it('#TIMEOUT -> string is the bare name', async () => {
+  rule('atom.to-string').it('#TIMEOUT -> string is the bare name', async () => {
     expect(await runScript('#TIMEOUT -> string')).toBe('TIMEOUT');
   });
 
@@ -146,7 +149,7 @@ describe('Atoms are identified by name', () => {
     expect(await runScript('("TIMEOUT" -> atom) == #TIMEOUT')).toBe(true);
   });
 
-  it('#WIRED is an atom named WIRED', async () => {
+  rule('atom.value').it('#WIRED is an atom named WIRED', async () => {
     const result = await runScript('#WIRED');
     expect(isAtom(result as never)).toBe(true);
     expect(atomName((result as RillAtomValue).atom)).toBe('WIRED');
@@ -156,13 +159,16 @@ describe('Atoms are identified by name', () => {
     expect(await runScript('#WIRED == #R001')).toBe(false);
   });
 
-  it('#WIRED -> string is "WIRED"', async () => {
+  rule('atom.to-string').it('#WIRED -> string is "WIRED"', async () => {
     expect(await runScript('#WIRED -> string')).toBe('WIRED');
   });
 
-  it('a lowercase name round-trips through atom and string', async () => {
-    expect(await runScript('("wired" -> atom) -> string')).toBe('wired');
-  });
+  rule('atom.from-string', 'atom.to-string').it(
+    'a lowercase name round-trips through atom and string',
+    async () => {
+      expect(await runScript('("wired" -> atom) -> string')).toBe('wired');
+    }
+  );
 
   it('mixed-case and underscore names convert', async () => {
     const wired = (await runScript('"Wired" -> atom')) as RillAtomValue;
@@ -171,7 +177,7 @@ describe('Atoms are identified by name', () => {
     expect(atomName(mixed.atom)).toBe('A1_b');
   });
 
-  it('"ok" -> atom is an atom named ok', async () => {
+  rule('atom.from-string').it('"ok" -> atom is an atom named ok', async () => {
     const result = (await runScript('"ok" -> atom')) as RillAtomValue;
     expect(isAtom(result as never)).toBe(true);
     expect(atomName(result.atom)).toBe('ok');
@@ -193,7 +199,7 @@ describe('Atoms are identified by name', () => {
     expect(await runScript('list[#WIRED] == list[#WIRED]')).toBe(true);
   });
 
-  it.each(['"1x"', '""', '"   "'])(
+  rule('atom.invalid-name').it.each(['"1x"', '""', '"   "'])(
     '%s -> atom halts #INVALID_INPUT',
     async (literal) => {
       expect(await haltCode(`${literal} -> atom`)).toBe('INVALID_INPUT');
@@ -206,13 +212,59 @@ describe('Atoms are identified by name', () => {
     expect(getStatus(result as never).code).toBe(resolveAtom('INVALID_INPUT'));
   });
 
-  it('`.!code -> string` on the caught halt reports "INVALID_INPUT"', async () => {
-    const src = `
+  rule('error-code.status-value').it(
+    '`.!code -> string` on the caught halt reports "INVALID_INPUT"',
+    async () => {
+      const src = `
       guard { "1x" -> atom } => $r
       $r.!code -> string
     `;
-    expect(await runScript(src)).toBe('INVALID_INPUT');
+      expect(await runScript(src)).toBe('INVALID_INPUT');
+    }
+  );
+
+  rule('atom.free').it(
+    '#wired, #Wired, and #WIRED are distinct atoms',
+    async () => {
+      expect(await runScript('#wired == #Wired')).toBe(false);
+      expect(await runScript('#Wired == #WIRED')).toBe(false);
+      expect(await runScript('#WIRED == #WIRED')).toBe(true);
+    }
+  );
+
+  rule('atom.print').it('an atom interpolates with its hash', async () => {
+    expect(await runScript('"{#wired}"')).toBe('#wired');
   });
+
+  rule('atom.from-other').it.each(['5', 'true', 'list["a"]'])(
+    '%s -> atom halts RILL-R036',
+    async (literal) => {
+      await expect(runScript(`${literal} -> atom`)).rejects.toHaveProperty(
+        'errorId',
+        'RILL-R036'
+      );
+    }
+  );
+
+  rule('atom.unordered').it.each(['#a < #b', '#a >= #b'])(
+    '%s halts RILL-R002',
+    async (src) => {
+      await expect(runScript(src)).rejects.toHaveProperty(
+        'errorId',
+        'RILL-R002'
+      );
+    }
+  );
+
+  rule('atom.no-arithmetic').it.each(['#a + 1', '#a * #b', '-#a'])(
+    '%s halts RILL-R002',
+    async (src) => {
+      await expect(runScript(src)).rejects.toHaveProperty(
+        'errorId',
+        'RILL-R002'
+      );
+    }
+  );
 });
 
 describe(':atom primitive via deserialize', () => {
@@ -261,13 +313,16 @@ describe('isAtom safety (EC-4, AC-27)', () => {
 // ============================================================
 
 describe('Atom runtime evaluation (Phase 2)', () => {
-  it('evaluates #TIMEOUT to a :atom value named TIMEOUT', async () => {
-    const ast = parse('#TIMEOUT');
-    const ctx = createRuntimeContext({});
-    const { result } = await execute(ast, ctx);
-    expect(isAtom(result as never)).toBe(true);
-    expect(atomName((result as RillAtomValue).atom)).toBe('TIMEOUT');
-  });
+  rule('atom.value').it(
+    'evaluates #TIMEOUT to a :atom value named TIMEOUT',
+    async () => {
+      const ast = parse('#TIMEOUT');
+      const ctx = createRuntimeContext({});
+      const { result } = await execute(ast, ctx);
+      expect(isAtom(result as never)).toBe(true);
+      expect(atomName((result as RillAtomValue).atom)).toBe('TIMEOUT');
+    }
+  );
 });
 
 // ============================================================

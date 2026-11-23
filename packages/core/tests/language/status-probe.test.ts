@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Status probe (.! and .!field)
  *
@@ -13,6 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { createRuntimeContext, execute, parse } from '@rcrsr/rill';
+import { rule } from '../helpers/rule.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
 import type { RillAtomValue } from '../../src/runtime/core/types/structures.js';
 
@@ -108,14 +110,17 @@ describe('Status probe runtime (Phase 2)', () => {
     expect(result).toBe(false);
   });
 
-  it('AC-2: `$valid.!code` returns #ok on a valid value', async () => {
-    // `.!code` reads the status sidecar's atom; a valid value's code is
-    // the `#ok` sentinel from the frozen empty-status singleton.
-    const ast = parse('"hello".!code');
-    const ctx = createRuntimeContext({});
-    const { result } = await execute(ast, ctx);
-    expect((result as RillAtomValue).atom).toBe(resolveAtom('ok'));
-  });
+  rule('error-code.status-value').it(
+    'AC-2: `$valid.!code` returns #ok on a valid value',
+    async () => {
+      // `.!code` reads the status sidecar's atom; a valid value's code is
+      // the `#ok` sentinel from the frozen empty-status singleton.
+      const ast = parse('"hello".!code');
+      const ctx = createRuntimeContext({});
+      const { result } = await execute(ast, ctx);
+      expect((result as RillAtomValue).atom).toBe(resolveAtom('ok'));
+    }
+  );
 
   it('`.!message` reads sidecar message as a string (empty on valid)', async () => {
     // Valid values share the frozen empty-status singleton whose message

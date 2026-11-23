@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: -> Conversion Operator
  * Tests for the -> convert pipe target operator.
@@ -13,6 +14,7 @@ import { describe, expect, it } from 'vitest';
 
 import { isTuple, ParseError, parse, VALID_TYPE_NAMES } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 import { expectHalt } from '../helpers/halt.js';
 import { isOrdered, orderedEntries } from '../helpers/ordered.js';
 
@@ -115,44 +117,59 @@ describe('Rill Language: -> Conversion Operator', () => {
   });
 
   describe('string -> number (AC-14)', () => {
-    it('converts "5" to integer 5', async () => {
+    rule('number.from-string').it('converts "5" to integer 5', async () => {
       const result = await run('"5" -> number');
       expect(result).toBe(5);
     });
 
-    it('converts "3.14" to decimal', async () => {
+    rule('number.from-string').it('converts "3.14" to decimal', async () => {
       const result = await run('"3.14" -> number');
       expect(result).toBe(3.14);
     });
 
-    it('converts "-10" to negative number', async () => {
-      const result = await run('"-10" -> number');
-      expect(result).toBe(-10);
-    });
+    rule('number.from-string').it(
+      'converts "-10" to negative number',
+      async () => {
+        const result = await run('"-10" -> number');
+        expect(result).toBe(-10);
+      }
+    );
 
-    it('halts converting an overflow numeric string instead of producing Infinity', async () => {
-      await expectHalt(() => run('"1e309" -> number'), {
-        code: 'INVALID_INPUT',
-        messagePattern: /not finite/i,
-      });
-    });
+    rule('number.from-overflow').it(
+      'halts converting an overflow numeric string instead of producing Infinity',
+      async () => {
+        await expectHalt(() => run('"1e309" -> number'), {
+          code: 'INVALID_INPUT',
+          messagePattern: /not finite/i,
+        });
+      }
+    );
   });
 
   describe('number -> string (AC-14b)', () => {
-    it('converts integer 42 to string "42"', async () => {
-      const result = await run('42 -> string');
-      expect(result).toBe('42');
-    });
+    rule('string.from-number').it(
+      'converts integer 42 to string "42"',
+      async () => {
+        const result = await run('42 -> string');
+        expect(result).toBe('42');
+      }
+    );
 
-    it('converts decimal 3.14 to string "3.14"', async () => {
-      const result = await run('3.14 -> string');
-      expect(result).toBe('3.14');
-    });
+    rule('string.from-number').it(
+      'converts decimal 3.14 to string "3.14"',
+      async () => {
+        const result = await run('3.14 -> string');
+        expect(result).toBe('3.14');
+      }
+    );
 
-    it('converts negative -7 to string "-7"', async () => {
-      const result = await run('-7 -> string');
-      expect(result).toBe('-7');
-    });
+    rule('string.from-number').it(
+      'converts negative -7 to string "-7"',
+      async () => {
+        const result = await run('-7 -> string');
+        expect(result).toBe('-7');
+      }
+    );
   });
 
   // ============================================================
@@ -355,11 +372,14 @@ describe('Rill Language: -> Conversion Operator', () => {
       );
     });
 
-    it('throws runtime error: "five" -> number (AC-33, EC-12)', async () => {
-      await expect(run('"five" -> number')).rejects.toThrow(
-        /cannot convert string "five" to number/
-      );
-    });
+    rule('number.from-string-fail').it(
+      'throws runtime error: "five" -> number (AC-33, EC-12)',
+      async () => {
+        await expect(run('"five" -> number')).rejects.toThrow(
+          /cannot convert string "five" to number/
+        );
+      }
+    );
 
     it('throws runtime error: -> $var where $var holds non-type value (AC-34, EC-13)', async () => {
       // Post-migration: -> $n where $n holds a non-type, non-callable,
@@ -396,35 +416,53 @@ describe('Rill Language: -> Conversion Operator', () => {
   // ============================================================
 
   describe('-> string conversions (AC-1 to AC-6)', () => {
-    it('converts number 42 to string "42" (AC-1)', async () => {
-      const result = await run('42 -> string');
-      expect(result).toBe('42');
-    });
+    rule('string.from-number').it(
+      'converts number 42 to string "42" (AC-1)',
+      async () => {
+        const result = await run('42 -> string');
+        expect(result).toBe('42');
+      }
+    );
 
-    it('converts bool true to string "true" (AC-2)', async () => {
-      const result = await run('true -> string');
-      expect(result).toBe('true');
-    });
+    rule('string.from-bool').it(
+      'converts bool true to string "true" (AC-2)',
+      async () => {
+        const result = await run('true -> string');
+        expect(result).toBe('true');
+      }
+    );
 
-    it('converts bool false to string "false"', async () => {
-      const result = await run('false -> string');
-      expect(result).toBe('false');
-    });
+    rule('string.from-bool').it(
+      'converts bool false to string "false"',
+      async () => {
+        const result = await run('false -> string');
+        expect(result).toBe('false');
+      }
+    );
 
-    it('converts list[1, 2] to string "list[1, 2]" (AC-3)', async () => {
-      const result = await run('list[1, 2] -> string');
-      expect(result).toBe('list[1, 2]');
-    });
+    rule('string.from-collection').it(
+      'converts list[1, 2] to string "list[1, 2]" (AC-3)',
+      async () => {
+        const result = await run('list[1, 2] -> string');
+        expect(result).toBe('list[1, 2]');
+      }
+    );
 
-    it('converts dict[a: 1] to string "dict[a: 1]" (AC-4)', async () => {
-      const result = await run('dict[a: 1] -> string');
-      expect(result).toBe('dict[a: 1]');
-    });
+    rule('string.from-collection').it(
+      'converts dict[a: 1] to string "dict[a: 1]" (AC-4)',
+      async () => {
+        const result = await run('dict[a: 1] -> string');
+        expect(result).toBe('dict[a: 1]');
+      }
+    );
 
-    it('converts tuple[1, 2] to string "tuple[1, 2]" (AC-5)', async () => {
-      const result = await run('tuple[1, 2] -> string');
-      expect(result).toBe('tuple[1, 2]');
-    });
+    rule('string.from-collection').it(
+      'converts tuple[1, 2] to string "tuple[1, 2]" (AC-5)',
+      async () => {
+        const result = await run('tuple[1, 2] -> string');
+        expect(result).toBe('tuple[1, 2]');
+      }
+    );
 
     it('"hello" -> string is identity (AC-6)', async () => {
       const result = await run('"hello" -> string');
@@ -437,20 +475,29 @@ describe('Rill Language: -> Conversion Operator', () => {
   // ============================================================
 
   describe('-> number expanded conversions (AC-7 to AC-10)', () => {
-    it('converts "123" to number 123 (AC-7)', async () => {
-      const result = await run('"123" -> number');
-      expect(result).toBe(123);
-    });
+    rule('number.from-string').it(
+      'converts "123" to number 123 (AC-7)',
+      async () => {
+        const result = await run('"123" -> number');
+        expect(result).toBe(123);
+      }
+    );
 
-    it('converts bool true to number 1 (AC-8)', async () => {
-      const result = await run('true -> number');
-      expect(result).toBe(1);
-    });
+    rule('number.from-bool').it(
+      'converts bool true to number 1 (AC-8)',
+      async () => {
+        const result = await run('true -> number');
+        expect(result).toBe(1);
+      }
+    );
 
-    it('converts bool false to number 0 (AC-9)', async () => {
-      const result = await run('false -> number');
-      expect(result).toBe(0);
-    });
+    rule('number.from-bool').it(
+      'converts bool false to number 0 (AC-9)',
+      async () => {
+        const result = await run('false -> number');
+        expect(result).toBe(0);
+      }
+    );
 
     it('42 -> number is identity (AC-10)', async () => {
       const result = await run('42 -> number');
@@ -512,17 +559,23 @@ describe('Rill Language: -> Conversion Operator', () => {
   // ============================================================
 
   describe('error contracts: expanded routes (EC-1 to EC-5, AC-25)', () => {
-    it('throws RILL-R038: "abc" -> number (EC-1, AC-18)', async () => {
-      await expect(run('"abc" -> number')).rejects.toThrow(
-        /cannot convert string "abc" to number/
-      );
-    });
+    rule('number.from-string-fail').it(
+      'throws RILL-R038: "abc" -> number (EC-1, AC-18)',
+      async () => {
+        await expect(run('"abc" -> number')).rejects.toThrow(
+          /cannot convert string "abc" to number/
+        );
+      }
+    );
 
-    it('throws RILL-R036: list[1] -> number (EC-2, AC-19)', async () => {
-      await expect(run('list[1] -> number')).rejects.toThrow(
-        /cannot convert list to number/
-      );
-    });
+    rule('number.from-other').it(
+      'throws RILL-R036: list[1] -> number (EC-2, AC-19)',
+      async () => {
+        await expect(run('list[1] -> number')).rejects.toThrow(
+          /cannot convert list to number/
+        );
+      }
+    );
 
     it('throws RILL-R036: 2 -> bool (EC-3, AC-20)', async () => {
       await expect(run('2 -> bool')).rejects.toThrow(
@@ -542,11 +595,14 @@ describe('Rill Language: -> Conversion Operator', () => {
       );
     });
 
-    it('throws RILL-R036: dict[a: 1] -> number (AC-25)', async () => {
-      await expect(run('dict[a: 1] -> number')).rejects.toThrow(
-        /cannot convert dict to number/
-      );
-    });
+    rule('number.from-other').it(
+      'throws RILL-R036: dict[a: 1] -> number (AC-25)',
+      async () => {
+        await expect(run('dict[a: 1] -> number')).rejects.toThrow(
+          /cannot convert dict to number/
+        );
+      }
+    );
   });
 
   // ============================================================
@@ -554,17 +610,23 @@ describe('Rill Language: -> Conversion Operator', () => {
   // ============================================================
 
   describe('boundary cases (AC-26 to AC-33)', () => {
-    it('throws RILL-R038: "" -> number (AC-26, BC-1 empty string)', async () => {
-      await expect(run('"" -> number')).rejects.toThrow(
-        /cannot convert string "" to number/
-      );
-    });
+    rule('number.from-string-fail').it(
+      'throws RILL-R038: "" -> number (AC-26, BC-1 empty string)',
+      async () => {
+        await expect(run('"" -> number')).rejects.toThrow(
+          /cannot convert string "" to number/
+        );
+      }
+    );
 
-    it('throws RILL-R038: " " -> number (AC-27, BC-2 whitespace only)', async () => {
-      await expect(run('" " -> number')).rejects.toThrow(
-        /cannot convert string " " to number/
-      );
-    });
+    rule('number.from-string-fail').it(
+      'throws RILL-R038: " " -> number (AC-27, BC-2 whitespace only)',
+      async () => {
+        await expect(run('" " -> number')).rejects.toThrow(
+          /cannot convert string " " to number/
+        );
+      }
+    );
 
     it('throws RILL-R036: "True" -> bool (AC-28, BC-3 case-sensitive)', async () => {
       await expect(run('"True" -> bool')).rejects.toThrow(
@@ -714,19 +776,28 @@ describe('Rill Language: -> Conversion Operator', () => {
       );
     });
 
-    it('still converts a plain list to its string form', async () => {
-      expect(await run('list[1, 2] -> string')).toBe('list[1, 2]');
-    });
+    rule('string.from-collection').it(
+      'still converts a plain list to its string form',
+      async () => {
+        expect(await run('list[1, 2] -> string')).toBe('list[1, 2]');
+      }
+    );
 
-    it('still converts empty list and dict to string', async () => {
-      expect(await run('list[] -> string')).toBe('list[]');
-      expect(await run('dict[] -> string')).toBe('dict[]');
-    });
+    rule('string.from-collection').it(
+      'still converts empty list and dict to string',
+      async () => {
+        expect(await run('list[] -> string')).toBe('list[]');
+        expect(await run('dict[] -> string')).toBe('dict[]');
+      }
+    );
 
-    it('converts "-3.14" to number -3.14 (AC-33, BC-8 negative decimal)', async () => {
-      const result = await run('"-3.14" -> number');
-      expect(result).toBe(-3.14);
-    });
+    rule('number.from-string').it(
+      'converts "-3.14" to number -3.14 (AC-33, BC-8 negative decimal)',
+      async () => {
+        const result = await run('"-3.14" -> number');
+        expect(result).toBe(-3.14);
+      }
+    );
   });
 
   // ============================================================
@@ -840,5 +911,47 @@ describe('Rill Language: -> Conversion Operator', () => {
     it('VALID_TYPE_NAMES has exactly 19 entries', () => {
       expect(VALID_TYPE_NAMES).toHaveLength(19);
     });
+  });
+
+  describe('scalar conversion edges', () => {
+    rule('number.from-string').it(
+      'converts bare-point, exponent, and leading-zero strings',
+      async () => {
+        expect(await run('"5." -> number')).toBe(5);
+        expect(await run('".5" -> number')).toBe(0.5);
+        expect(await run('"-.5" -> number')).toBe(-0.5);
+        expect(await run('"1e3" -> number')).toBe(1000);
+        expect(await run('"005" -> number')).toBe(5);
+      }
+    );
+
+    rule('number.from-string-fail').it(
+      'halts RILL-R038 for a leading plus, a radix prefix, and a separator',
+      async () => {
+        for (const s of ['"+5"', '"0x10"', '"1_000"']) {
+          await expect(run(`${s} -> number`)).rejects.toMatchObject({
+            errorId: 'RILL-R038',
+          });
+        }
+      }
+    );
+
+    rule('number.from-other').it(
+      'halts RILL-R036 converting an atom to number',
+      async () => {
+        await expect(run('#a -> number')).rejects.toMatchObject({
+          errorId: 'RILL-R036',
+        });
+      }
+    );
+
+    rule('string.from-datetime').it(
+      'halts RILL-R036 converting a datetime to string',
+      async () => {
+        await expect(
+          run('datetime("2026-03-13") -> string')
+        ).rejects.toMatchObject({ errorId: 'RILL-R036' });
+      }
+    );
   });
 });

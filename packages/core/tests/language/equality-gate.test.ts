@@ -30,12 +30,13 @@ function makeStreamFn(chunks: RillValue[]) {
 }
 
 describe('Rill Language: equality gate', () => {
-  rule('equality.no-overlap', 'structural-typing.overlap-scalar').it(
-    'halts == between number and string',
-    async () => {
-      await expectHalt(() => run('1 == "1"'), { code: 'TYPE_MISMATCH' });
-    }
-  );
+  rule(
+    'equality.no-overlap',
+    'structural-typing.overlap-scalar',
+    'number.no-equality-coercion'
+  ).it('halts == between number and string', async () => {
+    await expectHalt(() => run('1 == "1"'), { code: 'TYPE_MISMATCH' });
+  });
 
   rule('equality.no-overlap', 'structural-typing.overlap-kind').it(
     'halts == between a tuple and a list',

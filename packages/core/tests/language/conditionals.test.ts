@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Conditionals
  * Tests for cond ? then ! else syntax
@@ -7,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { expectHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 import { anyTypeValue } from '@rcrsr/rill';
 
 describe('Rill Runtime: Conditionals', () => {
@@ -564,10 +566,13 @@ while ($ < 3)`);
       expect(await run(script)).toBe('else');
     });
 
-    it('non-boolean condition still halts with "Conditional expression must be boolean"', async () => {
-      await expect(run('"hello" ? "yes" ! "no"')).rejects.toThrow(
-        'Conditional expression must be boolean'
-      );
-    });
+    rule('bool.condition').it(
+      'non-boolean condition still halts with "Conditional expression must be boolean"',
+      async () => {
+        await expect(run('"hello" ? "yes" ! "no"')).rejects.toThrow(
+          'Conditional expression must be boolean'
+        );
+      }
+    );
   });
 });

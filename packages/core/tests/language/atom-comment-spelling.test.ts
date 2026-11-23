@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Atom versus comment spelling
  *
@@ -8,6 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { parse, parseWithRecovery, tokenize, TOKEN_TYPES } from '@rcrsr/rill';
+import { rule } from '../helpers/rule.js';
 
 const TRAILING =
   "directly follows an expression on the same line; a comment needs a space after '#'";
@@ -23,7 +25,7 @@ function parseError(src: string): { errorId: string; message: string } {
 }
 
 describe('Atom versus comment tokens', () => {
-  it.each(['#ok', '#wired', '#_x', '#A1_b'])(
+  rule('atom.spelling').it.each(['#ok', '#wired', '#_x', '#A1_b'])(
     'tokenizes %s as exactly one ATOM token',
     (src) => {
       const tokens = tokenize(src, undefined, { includeComments: true });
@@ -34,7 +36,7 @@ describe('Atom versus comment tokens', () => {
     }
   );
 
-  it.each(['# c', '#', '##', '#!x', '#1', '#-'])(
+  rule('atom.comment').it.each(['# c', '#', '##', '#!x', '#1', '#-'])(
     'tokenizes %s as a COMMENT',
     (src) => {
       const tokens = tokenize(src, undefined, { includeComments: true });
@@ -45,7 +47,7 @@ describe('Atom versus comment tokens', () => {
 });
 
 describe('Atom directly after an expression', () => {
-  it.each([
+  rule('atom.same-line').it.each([
     ['1 #note', 'note'],
     ['$x #A', 'A'],
     ['"s" #todo', 'todo'],
@@ -60,7 +62,7 @@ describe('Atom directly after an expression', () => {
     expect(err.message).toContain(`Atom #${name} ${TRAILING}`);
   });
 
-  it.each([
+  rule('atom.trailing-word').it.each([
     ['#TODO fix this later', 'TODO', 'fix'],
     ['#todo return early', 'todo', 'return'],
   ])('rejects %s with the bare-word message', (src, name, word) => {

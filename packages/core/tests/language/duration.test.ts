@@ -41,11 +41,14 @@ describe('Rill Language: Duration Type', () => {
       expect(result).toBe(12);
     });
 
-    it('constructs zero duration [AC-B2]', async () => {
-      // duration(hours: 0)
-      const result = await run('duration("0ms") -> .display');
-      expect(result).toBe('0ms');
-    });
+    rule('duration.print-zero').it(
+      'constructs zero duration [AC-B2]',
+      async () => {
+        // duration(hours: 0)
+        const result = await run('duration("0ms") -> .display');
+        expect(result).toBe('0ms');
+      }
+    );
 
     it('constructs from ms directly', async () => {
       // duration(ms: 5000)
@@ -109,11 +112,14 @@ describe('Rill Language: Duration Type', () => {
       expect(result).toBe('1d30m');
     });
 
-    it('shows "0ms" for zero duration [AC-10]', async () => {
-      // duration(hours: 0) is equivalent to duration()
-      const result = await run('duration() -> .display');
-      expect(result).toBe('0ms');
-    });
+    rule('duration.construct', 'duration.print-zero').it(
+      'shows "0ms" for zero duration [AC-10]',
+      async () => {
+        // duration(hours: 0) is equivalent to duration()
+        const result = await run('duration() -> .display');
+        expect(result).toBe('0ms');
+      }
+    );
 
     it('combines calendar and fixed components [AC-11]', async () => {
       // duration(months: 1, hours: 6)
@@ -181,7 +187,7 @@ describe('Rill Language: Duration Type', () => {
   // ============================================================
 
   describe('comparison', () => {
-    rule('equality.content').it(
+    rule('equality.content', 'duration.equality').it(
       'equates equivalent durations 48h == 2d [AC-18]',
       async () => {
         // duration(hours: 48) == duration(days: 2)
@@ -190,30 +196,42 @@ describe('Rill Language: Duration Type', () => {
       }
     );
 
-    it('returns false for unequal durations', async () => {
-      const result = await run('duration("1h") == duration("2h")');
-      expect(result).toBe(false);
-    });
+    rule('duration.equality').it(
+      'returns false for unequal durations',
+      async () => {
+        const result = await run('duration("1h") == duration("2h")');
+        expect(result).toBe(false);
+      }
+    );
 
     it('supports != operator', async () => {
       const result = await run('duration("1h") != duration("2h")');
       expect(result).toBe(true);
     });
 
-    it('orders fixed durations with < operator', async () => {
-      const result = await run('duration("1h") < duration("2h")');
-      expect(result).toBe(true);
-    });
+    rule('duration.ordering').it(
+      'orders fixed durations with < operator',
+      async () => {
+        const result = await run('duration("1h") < duration("2h")');
+        expect(result).toBe(true);
+      }
+    );
 
-    it('orders fixed durations with > operator', async () => {
-      const result = await run('duration("3h") > duration("1h")');
-      expect(result).toBe(true);
-    });
+    rule('duration.ordering').it(
+      'orders fixed durations with > operator',
+      async () => {
+        const result = await run('duration("3h") > duration("1h")');
+        expect(result).toBe(true);
+      }
+    );
 
-    it('returns false for equal durations using >', async () => {
-      const result = await run('duration("2h") > duration("2h")');
-      expect(result).toBe(false);
-    });
+    rule('duration.ordering').it(
+      'returns false for equal durations using >',
+      async () => {
+        const result = await run('duration("2h") > duration("2h")');
+        expect(result).toBe(false);
+      }
+    );
 
     it('halts with TYPE_MISMATCH for duration == non-duration', async () => {
       await expectHalt(() => run('duration("1h") == 3600000'), {
@@ -315,19 +333,25 @@ describe('Rill Language: Duration Type', () => {
   // ============================================================
 
   describe('host interop', () => {
-    it('toNativeValue() produces {months, ms} shape [AC-B8]', async () => {
-      // duration(months: 2, hours: 3)
-      const result = await run('duration("2mo3h")');
-      const native = toNative(result);
-      expect(native.value).toEqual({ months: 2, ms: 10_800_000 });
-    });
+    rule('duration.value').it(
+      'toNativeValue() produces {months, ms} shape [AC-B8]',
+      async () => {
+        // duration(months: 2, hours: 3)
+        const result = await run('duration("2mo3h")');
+        const native = toNative(result);
+        expect(native.value).toEqual({ months: 2, ms: 10_800_000 });
+      }
+    );
 
-    it('toNativeValue() for fixed duration has months: 0', async () => {
-      // duration(hours: 5)
-      const result = await run('duration("5h")');
-      const native = toNative(result);
-      expect(native.value).toEqual({ months: 0, ms: 18_000_000 });
-    });
+    rule('duration.value').it(
+      'toNativeValue() for fixed duration has months: 0',
+      async () => {
+        // duration(hours: 5)
+        const result = await run('duration("5h")');
+        const native = toNative(result);
+        expect(native.value).toEqual({ months: 0, ms: 18_000_000 });
+      }
+    );
 
     it('isDuration() returns true for duration values', async () => {
       const result = await run('duration("1h")');
@@ -346,15 +370,18 @@ describe('Rill Language: Duration Type', () => {
   // ============================================================
 
   describe('error cases', () => {
-    it('halts on negative hours [AC-E4]', async () => {
-      // duration(hours: -2)
-      await expectHaltMessage(
-        () => run('duration(...dict[hours: -2])'),
-        'duration hours must be non-negative'
-      );
-    });
+    rule('duration.negative').it(
+      'halts on negative hours [AC-E4]',
+      async () => {
+        // duration(hours: -2)
+        await expectHaltMessage(
+          () => run('duration(...dict[hours: -2])'),
+          'duration hours must be non-negative'
+        );
+      }
+    );
 
-    it('halts on negative days [EC-2]', async () => {
+    rule('duration.negative').it('halts on negative days [EC-2]', async () => {
       // duration(days: -1)
       await expectHaltMessage(
         () => run('duration(...dict[days: -1])'),
@@ -362,20 +389,26 @@ describe('Rill Language: Duration Type', () => {
       );
     });
 
-    it('halts on negative months [EC-2]', async () => {
-      // duration(months: -3)
-      await expectHaltMessage(
-        () => run('duration(...dict[months: -3])'),
-        'duration months must be non-negative'
-      );
-    });
+    rule('duration.negative').it(
+      'halts on negative months [EC-2]',
+      async () => {
+        // duration(months: -3)
+        await expectHaltMessage(
+          () => run('duration(...dict[months: -3])'),
+          'duration months must be non-negative'
+        );
+      }
+    );
 
-    it('halts on incomparable ordering with RILL-R002 [AC-E7]', async () => {
-      // duration(months: 1) > duration(days: 30)
-      await expect(run('duration("1mo") > duration("30d")')).rejects.toThrow(
-        'Cannot order durations with different calendar components'
-      );
-    });
+    rule('duration.ordering-disagree').it(
+      'halts on incomparable ordering with RILL-R002 [AC-E7]',
+      async () => {
+        // duration(months: 1) > duration(days: 30)
+        await expect(run('duration("1mo") > duration("30d")')).rejects.toThrow(
+          'Cannot order durations with different calendar components'
+        );
+      }
+    );
 
     it('halts on negative subtract result with RILL-R003 [AC-E8]', async () => {
       // duration(hours: 1) -> .subtract(duration(hours: 3))
@@ -420,20 +453,26 @@ describe('Rill Language: Duration Type', () => {
       );
     });
 
-    it('halts on cross-type ordering duration vs number [EC-5]', async () => {
-      // duration(hours: 1) > 100
-      await expect(run('duration("1h") > 100')).rejects.toThrow(
-        'Cannot compare duration with number using >'
-      );
-    });
+    rule('duration.no-arithmetic').it(
+      'halts on cross-type ordering duration vs number [EC-5]',
+      async () => {
+        // duration(hours: 1) > 100
+        await expect(run('duration("1h") > 100')).rejects.toThrow(
+          'Cannot compare duration with number using >'
+        );
+      }
+    );
 
-    it('halts on non-number parameter [EC-4]', async () => {
-      // duration(hours: "two") - positional equivalent
-      await expectHaltMessage(
-        () => run('duration(...dict[hours: "two"])'),
-        'duration hours must be a finite number: two'
-      );
-    });
+    rule('duration.not-finite').it(
+      'halts on non-number parameter [EC-4]',
+      async () => {
+        // duration(hours: "two") - positional equivalent
+        await expectHaltMessage(
+          () => run('duration(...dict[hours: "two"])'),
+          'duration hours must be a finite number: two'
+        );
+      }
+    );
 
     it('halts on NaN duration parameter', async () => {
       const getNaN: RillFunction = {
@@ -521,11 +560,14 @@ describe('Rill Language: Duration Type', () => {
       expect(result).toBe(true);
     });
 
-    it('halts INVALID_INPUT when a string and components are both given', async () => {
-      await expectHalt(() => run('duration("1h", 0, 0, 0, 5)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('duration.one-form').it(
+      'halts INVALID_INPUT when a string and components are both given',
+      async () => {
+        await expectHalt(() => run('duration("1h", 0, 0, 0, 5)'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
     rule('duration.from-pipe').it(
       'parses a string piped into duration as duration("...") does',
@@ -660,5 +702,139 @@ describe('Rill Language: Duration Type', () => {
         /Collection operators require/
       );
     });
+  });
+  // ============================================================
+  // 12. Reference rules
+  // ============================================================
+
+  describe('reference rules', () => {
+    rule('duration.construct').it(
+      'builds a duration from named components',
+      async () => {
+        expect(
+          await run('duration(...dict[hours: 2, minutes: 30]) -> string')
+        ).toBe('2h30m');
+        expect(
+          await run(
+            'duration(...dict[hours: 2, minutes: 30]) == duration("2h30m")'
+          )
+        ).toBe(true);
+      }
+    );
+
+    rule('duration.years').it(
+      'adds 12 months per year and milliseconds for fixed units',
+      async () => {
+        expect(
+          await run(
+            'duration(...dict[years: 1]) == duration(...dict[months: 12])'
+          )
+        ).toBe(true);
+        expect(
+          await run(
+            'duration(...dict[days: 1]) == duration(...dict[ms: 86400000])'
+          )
+        ).toBe(true);
+      }
+    );
+
+    rule('duration.fractional-years').it(
+      'halts INVALID_INPUT on a fractional years component',
+      async () => {
+        await expectHalt(() => run('duration(...dict[years: 1.5])'), {
+          code: 'INVALID_INPUT',
+          messagePattern: 'duration years must be an integer',
+        });
+      }
+    );
+
+    rule('duration.fractional-months').it(
+      'halts INVALID_INPUT on a fractional months component',
+      async () => {
+        await expectHalt(() => run('duration(...dict[months: 1.5])'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
+
+    rule('duration.not-finite').it(
+      'halts TYPE_MISMATCH on a string component',
+      async () => {
+        await expectHalt(() => run('duration(...dict[hours: "1"])'), {
+          code: 'TYPE_MISMATCH',
+        });
+      }
+    );
+
+    rule('duration.unknown-key').it(
+      'halts RILL-R001 on a spread key that names no parameter',
+      async () => {
+        await expectHalt(() => run('duration(...dict[foo: 1])'), {
+          code: 'RILL_R001',
+          hostErrorId: 'RILL-R001',
+        });
+      }
+    );
+
+    rule('duration.one-form').it(
+      'halts INVALID_INPUT when a string is followed by another argument',
+      async () => {
+        await expectHalt(() => run('duration("1s", "x")'), {
+          code: 'INVALID_INPUT',
+        });
+        await expectHalt(() => run('duration("1s", ...dict[ms: 1])'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
+
+    rule('duration.equality').it(
+      'does not equate one month with 30 days',
+      async () => {
+        expect(
+          await run(
+            'duration(...dict[months: 1]) == duration(...dict[days: 30])'
+          )
+        ).toBe(false);
+      }
+    );
+
+    rule('duration.ordering').it(
+      'orders durations when one has at least as many of both components',
+      async () => {
+        expect(
+          await run(
+            'duration(...dict[months: 1]) <= duration(...dict[months: 1, days: 1])'
+          )
+        ).toBe(true);
+      }
+    );
+
+    rule('duration.ordering-disagree').it(
+      'halts RILL-R002 when months and milliseconds disagree',
+      async () => {
+        await expectHalt(
+          () =>
+            run(
+              'duration(...dict[months: 2]) > duration(...dict[months: 1, days: 1])'
+            ),
+          { code: 'RILL_R002', hostErrorId: 'RILL-R002' }
+        );
+      }
+    );
+
+    rule('duration.no-arithmetic').it(
+      'halts RILL-R002 when a duration is an arithmetic operand',
+      async () => {
+        await expectHalt(() => run('duration("1ms") + 1'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+        });
+        await expectHalt(() => run('duration("1ms") + duration("1ms")'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+        });
+      }
+    );
   });
 });

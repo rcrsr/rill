@@ -11,11 +11,11 @@ import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Boolean Expressions', () => {
   describe('Logical Negation (!)', () => {
-    it('!true = false', async () => {
+    rule('bool.literal').it('!true = false', async () => {
       expect(await run('!true')).toBe(false);
     });
 
-    it('!false = true', async () => {
+    rule('bool.literal').it('!false = true', async () => {
       expect(await run('!false')).toBe(true);
     });
 
@@ -266,34 +266,110 @@ describe('Rill Runtime: Boolean Expressions', () => {
   });
 
   describe('Type Safety: Negation Operator', () => {
-    it('rejects string operand', async () => {
+    rule('bool.no-truthiness').it('rejects string operand', async () => {
       await expect(run('! "text"')).rejects.toThrow(
         'Negation operator (!) requires boolean operand, got string'
       );
     });
 
-    it('rejects number operand', async () => {
+    rule('bool.no-truthiness').it('rejects number operand', async () => {
       await expect(run('! 42')).rejects.toThrow(
         'Negation operator (!) requires boolean operand, got number'
       );
     });
 
-    it('rejects list operand', async () => {
+    rule('bool.no-truthiness').it('rejects list operand', async () => {
       await expect(run('! list[1, 2]')).rejects.toThrow(
         'Negation operator (!) requires boolean operand, got list'
       );
     });
 
-    it('rejects empty string', async () => {
+    rule('bool.no-truthiness').it('rejects empty string', async () => {
       await expect(run('! ""')).rejects.toThrow(
         'Negation operator (!) requires boolean operand, got string'
       );
     });
 
-    it('rejects zero', async () => {
+    rule('bool.no-truthiness').it('rejects zero', async () => {
       await expect(run('! 0')).rejects.toThrow(
         'Negation operator (!) requires boolean operand, got number'
       );
     });
+  });
+
+  describe('Bool values and conversion', () => {
+    rule('bool.case').it.each(['TRUE', 'True'])(
+      '%s is not a bool literal',
+      async (src) => {
+        await expect(run(src)).rejects.toHaveProperty('errorId', 'RILL-R006');
+      }
+    );
+
+    rule('bool.print').it('a bool interpolates as its word', async () => {
+      expect(await run('"{true}"')).toBe('true');
+      expect(await run('(5 > 3) -> "is {$}"')).toBe('is true');
+    });
+
+    rule('bool.equality').it(
+      'two bools are equal when both are the same value',
+      async () => {
+        expect(await run('true == true')).toBe(true);
+        expect(await run('false == false')).toBe(true);
+        expect(await run('true == false')).toBe(false);
+      }
+    );
+
+    rule('bool.unordered').it.each(['true < false', 'true >= false'])(
+      '%s halts RILL-R002',
+      async (src) => {
+        await expect(run(src)).rejects.toHaveProperty('errorId', 'RILL-R002');
+      }
+    );
+
+    rule('bool.from-number').it(
+      '0 and 1 convert to false and true',
+      async () => {
+        expect(await run('0 -> bool')).toBe(false);
+        expect(await run('1 -> bool')).toBe(true);
+      }
+    );
+
+    rule('bool.from-string').it(
+      '"true" and "false" convert to bools',
+      async () => {
+        expect(await run('"true" -> bool')).toBe(true);
+        expect(await run('"false" -> bool')).toBe(false);
+      }
+    );
+
+    rule('bool.no-route').it.each(['2', '-1', '0.5'])(
+      '%s -> bool halts RILL-R036',
+      async (src) => {
+        await expect(run(`${src} -> bool`)).rejects.toHaveProperty(
+          'errorId',
+          'RILL-R036'
+        );
+      }
+    );
+
+    rule('bool.no-route-string').it.each(['"True"', '""', '"1"'])(
+      '%s -> bool halts RILL-R036',
+      async (src) => {
+        await expect(run(`${src} -> bool`)).rejects.toHaveProperty(
+          'errorId',
+          'RILL-R036'
+        );
+      }
+    );
+
+    rule('bool.no-route-type').it.each(['#true', 'list[]'])(
+      '%s -> bool halts RILL-R036',
+      async (src) => {
+        await expect(run(`${src} -> bool`)).rejects.toHaveProperty(
+          'errorId',
+          'RILL-R036'
+        );
+      }
+    );
   });
 });
