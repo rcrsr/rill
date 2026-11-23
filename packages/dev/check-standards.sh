@@ -630,8 +630,8 @@ else
   # Both halves of the element. Reordering the two steps keeps `cache: 'pnpm'`
   # in the file and breaks the install: setup-node resolves the pnpm cache by
   # running pnpm, which corepack is what puts on PATH.
-  COREPACK_LINE="$(grep -n 'corepack enable' .github/workflows/ci.yml 2>/dev/null | head -1 | cut -d: -f1)"
-  SETUPNODE_LINE="$(grep -n 'uses: *actions/setup-node' .github/workflows/ci.yml 2>/dev/null | head -1 | cut -d: -f1)"
+  COREPACK_LINE="$(grep -n -m 1 'corepack enable' .github/workflows/ci.yml 2>/dev/null | cut -d: -f1)"
+  SETUPNODE_LINE="$(grep -n -m 1 'uses: *actions/setup-node' .github/workflows/ci.yml 2>/dev/null | cut -d: -f1)"
   { grep -q "cache: *'pnpm'" .github/workflows/ci.yml 2>/dev/null &&
     [ -n "$COREPACK_LINE" ] && [ -n "$SETUPNODE_LINE" ] &&
     [ "$COREPACK_LINE" -lt "$SETUPNODE_LINE" ]; } &&
@@ -1714,8 +1714,8 @@ if [ -f lefthook.yml ]; then
     bad "STD-HOOK-3" "pre-commit runs piped" "no piped: true under pre-commit"
 
   # Format before lint; the reverse lets the formatter undo a lint fix.
-  FMT_LINE="$(grep -n 'oxfmt' lefthook.yml | head -1 | cut -d: -f1)"
-  LINT_LINE="$(grep -n 'oxlint' lefthook.yml | head -1 | cut -d: -f1)"
+  FMT_LINE="$(grep -n -m 1 'oxfmt' lefthook.yml | cut -d: -f1)"
+  LINT_LINE="$(grep -n -m 1 'oxlint' lefthook.yml | cut -d: -f1)"
   if [ -n "$FMT_LINE" ] && [ -n "$LINT_LINE" ]; then
     [ "$FMT_LINE" -lt "$LINT_LINE" ] &&
       ok "STD-HOOK-2" "pre-commit formats before linting" ||
