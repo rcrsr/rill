@@ -109,6 +109,13 @@ export function parseProductions(grammar: string): Map<string, string> {
 // Test citations
 // ---------------------------------------------------------------------------
 
+/**
+ * Rules in `reference/conventions/` govern how reference files are written,
+ * so a language test cannot prove them. The reference tooling tests in this
+ * file cite them instead; it may cite no other rule.
+ */
+const CONVENTION_TESTS = 'scripts/reference/conventions.test.ts';
+
 export interface Citation {
   id: string;
   file: string;
@@ -800,11 +807,26 @@ function checkCitations(
   }
   const cited = new Set<string>();
   const testsDir = path.join(corpus.repoRoot, 'packages/core/tests/language');
-  for (const t of listTests(testsDir)) {
+  const conventionTests = path.join(corpus.repoRoot, CONVENTION_TESTS);
+  const sources = listTests(testsDir);
+  if (fs.existsSync(conventionTests)) sources.push(conventionTests);
+  for (const t of sources) {
     const rel = path.relative(corpus.repoRoot, t).split(path.sep).join('/');
     for (const c of findCitations(fs.readFileSync(t, 'utf-8'), rel)) {
       const rule = rules.get(c.id);
-      if (!rule) {
+      if (
+        rule &&
+        rel === CONVENTION_TESTS &&
+        !rule.file.path.startsWith('reference/conventions/')
+      ) {
+        out.push({
+          file: c.file,
+          line: c.line,
+          severity: 'error',
+          code: 'citation-scope',
+          message: `${CONVENTION_TESTS} cites '${c.id}', which is not a conventions/ rule`,
+        });
+      } else if (!rule) {
         out.push({
           file: c.file,
           line: c.line,

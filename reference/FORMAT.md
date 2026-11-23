@@ -159,7 +159,9 @@ rule('union.reduce', 'union.flatten')
   .it('drops a type member that another member accepts', async () => { ... });
 ```
 
-Only that directory is scanned. Citing an unknown or pending rule is an error.
+Only that directory is scanned, plus `scripts/reference/conventions.test.ts`, which proves the
+rules in `conventions/` that govern how reference files are written and may cite no other rule.
+Citing an unknown or pending rule is an error.
 
 ## Errors table
 
