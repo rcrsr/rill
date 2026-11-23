@@ -107,7 +107,7 @@ One row per PR. Tick a row when its PR merges.
 | 11 | `expressions` | 13 | 137 | 2 | #676 |
 | 12 | `callables` | 3 | 37 | 0 | #676 |
 | 13 | `control-flow` | 5 | 52 | 4 | #676 |
-| 14 | `collections` | 7 | 53 | 47 | |
+| 14 | `collections` | 7 | 56 | 0 | |
 | 15 | `errors` | 5 | 33 | 32 | |
 | 16 | `limits` (write) | 0 | 0 | 0 | |
 | 17 | `host-boundary` | 1 | 14 | 11 | |
@@ -253,13 +253,13 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `collections/acc.md` | 2 | 2 | | | | |
-| `collections/fan.md` | 7 | 7 | | | | |
-| `collections/filter.md` | 5 | 4 | | | | |
-| `collections/fold.md` | 6 | 5 | | | | |
-| `collections/iteration.md` | 18 | 15 | | | | |
-| `collections/seq.md` | 4 | 4 | | | | |
-| `collections/sort.md` | 11 | 10 | | | | |
+| `collections/acc.md` | 2 | 0 | x | x | x | x |
+| `collections/fan.md` | 7 | 0 | x | x | x | x |
+| `collections/filter.md` | 5 | 0 | x | x | x | x |
+| `collections/fold.md` | 6 | 0 | x | x | x | x |
+| `collections/iteration.md` | 20 | 0 | x | x | x | x |
+| `collections/seq.md` | 4 | 0 | x | x | x | x |
+| `collections/sort.md` | 12 | 0 | x | x | x | x |
 
 ### `errors`
 
@@ -291,11 +291,6 @@ Each gets a table when its PR splits it into concepts.
 What the sweeps found that no rule states yet, routed to the slice that owns it. A slice works its
 backlog in the Complete and Cited columns: probe each item, then write a rule or record why none is
 needed. Strike nothing here; the slice PR deletes the items it settles.
-
-### `collections`
-
-- `iteration`: an over-limit source halts before any body runs; `seq` and `acc` pull streams
-  and iterators lazily, so `break` bounds them.
 
 ### `errors`
 
@@ -416,4 +411,5 @@ at a897cfc3 unless they say otherwise.
 | `expressions` | A tuple or ordered literal is not a dispatch target, while a list or dict literal is; `spread.list-uniform` contradicts `inference.literal-union`; `spread.arg-positional` does not say whether positional arguments may precede the spread. Probed at 21eecdfb | Collected in INCONSISTENCIES.md |
 | `control-flow/loop.md`, `control-flow/pass.md`, `control-flow/conditional.md` | A construct with no `$` bound reads a missing value instead of halting RILL-R005, which `loop.seed` requires, and which bare `pass` and `false ? "y"` raise. At the top level, `while (false) do { 1 } => $x` then `$x` prints `type(null)`, and its `.^type.name` is `"string"`. `do { 1 } while (false)` yields 1. `pass { 1 }` and `pass(ignore_halts: true) { 1 / 0 }` yield an empty printout. `? 1 ! 2` halts RILL-R002 "Piped conditional requires boolean, got string". Probed at 23491968 | Collected |
 | `callables` | An empty `fn` body parses and halts RILL-R043 on call while every other empty block halts RILL-P004; `$d.a()` on a non-function field halts RILL-R007 while `$n()` halts RILL-R002; a call suffix after a method in a pipe target starts a new statement; `annotation-existence` omits the `&T` suffix the runtime accepts. Probed at 97c5b292 | Collected in INCONSISTENCIES.md |
+| `collections` | `seq` and `acc` read an iterator lazily, so `break` beats the limit `iteration.sequential-limit` states for every kind; `fold` reads it eagerly while `acc` does not; `sort` key calls overlap with no `concurrency` option. Probed at 5d3bb63f | Collected in INCONSISTENCIES.md |
 | `control-flow` | Which body `return` ends; `break` inside a called function; a bare `break` with no `$`; a halt in an async `pass` body; an empty `pass` body; `timeout` with no parentheses. Probed at 23491968 | Collected in INCONSISTENCIES.md |

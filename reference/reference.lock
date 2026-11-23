@@ -514,7 +514,7 @@ invocation.no-named 582e5e355d4d
 invocation.no-self-binding 7b59d21fdf8b
 invocation.positional 95d22ed507e2
 invocation.type 3b9d5f0b7e24
-iteration ca8653153edc break.return-each@14a36a5597f3 break.seq@e47b3a30461b break.unsupported@2ea2eb802674 map.iteration@2ea6aa6f3b16 pipe.call-operand@3a33d5a45012 scope.iteration@6614cdd083b1
+iteration f2148466ceb8 break.return-each@14a36a5597f3 break.seq@e47b3a30461b break.unsupported@2ea2eb802674 map.iteration@2ea6aa6f3b16 pipe.call-operand@3a33d5a45012 scope.iteration@6614cdd083b1
 iteration.arity f822d653be93
 iteration.arity-single 34913319a6c3
 iteration.callable a0543ec98142
@@ -523,8 +523,10 @@ iteration.dict 574e84e3af53
 iteration.dollar 3aff6a0f1b89
 iteration.empty 0414be0f2e3f
 iteration.expansion a19b6b147ac0
+iteration.extra-argument 356950bb37ad
 iteration.halt 2165d687a3ac
 iteration.iterator 2d350f2e9dbe
+iteration.limit-first 2a445247e46c
 iteration.list b614df3f4a13
 iteration.ordered dbafe7a1811b
 iteration.other-source 5708ff8211d4
@@ -748,7 +750,7 @@ slice.negative 3a009d81e481
 slice.separator a6cbc69b9ff1
 slice.sources 89b31e045c6b
 slice.step-zero 41308f1e5ca4
-sort 57d16b65f294 iteration.tuple@d651f9b75b66 pipe.call-operand@3a33d5a45012
+sort eff553fc6dcd iteration.tuple@d651f9b75b66 pipe.call-operand@3a33d5a45012
 sort.ascending 662284d77870
 sort.comparable 9998bd1e3b2d
 sort.dict abbf3f2fa53e
@@ -758,6 +760,7 @@ sort.key-fn c7f037af6928
 sort.map 428e36e274ca map.iteration@2ea6aa6f3b16
 sort.ordered-source debcf2259409 sort.dict@abbf3f2fa53e
 sort.stable fbea85ff9a18
+sort.temporal ab975c17dcb6 datetime.ordering@29064f640869 duration.ordering@ad0a26752d18 duration.ordering-disagree@2e306e152793
 sort.to-list 90ec9e8ab5af iteration.string@89b1c92e7911
 sort.vacant-key 80736937d5a9
 source-text b1d52407de14 source-text.bom-elsewhere@f17bc9bc5fdf source-text.charset@3d61ec59b868 statement.continuation@64a317c3fb8c string.single-line@4d4b9d77b5eb whitespace.blank@2e7dced23e0c

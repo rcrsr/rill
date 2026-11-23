@@ -168,6 +168,17 @@ Rules in the `control-flow` chapter that leave a probed case unstated. Probed at
 | An empty `pass` body | Every other empty block halts RILL-P004 "Empty blocks are not allowed" (see the Callables row on an empty function body) | `5 -> pass { }` parses and yields 5 | `pass`, `code-block` |
 | `timeout` with no parentheses | `construct-options.none`: an empty `keyword()` means the same as the form without parentheses, and the rule lists `timeout` | `timeout() { 1 }` yields 1, but `timeout { 1 }` halts RILL-R006 "Unknown function: timeout", catchable: `construct-options.timeout-context` keeps a `timeout` with no `(` an ordinary name, so no form without parentheses exists | `construct-options` |
 
+## Collections
+
+Rules in the `collections` chapter that leave a probed case unstated. Probed at 5d3bb63f, with a
+host function `tick` that counts its calls.
+
+| Inconsistency | One form | The other form | Concept |
+|---------------|----------|----------------|---------|
+| An over-limit iterator source cut short by `break` | `iteration.sequential-limit`: `seq`, `fold`, and `acc` halt RILL-R010 when the source holds more than 10,000 elements, whatever its kind | `seq` and `acc` read an iterator or stream one element per call. `range(0, 20000) -> seq({ ($ == 3) ? break` then `$ })` yields `list[0, 1, 2]`, and `acc` with the same body yields `list[0, 1, 3]`; a 10,001-chunk stream does the same | `iteration` |
+| When an over-limit iterator halts | `fold` threads its accumulator as `acc` does (`acc.threading`) | `range(0, 20000) -> acc(0, { tick($) + $@ })` and `seq({ tick($) })` make 10,000 calls, then halt RILL-R010. `fold(0, { tick($) })`, `fan`, `filter`, and `sort` read the whole iterator first, make 0 calls, and halt RILL-R010. An over-limit list, tuple, or string makes 0 calls in every operator | `iteration`, `fold`, `acc` |
+| Overlapping `sort` key calls | `fan` and `filter` overlap their calls and take a `concurrency` option to cap them (`fan.concurrent`, `filter.options`) | `list[30, 10, 20] -> sort({ wait($) })`, with `wait` a host function that sleeps `$` ms, has 3 calls in flight at once. `sort({ $ }, dict[concurrency: 1])` halts RILL-R045, so nothing caps them. No rule says whether `sort` key calls overlap | `sort`, `fan` |
+
 ## Line continuation
 
 Forms that read alike continue across a line ending in some places and not others. Probed at

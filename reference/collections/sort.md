@@ -6,7 +6,7 @@ since: 0.24.0
 issues: []
 grammar: []
 errors: [INVALID_INPUT, RILL-R002, RILL-R010, TYPE_MISMATCH]
-depends: [iteration]
+depends: [iteration, duration, datetime]
 tests: [sort.test.ts, map-sort.test.ts]
 ---
 
@@ -38,6 +38,11 @@ Elements with equal keys MUST keep their source order.
 r[sort.comparable] Numbers, strings, and tuples have an order
 Keys MUST compare when all are numbers, all are strings, or all are tuples of one length.
 Strings MUST compare by UTF-16 code unit. Tuples MUST compare slot by slot from the first.
+
+r[sort.temporal] Durations and datetimes order as the ordering operators do
+Keys MUST compare when all are durations or all are datetimes, in the order
+`duration.ordering` and `datetime.ordering` give. Two duration keys that
+`duration.ordering-disagree` leaves unordered MUST halt with RILL-R002.
 
 r[sort.incomparable] Any other pair of keys halts
 Comparing two keys of different types, two bools, two atoms, two lists, two dicts, or tuples of
@@ -76,6 +81,7 @@ sorted result (`pipe.call-operand`).
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | Two keys have no order | `#TYPE_MISMATCH` | Yes |
+| Two duration keys disagree in months and milliseconds | RILL-R002 | Yes |
 | `key_fn` returns a vacant value | `#INVALID_INPUT` | Yes |
 | `key_fn` is not callable | `#TYPE_MISMATCH` | Yes |
 | The source is not a list, tuple, string, dict, ordered, map, iterator, or stream | RILL-R002 | Yes |
@@ -116,6 +122,11 @@ map["a": 3, "b": 1] -> sort({ $.value })
 ```rill
 ordered[b: 2, a: 1] -> sort
 # Result: ordered[a: 1, b: 2]
+```
+
+```rill
+list[duration(...dict[ms: 2]), duration(...dict[ms: 1])] -> sort
+# Result: list[1ms, 2ms]
 ```
 
 ```rill
