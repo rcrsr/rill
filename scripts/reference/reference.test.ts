@@ -316,7 +316,7 @@ describe('checkCorpus', () => {
   });
 
   it('keeps the files that describe the reference out of the corpus', () => {
-    const exempt = ['FORMAT.md', 'CLAUDE.md', 'INCONSISTENCIES.md'];
+    const exempt = ['FORMAT.md', 'CLAUDE.md', 'INCONSISTENCIES.md', 'AUDIT.md'];
     const files: Record<string, string> = { 'reference/one/alpha.md': one };
     for (const name of exempt) {
       files[`reference/${name}`] = `# ${name}\n\n## Not a section\n`;

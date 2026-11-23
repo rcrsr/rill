@@ -137,8 +137,10 @@ reference pass.
 
 - Frontmatter `tests` lists the locked test files that exercise the concept. When adding a concept,
   search the test directory for its syntax and error ids and list every file that covers it.
-- Built rules without a citing test are reported as info during the pilot. Do not add tests to
-  silence the report.
+- Built rules without a citing test are reported as info during the pilot, which ends when
+  [AUDIT.md](AUDIT.md) closes. Citing a built rule from an existing locked test, or adding a
+  locked test for an untested built rule, is an allowed lock change. Never change an existing
+  test's body to make a rule pass.
 
 ## Citation limits
 

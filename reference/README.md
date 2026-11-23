@@ -39,7 +39,8 @@ read the [Guide](../docs/guide-getting-started.md). For the TypeScript embedding
 | `docs/` | Guides and lookup tables for the released version. They link rules and never restate them as their own. |
 
 A rule without a `{pending}` tag is built: the current runtime satisfies it. Test citation is incomplete
-during the pilot and is being added incrementally, so a built rule may not yet have a locked test citing it. A disagreement between a built rule and the runtime is a runtime defect.
+during the pilot and is being added incrementally, so a built rule may not yet have a locked test citing it. [AUDIT.md](AUDIT.md) tracks the work to
+cite every rule before 0.24.0. A disagreement between a built rule and the runtime is a runtime defect.
 
 ## Reading a rule
 
