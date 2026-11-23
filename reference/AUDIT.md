@@ -102,7 +102,7 @@ One row per PR. Tick a row when its PR merges.
 | 6 | `types/constructors` | 9 | 160 | 0 | #676 |
 | 7 | `types/model` | 6 | 69 | 0 | #676 |
 | 8 | `types/scalars` | 7 | 124 | 0 | #676 |
-| 9 | `types/typing` | 8 | 122 | 0 | |
+| 9 | `types/typing` | 8 | 122 | 0 | #676 |
 | 10 | `variables` | 3 | 24 | 24 | |
 | 11 | `expressions` | 8 | 111 | 89 | |
 | 12 | `callables` | 3 | 33 | 15 | |
