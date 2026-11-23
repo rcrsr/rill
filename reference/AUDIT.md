@@ -103,7 +103,7 @@ One row per PR. Tick a row when its PR merges.
 | 7 | `types/model` | 6 | 69 | 0 | #676 |
 | 8 | `types/scalars` | 7 | 124 | 0 | #676 |
 | 9 | `types/typing` | 8 | 122 | 0 | #676 |
-| 10 | `variables` | 3 | 24 | 24 | |
+| 10 | `variables` | 3 | 27 | 0 | |
 | 11 | `expressions` | 8 | 111 | 89 | |
 | 12 | `callables` | 3 | 33 | 15 | |
 | 13 | `control-flow` | 5 | 43 | 31 | |
@@ -209,9 +209,9 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `variables/capture.md` | 6 | 6 | | | | |
-| `variables/scope.md` | 10 | 10 | | | | |
-| `variables/variable.md` | 8 | 8 | | | | |
+| `variables/capture.md` | 7 | 0 | x | x | x | x |
+| `variables/scope.md` | 12 | 0 | x | x | x | x |
+| `variables/variable.md` | 8 | 0 | x | x | x | x |
 
 ### `expressions`
 
@@ -286,12 +286,6 @@ Each gets a table when its PR splits it into concepts.
 What the sweeps found that no rule states yet, routed to the slice that owns it. A slice works its
 backlog in the Complete and Cited columns: probe each item, then write a rule or record why none is
 needed. Strike nothing here; the slice PR deletes the items it settles.
-
-### `variables`
-
-- Grammar: `variable`, `capture`, `capture-type`.
-- Tests: `scope-isolation.test.ts`.
-- `capture`: a target without `$` halts RILL-P001.
 
 ### `expressions`
 
@@ -447,3 +441,4 @@ at a897cfc3 unless they say otherwise.
 | `types/model` | RILL-P014 from a non-type expression that starts with a type name; `number()` and `any(number)` differ by position; RILL-P001 for an outer on a scalar in a type position; `??` after an early missing read; the type a literal operand carries in an overlap check. Probed at 6cc38b29 | Collected in INCONSISTENCIES.md |
 | `types/scalars` | The ISO 8601 subset `datetime` accepts; a fractional unix count truncates; a unix count drops time components; a string piped into `datetime` halts RILL-R036 while `duration` parses it. Probed at c7ef8720 | Collected in INCONSISTENCIES.md |
 | `types/typing` | A bracket after a postfix bare-kind assertion; dict iteration under a carried type; the carried type of a `??` right operand; union defaults in conversion against a call. Probed at c2fdd19f | Collected in INCONSISTENCIES.md |
+| `variables/scope.md` | A capture into a parameter inside its own body halts RILL-R001 as an outer rebinding; no rule says which scope a function body's parent is. Probed at 9b5a9c67 | Collected in INCONSISTENCIES.md |

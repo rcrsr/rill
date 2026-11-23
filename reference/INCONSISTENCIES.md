@@ -126,6 +126,14 @@ unstated. Probed at c2fdd19f.
 | The carried type of a `??` right operand | `carried-type.fallback`: `a ?? b` yields the selected operand with its carried type. The left operand keeps it: with `1 => $x:union(string, number)`, `($x ?? 2).^type.signature` is `"union(number, string)"` | When `??` selects its right operand the type drops: with `dict[a: 1] => $d`, `($d.zz ?? $x).^type.signature` is `"number"`, and `($d.zz ?? $x) => $y` then `"a" => $y` halts RILL-R001 "locked as number". `declared-types.test.ts` "takes the own type for the ?? default branch" pins the drop | `carried-type`, `type-lock` |
 | Defaults from a union member, conversion against call | `defaults.hydration-union` and `defaults.hydration-tie`: hydration against a union takes the narrowest accepting member's defaults, ties broken by canonical order. A call does: with `$f` taking `union(dict(a: number, c: number = 7), dict(a: number, b: number = 9))`, `$f(dict[a: 1])` yields `dict[a: 1, b: 9]` | `conversion.union`: a value that has a member passes unchanged. `dict[a: 1] -> union(dict(a: number, b: number = 9), dict(a: number, c: number = 7))` yields `dict[a: 1]`, also as a field of a dict conversion. The `defaults` example fills only because `union.reduce` leaves one member | `defaults`, `conversion`, `union` |
 
+## Variables
+
+Rules in the `variables` chapter that leave a probed case unstated. Probed at 9b5a9c67.
+
+| Inconsistency | One form | The other form | Concept |
+|---------------|----------|----------------|---------|
+| A capture into a parameter inside its body | `scope.parameter`: a parameter is bound in the function's own scope. `capture.rebind`: a capture into a variable bound in the same scope replaces it | `fn(x) { 2 => $x` then `$x } => $f`, then `$f(1)` halts RILL-R001 "Cannot reassign outer variable $x from child scope", catchable. `fn(x: number)` with `"a" => $x` halts the same way. The body acts as a child of the parameter scope, and `scope.child` does not say which scope a function body's parent is | `scope`, `capture`, `fn` |
+
 ## Line continuation
 
 Forms that read alike continue across a line ending in some places and not others. Probed at

@@ -91,13 +91,14 @@ break.return-body 23c89e6d85e2 statement.return@231d6a34b48f
 break.return-each 14a36a5597f3
 break.seq e47b3a30461b
 break.unsupported 2ea2eb802674
-capture 8b1001e44499 code-block.head@50fc507875b8
+capture fd042d0ad521 code-block.head@50fc507875b8
 capture.assert a76c0ca450db
 capture.bind 771562a46f74
 capture.mismatch 616241654040
 capture.no-eval b68f61274416
 capture.pass-on 91196c2d5a6b
 capture.rebind d0ae2424696b
+capture.target 5ad4b8be8482 variable.sigil@fe7d31c54f54
 carried-type dc4793bb5965 conversion.union@54ab9e756b9c type-lock.asserted@3541fc32b0bf
 carried-type.carriage 619f46dafff7
 carried-type.carriage-declared 51fe73f313a0
@@ -649,9 +650,11 @@ retry.guard f0791b01e0d5
 retry.success b3ed4a875ec6
 scope 98320569dcef capture.rebind@d0ae2424696b loop.accumulate@7080c69b7e01 scope.no-rebind@0a3a0e588524
 scope.child fb0f345c5707
+scope.closure de41448c0bbd
 scope.iteration 6614cdd083b1
 scope.late-binding 80ad28cdc782
 scope.later-outer 47282e03f393
+scope.lexical 0bac241b5ec4
 scope.no-leak 71d815d76646
 scope.no-rebind 0a3a0e588524
 scope.parameter dd958f3cbfa5
@@ -919,13 +922,13 @@ value.no-alias 6913672db6e8
 value.no-null a9093d28f071
 value.stream 840cdafa18cd
 value.valid-invalid be3776ad109d
-variable 7564324e99db capture.assert@a76c0ca450db identifier.form@b9570193d0cb
+variable 9e03c0ffc845 capture.assert@a76c0ca450db identifier.form@b9570193d0cb
 variable.bind f20795fb5186
 variable.callable 2c032af1f6de
 variable.host 21063b8cb0d5
 variable.name 27ee6f9bc3aa
 variable.read 0d933aae6256
-variable.reserved e3d005cb28f6
+variable.reserved f62dc2a5294c
 variable.sigil fe7d31c54f54
 variable.undefined 85bf0064e8ab
 whitespace d54a9bc7d82e atom.comment@ba74cf5b3c40 atom.spelling@8896d6ca9ade number.negative@28b80927e50e statement.continuation@64a317c3fb8c use.adjacent@c8bb82d1cbb7 whitespace.other@ea14e22854e0
