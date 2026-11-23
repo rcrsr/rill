@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Strings (Extended)
  * Tests for triple-quote strings, comments, escape sequences, and interpolation edge cases
@@ -7,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { parse } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Strings (Extended)', () => {
   describe('Triple-Quote Multiline Strings', () => {
@@ -86,19 +88,22 @@ hi
   });
 
   describe('Comments', () => {
-    it('ignores single-line comment', async () => {
+    rule('whitespace.comment').it('ignores single-line comment', async () => {
       const script = `# This is a comment
 "hello"`;
       expect(await run(script)).toBe('hello');
     });
 
-    it('ignores comment at end of line', async () => {
-      const script = `"hello" => $x # capture greeting
+    rule('whitespace.comment').it(
+      'ignores comment at end of line',
+      async () => {
+        const script = `"hello" => $x # capture greeting
 $x`;
-      expect(await run(script)).toBe('hello');
-    });
+        expect(await run(script)).toBe('hello');
+      }
+    );
 
-    it('ignores multiple comments', async () => {
+    rule('whitespace.comment').it('ignores multiple comments', async () => {
       const script = `# First comment
 "a" => $a
 # Second comment
@@ -108,11 +113,14 @@ list[$a, $b]`;
       expect(await run(script)).toEqual(['a', 'b']);
     });
 
-    it('does not treat # inside string as comment', async () => {
-      expect(await run('"hello # world"')).toBe('hello # world');
-    });
+    rule('whitespace.string-hash').it(
+      'does not treat # inside string as comment',
+      async () => {
+        expect(await run('"hello # world"')).toBe('hello # world');
+      }
+    );
 
-    it('handles comment-only lines', async () => {
+    rule('whitespace.comment').it('handles comment-only lines', async () => {
       const script = `# comment 1
 # comment 2
 # comment 3
