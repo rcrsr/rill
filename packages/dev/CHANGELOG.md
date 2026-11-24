@@ -12,6 +12,8 @@ the language version. Language changes are recorded in the
 
 ## Unreleased
 
+## 0.4.0 - 2026-11-23
+
 ### Added
 
 - **`timing-test-isolation` lint rule.** Reports `performance.now`, `process.hrtime`, or an import of a configured timing helper in a test file not named `*.timing.test.*`. Clock reads are caught through `globalThis.`, `global.` or `window.`, a string-literal computed key, and destructuring such as `const { now } = performance`. Helper imports are caught by string or substitution-free template specifier, and match only relative specifiers, so `some-pkg/percentile` is never a helper. A wall-clock budget running beside other test files moves under CPU load, and a vitest project with `fileParallelism: false` only isolates the files it can find by name. Configure the helper modules through `[{ helpers: [...] }]`. See `lint-rules/README.md`.
