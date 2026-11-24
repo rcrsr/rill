@@ -423,18 +423,24 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('"" -> .repeat(5)')).toBe('');
     });
 
-    it('halts with #INVALID_INPUT when the result would be too large to allocate', async () => {
-      await expectHalt(() => run('"ab" -> .repeat(10000000000)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('value-size.string').it(
+      'halts with #INVALID_INPUT when the result would be too large to allocate',
+      async () => {
+        await expectHalt(() => run('"ab" -> .repeat(10000000000)'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
-    it('oversized repeat halt is catchable via guard', async () => {
-      const result = await run(
-        'guard { "ab" -> .repeat(10000000000) } ?? "recovered"'
-      );
-      expect(result).toBe('recovered');
-    });
+    rule('value-size.string').it(
+      'oversized repeat halt is catchable via guard',
+      async () => {
+        const result = await run(
+          'guard { "ab" -> .repeat(10000000000) } ?? "recovered"'
+        );
+        expect(result).toBe('recovered');
+      }
+    );
   });
 
   describe('.pad_start', () => {
@@ -454,18 +460,24 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('"1" -> .pad_start(5, "ab")')).toBe('abab1');
     });
 
-    it('halts with #INVALID_INPUT when the result would be too large to allocate', async () => {
-      await expectHalt(() => run('"ab" -> .pad_start(10000000000)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('value-size.string').it(
+      'halts with #INVALID_INPUT when the result would be too large to allocate',
+      async () => {
+        await expectHalt(() => run('"ab" -> .pad_start(10000000000)'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
-    it('oversized pad_start halt is catchable via guard', async () => {
-      const result = await run(
-        'guard { "ab" -> .pad_start(10000000000) } ?? "recovered"'
-      );
-      expect(result).toBe('recovered');
-    });
+    rule('value-size.string').it(
+      'oversized pad_start halt is catchable via guard',
+      async () => {
+        const result = await run(
+          'guard { "ab" -> .pad_start(10000000000) } ?? "recovered"'
+        );
+        expect(result).toBe('recovered');
+      }
+    );
   });
 
   describe('.pad_end', () => {
@@ -485,18 +497,24 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('"1" -> .pad_end(5, "ab")')).toBe('1abab');
     });
 
-    it('halts with #INVALID_INPUT when the result would be too large to allocate', async () => {
-      await expectHalt(() => run('"ab" -> .pad_end(10000000000)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('value-size.string').it(
+      'halts with #INVALID_INPUT when the result would be too large to allocate',
+      async () => {
+        await expectHalt(() => run('"ab" -> .pad_end(10000000000)'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
-    it('oversized pad_end halt is catchable via guard', async () => {
-      const result = await run(
-        'guard { "ab" -> .pad_end(10000000000) } ?? "recovered"'
-      );
-      expect(result).toBe('recovered');
-    });
+    rule('value-size.string').it(
+      'oversized pad_end halt is catchable via guard',
+      async () => {
+        const result = await run(
+          'guard { "ab" -> .pad_end(10000000000) } ?? "recovered"'
+        );
+        expect(result).toBe('recovered');
+      }
+    );
   });
 
   describe('.eq', () => {

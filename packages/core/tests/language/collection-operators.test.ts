@@ -945,14 +945,20 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       expect(result).toEqual([]);
     });
 
-    it('AC-BND-5: take(n) over MAX_ITER elements halts with a catchable RILL_R010', async () => {
-      // Host-inject a list of 15000 items to bypass getIterableElements limits.
-      const bigList: number[] = Array.from({ length: 15000 }, (_, i) => i + 1);
-      await expectHalt(
-        () => run('$big -> take(20000)', { variables: { big: bigList } }),
-        { code: 'RILL_R010', hostErrorId: 'RILL-R010' }
-      );
-    });
+    rule('slicing-limit.output').it(
+      'AC-BND-5: take(n) over MAX_ITER elements halts with a catchable RILL_R010',
+      async () => {
+        // Host-inject a list of 15000 items to bypass getIterableElements limits.
+        const bigList: number[] = Array.from(
+          { length: 15000 },
+          (_, i) => i + 1
+        );
+        await expectHalt(
+          () => run('$big -> take(20000)', { variables: { big: bigList } }),
+          { code: 'RILL_R010', hostErrorId: 'RILL-R010' }
+        );
+      }
+    );
 
     it('AC-BND-6: pass(ignore_halts: true) re-throws non-catchable halt', async () => {
       // A host function that throws a RuntimeHaltSignal with catchable:false

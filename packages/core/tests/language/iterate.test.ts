@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: iterate() operator (Phase 2, Task 2.4)
  *
@@ -43,6 +44,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
 // ---------------------------------------------------------------------------
@@ -141,12 +143,15 @@ describe('iterate: stop_when preceded by take()', () => {
 // ---------------------------------------------------------------------------
 
 describe('iterate: RILL_R010 ceiling (AC-11, EC-16)', () => {
-  it('take(15000) halts with a catchable RILL_R010', async () => {
-    await expectHalt(() => run('iterate(0, { $ + 1 }) -> take(15000)'), {
-      code: 'RILL_R010',
-      hostErrorId: 'RILL-R010',
-    });
-  });
+  rule('slicing-limit.step-walk').it(
+    'take(15000) halts with a catchable RILL_R010',
+    async () => {
+      await expectHalt(() => run('iterate(0, { $ + 1 }) -> take(15000)'), {
+        code: 'RILL_R010',
+        hostErrorId: 'RILL-R010',
+      });
+    }
+  );
 
   it('seq on unbounded iterate stream hits RILL_R010 ceiling', async () => {
     // Without a bounding take(), seq calls getIterableElements which expands
@@ -156,14 +161,17 @@ describe('iterate: RILL_R010 ceiling (AC-11, EC-16)', () => {
     );
   });
 
-  it('take(10000) succeeds and returns all 10000 elements', async () => {
-    const result = (await run(
-      'iterate(0, { $ + 1 }) -> take(10000)'
-    )) as number[];
-    expect(result).toHaveLength(10000);
-    expect(result[0]).toBe(0);
-    expect(result[9999]).toBe(9999);
-  });
+  rule('slicing-limit.output').it(
+    'take(10000) succeeds and returns all 10000 elements',
+    async () => {
+      const result = (await run(
+        'iterate(0, { $ + 1 }) -> take(10000)'
+      )) as number[];
+      expect(result).toHaveLength(10000);
+      expect(result[0]).toBe(0);
+      expect(result[9999]).toBe(9999);
+    }
+  );
 });
 
 // ---------------------------------------------------------------------------
