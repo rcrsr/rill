@@ -592,6 +592,16 @@
       }
     },
     {
+      // The locked language arbiter keeps one raw budget among the unit files:
+      // its 1000 ms ceiling separates linear parsing from 2^40 exponential
+      // work, a gap CPU load cannot close. Exempting the file here keeps the
+      // locked file free of tooling comments.
+      "files": ["packages/core/tests/language/bare-bracket-literals.test.ts"],
+      "rules": {
+        "rill/timing-test-isolation": "off"
+      }
+    },
+    {
       // Test files group many cases per behavior and the language arbiter is
       // locked, so the length cap applies to shipped source only.
       "files": ["**/tests/**", "**/__tests__/**"],
