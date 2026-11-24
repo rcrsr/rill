@@ -966,7 +966,9 @@ union.variable 82407cbfe409
 use.adjacent c8bb82d1cbb7
 use.cycle d1891cf82b4d
 use.each-time b41b41e7fcaf
+use.id-kind 34e9f01a0f3e
 use.id-value fe8cdfdea67c
+use.member-cap 84a8f0a9af3d
 use.module-halt 24e33bb35dcf
 use.pipe-target d845ddc047f9 pipe.variable@6f95dc9aaa5e
 use.resolution-catchable 7a37f666b849

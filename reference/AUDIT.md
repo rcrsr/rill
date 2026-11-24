@@ -110,7 +110,7 @@ One row per PR. Tick a row when its PR merges.
 | 14 | `collections` | 7 | 56 | 0 | #676 |
 | 15 | `errors` | 5 | 41 | 0 | #676 |
 | 16 | `limits` (write) | 5 | 14 | 0 | #676 |
-| 17 | `host-boundary` | 1 | 14 | 11 | |
+| 17 | `host-boundary` | 1 | 16 | 3 | |
 | 18 | `builtins` (write) | 0 | 0 | 0 | |
 | 19 | Group and file defects | | | | |
 | 20 | Decide the inconsistencies | | | | |
@@ -285,7 +285,7 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `host-boundary/use.md` | 14 | 11 | | | | |
+| `host-boundary/use.md` | 16 | 3 | x | x | x | |
 
 ### Unwritten chapters
 
@@ -300,16 +300,6 @@ Each gets a table when its PR splits it into concepts.
 What the sweeps found that no rule states yet, routed to the slice that owns it. A slice works its
 backlog in the Complete and Cited columns: probe each item, then write a rule or record why none is
 needed. Strike nothing here; the slice PR deletes the items it settles.
-
-### `host-boundary`
-
-- Errors: RILL-P020, RILL-P021, RILL-R050 to RILL-R053, RILL-R057, RILL-R062, RILL-R063,
-  RILL-R076, RILL-R084 (a host invalidation code outside the core error set), RILL-R091.
-- `use`: a `guard` around `use<>` catches RILL-R057; `app::fetch()` halts RILL-P012.
-- Hosts cannot add error codes; `toNative` reports the own type; a default in a host signature
-  string halts RILL-R091.
-- The `use<>` branding cap: a resolver value with more than 10,000 members halts RILL-R090. Moved
-  from `limits`, which precedes `use` in chapter order.
 
 ### `builtins` (write)
 
@@ -342,8 +332,13 @@ script.
 - CLI and config: RILL-C001 to RILL-C004.
 - Extension packages: RILL-R017 to RILL-R035.
 - Host registration and policy: RILL-R059, RILL-R061, RILL-R068 to RILL-R073, RILL-R075,
-  RILL-R077, RILL-R086 to RILL-R089. A script parameter default of the wrong type halts
-  `#TYPE_MISMATCH` instead (`defaults.type-match`).
+  RILL-R077, RILL-R086 to RILL-R089, RILL-R091. A script parameter default of the wrong type halts
+  `#TYPE_MISMATCH` instead (`defaults.type-match`). RILL-R091 fires in `createRuntimeContext`,
+  before any script runs.
+- Built-in resolver failures: RILL-R050 to RILL-R053, RILL-R062, RILL-R063. Under `use<>` each
+  surfaces as RILL-R056 (`use.resolver-failure`). RILL-R076 is raised only by the test context
+  in `runtime/ext`.
+- Host API: `toNative` converts a value for the host and is never called from a script.
 - Test files: `ref-llms-full-assertions.test.ts` checks `docs/`, not the language.
   `parser-recovery.test.ts` and `parser-spans.test.ts` test the `parseWithRecovery` host API and
   AST spans.
@@ -404,4 +399,6 @@ at a897cfc3 unless they say otherwise.
 | `errors/invalid-value.md` | `invalid-value.access`: an operator on an invalid value raises the halt it holds. An invalid value used directly as a bool operand halts RILL-R002 "requires boolean, got dict" instead. With `guard { 1 == "a" } => $r`, `!$r`, `$r && true`, `$r \|\| true`, `$r ? 1 ! 2`, `assert $r`, and `while ($r) do { 1 }` halt RILL-R002, while `$r -> ($ ? 1 ! 2)` and `$r == 1` raise `#TYPE_MISMATCH`. Probed at e7d4d0cd | Collected |
 | `errors` | Text after `assert cond` starts a new statement while `error` rejects it; `.!foo` yields `""`; no rule lists the core error set; trace origin frames have no named vocabulary. Probed at e7d4d0cd | Collected in INCONSISTENCIES.md |
 | `limits/slicing-limit.md`, `values/value.md` | `value.immutable`: a value never changes. A stored `iterate` iterator counts its function calls across reads. `iterate(0, { $ + 1 }) => $it`, then `$it -> take(6000)` twice: the second read halts RILL-R010 "iterate: iteration exceeded 10000 limit", uncatchable. `range(0, 20000) => $it` read the same way yields 6000 both times. Probed at 93e55c14 | Collected |
+| `host-boundary/use.md` | `use.source`: a source module runs in a scope of its own, and the caller's variables are not visible to it. `use.source-dollar`: with no piped value, a module that reads `$` halts RILL-R005. The module runs in a child scope of the use site instead. With `"o" => $outer`, a module `$outer` yields `"o"`, and a module `fn { $outer }` called later yields the caller's current value. With `"o" => $outer`, a module `2 => $outer` halts RILL-R001 "Cannot reassign outer variable", uncatchable. `5 -> {`, `log($)`, `use<m:x>`, `}` with a module `$` yields 5. Probed at da098e5d | Collected |
+| `host-boundary` | `use.static-id` names RILL-P022 where the runtime raises RILL-P020, RILL-P021, and RILL-P001; a computed identifier passes a resource the static form rejects; a throwing host function yields an invalid value `#R999` while a throwing resolver halts; RILL-R084 depends on a core error set no rule lists. Probed at da098e5d | Collected in INCONSISTENCIES.md |
 | `limits/value-size.md`, `conventions/halt.md` | `halt.error-code`: a runtime halt carries an error code. A string past the maximum length raises a bare "Invalid string length" with no code or id, and `guard` cannot catch it: `"a" -> .repeat(300000000) => $s` then `"{$s}{$s}"` or `list[$s, $s] -> .join("")`, and `"a" -> .pad_start(536870889, "x")` and `.pad_end(536870889, "x")`. `.pad_start(600000000, "x")` halts `#INVALID_INPUT`, catchable, and `.repeat(536870889)` halts `#INVALID_INPUT`. Probed at 93e55c14 | Collected |

@@ -5,9 +5,9 @@ status: normative
 since: 0.24.0
 issues: []
 grammar: [use-expr, use-id]
-errors: [RILL-P007, RILL-P022, RILL-R002, RILL-R005, RILL-R054, RILL-R055, RILL-R056, RILL-R058, TYPE_MISMATCH]
+errors: [RILL-P007, RILL-P022, RILL-R002, RILL-R005, RILL-R054, RILL-R055, RILL-R056, RILL-R057, RILL-R058, RILL-R090, TYPE_MISMATCH]
 depends: [pipe, scope]
-tests: [use-expr.test.ts]
+tests: [use-expr.test.ts, declarations.test.ts]
 ---
 
 # use
@@ -46,6 +46,10 @@ r[use.id-value] A variable or computed identifier is a string with a scheme
 A variable or computed identifier MUST evaluate to a string containing `:`. A string without
 one MUST halt with RILL-R058.
 
+r[use.id-kind] A variable or computed identifier that is not a string halts
+A variable or computed identifier that evaluates to a value other than a string MUST halt with
+RILL-R057.
+
 r[use.scheme] The scheme selects a host resolver
 The text before the first `:` MUST select the resolver the host registered for that scheme,
 and the rest MUST be passed to it as the resource. An unregistered scheme MUST halt with
@@ -81,6 +85,10 @@ r[use.resolver-failure] A failing resolver halts
 A resolver that fails, returns a malformed result, or returns a value that is not a rill value
 MUST halt with RILL-R056. A source module that does not parse MUST halt with RILL-R056.
 
+r[use.member-cap] A resolved value holds at most 10,000 members
+A host-resolved value MUST halt with RILL-R090 when the value itself and every dict, list, and
+function it holds, at any depth, number more than 10,000. Scalars it holds MUST NOT count.
+
 r[use.type] A type after use asserts the result
 `use<id>:T` MUST assert the result against `T` as `-> :T` does. A mismatch MUST halt with
 `#TYPE_MISMATCH`, and the result MUST carry `T`. In `v -> use<id>:T`, a host-resolved value MUST be
@@ -101,10 +109,12 @@ included.
 |-----------|-------|-----------|
 | A space between `use` and `<` | RILL-P007 | No |
 | A malformed static identifier | RILL-P022 | No |
+| An identifier that is not a string | RILL-R057 | Yes |
 | An identifier string without `:` | RILL-R058 | Yes |
 | No resolver for the scheme | RILL-R054 | Yes |
 | A resource that uses itself | RILL-R055 | No |
 | The resolver fails, returns a non-rill value, or a source module does not parse | RILL-R056 | Yes |
+| A host-resolved value holds more than 10,000 dicts, lists, and functions | RILL-R090 | Yes |
 | A source module reads `$` with nothing piped | RILL-R005 | No |
 | A value is piped into a host-resolved value of no target kind | RILL-R002 | Yes |
 | The result does not have the type after `use<...>` | `#TYPE_MISMATCH` | Yes |
@@ -126,3 +136,6 @@ On 0.23.0 a non-callable resolved value is returned unchanged, and a callable so
 result was called with the piped value.
 
 The `use<id>:|params|` annotation is removed. It raises RILL-P012; write `use<id>:fn(params)`.
+
+The namespaced host call `ns::fn()` is removed. It raises RILL-P012; write `use<ext:ns> => $ns`,
+then `$ns.fn()`.
