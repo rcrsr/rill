@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: chain() Built-in
  * Tests for the chain() built-in function that pipes values through closures.
@@ -21,6 +22,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Language: chain() Built-in', () => {
@@ -29,13 +31,16 @@ describe('Rill Language: chain() Built-in', () => {
   // ============================================================
 
   describe('single closure (AC-16)', () => {
-    it('chains value through single parameterized closure', async () => {
-      // fn(x) { $x * 2 } is a closure with param x; chain passes 5 as $x
-      const result = await run(
-        'fn(x) { $x * 2 } => $double\nchain(5, $double)'
-      );
-      expect(result).toBe(10);
-    });
+    rule('chain.call').it(
+      'chains value through single parameterized closure',
+      async () => {
+        // fn(x) { $x * 2 } is a closure with param x; chain passes 5 as $x
+        const result = await run(
+          'fn(x) { $x * 2 } => $double\nchain(5, $double)'
+        );
+        expect(result).toBe(10);
+      }
+    );
 
     it('chains string value through closure', async () => {
       const result = await run(
@@ -57,13 +62,16 @@ describe('Rill Language: chain() Built-in', () => {
   // ============================================================
 
   describe('list of closures (AC-17)', () => {
-    it('pipes through list[$inc, $double] left-to-right', async () => {
-      // inc first: 5 + 1 = 6, then double: 6 * 2 = 12
-      const result = await run(
-        'fn(x) { $x + 1 } => $inc\nfn(x) { $x * 2 } => $double\nchain(5, list[$inc, $double])'
-      );
-      expect(result).toBe(12);
-    });
+    rule('chain.list').it(
+      'pipes through list[$inc, $double] left-to-right',
+      async () => {
+        // inc first: 5 + 1 = 6, then double: 6 * 2 = 12
+        const result = await run(
+          'fn(x) { $x + 1 } => $inc\nfn(x) { $x * 2 } => $double\nchain(5, list[$inc, $double])'
+        );
+        expect(result).toBe(12);
+      }
+    );
 
     it('pipes through list[$double, $inc] in reversed order', async () => {
       // double first: 5 * 2 = 10, then inc: 10 + 1 = 11
@@ -73,7 +81,7 @@ describe('Rill Language: chain() Built-in', () => {
       expect(result).toBe(11);
     });
 
-    it('pipes through three closures', async () => {
+    rule('chain.list').it('pipes through three closures', async () => {
       // 1 + 1 = 2, * 2 = 4, + 10 = 14
       const result = await run(
         'fn(x) { $x + 1 } => $inc\nfn(x) { $x * 2 } => $dbl\nfn(x) { $x + 10 } => $add10\nchain(1, list[$inc, $dbl, $add10])'
@@ -105,7 +113,7 @@ describe('Rill Language: chain() Built-in', () => {
   // ============================================================
 
   describe('empty closure list returns input unchanged (AC-48)', () => {
-    it('chain(5, list[]) returns 5 unchanged', async () => {
+    rule('chain.empty').it('chain(5, list[]) returns 5 unchanged', async () => {
       const result = await run('chain(5, list[])');
       expect(result).toBe(5);
     });

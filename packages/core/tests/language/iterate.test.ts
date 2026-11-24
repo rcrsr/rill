@@ -52,20 +52,29 @@ import { run } from '../helpers/runtime.js';
 // ---------------------------------------------------------------------------
 
 describe('iterate: basic integer sequence (AC-6, IR-7)', () => {
-  it('call form: iterate(0, { $ + 1 }) -> take(5) emits 0..4', async () => {
-    const result = await run('iterate(0, { $ + 1 }) -> take(5)');
-    expect(result).toEqual([0, 1, 2, 3, 4]);
-  });
+  rule('iterate.sequence').it(
+    'call form: iterate(0, { $ + 1 }) -> take(5) emits 0..4',
+    async () => {
+      const result = await run('iterate(0, { $ + 1 }) -> take(5)');
+      expect(result).toEqual([0, 1, 2, 3, 4]);
+    }
+  );
 
-  it('pipe form: 0 -> iterate({ $ + 1 }) -> take(5) emits 0..4', async () => {
-    const result = await run('0 -> iterate({ $ + 1 }) -> take(5)');
-    expect(result).toEqual([0, 1, 2, 3, 4]);
-  });
+  rule('iterate.sequence').it(
+    'pipe form: 0 -> iterate({ $ + 1 }) -> take(5) emits 0..4',
+    async () => {
+      const result = await run('0 -> iterate({ $ + 1 }) -> take(5)');
+      expect(result).toEqual([0, 1, 2, 3, 4]);
+    }
+  );
 
-  it('take(1) yields only the seed value', async () => {
-    const result = await run('iterate(10, { $ + 1 }) -> take(1)');
-    expect(result).toEqual([10]);
-  });
+  rule('iterate.sequence').it(
+    'take(1) yields only the seed value',
+    async () => {
+      const result = await run('iterate(10, { $ + 1 }) -> take(1)');
+      expect(result).toEqual([10]);
+    }
+  );
 
   it('take(0) yields empty list', async () => {
     const result = await run('iterate(0, { $ + 1 }) -> take(0)');

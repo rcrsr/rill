@@ -328,7 +328,7 @@ describe('Rill Runtime: Extraction Operators', () => {
 
   describe('enumerate() function', () => {
     describe('List enumeration', () => {
-      it('adds index to each element', async () => {
+      rule('enumerate.list').it('adds index to each element', async () => {
         const result = await run(`enumerate(list[10, 20, 30])`);
         expect(result).toEqual([
           { index: 0, value: 10 },
@@ -337,12 +337,12 @@ describe('Rill Runtime: Extraction Operators', () => {
         ]);
       });
 
-      it('handles empty list', async () => {
+      rule('enumerate.list').it('handles empty list', async () => {
         const result = await run(`enumerate(list[])`);
         expect(result).toEqual([]);
       });
 
-      it('preserves complex values', async () => {
+      rule('enumerate.list').it('preserves complex values', async () => {
         const result = await run(`enumerate(list[list[1, 2], list[3, 4]])`);
         expect(result).toEqual([
           { index: 0, value: [1, 2] },
@@ -352,16 +352,19 @@ describe('Rill Runtime: Extraction Operators', () => {
     });
 
     describe('Dict enumeration', () => {
-      it('adds index and key to each entry', async () => {
-        const result = await run(`enumerate(dict[b: 2, a: 1])`);
-        // Keys sorted alphabetically
-        expect(result).toEqual([
-          { index: 0, key: 'a', value: 1 },
-          { index: 1, key: 'b', value: 2 },
-        ]);
-      });
+      rule('enumerate.dict').it(
+        'adds index and key to each entry',
+        async () => {
+          const result = await run(`enumerate(dict[b: 2, a: 1])`);
+          // Keys sorted alphabetically
+          expect(result).toEqual([
+            { index: 0, key: 'a', value: 1 },
+            { index: 1, key: 'b', value: 2 },
+          ]);
+        }
+      );
 
-      it('handles empty dict', async () => {
+      rule('enumerate.dict').it('handles empty dict', async () => {
         const result = await run(`enumerate(dict[])`);
         expect(result).toEqual([]);
       });

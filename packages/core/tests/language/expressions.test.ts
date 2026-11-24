@@ -88,7 +88,7 @@ describe('Rill Runtime: Expressions', () => {
       expect(await run('identity("x")')).toBe('x');
     });
 
-    it('calls method with arg', async () => {
+    rule('list.join.separator').it('calls method with arg', async () => {
       expect(await run('list["a", "b"] -> .join("-")')).toBe('a-b');
     });
 

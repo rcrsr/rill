@@ -697,99 +697,120 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       expect(withExplicitDollar).toEqual([6, 7, 8]);
     });
 
-    it('AC-COL-8: take — auto-prepend, explicit $, and direct-call produce identical results', async () => {
-      const autoPrepend = await run('list[1, 2, 3, 4, 5] -> take(3)');
-      const explicitDollar = await run(
-        'list[1, 2, 3, 4, 5] => $xs\n$xs -> take($, 3)'
-      );
-      const directCall = await run('take(list[1, 2, 3, 4, 5], 3)');
-      expect(autoPrepend).toEqual([1, 2, 3]);
-      expect(explicitDollar).toEqual([1, 2, 3]);
-      expect(directCall).toEqual([1, 2, 3]);
-    });
+    rule('take.first').it(
+      'AC-COL-8: take — auto-prepend, explicit $, and direct-call produce identical results',
+      async () => {
+        const autoPrepend = await run('list[1, 2, 3, 4, 5] -> take(3)');
+        const explicitDollar = await run(
+          'list[1, 2, 3, 4, 5] => $xs\n$xs -> take($, 3)'
+        );
+        const directCall = await run('take(list[1, 2, 3, 4, 5], 3)');
+        expect(autoPrepend).toEqual([1, 2, 3]);
+        expect(explicitDollar).toEqual([1, 2, 3]);
+        expect(directCall).toEqual([1, 2, 3]);
+      }
+    );
 
-    it('AC-COL-9: skip — auto-prepend, explicit $, and direct-call produce identical results', async () => {
-      const autoPrepend = await run('list[1, 2, 3, 4, 5] -> skip(2)');
-      const explicitDollar = await run(
-        'list[1, 2, 3, 4, 5] => $xs\n$xs -> skip($, 2)'
-      );
-      const directCall = await run('skip(list[1, 2, 3, 4, 5], 2)');
-      expect(autoPrepend).toEqual([3, 4, 5]);
-      expect(explicitDollar).toEqual([3, 4, 5]);
-      expect(directCall).toEqual([3, 4, 5]);
-    });
+    rule('skip.rest').it(
+      'AC-COL-9: skip — auto-prepend, explicit $, and direct-call produce identical results',
+      async () => {
+        const autoPrepend = await run('list[1, 2, 3, 4, 5] -> skip(2)');
+        const explicitDollar = await run(
+          'list[1, 2, 3, 4, 5] => $xs\n$xs -> skip($, 2)'
+        );
+        const directCall = await run('skip(list[1, 2, 3, 4, 5], 2)');
+        expect(autoPrepend).toEqual([3, 4, 5]);
+        expect(explicitDollar).toEqual([3, 4, 5]);
+        expect(directCall).toEqual([3, 4, 5]);
+      }
+    );
 
-    it('AC-COL-10: cycle — auto-prepend, explicit $, and direct-call produce identical results', async () => {
-      const autoPrepend = await run('list[1, 2] -> cycle() -> take(4)');
-      const explicitDollar = await run(
-        'list[1, 2] => $xs\n$xs -> cycle($) -> take(4)'
-      );
-      const directCall = await run('cycle(list[1, 2]) -> take(4)');
-      expect(autoPrepend).toEqual([1, 2, 1, 2]);
-      expect(explicitDollar).toEqual([1, 2, 1, 2]);
-      expect(directCall).toEqual([1, 2, 1, 2]);
-    });
+    rule('cycle.repeat').it(
+      'AC-COL-10: cycle — auto-prepend, explicit $, and direct-call produce identical results',
+      async () => {
+        const autoPrepend = await run('list[1, 2] -> cycle() -> take(4)');
+        const explicitDollar = await run(
+          'list[1, 2] => $xs\n$xs -> cycle($) -> take(4)'
+        );
+        const directCall = await run('cycle(list[1, 2]) -> take(4)');
+        expect(autoPrepend).toEqual([1, 2, 1, 2]);
+        expect(explicitDollar).toEqual([1, 2, 1, 2]);
+        expect(directCall).toEqual([1, 2, 1, 2]);
+      }
+    );
 
-    it('AC-COL-11: batch — auto-prepend, explicit $, and direct-call produce identical results', async () => {
-      const autoPrepend = await run('list[1, 2, 3, 4, 5] -> batch(2)');
-      const explicitDollar = await run(
-        'list[1, 2, 3, 4, 5] => $xs\n$xs -> batch($, 2)'
-      );
-      const directCall = await run('batch(list[1, 2, 3, 4, 5], 2)');
-      expect(autoPrepend).toEqual([[1, 2], [3, 4], [5]]);
-      expect(explicitDollar).toEqual([[1, 2], [3, 4], [5]]);
-      expect(directCall).toEqual([[1, 2], [3, 4], [5]]);
-    });
+    rule('batch.chunks').it(
+      'AC-COL-11: batch — auto-prepend, explicit $, and direct-call produce identical results',
+      async () => {
+        const autoPrepend = await run('list[1, 2, 3, 4, 5] -> batch(2)');
+        const explicitDollar = await run(
+          'list[1, 2, 3, 4, 5] => $xs\n$xs -> batch($, 2)'
+        );
+        const directCall = await run('batch(list[1, 2, 3, 4, 5], 2)');
+        expect(autoPrepend).toEqual([[1, 2], [3, 4], [5]]);
+        expect(explicitDollar).toEqual([[1, 2], [3, 4], [5]]);
+        expect(directCall).toEqual([[1, 2], [3, 4], [5]]);
+      }
+    );
 
-    it('AC-COL-12: window — auto-prepend, explicit $, and direct-call produce identical results', async () => {
-      const autoPrepend = await run('list[1, 2, 3, 4, 5] -> window(3)');
-      const explicitDollar = await run(
-        'list[1, 2, 3, 4, 5] => $xs\n$xs -> window($, 3)'
-      );
-      const directCall = await run('window(list[1, 2, 3, 4, 5], 3)');
-      expect(autoPrepend).toEqual([
-        [1, 2, 3],
-        [4, 5],
-      ]);
-      expect(explicitDollar).toEqual([
-        [1, 2, 3],
-        [4, 5],
-      ]);
-      expect(directCall).toEqual([
-        [1, 2, 3],
-        [4, 5],
-      ]);
-    });
+    rule('window.step-default').it(
+      'AC-COL-12: window — auto-prepend, explicit $, and direct-call produce identical results',
+      async () => {
+        const autoPrepend = await run('list[1, 2, 3, 4, 5] -> window(3)');
+        const explicitDollar = await run(
+          'list[1, 2, 3, 4, 5] => $xs\n$xs -> window($, 3)'
+        );
+        const directCall = await run('window(list[1, 2, 3, 4, 5], 3)');
+        expect(autoPrepend).toEqual([
+          [1, 2, 3],
+          [4, 5],
+        ]);
+        expect(explicitDollar).toEqual([
+          [1, 2, 3],
+          [4, 5],
+        ]);
+        expect(directCall).toEqual([
+          [1, 2, 3],
+          [4, 5],
+        ]);
+      }
+    );
 
-    it('AC-COL-13: start_when — auto-prepend, explicit $, and direct-call produce identical results', async () => {
-      const autoPrepend = await run(
-        'list[1, 2, 3, 4, 5] -> start_when({ $ -> .eq(3) })'
-      );
-      const explicitDollar = await run(
-        'list[1, 2, 3, 4, 5] => $xs\n$xs -> start_when($, { $ -> .eq(3) })'
-      );
-      const directCall = await run(
-        'start_when(list[1, 2, 3, 4, 5], { $ -> .eq(3) })'
-      );
-      expect(autoPrepend).toEqual([3, 4, 5]);
-      expect(explicitDollar).toEqual([3, 4, 5]);
-      expect(directCall).toEqual([3, 4, 5]);
-    });
+    rule('start-when.from-match').it(
+      'AC-COL-13: start_when — auto-prepend, explicit $, and direct-call produce identical results',
+      async () => {
+        const autoPrepend = await run(
+          'list[1, 2, 3, 4, 5] -> start_when({ $ -> .eq(3) })'
+        );
+        const explicitDollar = await run(
+          'list[1, 2, 3, 4, 5] => $xs\n$xs -> start_when($, { $ -> .eq(3) })'
+        );
+        const directCall = await run(
+          'start_when(list[1, 2, 3, 4, 5], { $ -> .eq(3) })'
+        );
+        expect(autoPrepend).toEqual([3, 4, 5]);
+        expect(explicitDollar).toEqual([3, 4, 5]);
+        expect(directCall).toEqual([3, 4, 5]);
+      }
+    );
 
-    it('AC-COL-14: stop_when — auto-prepend, explicit $, and direct-call produce identical results', async () => {
-      const autoPrepend = await run(
-        'list[1, 2, 3, 4, 5] -> stop_when({ $ -> .eq(3) })'
-      );
-      const explicitDollar = await run(
-        'list[1, 2, 3, 4, 5] => $xs\n$xs -> stop_when($, { $ -> .eq(3) })'
-      );
-      const directCall = await run(
-        'stop_when(list[1, 2, 3, 4, 5], { $ -> .eq(3) })'
-      );
-      expect(autoPrepend).toEqual([1, 2, 3]);
-      expect(explicitDollar).toEqual([1, 2, 3]);
-      expect(directCall).toEqual([1, 2, 3]);
-    });
+    rule('stop-when.through-match').it(
+      'AC-COL-14: stop_when — auto-prepend, explicit $, and direct-call produce identical results',
+      async () => {
+        const autoPrepend = await run(
+          'list[1, 2, 3, 4, 5] -> stop_when({ $ -> .eq(3) })'
+        );
+        const explicitDollar = await run(
+          'list[1, 2, 3, 4, 5] => $xs\n$xs -> stop_when($, { $ -> .eq(3) })'
+        );
+        const directCall = await run(
+          'stop_when(list[1, 2, 3, 4, 5], { $ -> .eq(3) })'
+        );
+        expect(autoPrepend).toEqual([1, 2, 3]);
+        expect(explicitDollar).toEqual([1, 2, 3]);
+        expect(directCall).toEqual([1, 2, 3]);
+      }
+    );
   });
 
   // ── Phase 1: take, skip, cycle, pass() ───────────────────────────────────
@@ -797,53 +818,80 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
   describe('Phase 1 slicing operators and pass() body', () => {
     // ── take ────────────────────────────────────────────────────────────────
 
-    it('AC-TAKE-1: range(1,101) -> take(5) yields [1,2,3,4,5]', async () => {
-      expect(await run('range(1, 101) -> take(5)')).toEqual([1, 2, 3, 4, 5]);
-    });
+    rule('take.first').it(
+      'AC-TAKE-1: range(1,101) -> take(5) yields [1,2,3,4,5]',
+      async () => {
+        expect(await run('range(1, 101) -> take(5)')).toEqual([1, 2, 3, 4, 5]);
+      }
+    );
 
-    it('AC-TAKE-2: list[1,2,3] -> take(5) yields [1,2,3] (n > length)', async () => {
-      expect(await run('list[1, 2, 3] -> take(5)')).toEqual([1, 2, 3]);
-    });
+    rule('take.short').it(
+      'AC-TAKE-2: list[1,2,3] -> take(5) yields [1,2,3] (n > length)',
+      async () => {
+        expect(await run('list[1, 2, 3] -> take(5)')).toEqual([1, 2, 3]);
+      }
+    );
 
-    it('AC-TAKE-3: list[1,2,3] -> take(0) yields [] (list input -> empty list)', async () => {
-      expect(await run('list[1, 2, 3] -> take(0)')).toEqual([]);
-    });
+    rule('take.short').it(
+      'AC-TAKE-3: list[1,2,3] -> take(0) yields [] (list input -> empty list)',
+      async () => {
+        expect(await run('list[1, 2, 3] -> take(0)')).toEqual([]);
+      }
+    );
 
-    it('AC-TAKE-4: stream input take(0) yields [] (materialized as empty list)', async () => {
-      // Convention: collection operators materialise stream inputs to lists.
-      const result = await run('make_stream() -> take(0)', {
-        functions: { make_stream: makeStreamFn([1, 2, 3]) },
-      });
-      expect(result).toEqual([]);
-    });
+    rule('take.short').it(
+      'AC-TAKE-4: stream input take(0) yields [] (materialized as empty list)',
+      async () => {
+        // Convention: collection operators materialise stream inputs to lists.
+        const result = await run('make_stream() -> take(0)', {
+          functions: { make_stream: makeStreamFn([1, 2, 3]) },
+        });
+        expect(result).toEqual([]);
+      }
+    );
 
     // ── skip ────────────────────────────────────────────────────────────────
 
-    it('AC-SKIP-1: range(1,11) -> skip(3) yields [4,5,6,7,8,9,10]', async () => {
-      expect(await run('range(1, 11) -> skip(3)')).toEqual([
-        4, 5, 6, 7, 8, 9, 10,
-      ]);
-    });
+    rule('skip.rest').it(
+      'AC-SKIP-1: range(1,11) -> skip(3) yields [4,5,6,7,8,9,10]',
+      async () => {
+        expect(await run('range(1, 11) -> skip(3)')).toEqual([
+          4, 5, 6, 7, 8, 9, 10,
+        ]);
+      }
+    );
 
-    it('AC-SKIP-2: list[1,2,3] -> skip(0) yields [1,2,3]', async () => {
-      expect(await run('list[1, 2, 3] -> skip(0)')).toEqual([1, 2, 3]);
-    });
+    rule('skip.past-end').it(
+      'AC-SKIP-2: list[1,2,3] -> skip(0) yields [1,2,3]',
+      async () => {
+        expect(await run('list[1, 2, 3] -> skip(0)')).toEqual([1, 2, 3]);
+      }
+    );
 
-    it('AC-SKIP-3: list[1,2,3] -> skip(5) yields [] (n > length)', async () => {
-      expect(await run('list[1, 2, 3] -> skip(5)')).toEqual([]);
-    });
+    rule('skip.past-end').it(
+      'AC-SKIP-3: list[1,2,3] -> skip(5) yields [] (n > length)',
+      async () => {
+        expect(await run('list[1, 2, 3] -> skip(5)')).toEqual([]);
+      }
+    );
 
     // ── cycle ───────────────────────────────────────────────────────────────
 
-    it('AC-CYCLE-1: list[1,2,3] -> cycle -> take(6) yields [1,2,3,1,2,3]', async () => {
-      expect(await run('list[1, 2, 3] -> cycle -> take(6)')).toEqual([
-        1, 2, 3, 1, 2, 3,
-      ]);
-    });
+    rule('cycle.repeat').it(
+      'AC-CYCLE-1: list[1,2,3] -> cycle -> take(6) yields [1,2,3,1,2,3]',
+      async () => {
+        expect(await run('list[1, 2, 3] -> cycle -> take(6)')).toEqual([
+          1, 2, 3, 1, 2, 3,
+        ]);
+      }
+    );
 
-    it('AC-CYCLE-2: list[] -> cycle -> take(5) yields []', async () => {
-      expect(await run('list[] -> cycle -> take(5)')).toEqual([]);
-    });
+    rule('cycle.empty').it(
+      'AC-CYCLE-2: list[] -> cycle -> take(5) yields []',
+      async () => {
+        expect(await run('list[] -> cycle -> take(5)')).toEqual([]);
+      }
+    );
 
     // ── pass() body ──────────────────────────────────────────────────────────
 
@@ -907,17 +955,23 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
 
     // ── Error cases ─────────────────────────────────────────────────────────
 
-    it('AC-ERR-1: take(-1) raises #INVALID_INPUT', async () => {
-      await expectHalt(() => run('list[1, 2, 3] -> take(-1)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('take.negative').it(
+      'AC-ERR-1: take(-1) raises #INVALID_INPUT',
+      async () => {
+        await expectHalt(() => run('list[1, 2, 3] -> take(-1)'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
-    it('AC-ERR-2: skip(-1) raises #INVALID_INPUT', async () => {
-      await expectHalt(() => run('list[1, 2, 3] -> skip(-1)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('skip.negative').it(
+      'AC-ERR-2: skip(-1) raises #INVALID_INPUT',
+      async () => {
+        await expectHalt(() => run('list[1, 2, 3] -> skip(-1)'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
     it('AC-ERR-10: pass(ignore_halts: true) suppresses catchable halt; pipe value preserved', async () => {
       // A type assertion failure (e.g. :number on a string) produces a
@@ -931,19 +985,25 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
 
     // ── Boundary cases ──────────────────────────────────────────────────────
 
-    it('AC-BND-1: take(n) on empty stream yields []', async () => {
-      const result = await run('make_stream() -> take(3)', {
-        functions: { make_stream: makeStreamFn([]) },
-      });
-      expect(result).toEqual([]);
-    });
+    rule('take.short').it(
+      'AC-BND-1: take(n) on empty stream yields []',
+      async () => {
+        const result = await run('make_stream() -> take(3)', {
+          functions: { make_stream: makeStreamFn([]) },
+        });
+        expect(result).toEqual([]);
+      }
+    );
 
-    it('AC-BND-2: skip(n) on empty stream yields []', async () => {
-      const result = await run('make_stream() -> skip(3)', {
-        functions: { make_stream: makeStreamFn([]) },
-      });
-      expect(result).toEqual([]);
-    });
+    rule('skip.past-end').it(
+      'AC-BND-2: skip(n) on empty stream yields []',
+      async () => {
+        const result = await run('make_stream() -> skip(3)', {
+          functions: { make_stream: makeStreamFn([]) },
+        });
+        expect(result).toEqual([]);
+      }
+    );
 
     rule('slicing-limit.output').it(
       'AC-BND-5: take(n) over MAX_ITER elements halts with a catchable RILL_R010',
@@ -1031,51 +1091,69 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
   describe('Phase 2 slicing operators: batch, window, start_when, stop_when', () => {
     // ── batch ────────────────────────────────────────────────────────────────
 
-    it('AC-BATCH-1: range(1,11) -> batch(3) yields four chunks including trailing partial', async () => {
-      expect(await run('range(1, 11) -> batch(3)')).toEqual([
-        [1, 2, 3],
-        [4, 5, 6],
-        [7, 8, 9],
-        [10],
-      ]);
-    });
+    rule('batch.chunks').it(
+      'AC-BATCH-1: range(1,11) -> batch(3) yields four chunks including trailing partial',
+      async () => {
+        expect(await run('range(1, 11) -> batch(3)')).toEqual([
+          [1, 2, 3],
+          [4, 5, 6],
+          [7, 8, 9],
+          [10],
+        ]);
+      }
+    );
 
-    it('AC-BATCH-2: batch(3, dict[drop_partial: true]) drops the trailing partial chunk', async () => {
-      expect(
-        await run('range(1, 11) -> batch(3, dict[drop_partial: true])')
-      ).toEqual([
-        [1, 2, 3],
-        [4, 5, 6],
-        [7, 8, 9],
-      ]);
-    });
+    rule('batch.drop-partial').it(
+      'AC-BATCH-2: batch(3, dict[drop_partial: true]) drops the trailing partial chunk',
+      async () => {
+        expect(
+          await run('range(1, 11) -> batch(3, dict[drop_partial: true])')
+        ).toEqual([
+          [1, 2, 3],
+          [4, 5, 6],
+          [7, 8, 9],
+        ]);
+      }
+    );
 
-    it('batch halts with #TYPE_MISMATCH when options is not a dict', async () => {
-      await expectHalt(() => run('list[1, 2, 3] -> batch(2, "x")'), {
-        code: 'TYPE_MISMATCH',
-      });
-    });
-
-    it('batch halts with #TYPE_MISMATCH when drop_partial is not a boolean', async () => {
-      await expectHalt(
-        () => run('list[1, 2, 3] -> batch(2, dict[drop_partial: 1])'),
-        {
+    rule('batch.options-kind').it(
+      'batch halts with #TYPE_MISMATCH when options is not a dict',
+      async () => {
+        await expectHalt(() => run('list[1, 2, 3] -> batch(2, "x")'), {
           code: 'TYPE_MISMATCH',
-        }
-      );
-    });
+        });
+      }
+    );
 
-    it('AC-ERR-3: batch(0) raises #INVALID_INPUT', async () => {
-      await expectHalt(() => run('list[1, 2, 3] -> batch(0)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('batch.option-types').it(
+      'batch halts with #TYPE_MISMATCH when drop_partial is not a boolean',
+      async () => {
+        await expectHalt(
+          () => run('list[1, 2, 3] -> batch(2, dict[drop_partial: 1])'),
+          {
+            code: 'TYPE_MISMATCH',
+          }
+        );
+      }
+    );
 
-    it('AC-ERR-4: batch(-1) raises #INVALID_INPUT', async () => {
-      await expectHalt(() => run('list[1, 2, 3] -> batch(-1)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('batch.size').it(
+      'AC-ERR-3: batch(0) raises #INVALID_INPUT',
+      async () => {
+        await expectHalt(() => run('list[1, 2, 3] -> batch(0)'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
+
+    rule('batch.size').it(
+      'AC-ERR-4: batch(-1) raises #INVALID_INPUT',
+      async () => {
+        await expectHalt(() => run('list[1, 2, 3] -> batch(-1)'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
     it('AC-BND-3: batch(n) on empty stream yields empty list', async () => {
       const result = await run('make_stream() -> batch(3)', {
@@ -1086,62 +1164,88 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
 
     // ── window ───────────────────────────────────────────────────────────────
 
-    it('AC-WINDOW-1: range(1,7) -> window(3) yields non-overlapping windows of 3', async () => {
-      expect(await run('range(1, 7) -> window(3)')).toEqual([
-        [1, 2, 3],
-        [4, 5, 6],
-      ]);
-    });
+    rule('window.step-default').it(
+      'AC-WINDOW-1: range(1,7) -> window(3) yields non-overlapping windows of 3',
+      async () => {
+        expect(await run('range(1, 7) -> window(3)')).toEqual([
+          [1, 2, 3],
+          [4, 5, 6],
+        ]);
+      }
+    );
 
-    it('AC-WINDOW-2: range(1,7) -> window(3, 2) yields overlapping windows with partial tail', async () => {
-      expect(await run('range(1, 7) -> window(3, 2)')).toEqual([
-        [1, 2, 3],
-        [3, 4, 5],
-        [5, 6],
-      ]);
-    });
+    rule('window.starts').it(
+      'AC-WINDOW-2: range(1,7) -> window(3, 2) yields overlapping windows with partial tail',
+      async () => {
+        expect(await run('range(1, 7) -> window(3, 2)')).toEqual([
+          [1, 2, 3],
+          [3, 4, 5],
+          [5, 6],
+        ]);
+      }
+    );
 
-    it('AC-ERR-5: window(0) raises #INVALID_INPUT', async () => {
-      await expectHalt(() => run('list[1, 2, 3] -> window(0)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('window.size').it(
+      'AC-ERR-5: window(0) raises #INVALID_INPUT',
+      async () => {
+        await expectHalt(() => run('list[1, 2, 3] -> window(0)'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
-    it('AC-ERR-6: window(3, -1) raises #INVALID_INPUT', async () => {
-      await expectHalt(() => run('list[1, 2, 3] -> window(3, -1)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('window.step-positive').it(
+      'AC-ERR-6: window(3, -1) raises #INVALID_INPUT',
+      async () => {
+        await expectHalt(() => run('list[1, 2, 3] -> window(3, -1)'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
-    it('AC-ERR-7: window(3, 0) raises #INVALID_INPUT', async () => {
-      await expectHalt(() => run('list[1, 2, 3] -> window(3, 0)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('window.step-positive').it(
+      'AC-ERR-7: window(3, 0) raises #INVALID_INPUT',
+      async () => {
+        await expectHalt(() => run('list[1, 2, 3] -> window(3, 0)'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
-    it('AC-BND-4: window(2, 4) on range(1,7) produces gap between windows (step > n)', async () => {
-      // step=4 > n=2: windows at indices 0 and 4, leaving items 3-4 in the gap.
-      expect(await run('range(1, 7) -> window(2, 4)')).toEqual([
-        [1, 2],
-        [5, 6],
-      ]);
-    });
+    rule('window.starts').it(
+      'AC-BND-4: window(2, 4) on range(1,7) produces gap between windows (step > n)',
+      async () => {
+        // step=4 > n=2: windows at indices 0 and 4, leaving items 3-4 in the gap.
+        expect(await run('range(1, 7) -> window(2, 4)')).toEqual([
+          [1, 2],
+          [5, 6],
+        ]);
+      }
+    );
 
     // ── start_when ───────────────────────────────────────────────────────────
 
-    it('AC-STARTWHEN-1: start_when matching item 3 yields items 3-5 inclusive', async () => {
-      expect(
-        await run('list[1, 2, 3, 4, 5] -> start_when({ $ -> .eq(3) })')
-      ).toEqual([3, 4, 5]);
-    });
+    rule('start-when.from-match').it(
+      'AC-STARTWHEN-1: start_when matching item 3 yields items 3-5 inclusive',
+      async () => {
+        expect(
+          await run('list[1, 2, 3, 4, 5] -> start_when({ $ -> .eq(3) })')
+        ).toEqual([3, 4, 5]);
+      }
+    );
 
-    it('AC-ERR-8: start_when predicate returning non-bool raises #TYPE_MISMATCH', async () => {
-      await expectHalt(
-        () =>
-          run('list[1, 2, 3] -> start_when({ $ -> .eq(1) ? "string" ! "no" })'),
-        { code: 'TYPE_MISMATCH' }
-      );
-    });
+    rule('slicing.predicate-bool').it(
+      'AC-ERR-8: start_when predicate returning non-bool raises #TYPE_MISMATCH',
+      async () => {
+        await expectHalt(
+          () =>
+            run(
+              'list[1, 2, 3] -> start_when({ $ -> .eq(1) ? "string" ! "no" })'
+            ),
+          { code: 'TYPE_MISMATCH' }
+        );
+      }
+    );
 
     it('AC-ERR-11: start_when(42) with non-callable predicate raises RILL-R040', async () => {
       await expect(run('list[1, 2, 3] -> start_when(42)')).rejects.toThrow(
@@ -1151,20 +1255,26 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
 
     // ── stop_when ────────────────────────────────────────────────────────────
 
-    it('AC-STOPWHEN-1: stop_when matching item 3 yields items 1-3 inclusive', async () => {
-      expect(
-        await run('list[1, 2, 3, 4, 5] -> stop_when({ $ -> .eq(3) })')
-      ).toEqual([1, 2, 3]);
-    });
+    rule('stop-when.through-match').it(
+      'AC-STOPWHEN-1: stop_when matching item 3 yields items 1-3 inclusive',
+      async () => {
+        expect(
+          await run('list[1, 2, 3, 4, 5] -> stop_when({ $ -> .eq(3) })')
+        ).toEqual([1, 2, 3]);
+      }
+    );
 
-    it('AC-ERR-9: stop_when predicate returning non-bool raises #TYPE_MISMATCH', async () => {
-      await expectHalt(
-        () => run('list[1, 2, 3] -> stop_when({ $ -> .eq(1) ? 42 ! 0 })'),
-        {
-          code: 'TYPE_MISMATCH',
-        }
-      );
-    });
+    rule('slicing.predicate-bool').it(
+      'AC-ERR-9: stop_when predicate returning non-bool raises #TYPE_MISMATCH',
+      async () => {
+        await expectHalt(
+          () => run('list[1, 2, 3] -> stop_when({ $ -> .eq(1) ? 42 ! 0 })'),
+          {
+            code: 'TYPE_MISMATCH',
+          }
+        );
+      }
+    );
   });
 
   // ── Phase 2: batch idle_flush option (IR-8, AC-8, AC-17, EC-18) ──────────
@@ -1212,16 +1322,19 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       expect(withIdleFlush).toEqual([[1, 2], [3, 4], [5]]);
     });
 
-    it('AC-8: batch with idle_flush combined with drop_partial works correctly', async () => {
-      const result = await run(
-        'range(1, 11) -> batch(3, dict[drop_partial: true, idle_flush: duration("50ms")])'
-      );
-      expect(result).toEqual([
-        [1, 2, 3],
-        [4, 5, 6],
-        [7, 8, 9],
-      ]);
-    });
+    rule('batch.drop-partial').it(
+      'AC-8: batch with idle_flush combined with drop_partial works correctly',
+      async () => {
+        const result = await run(
+          'range(1, 11) -> batch(3, dict[drop_partial: true, idle_flush: duration("50ms")])'
+        );
+        expect(result).toEqual([
+          [1, 2, 3],
+          [4, 5, 6],
+          [7, 8, 9],
+        ]);
+      }
+    );
 
     it('AC-8: batch with idle_flush on empty input returns empty list', async () => {
       const result = await run(
@@ -1232,26 +1345,35 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
 
     // ── AC-17 / EC-18: non-duration idle_flush raises #TYPE_MISMATCH ─────────
 
-    it('AC-17/EC-18: string idle_flush raises #TYPE_MISMATCH', async () => {
-      await expectHalt(
-        () => run('list[1, 2, 3] -> batch(2, dict[idle_flush: "50ms"])'),
-        { code: 'TYPE_MISMATCH' }
-      );
-    });
+    rule('batch.option-types').it(
+      'AC-17/EC-18: string idle_flush raises #TYPE_MISMATCH',
+      async () => {
+        await expectHalt(
+          () => run('list[1, 2, 3] -> batch(2, dict[idle_flush: "50ms"])'),
+          { code: 'TYPE_MISMATCH' }
+        );
+      }
+    );
 
-    it('EC-18: numeric idle_flush raises #TYPE_MISMATCH', async () => {
-      await expectHalt(
-        () => run('list[1, 2, 3] -> batch(2, dict[idle_flush: 50])'),
-        { code: 'TYPE_MISMATCH' }
-      );
-    });
+    rule('batch.option-types').it(
+      'EC-18: numeric idle_flush raises #TYPE_MISMATCH',
+      async () => {
+        await expectHalt(
+          () => run('list[1, 2, 3] -> batch(2, dict[idle_flush: 50])'),
+          { code: 'TYPE_MISMATCH' }
+        );
+      }
+    );
 
-    it('EC-18: boolean idle_flush raises #TYPE_MISMATCH', async () => {
-      await expectHalt(
-        () => run('list[1, 2, 3] -> batch(2, dict[idle_flush: true])'),
-        { code: 'TYPE_MISMATCH' }
-      );
-    });
+    rule('batch.option-types').it(
+      'EC-18: boolean idle_flush raises #TYPE_MISMATCH',
+      async () => {
+        await expectHalt(
+          () => run('list[1, 2, 3] -> batch(2, dict[idle_flush: true])'),
+          { code: 'TYPE_MISMATCH' }
+        );
+      }
+    );
 
     // ── AC-19 / EC-19: deferred — requires async streaming ──────────────────
     // AC-19: "empty buffer at idle tick: no flush emitted; next chunk re-arms

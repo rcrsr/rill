@@ -135,13 +135,16 @@ describe('Rill Language: sort primitive', () => {
       }
     );
 
-    it('AC-SORT-8: list -> sort -> .reverse produces descending order', async () => {
-      const script = `
+    rule('list.reverse.order').it(
+      'AC-SORT-8: list -> sort -> .reverse produces descending order',
+      async () => {
+        const script = `
         list[3, 1, 2] => $list
         $list -> sort -> .reverse
       `;
-      expect(await run(script)).toEqual([3, 2, 1]);
-    });
+        expect(await run(script)).toEqual([3, 2, 1]);
+      }
+    );
 
     rule('sort.to-list').it(
       'AC-SORT-9: range iterator input is materialized and sorted',

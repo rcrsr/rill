@@ -48,12 +48,15 @@ describe('Rill Language: Datetime Type', () => {
       }
     );
 
-    it('constructs a two-digit year without century-remapping', async () => {
-      const result = await run(
-        'datetime(...dict[year: 50, month: 3, day: 13]) -> .year'
-      );
-      expect(result).toBe(50);
-    });
+    rule('datetime-calendar.gregorian').it(
+      'constructs a two-digit year without century-remapping',
+      async () => {
+        const result = await run(
+          'datetime(...dict[year: 50, month: 3, day: 13]) -> .year'
+        );
+        expect(result).toBe(50);
+      }
+    );
 
     it('round-trips a negative year through .iso() and datetime()', async () => {
       const result = await run(
@@ -63,12 +66,15 @@ describe('Rill Language: Datetime Type', () => {
       expect(result).toBe(-50);
     });
 
-    it('formats a negative year as a signed 6-digit extended year', async () => {
-      const result = await run(
-        'datetime(...dict[year: -50, month: 6, day: 15]) -> .iso()'
-      );
-      expect(result).toBe('-000050-06-15T00:00:00Z');
-    });
+    rule('datetime-calendar.year-text').it(
+      'formats a negative year as a signed 6-digit extended year',
+      async () => {
+        const result = await run(
+          'datetime(...dict[year: -50, month: 6, day: 15]) -> .iso()'
+        );
+        expect(result).toBe('-000050-06-15T00:00:00Z');
+      }
+    );
 
     it('round-trips a year >= 10000 through .iso() and datetime()', async () => {
       const result = await run(
@@ -78,12 +84,15 @@ describe('Rill Language: Datetime Type', () => {
       expect(result).toBe(10000);
     });
 
-    it('formats a year >= 10000 as a signed 6-digit extended year', async () => {
-      const result = await run(
-        'datetime(...dict[year: 10000, month: 1, day: 1]) -> .iso()'
-      );
-      expect(result).toBe('+010000-01-01T00:00:00Z');
-    });
+    rule('datetime-calendar.year-text').it(
+      'formats a year >= 10000 as a signed 6-digit extended year',
+      async () => {
+        const result = await run(
+          'datetime(...dict[year: 10000, month: 1, day: 1]) -> .iso()'
+        );
+        expect(result).toBe('+010000-01-01T00:00:00Z');
+      }
+    );
 
     it('rejects an unsigned extended-year date-only string as #INVALID_INPUT', async () => {
       await expectHalt(() => run('datetime("10000-01-01")'), {
@@ -109,63 +118,79 @@ describe('Rill Language: Datetime Type', () => {
   // ============================================================
 
   describe('properties', () => {
-    it('returns .year', async () => {
+    rule('datetime.year.utc').it('returns .year', async () => {
       const result = await run(`datetime("${REF_ISO}") -> .year`);
       expect(result).toBe(2026);
     });
 
-    it('returns .month', async () => {
+    rule('datetime.month.utc').it('returns .month', async () => {
       const result = await run(`datetime("${REF_ISO}") -> .month`);
       expect(result).toBe(3);
     });
 
-    it('returns .day', async () => {
+    rule('datetime.day.utc').it('returns .day', async () => {
       const result = await run(`datetime("${REF_ISO}") -> .day`);
       expect(result).toBe(13);
     });
 
-    it('returns .hour', async () => {
+    rule('datetime.hour.utc').it('returns .hour', async () => {
       const result = await run(`datetime("${REF_ISO}") -> .hour`);
       expect(result).toBe(8);
     });
 
-    it('returns .minute', async () => {
+    rule('datetime.minute.utc').it('returns .minute', async () => {
       const result = await run(`datetime("${REF_ISO}") -> .minute`);
       expect(result).toBe(0);
     });
 
-    it('returns .second', async () => {
+    rule('datetime.second.utc').it('returns .second', async () => {
       const result = await run(`datetime("${REF_ISO}") -> .second`);
       expect(result).toBe(0);
     });
 
-    it('returns .ms', async () => {
+    rule('datetime.ms.utc').it('returns .ms', async () => {
       const result = await run(`datetime("${REF_ISO}") -> .ms`);
       expect(result).toBe(0);
     });
 
-    it('returns .unix as UTC ms since epoch [AC-1]', async () => {
-      const result = await run(`datetime("${REF_ISO}") -> .unix`);
-      expect(result).toBe(REF_UNIX);
-    });
+    rule('datetime.unix.count').it(
+      'returns .unix as UTC ms since epoch [AC-1]',
+      async () => {
+        const result = await run(`datetime("${REF_ISO}") -> .unix`);
+        expect(result).toBe(REF_UNIX);
+      }
+    );
 
-    it('returns .weekday as integer 1-7 [AC-B3]', async () => {
-      // 2026-03-13 is Friday -> weekday 5 (1=Mon, 7=Sun)
-      const result = await run(`datetime("${REF_ISO}") -> .weekday`);
-      expect(result).toBe(5);
-    });
+    rule('datetime.weekday.iso').it(
+      'returns .weekday as integer 1-7 [AC-B3]',
+      async () => {
+        // 2026-03-13 is Friday -> weekday 5 (1=Mon, 7=Sun)
+        const result = await run(`datetime("${REF_ISO}") -> .weekday`);
+        expect(result).toBe(5);
+      }
+    );
 
-    it('returns .weekday 1 for Monday', async () => {
-      // 2026-03-09 is Monday
-      const result = await run('datetime("2026-03-09T00:00:00Z") -> .weekday');
-      expect(result).toBe(1);
-    });
+    rule('datetime.weekday.iso').it(
+      'returns .weekday 1 for Monday',
+      async () => {
+        // 2026-03-09 is Monday
+        const result = await run(
+          'datetime("2026-03-09T00:00:00Z") -> .weekday'
+        );
+        expect(result).toBe(1);
+      }
+    );
 
-    it('returns .weekday 7 for Sunday', async () => {
-      // 2026-03-15 is Sunday
-      const result = await run('datetime("2026-03-15T00:00:00Z") -> .weekday');
-      expect(result).toBe(7);
-    });
+    rule('datetime.weekday.iso').it(
+      'returns .weekday 7 for Sunday',
+      async () => {
+        // 2026-03-15 is Sunday
+        const result = await run(
+          'datetime("2026-03-15T00:00:00Z") -> .weekday'
+        );
+        expect(result).toBe(7);
+      }
+    );
   });
 
   // ============================================================
@@ -173,12 +198,15 @@ describe('Rill Language: Datetime Type', () => {
   // ============================================================
 
   describe('now()', () => {
-    it('returns deterministic value via nowMs [AC-7]', async () => {
-      const result = await run('now() -> .unix', {
-        nowMs: 1710316800000,
-      });
-      expect(result).toBe(1710316800000);
-    });
+    rule('now.instant').it(
+      'returns deterministic value via nowMs [AC-7]',
+      async () => {
+        const result = await run('now() -> .unix', {
+          nowMs: 1710316800000,
+        });
+        expect(result).toBe(1710316800000);
+      }
+    );
 
     it('second now() >= first now() (monotonic) [AC-B9]', async () => {
       const result = await run(
@@ -215,27 +243,37 @@ describe('Rill Language: Datetime Type', () => {
   // ============================================================
 
   describe('string methods', () => {
-    it('.iso() returns UTC ISO string [AC-2]', async () => {
+    rule(
+      'datetime.iso.format',
+      'datetime.iso.suffix',
+      'datetime-calendar.offset-default'
+    ).it('.iso() returns UTC ISO string [AC-2]', async () => {
       const result = await run(`datetime("${REF_ISO}") -> .iso()`);
       expect(result).toBe('2026-03-13T08:00:00Z');
     });
 
-    it('.iso(2) returns +02:00 string [AC-3]', async () => {
-      const result = await run(`datetime("${REF_ISO}") -> .iso(2)`);
-      expect(result).toBe('2026-03-13T10:00:00+02:00');
-    });
+    rule('datetime.iso.suffix', 'datetime-calendar.offset').it(
+      '.iso(2) returns +02:00 string [AC-3]',
+      async () => {
+        const result = await run(`datetime("${REF_ISO}") -> .iso(2)`);
+        expect(result).toBe('2026-03-13T10:00:00+02:00');
+      }
+    );
 
-    it('.iso(5.5) returns +05:30 string [AC-4]', async () => {
-      const result = await run(`datetime("${REF_ISO}") -> .iso(5.5)`);
-      expect(result).toBe('2026-03-13T13:30:00+05:30');
-    });
+    rule('datetime.iso.suffix', 'datetime-calendar.offset').it(
+      '.iso(5.5) returns +05:30 string [AC-4]',
+      async () => {
+        const result = await run(`datetime("${REF_ISO}") -> .iso(5.5)`);
+        expect(result).toBe('2026-03-13T13:30:00+05:30');
+      }
+    );
 
-    it('.date() returns YYYY-MM-DD', async () => {
+    rule('datetime.date.format').it('.date() returns YYYY-MM-DD', async () => {
       const result = await run(`datetime("${REF_ISO}") -> .date()`);
       expect(result).toBe('2026-03-13');
     });
 
-    it('.time() returns HH:MM:SS', async () => {
+    rule('datetime.time.format').it('.time() returns HH:MM:SS', async () => {
       const result = await run(`datetime("${REF_ISO}") -> .time()`);
       expect(result).toBe('08:00:00');
     });
@@ -261,21 +299,27 @@ describe('Rill Language: Datetime Type', () => {
       expect(result).toContain('Z');
     });
 
-    it('.local_date returns date at host timezone', async () => {
-      // UTC 2026-03-13T23:00:00Z at timezone +2 is 2026-03-14
-      const result = await run(
-        'datetime("2026-03-13T23:00:00Z") -> .local_date',
-        { timezone: 2 }
-      );
-      expect(result).toBe('2026-03-14');
-    });
+    rule('datetime.local_date.offset').it(
+      '.local_date returns date at host timezone',
+      async () => {
+        // UTC 2026-03-13T23:00:00Z at timezone +2 is 2026-03-14
+        const result = await run(
+          'datetime("2026-03-13T23:00:00Z") -> .local_date',
+          { timezone: 2 }
+        );
+        expect(result).toBe('2026-03-14');
+      }
+    );
 
-    it('.local_offset returns host timezone offset', async () => {
-      const result = await run(`datetime("${REF_ISO}") -> .local_offset`, {
-        timezone: 5.5,
-      });
-      expect(result).toBe(5.5);
-    });
+    rule('datetime.local_offset.host').it(
+      '.local_offset returns host timezone offset',
+      async () => {
+        const result = await run(`datetime("${REF_ISO}") -> .local_offset`, {
+          timezone: 5.5,
+        });
+        expect(result).toBe(5.5);
+      }
+    );
 
     it('.local_iso halts when timezone is NaN', async () => {
       await expectHaltMessage(
@@ -317,33 +361,45 @@ describe('Rill Language: Datetime Type', () => {
   // ============================================================
 
   describe('arithmetic', () => {
-    it('.add(duration) clamps Jan 31 to Feb 28 [AC-15]', async () => {
-      const result = await run(
-        'datetime("2026-01-31T00:00:00Z") -> .add(duration(...dict[months: 1])) -> .iso()'
-      );
-      expect(result).toBe('2026-02-28T00:00:00Z');
-    });
+    rule('datetime.add.months').it(
+      '.add(duration) clamps Jan 31 to Feb 28 [AC-15]',
+      async () => {
+        const result = await run(
+          'datetime("2026-01-31T00:00:00Z") -> .add(duration(...dict[months: 1])) -> .iso()'
+        );
+        expect(result).toBe('2026-02-28T00:00:00Z');
+      }
+    );
 
-    it('pipe chain .add() -> .iso() works [AC-16]', async () => {
-      const result = await run(
-        `datetime("${REF_ISO}") -> .add(duration(...dict[hours: 2])) -> .iso()`
-      );
-      expect(result).toBe('2026-03-13T10:00:00Z');
-    });
+    rule('datetime.add.ms').it(
+      'pipe chain .add() -> .iso() works [AC-16]',
+      async () => {
+        const result = await run(
+          `datetime("${REF_ISO}") -> .add(duration(...dict[hours: 2])) -> .iso()`
+        );
+        expect(result).toBe('2026-03-13T10:00:00Z');
+      }
+    );
 
-    it('.diff() returns absolute duration in ms', async () => {
-      const result = await run(
-        `datetime("${REF_ISO}") -> .diff(datetime(...dict[unix: 0])) => $dur\n$dur -> .total_ms`
-      );
-      expect(result).toBe(REF_UNIX);
-    });
+    rule('datetime.diff.absolute').it(
+      '.diff() returns absolute duration in ms',
+      async () => {
+        const result = await run(
+          `datetime("${REF_ISO}") -> .diff(datetime(...dict[unix: 0])) => $dur\n$dur -> .total_ms`
+        );
+        expect(result).toBe(REF_UNIX);
+      }
+    );
 
-    it('.diff() is absolute regardless of order', async () => {
-      const result = await run(
-        `datetime(...dict[unix: 0]) -> .diff(datetime("${REF_ISO}")) => $dur\n$dur -> .total_ms`
-      );
-      expect(result).toBe(REF_UNIX);
-    });
+    rule('datetime.diff.absolute').it(
+      '.diff() is absolute regardless of order',
+      async () => {
+        const result = await run(
+          `datetime(...dict[unix: 0]) -> .diff(datetime("${REF_ISO}")) => $dur\n$dur -> .total_ms`
+        );
+        expect(result).toBe(REF_UNIX);
+      }
+    );
 
     it('.add() across the 0-99 year boundary stays in range without NaN', async () => {
       const result = await run(
@@ -447,10 +503,13 @@ describe('Rill Language: Datetime Type', () => {
   // ============================================================
 
   describe('zero', () => {
-    it('.zero returns datetime(unix: 0)', async () => {
-      const result = await run(`datetime("${REF_ISO}") -> .zero -> .unix`);
-      expect(result).toBe(0);
-    });
+    rule('datetime.zero.epoch').it(
+      '.zero returns datetime(unix: 0)',
+      async () => {
+        const result = await run(`datetime("${REF_ISO}") -> .zero -> .unix`);
+        expect(result).toBe(0);
+      }
+    );
 
     it('.zero -> .iso() returns epoch ISO', async () => {
       const result = await run(`datetime("${REF_ISO}") -> .zero -> .iso()`);

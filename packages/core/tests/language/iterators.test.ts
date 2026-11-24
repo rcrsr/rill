@@ -1,37 +1,51 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 import { describe, it, expect } from 'vitest';
 import { run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Iterators', () => {
   describe('range()', () => {
-    it('generates basic range', async () => {
-      expect(await run('range(0, 3) -> seq({ $ })')).toEqual([0, 1, 2]);
-    });
+    rule('range.values', 'range.step-default').it(
+      'generates basic range',
+      async () => {
+        expect(await run('range(0, 3) -> seq({ $ })')).toEqual([0, 1, 2]);
+      }
+    );
 
     it('generates range with custom start', async () => {
       expect(await run('range(5, 8) -> seq({ $ })')).toEqual([5, 6, 7]);
     });
 
-    it('generates range with step', async () => {
+    rule('range.values').it('generates range with step', async () => {
       expect(await run('range(0, 10, 2) -> seq({ $ })')).toEqual([
         0, 2, 4, 6, 8,
       ]);
     });
 
-    it('generates descending range with negative step', async () => {
-      expect(await run('range(5, 0, -1) -> seq({ $ })')).toEqual([
-        5, 4, 3, 2, 1,
-      ]);
-    });
+    rule('range.stop').it(
+      'generates descending range with negative step',
+      async () => {
+        expect(await run('range(5, 0, -1) -> seq({ $ })')).toEqual([
+          5, 4, 3, 2, 1,
+        ]);
+      }
+    );
 
-    it('returns empty iterator for invalid range', async () => {
-      expect(await run('range(5, 3) -> seq({ $ })')).toEqual([]);
-    });
+    rule('range.stop').it(
+      'returns empty iterator for invalid range',
+      async () => {
+        expect(await run('range(5, 3) -> seq({ $ })')).toEqual([]);
+      }
+    );
 
-    it('returns empty iterator for invalid descending range', async () => {
-      expect(await run('range(0, 5, -1) -> seq({ $ })')).toEqual([]);
-    });
+    rule('range.stop').it(
+      'returns empty iterator for invalid descending range',
+      async () => {
+        expect(await run('range(0, 5, -1) -> seq({ $ })')).toEqual([]);
+      }
+    );
 
-    it('errors on zero step', async () => {
+    rule('range.zero-step').it('errors on zero step', async () => {
       await expect(run('range(0, 5, 0)')).rejects.toThrow(
         'step cannot be zero'
       );
@@ -69,7 +83,7 @@ describe('Rill Runtime: Iterators', () => {
       expect(await run('range(0, 1) -> seq({ $ })')).toEqual([0]);
     });
 
-    it('handles large step exceeding range', async () => {
+    rule('range.stop').it('handles large step exceeding range', async () => {
       expect(await run('range(0, 5, 10) -> seq({ $ })')).toEqual([0]);
     });
 
@@ -79,16 +93,21 @@ describe('Rill Runtime: Iterators', () => {
       ]);
     });
 
-    it('avoids float drift accumulation for a fractional step', async () => {
-      const result = (await run('range(0, 1, 0.1) -> seq({ $ })')) as number[];
-      const expected = Array.from({ length: 10 }, (_, i) => 0 + i * 0.1);
-      expect(result).toEqual(expected);
-      expect(result).toHaveLength(10);
-    });
+    rule('range.values').it(
+      'avoids float drift accumulation for a fractional step',
+      async () => {
+        const result = (await run(
+          'range(0, 1, 0.1) -> seq({ $ })'
+        )) as number[];
+        const expected = Array.from({ length: 10 }, (_, i) => 0 + i * 0.1);
+        expect(result).toEqual(expected);
+        expect(result).toHaveLength(10);
+      }
+    );
   });
 
   describe('repeat()', () => {
-    it('generates repeated value', async () => {
+    rule('repeat.values').it('generates repeated value', async () => {
       expect(await run('repeat("x", 3) -> seq({ $ })')).toEqual([
         'x',
         'x',
@@ -100,11 +119,14 @@ describe('Rill Runtime: Iterators', () => {
       expect(await run('repeat(0, 4) -> seq({ $ })')).toEqual([0, 0, 0, 0]);
     });
 
-    it('returns empty iterator for zero count', async () => {
-      expect(await run('repeat("x", 0) -> seq({ $ })')).toEqual([]);
-    });
+    rule('repeat.values').it(
+      'returns empty iterator for zero count',
+      async () => {
+        expect(await run('repeat("x", 0) -> seq({ $ })')).toEqual([]);
+      }
+    );
 
-    it('errors on negative count', async () => {
+    rule('repeat.count').it('errors on negative count', async () => {
       await expect(run('repeat("x", -1)')).rejects.toThrow(
         'count cannot be negative'
       );
@@ -142,37 +164,49 @@ describe('Rill Runtime: Iterators', () => {
   });
 
   describe('.first() method', () => {
-    it('returns iterator for list', async () => {
+    rule('list.first.iterator').it('returns iterator for list', async () => {
       const result = (await run('list[1, 2, 3] -> .first()')) as any;
       expect(result.done).toBe(false);
       expect(result.value).toBe(1);
     });
 
-    it('returns iterator for string', async () => {
-      const result = (await run('"abc" -> .first()')) as any;
-      expect(result.done).toBe(false);
-      expect(result.value).toBe('a');
-    });
+    rule('string.first.iterator').it(
+      'returns iterator for string',
+      async () => {
+        const result = (await run('"abc" -> .first()')) as any;
+        expect(result.done).toBe(false);
+        expect(result.value).toBe('a');
+      }
+    );
 
     it('returns iterator for dict', async () => {
       const result = (await run('dict[a: 1, b: 2] -> .first()')) as any;
       expect(result.done).toBe(false);
     });
 
-    it('returns done iterator for empty list', async () => {
-      const result = (await run('list[] -> .first()')) as any;
-      expect(result.done).toBe(true);
-    });
+    rule('list.first.iterator').it(
+      'returns done iterator for empty list',
+      async () => {
+        const result = (await run('list[] -> .first()')) as any;
+        expect(result.done).toBe(true);
+      }
+    );
 
-    it('returns done iterator for empty string', async () => {
-      const result = (await run('"" -> .first()')) as any;
-      expect(result.done).toBe(true);
-    });
+    rule('string.first.iterator').it(
+      'returns done iterator for empty string',
+      async () => {
+        const result = (await run('"" -> .first()')) as any;
+        expect(result.done).toBe(true);
+      }
+    );
 
-    it('returns done iterator for empty dict', async () => {
-      const result = (await run('dict[] -> .first()')) as any;
-      expect(result.done).toBe(true);
-    });
+    rule('dict.first.iterator').it(
+      'returns done iterator for empty dict',
+      async () => {
+        const result = (await run('dict[] -> .first()')) as any;
+        expect(result.done).toBe(true);
+      }
+    );
 
     it('iterator can be used with each', async () => {
       expect(await run('list[1, 2, 3] -> .first() -> seq({ $ * 2 })')).toEqual([
@@ -186,7 +220,7 @@ describe('Rill Runtime: Iterators', () => {
       ]);
     });
 
-    it('single element list', async () => {
+    rule('list.first.iterator').it('single element list', async () => {
       const result = (await run('list[42] -> .first()')) as any;
       expect(result.done).toBe(false);
       expect(result.value).toBe(42);
@@ -218,19 +252,19 @@ describe('Rill Runtime: Iterators', () => {
   });
 
   describe('.head and .tail edge cases', () => {
-    it('single element list head', async () => {
+    rule('list.head.first').it('single element list head', async () => {
       expect(await run('list[42] -> .head')).toBe(42);
     });
 
-    it('single element list tail', async () => {
+    rule('list.tail.last').it('single element list tail', async () => {
       expect(await run('list[42] -> .tail')).toBe(42);
     });
 
-    it('single char string head', async () => {
+    rule('string.head.first').it('single char string head', async () => {
       expect(await run('"x" -> .head')).toBe('x');
     });
 
-    it('single char string tail', async () => {
+    rule('string.tail.last').it('single char string tail', async () => {
       expect(await run('"x" -> .tail')).toBe('x');
     });
 

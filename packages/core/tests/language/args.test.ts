@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Tuple Type (Spread Args)
  * Tests for tuple type, * (spread) operator, and strict closure invocation
@@ -15,6 +16,7 @@ import {
 import { hostFn } from '../helpers/host.js';
 import { run } from '../helpers/runtime.js';
 import { expectHaltMessage } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 // ============================================================
 // EXPLICIT SPREAD CALL SYNTAX TESTS (AC-1 through AC-27)
@@ -714,12 +716,15 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
     });
 
     describe('json()', () => {
-      it('throws on ordered spread serialization to JSON', async () => {
-        await expectHaltMessage(
-          () => run('ordered[a: 1, b: 2] -> json'),
-          'ordered values are not JSON-serializable'
-        );
-      });
+      rule('json.unsupported').it(
+        'throws on ordered spread serialization to JSON',
+        async () => {
+          await expectHaltMessage(
+            () => run('ordered[a: 1, b: 2] -> json'),
+            'ordered values are not JSON-serializable'
+          );
+        }
+      );
 
       it('converts list to JSON', async () => {
         expect(await run('list[1, 2, 3] -> json')).toBe('[1,2,3]');

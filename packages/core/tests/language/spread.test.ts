@@ -260,27 +260,33 @@ describe('Rill Runtime: Dict Methods', () => {
   });
 
   describe('json() global function', () => {
-    it('converts dict to JSON string', async () => {
-      const result = await run('dict[a: 1, b: 2] -> json');
-      expect(JSON.parse(result as string)).toEqual({ a: 1, b: 2 });
-    });
+    rule('json.text', 'json.dict').it(
+      'converts dict to JSON string',
+      async () => {
+        const result = await run('dict[a: 1, b: 2] -> json');
+        expect(JSON.parse(result as string)).toEqual({ a: 1, b: 2 });
+      }
+    );
 
-    it('converts list to JSON string', async () => {
-      const result = await run('list[1, 2, 3] -> json');
-      expect(result).toBe('[1,2,3]');
-    });
+    rule('json.text', 'json.list').it(
+      'converts list to JSON string',
+      async () => {
+        const result = await run('list[1, 2, 3] -> json');
+        expect(result).toBe('[1,2,3]');
+      }
+    );
 
-    it('converts string to JSON string', async () => {
+    rule('json.string').it('converts string to JSON string', async () => {
       const result = await run('"hello" -> json');
       expect(result).toBe('"hello"');
     });
 
-    it('converts number to JSON string', async () => {
+    rule('json.number').it('converts number to JSON string', async () => {
       const result = await run('42 -> json');
       expect(result).toBe('42');
     });
 
-    it('converts bool to JSON string', async () => {
+    rule('json.bool').it('converts bool to JSON string', async () => {
       expect(await run('true -> json')).toBe('true');
       expect(await run('false -> json')).toBe('false');
     });

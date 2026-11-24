@@ -12,15 +12,15 @@ import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Built-in Functions', () => {
   describe('identity', () => {
-    it('returns string unchanged', async () => {
+    rule('identity.value').it('returns string unchanged', async () => {
       expect(await run('identity("x")')).toBe('x');
     });
 
-    it('returns number unchanged', async () => {
+    rule('identity.value').it('returns number unchanged', async () => {
       expect(await run('identity(42)')).toBe(42);
     });
 
-    it('returns tuple unchanged', async () => {
+    rule('identity.value').it('returns tuple unchanged', async () => {
       expect(await run('identity(list[1, 2, 3])')).toEqual([1, 2, 3]);
     });
 
@@ -70,15 +70,18 @@ describe('Rill Runtime: Built-in Methods', () => {
   });
 
   describe('.join', () => {
-    it('joins with default separator (comma)', async () => {
-      expect(await run('list["a", "b", "c"] -> .join')).toBe('a,b,c');
-    });
+    rule('list.join.default').it(
+      'joins with default separator (comma)',
+      async () => {
+        expect(await run('list["a", "b", "c"] -> .join')).toBe('a,b,c');
+      }
+    );
 
-    it('joins with custom separator', async () => {
+    rule('list.join.separator').it('joins with custom separator', async () => {
       expect(await run('list["a", "b", "c"] -> .join("-")')).toBe('a-b-c');
     });
 
-    it('joins with empty separator', async () => {
+    rule('list.join.separator').it('joins with empty separator', async () => {
       expect(await run('list["a", "b", "c"] -> .join("")')).toBe('abc');
     });
 
@@ -86,11 +89,14 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('list["only"] -> .join')).toBe('only');
     });
 
-    it('returns empty string for empty tuple', async () => {
-      expect(await run('list[] -> .join')).toBe('');
-    });
+    rule('list.join.separator').it(
+      'returns empty string for empty tuple',
+      async () => {
+        expect(await run('list[] -> .join')).toBe('');
+      }
+    );
 
-    it('converts non-string elements', async () => {
+    rule('list.join.separator').it('converts non-string elements', async () => {
       expect(await run('list[1, 2, 3] -> .join(":")')).toBe('1:2:3');
     });
   });

@@ -284,16 +284,22 @@ describe('Access-halt gate (FR-ERR-14)', () => {
       }
     );
 
-    it('non-dict receiver "abc".bogus still halts with RILL-R007 (Unknown method)', async () => {
-      await expect(runOrThrow('"abc".bogus')).rejects.toMatchObject({
-        errorId: 'RILL-R007',
-      });
-    });
+    rule('method.unknown').it(
+      'non-dict receiver "abc".bogus still halts with RILL-R007 (Unknown method)',
+      async () => {
+        await expect(runOrThrow('"abc".bogus')).rejects.toMatchObject({
+          errorId: 'RILL-R007',
+        });
+      }
+    );
 
-    it('non-dict receiver 5.bogus still halts with RILL-R007 (Unknown method)', async () => {
-      await expect(runOrThrow('5.bogus')).rejects.toMatchObject({
-        errorId: 'RILL-R007',
-      });
-    });
+    rule('method.unknown').it(
+      'non-dict receiver 5.bogus still halts with RILL-R007 (Unknown method)',
+      async () => {
+        await expect(runOrThrow('5.bogus')).rejects.toMatchObject({
+          errorId: 'RILL-R007',
+        });
+      }
+    );
   });
 });

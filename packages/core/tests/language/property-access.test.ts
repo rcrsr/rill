@@ -116,10 +116,13 @@ describe('implicit $ property access bug', () => {
   });
 
   describe('method vs property disambiguation', () => {
-    it('.len is a method (returns length)', async () => {
-      const result = await run('"hello" -> .len');
-      expect(result).toBe(5);
-    });
+    rule('string.len.count').it(
+      '.len is a method (returns length)',
+      async () => {
+        const result = await run('"hello" -> .len');
+        expect(result).toBe(5);
+      }
+    );
 
     it('.type is a property access (dict field)', async () => {
       const result = await run('dict[type: "test"] -> .type');

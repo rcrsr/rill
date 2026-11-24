@@ -62,19 +62,28 @@ describe('ordered value access', () => {
     await expect(runOrThrow(`${decl}$o.missing`)).rejects.toBeTruthy();
   });
 
-  it('$o.keys evaluates to list["a", "b"]', async () => {
-    expect(await run(`${decl}$o.keys`)).toEqual(['a', 'b']);
-  });
+  rule('ordered.keys.order').it(
+    '$o.keys evaluates to list["a", "b"]',
+    async () => {
+      expect(await run(`${decl}$o.keys`)).toEqual(['a', 'b']);
+    }
+  );
 
-  it('$o.values evaluates to list[1, 2]', async () => {
-    expect(await run(`${decl}$o.values`)).toEqual([1, 2]);
-  });
+  rule('ordered.values.order').it(
+    '$o.values evaluates to list[1, 2]',
+    async () => {
+      expect(await run(`${decl}$o.values`)).toEqual([1, 2]);
+    }
+  );
 
-  it('$o.entries evaluates to list[tuple["a", 1], tuple["b", 2]]', async () => {
-    expect(
-      await run(`${decl}$o.entries == list[tuple["a", 1], tuple["b", 2]]`)
-    ).toBe(true);
-  });
+  rule('ordered.entries.order').it(
+    '$o.entries evaluates to list[tuple["a", 1], tuple["b", 2]]',
+    async () => {
+      expect(
+        await run(`${decl}$o.entries == list[tuple["a", 1], tuple["b", 2]]`)
+      ).toBe(true);
+    }
+  );
 
   rule('dict.entries-type').it(
     '$o.entries has type list(tuple(string, number))',
@@ -85,7 +94,7 @@ describe('ordered value access', () => {
     }
   );
 
-  it('$o.len evaluates to 2', async () => {
+  rule('ordered.len.count').it('$o.len evaluates to 2', async () => {
     expect(await run(`${decl}$o.len`)).toBe(2);
   });
 

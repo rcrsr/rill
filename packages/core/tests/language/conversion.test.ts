@@ -875,13 +875,16 @@ describe('Rill Language: -> Conversion Operator', () => {
       expect(await run(`${TIME_PRELUDE}"{dict[a: $u]}"`)).toBe('dict[a: 5s]');
     });
 
-    it('halts RILL-R036 when join meets a closure', async () => {
-      await expectHalt(() => run(`${NESTED_PRELUDE}list[$f] -> .join(",")`), {
-        code: 'RILL_R036',
-        hostErrorId: 'RILL-R036',
-        messagePattern: /cannot convert list to string: contains fn/,
-      });
-    });
+    rule('list.join.no-form').it(
+      'halts RILL-R036 when join meets a closure',
+      async () => {
+        await expectHalt(() => run(`${NESTED_PRELUDE}list[$f] -> .join(",")`), {
+          code: 'RILL_R036',
+          hostErrorId: 'RILL-R036',
+          messagePattern: /cannot convert list to string: contains fn/,
+        });
+      }
+    );
 
     it('joins a list holding a datetime by its printed form', async () => {
       expect(await run(`${TIME_PRELUDE}list[$d] -> .join(",")`)).toBe(

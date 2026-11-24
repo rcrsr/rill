@@ -35,11 +35,14 @@ describe('Rill Language: Duration Type', () => {
       expect(result).toBe(1);
     });
 
-    it('converts years to months [AC-24]', async () => {
-      // duration(years: 1)
-      const result = await run('duration("1y") -> .months');
-      expect(result).toBe(12);
-    });
+    rule('duration.months.count').it(
+      'converts years to months [AC-24]',
+      async () => {
+        // duration(years: 1)
+        const result = await run('duration("1y") -> .months');
+        expect(result).toBe(12);
+      }
+    );
 
     rule('duration.print-zero').it(
       'constructs zero duration [AC-B2]',
@@ -62,7 +65,11 @@ describe('Rill Language: Duration Type', () => {
   // ============================================================
 
   describe('properties', () => {
-    it('decomposes 25h into 1d remainder 1h [AC-8]', async () => {
+    rule(
+      'duration-split.order',
+      'duration.days.part',
+      'duration.hours.part'
+    ).it('decomposes 25h into 1d remainder 1h [AC-8]', async () => {
       // duration(hours: 25)
       const days = await run('duration("25h") -> .days');
       const hours = await run('duration("25h") -> .hours');
@@ -70,31 +77,37 @@ describe('Rill Language: Duration Type', () => {
       expect(hours).toBe(1);
     });
 
-    it('returns calendar months count', async () => {
-      // duration(months: 3)
-      const result = await run('duration("3mo") -> .months');
-      expect(result).toBe(3);
-    });
+    rule('duration.months.count').it(
+      'returns calendar months count',
+      async () => {
+        // duration(months: 3)
+        const result = await run('duration("3mo") -> .months');
+        expect(result).toBe(3);
+      }
+    );
 
-    it('returns total_ms for fixed duration', async () => {
-      // duration(hours: 2) -> .total_ms = 7200000
-      const result = await run('duration("2h") -> .total_ms');
-      expect(result).toBe(7_200_000);
-    });
+    rule('duration.total_ms.count').it(
+      'returns total_ms for fixed duration',
+      async () => {
+        // duration(hours: 2) -> .total_ms = 7200000
+        const result = await run('duration("2h") -> .total_ms');
+        expect(result).toBe(7_200_000);
+      }
+    );
 
-    it('returns minutes remainder', async () => {
+    rule('duration.minutes.part').it('returns minutes remainder', async () => {
       // duration(hours: 1, minutes: 45) -> .minutes = 45
       const result = await run('duration("1h45m") -> .minutes');
       expect(result).toBe(45);
     });
 
-    it('returns seconds remainder', async () => {
+    rule('duration.seconds.part').it('returns seconds remainder', async () => {
       // duration(seconds: 90) -> .seconds = 30 (90s = 1m30s, remainder 30s)
       const result = await run('duration("90s") -> .seconds');
       expect(result).toBe(30);
     });
 
-    it('returns ms remainder', async () => {
+    rule('duration.ms.part').it('returns ms remainder', async () => {
       // duration(ms: 1500) -> .ms = 500 (1500ms = 1s500ms, remainder 500ms)
       const result = await run('duration("1500ms") -> .ms');
       expect(result).toBe(500);
@@ -106,11 +119,14 @@ describe('Rill Language: Duration Type', () => {
   // ============================================================
 
   describe('display', () => {
-    it('omits zero components [AC-9]', async () => {
-      // duration(days: 1, minutes: 30)
-      const result = await run('duration("1d30m") -> .display');
-      expect(result).toBe('1d30m');
-    });
+    rule('duration.display.print').it(
+      'omits zero components [AC-9]',
+      async () => {
+        // duration(days: 1, minutes: 30)
+        const result = await run('duration("1d30m") -> .display');
+        expect(result).toBe('1d30m');
+      }
+    );
 
     rule('duration.construct', 'duration.print-zero').it(
       'shows "0ms" for zero duration [AC-10]',
@@ -145,21 +161,27 @@ describe('Rill Language: Duration Type', () => {
   // ============================================================
 
   describe('arithmetic', () => {
-    it('subtracts durations [AC-23]', async () => {
-      // duration(hours: 3) -> .subtract(duration(hours: 1))
-      const result = await run(
-        'duration("3h") -> .subtract(duration("1h")) -> .display'
-      );
-      expect(result).toBe('2h');
-    });
+    rule('duration.subtract.difference').it(
+      'subtracts durations [AC-23]',
+      async () => {
+        // duration(hours: 3) -> .subtract(duration(hours: 1))
+        const result = await run(
+          'duration("3h") -> .subtract(duration("1h")) -> .display'
+        );
+        expect(result).toBe('2h');
+      }
+    );
 
-    it('multiplies duration by a factor', async () => {
-      // duration(hours: 2) -> .multiply(3)
-      const result = await run('duration("2h") -> .multiply(3) -> .display');
-      expect(result).toBe('6h');
-    });
+    rule('duration.multiply.scale').it(
+      'multiplies duration by a factor',
+      async () => {
+        // duration(hours: 2) -> .multiply(3)
+        const result = await run('duration("2h") -> .multiply(3) -> .display');
+        expect(result).toBe('6h');
+      }
+    );
 
-    it('adds durations', async () => {
+    rule('duration.add.sum').it('adds durations', async () => {
       // duration(hours: 1) -> .add(duration(minutes: 30))
       const result = await run(
         'duration("1h") -> .add(duration("30m")) -> .display'
@@ -167,15 +189,18 @@ describe('Rill Language: Duration Type', () => {
       expect(result).toBe('1h30m');
     });
 
-    it('handles mixed duration add with month overflow [AC-B10]', async () => {
-      // duration(months: 10) -> .add(duration(months: 5, hours: 2))
-      const result = await run(
-        'duration("10mo") -> .add(duration("5mo2h")) -> .display'
-      );
-      expect(result).toBe('1y3mo2h');
-    });
+    rule('duration.add.sum').it(
+      'handles mixed duration add with month overflow [AC-B10]',
+      async () => {
+        // duration(months: 10) -> .add(duration(months: 5, hours: 2))
+        const result = await run(
+          'duration("10mo") -> .add(duration("5mo2h")) -> .display'
+        );
+        expect(result).toBe('1y3mo2h');
+      }
+    );
 
-    it('multiplies by zero', async () => {
+    rule('duration.multiply.scale').it('multiplies by zero', async () => {
       // duration(hours: 5) -> .multiply(0)
       const result = await run('duration("5h") -> .multiply(0) -> .display');
       expect(result).toBe('0ms');
@@ -305,21 +330,27 @@ describe('Rill Language: Duration Type', () => {
   // ============================================================
 
   describe('zero', () => {
-    it('returns duration(ms: 0) from .zero', async () => {
-      // duration(hours: 5) -> .zero -> .display
-      const result = await run('duration("5h") -> .zero -> .display');
-      expect(result).toBe('0ms');
-    });
+    rule('duration.zero.value').it(
+      'returns duration(ms: 0) from .zero',
+      async () => {
+        // duration(hours: 5) -> .zero -> .display
+        const result = await run('duration("5h") -> .zero -> .display');
+        expect(result).toBe('0ms');
+      }
+    );
 
     it('zero duration has zero total_ms', async () => {
       const result = await run('duration("1h") -> .zero -> .total_ms');
       expect(result).toBe(0);
     });
 
-    it('zero duration has zero months', async () => {
-      const result = await run('duration("3mo") -> .zero -> .months');
-      expect(result).toBe(0);
-    });
+    rule('duration.zero.value').it(
+      'zero duration has zero months',
+      async () => {
+        const result = await run('duration("3mo") -> .zero -> .months');
+        expect(result).toBe(0);
+      }
+    );
 
     it('halts on .empty: duration has no .empty method', async () => {
       await expect(run('duration("5h") -> .empty')).rejects.toThrow(
