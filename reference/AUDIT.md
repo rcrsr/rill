@@ -111,7 +111,7 @@ One row per PR. Tick a row when its PR merges.
 | 15 | `errors` | 5 | 41 | 0 | #676 |
 | 16 | `limits` (write) | 5 | 14 | 0 | #676 |
 | 17 | `host-boundary` | 1 | 16 | 3 | #676 |
-| 18 | `builtins` (write) | 0 | 0 | 0 | |
+| 18 | `builtins` (write) | 111 | 204 | 0 | |
 | 19 | Group and file defects | | | | |
 | 20 | Decide the inconsistencies | | | | |
 | 21 | Close the audit | | | | |
@@ -287,40 +287,172 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 |------|-------|---------|---------|------------|----------|-------|
 | `host-boundary/use.md` | 16 | 3 | x | x | x | |
 
-### Unwritten chapters
+### `builtins`
 
-Each gets a table when its PR splits it into concepts.
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/method.md` | 6 | 0 | x | x | x | x |
+| `builtins/regex.md` | 3 | 0 | x | x | x | x |
 
-| Chapter | Covers |
-|---------|--------|
-| `builtins` | Built-in methods and functions |
+### `builtins/string`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/string/string.contains.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.ends_with.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.first.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.ge.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.gt.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.head.md` | 2 | 0 | x | x | x | x |
+| `builtins/string/string.index_of.md` | 2 | 0 | x | x | x | x |
+| `builtins/string/string.is_match.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.le.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.len.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.lines.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.lower.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.lt.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.match.md` | 3 | 0 | x | x | x | x |
+| `builtins/string/string.pad_end.md` | 3 | 0 | x | x | x | x |
+| `builtins/string/string.pad_start.md` | 3 | 0 | x | x | x | x |
+| `builtins/string/string.repeat.md` | 2 | 0 | x | x | x | x |
+| `builtins/string/string.replace.md` | 2 | 0 | x | x | x | x |
+| `builtins/string/string.replace_all.md` | 2 | 0 | x | x | x | x |
+| `builtins/string/string.split.md` | 4 | 0 | x | x | x | x |
+| `builtins/string/string.starts_with.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.tail.md` | 2 | 0 | x | x | x | x |
+| `builtins/string/string.trim.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.upper.md` | 1 | 0 | x | x | x | x |
+
+### `builtins/list`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/list/list.first.md` | 1 | 0 | x | x | x | x |
+| `builtins/list/list.head.md` | 2 | 0 | x | x | x | x |
+| `builtins/list/list.join.md` | 3 | 0 | x | x | x | x |
+| `builtins/list/list.len.md` | 1 | 0 | x | x | x | x |
+| `builtins/list/list.reverse.md` | 1 | 0 | x | x | x | x |
+| `builtins/list/list.tail.md` | 2 | 0 | x | x | x | x |
+
+### `builtins/dict`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/dict/dict.entries.md` | 1 | 0 | x | x | x | x |
+| `builtins/dict/dict.first.md` | 1 | 0 | x | x | x | x |
+| `builtins/dict/dict.keys.md` | 1 | 0 | x | x | x | x |
+| `builtins/dict/dict.len.md` | 1 | 0 | x | x | x | x |
+| `builtins/dict/dict.values.md` | 1 | 0 | x | x | x | x |
+
+### `builtins/ordered`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/ordered/ordered.entries.md` | 1 | 0 | x | x | x | x |
+| `builtins/ordered/ordered.keys.md` | 1 | 0 | x | x | x | x |
+| `builtins/ordered/ordered.len.md` | 1 | 0 | x | x | x | x |
+| `builtins/ordered/ordered.values.md` | 1 | 0 | x | x | x | x |
+
+### `builtins/number`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/number/number.ge.md` | 1 | 0 | x | x | x | x |
+| `builtins/number/number.gt.md` | 1 | 0 | x | x | x | x |
+| `builtins/number/number.le.md` | 1 | 0 | x | x | x | x |
+| `builtins/number/number.lt.md` | 1 | 0 | x | x | x | x |
+
+### `builtins/datetime`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/datetime/datetime-calendar.md` | 4 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.add.md` | 3 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.date.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.day.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.diff.md` | 2 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.ge.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.gt.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.hour.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.iso.md` | 4 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.le.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.local_date.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.local_iso.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.local_offset.md` | 2 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.local_time.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.lt.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.minute.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.month.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.ms.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.second.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.time.md` | 2 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.unix.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.weekday.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.year.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.zero.md` | 1 | 0 | x | x | x | x |
+
+### `builtins/duration`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/duration/duration-split.md` | 2 | 0 | x | x | x | x |
+| `builtins/duration/duration.add.md` | 2 | 0 | x | x | x | x |
+| `builtins/duration/duration.days.md` | 1 | 0 | x | x | x | x |
+| `builtins/duration/duration.display.md` | 1 | 0 | x | x | x | x |
+| `builtins/duration/duration.hours.md` | 1 | 0 | x | x | x | x |
+| `builtins/duration/duration.minutes.md` | 1 | 0 | x | x | x | x |
+| `builtins/duration/duration.months.md` | 1 | 0 | x | x | x | x |
+| `builtins/duration/duration.ms.md` | 1 | 0 | x | x | x | x |
+| `builtins/duration/duration.multiply.md` | 4 | 0 | x | x | x | x |
+| `builtins/duration/duration.seconds.md` | 1 | 0 | x | x | x | x |
+| `builtins/duration/duration.subtract.md` | 3 | 0 | x | x | x | x |
+| `builtins/duration/duration.total_ms.md` | 2 | 0 | x | x | x | x |
+| `builtins/duration/duration.zero.md` | 1 | 0 | x | x | x | x |
+
+### `builtins/vector`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/vector/vector-operand.md` | 3 | 0 | x | x | x | x |
+| `builtins/vector/vector.dimensions.md` | 1 | 0 | x | x | x | x |
+| `builtins/vector/vector.distance.md` | 1 | 0 | x | x | x | x |
+| `builtins/vector/vector.dot.md` | 1 | 0 | x | x | x | x |
+| `builtins/vector/vector.model.md` | 1 | 0 | x | x | x | x |
+| `builtins/vector/vector.norm.md` | 1 | 0 | x | x | x | x |
+| `builtins/vector/vector.normalize.md` | 2 | 0 | x | x | x | x |
+| `builtins/vector/vector.similarity.md` | 2 | 0 | x | x | x | x |
+
+### `builtins/functions`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/functions/batch.md` | 6 | 0 | x | x | x | x |
+| `builtins/functions/chain.md` | 3 | 0 | x | x | x | x |
+| `builtins/functions/cycle.md` | 2 | 0 | x | x | x | x |
+| `builtins/functions/debounce.md` | 2 | 0 | x | x | x | x |
+| `builtins/functions/enumerate.md` | 2 | 0 | x | x | x | x |
+| `builtins/functions/identity.md` | 1 | 0 | x | x | x | x |
+| `builtins/functions/iterate.md` | 2 | 0 | x | x | x | x |
+| `builtins/functions/json.md` | 7 | 0 | x | x | x | x |
+| `builtins/functions/log.md` | 3 | 0 | x | x | x | x |
+| `builtins/functions/now.md` | 2 | 0 | x | x | x | x |
+| `builtins/functions/range.md` | 5 | 0 | x | x | x | x |
+| `builtins/functions/repeat.md` | 3 | 0 | x | x | x | x |
+| `builtins/functions/sample.md` | 1 | 0 | x | x | x | x |
+| `builtins/functions/skip.md` | 3 | 0 | x | x | x | x |
+| `builtins/functions/slicing.md` | 5 | 0 | x | x | x | x |
+| `builtins/functions/start-when.md` | 3 | 0 | x | x | x | x |
+| `builtins/functions/stop-when.md` | 3 | 0 | x | x | x | x |
+| `builtins/functions/take.md` | 3 | 0 | x | x | x | x |
+| `builtins/functions/throttle.md` | 2 | 0 | x | x | x | x |
+| `builtins/functions/time-domain.md` | 3 | 0 | x | x | x | x |
+| `builtins/functions/window.md` | 4 | 0 | x | x | x | x |
 
 ## Backlog
 
-What the sweeps found that no rule states yet, routed to the slice that owns it. A slice works its
+What the sweeps found that no rule states yet, routed to the slice that owns it. Every chapter backlog is settled. A slice works its
 backlog in the Complete and Cited columns: probe each item, then write a rule or record why none is
 needed. Strike nothing here; the slice PR deletes the items it settles.
-
-### `builtins` (write)
-
-- No rule: `identity`, `log`, `json`, `enumerate`, `range`, `repeat`, `now`, `take`, `skip`,
-  `cycle`, `window`.
-- Partial: `chain`, `batch`, `start_when`, `stop_when`, `iterate`, `debounce`, `throttle`,
-  `sample`; `dict` and `ordered` `.values` and `.entries`.
-- `string`, 24 with no rule: `len`, `trim`, `head`, `tail`, `first`, `split`, `lines`,
-  `starts_with`, `ends_with`, `lower`, `upper`, `replace`, `replace_all`, `contains`, `match`,
-  `is_match`, `index_of`, `repeat`, `pad_start`, `pad_end`, `lt`, `gt`, `le`, `ge`.
-- `list`: `len`, `head`, `tail`, `first`, `join`, `reverse`. `dict`: `len`, `first`, `keys`.
-  `ordered`: `len`, `keys`. `number`: `lt`, `gt`, `le`, `ge`.
-- `datetime`, 23 with no rule: the component readers, `unix`, `weekday`, `zero`, the `iso`,
-  `date`, `time`, and `local_*` formatters, `add`, `diff`, `lt`, `gt`, `le`, `ge`.
-- `duration`, 12 with no rule: the component readers, `total_ms`, `display`, `zero`, `add`,
-  `subtract`, `multiply`. `vector`, 7 with no rule: `dimensions`, `model`, `similarity`, `dot`,
-  `distance`, `norm`, `normalize`.
-- Errors: RILL-R007 (undefined method), RILL-R011 (regex), RILL-R040, RILL-R074 (vector).
-- Tests: `methods.test.ts`, `variable-method-calls.test.ts`, `chain.test.ts`,
-  `collection-slicing.test.ts`, `iterate.test.ts`.
-- `datetime.md` and `duration.md` point forward to this chapter; repoint them when it lands.
 
 ### Out of scope
 
@@ -332,7 +464,7 @@ script.
 - CLI and config: RILL-C001 to RILL-C004.
 - Extension packages: RILL-R017 to RILL-R035.
 - Host registration and policy: RILL-R059, RILL-R061, RILL-R068 to RILL-R073, RILL-R075,
-  RILL-R077, RILL-R086 to RILL-R089, RILL-R091. A script parameter default of the wrong type halts
+  RILL-R077, RILL-R086 to RILL-R089, RILL-R091. RILL-R011 rejects an `autoExceptions` pattern in `createRuntimeContext`. RILL-R074 is raised by the host API `createVector`; a script sees it only through a host function (INCONSISTENCIES.md, Built-ins). A script parameter default of the wrong type halts
   `#TYPE_MISMATCH` instead (`defaults.type-match`). RILL-R091 fires in `createRuntimeContext`,
   before any script runs.
 - Built-in resolver failures: RILL-R050 to RILL-R053, RILL-R062, RILL-R063. Under `use<>` each
@@ -402,3 +534,10 @@ at a897cfc3 unless they say otherwise.
 | `host-boundary/use.md` | `use.source`: a source module runs in a scope of its own, and the caller's variables are not visible to it. `use.source-dollar`: with no piped value, a module that reads `$` halts RILL-R005. The module runs in a child scope of the use site instead. With `"o" => $outer`, a module `$outer` yields `"o"`, and a module `fn { $outer }` called later yields the caller's current value. With `"o" => $outer`, a module `2 => $outer` halts RILL-R001 "Cannot reassign outer variable", uncatchable. `5 -> {`, `log($)`, `use<m:x>`, `}` with a module `$` yields 5. Probed at da098e5d | Collected |
 | `host-boundary` | `use.static-id` names RILL-P022 where the runtime raises RILL-P020, RILL-P021, and RILL-P001; a computed identifier passes a resource the static form rejects; a throwing host function yields an invalid value `#R999` while a throwing resolver halts; RILL-R084 depends on a core error set no rule lists. Probed at da098e5d | Collected in INCONSISTENCIES.md |
 | `limits/value-size.md`, `conventions/halt.md` | `halt.error-code`: a runtime halt carries an error code. A string past the maximum length raises a bare "Invalid string length" with no code or id, and `guard` cannot catch it: `"a" -> .repeat(300000000) => $s` then `"{$s}{$s}"` or `list[$s, $s] -> .join("")`, and `"a" -> .pad_start(536870889, "x")` and `.pad_end(536870889, "x")`. `.pad_start(600000000, "x")` halts `#INVALID_INPUT`, catchable, and `.repeat(536870889)` halts `#INVALID_INPUT`. Probed at 93e55c14 | Collected |
+| `builtins/method.md`, `builtins` | `method.wrong-kind`: a method the receiver's kind lacks halts RILL-R003, catchable. For most methods registered on one or two kinds, the halt escapes `guard`: `dict[a: 1] -> .head`, `tuple[1, 2].head`, `ordered[b: 1].first`, `range(0, 3) -> .head`; `5 -> .year`, `.iso`, `.add`, `.diff`, `.weekday`, `.local_iso`, `duration("1h") -> .unix`, `5 -> .zero`; `"x".total_ms`, `5.days`, `list[1].multiply(2)`; `"s".dimensions`, `list[1].norm`, `5.similarity($v)`. `5 -> .trim`, `list[1] -> .upper`, and a field-style miss on a vector halt RILL-R003 that `guard` catches. Shares the root cause of the `.keys` and `.at` rows. Probed at 36149582 | Collected |
+| `builtins/datetime/datetime.local_offset.md` | `method.wrong-kind`: `.local_offset` checks no receiver. `5 -> .local_offset` and `"x" -> .local_offset` yield 0, or 2 with host `timezone: 2`. Probed at 36149582 | Collected |
+| `error-registry.ts` duration range message | `duration.range` allows a fractional millisecond count (`duration("1s0.5ms")`), but the out-of-range halt from `.add` and `.multiply` says "each component must be a non-negative integer no larger than 9007199254740991": `duration(...dict[ms: 9007199254740991]).add(duration("1ms"))`. Probed at 36149582 | Collected |
+| `builtins/functions/batch.md` | An `ordered` options argument halts `#INVALID_INPUT` "batch: unknown option '__rill_ordered'", exposing an internal key; a list, string, or number halts `#TYPE_MISMATCH` "options must be a dict" (`batch.options-kind`). `list[1, 2, 3] -> batch(2, ordered[drop_partial: true])`. Probed at 36149582 | Collected |
+| `builtins/functions/now.md`, `expressions/spread.md` | `spread.arg-dict`, `spread.arg-tuple`: a spread passes each field or element as an argument. `now(...dict[])` and `now(...tuple[])` halt RILL-R001 "Spread not supported for zero-parameter function 'fn'", catchable, while `fn() { 1 } => $f` then `$f(...dict[])` yields 1. Probed at 36149582 | Collected |
+| `scripts/test-examples-mock-host.ts` | The examples mock host reads the `embed` model argument wrongly: `$app.embed("b", "other").model` returns `"[object Object]"`. Not language surface. Probed at 36149582 | Collected |
+| `builtins` | No concept owns the iterator protocol (`.value`, `.done`, `.next`); `string.first`, `list.first`, `range`, and `repeat` read it. `"ab" -> .first -> .next -> .value` halts RILL-R003 "Method .value not available on callable". Probed at 36149582 | Collected in INCONSISTENCIES.md |

@@ -76,7 +76,7 @@ earlier one.
 | [errors](errors/) | Invalid values, recovery, `assert`, `error` |
 | [limits](limits/) | Call depth, calls in flight, slicing results, nesting depth, the host timeout, string length, the datetime range |
 | [host-boundary](host-boundary/) | `use`, and what a script observes of host functions and resources |
-| builtins (not yet written) | Built-in methods and functions |
+| [builtins](builtins/) | Built-in methods and functions, regex patterns, slicing and time-domain operators |
 
 ## Open decisions
 

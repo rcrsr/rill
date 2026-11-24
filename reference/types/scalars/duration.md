@@ -173,5 +173,7 @@ duration(...dict[months: 1]) < duration(...dict[days: 30])
 On 0.23.0 a positional number fills the `years` component, so `duration(500)` means 500 years,
 and a string argument halts `#TYPE_MISMATCH`.
 
-The built-in methods, such as `.add`, `.multiply`, and `.total_ms`, belong to the built-in
-methods chapter.
+The built-in methods are stated in their own concepts: `duration.months`, `duration.days`,
+`duration.hours`, `duration.minutes`, `duration.seconds`, `duration.ms` (the parts are in
+`duration-split`), `duration.total_ms`, `duration.display`, `duration.zero`, `duration.add`,
+`duration.subtract`, and `duration.multiply`.

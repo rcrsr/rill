@@ -126,7 +126,8 @@ datetime("2026-03-13") + 1
 
 ## Notes
 
-The component, formatting, and arithmetic methods, such as `.iso`, `.add`, and `.diff`, belong
-to the built-in methods chapter, as does `now()`. That chapter is not yet written.
+The component, formatting, and arithmetic methods are stated in the built-in methods chapter,
+one concept per method, such as `datetime.iso`, `datetime.add`, and `datetime.diff`, with the
+calendar rules they share in `datetime-calendar`. `now()` is stated in `now`.
 
 The core stores UTC only. IANA timezone names are outside the language.
