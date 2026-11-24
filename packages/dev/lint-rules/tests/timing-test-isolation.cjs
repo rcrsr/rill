@@ -12,23 +12,70 @@ const { check, makeContext } = require('./harness.cjs');
  */
 
 // Each case is [filename, code, reported]. `code` is a short descriptor:
-// `a.b` or `a[b]` is a member read, and `import`, `import()` or `require`
-// followed by a specifier is that form of module load.
+// `a.b`, `a.b.c`, `a[b]` or `a['b']` is a member read; `const {k} = a.b` is a
+// destructuring read; `import`, `import()`, `import\`` (a template-literal
+// dynamic import) or `require` followed by a specifier is a module load.
 function runTimingTestIsolationTests() {
   /** @param {string} name @returns {FixtureNode} */
   const id = (name) => ({ type: 'Identifier', name });
+  /** @param {string} value @returns {FixtureNode} */
+  const lit = (value) => ({ type: 'Literal', value });
+  /**
+   * `a.b.c` builds nested reads; `a['b']` is a computed string-literal key;
+   * `a[b]` is a computed identifier key.
+   * @param {string} path @returns {FixtureNode}
+   */
+  function member(path) {
+    const [head = '', ...rest] = path.split('.');
+    /** @type {FixtureNode} */
+    let node = id(head);
+    for (const part of rest) {
+      node = {
+        type: 'MemberExpression',
+        computed: false,
+        object: node,
+        property: id(part),
+      };
+    }
+    return node;
+  }
   /** @param {string} code @returns {[string, FixtureNode]} */
   function build(code) {
     const [form, spec = ''] = code.split(' ');
-    const source = { type: 'Literal', value: spec };
+    const source = lit(spec);
     if (form === 'import') return ['ImportDeclaration', { source }];
+    if (form === 'import`') {
+      const quasis = [{ type: 'TemplateElement', value: { cooked: spec } }];
+      const template = { type: 'TemplateLiteral', expressions: [], quasis };
+      return ['ImportExpression', { source: template }];
+    }
+    if (form === 'const') {
+      // `const {key} = init`
+      const key = code.slice(code.indexOf('{') + 1, code.indexOf('}'));
+      const init = member(code.slice(code.indexOf('= ') + 2));
+      const prop = { type: 'Property', computed: false, key: id(key) };
+      const pattern = { type: 'ObjectPattern', properties: [prop] };
+      return ['VariableDeclarator', { id: pattern, init }];
+    }
     if (form === 'import()') return ['ImportExpression', { source }];
     if (form === 'require') {
       return ['CallExpression', { callee: id(form), arguments: [source] }];
     }
-    const [object = '', property = ''] = code.split(/[.[\]]/);
-    const computed = code.includes('[');
-    const node = { computed, object: id(object), property: id(property) };
+    const bracket = code.indexOf('[');
+    if (bracket !== -1) {
+      const key = code.slice(bracket + 1, -1);
+      const quoted = key.startsWith("'");
+      const property = quoted ? lit(key.slice(1, -1)) : id(key);
+      const object = member(code.slice(0, bracket));
+      const node = {
+        type: 'MemberExpression',
+        computed: true,
+        object,
+        property,
+      };
+      return ['MemberExpression', node];
+    }
+    const node = member(code);
     return ['MemberExpression', node];
   }
   /** @type {Array<[string, string, boolean]>} */
@@ -45,6 +92,18 @@ function runTimingTestIsolationTests() {
     ['a.test.ts', 'import() ./percentile', true],
     ['a.test.ts', 'require ./percentile.cjs', true],
     ['a.timing.test.ts', 'import ./percentile.js', false],
+    ['a.test.ts', 'globalThis.performance.now', true],
+    ['a.test.ts', 'global.process.hrtime', true],
+    ['a.test.ts', 'window.performance.now', true],
+    ['a.test.ts', 'globalThis.Date.now', false],
+    ['a.test.ts', "performance['now']", true],
+    ['a.test.ts', 'const {now} = performance', true],
+    ['a.test.ts', 'const {hrtime} = globalThis.process', true],
+    ['a.test.ts', 'const {timeOrigin} = performance', false],
+    ['a.timing.test.ts', 'const {now} = performance', false],
+    ['a.test.ts', 'import` ./percentile.js', true],
+    ['a.test.ts', 'import some-pkg/percentile', false],
+    ['a.test.ts', 'import percentile', false],
   ];
   const options = [{ helpers: ['helpers/scaling', 'percentile'] }];
   for (const [filename, code, reported] of cases) {

@@ -9,16 +9,20 @@
  * under load, so this rule reports it.
  *
  * Reported in a `*.test.*` file not named `*.timing.test.*`:
- * - a read of `performance.now` or `process.hrtime`;
- * - an import, dynamic import or require of a module listed in `helpers`.
+ * - a read of `performance.now` or `process.hrtime`, also through
+ *   `globalThis.`, `global.` or `window.`, with a string-literal computed
+ *   key, or by destructuring (`const { now } = performance`);
+ * - an import, dynamic import or require of a module listed in `helpers`,
+ *   by string literal or template literal with no substitutions.
  *
  * Files that are not tests (the measurement helpers themselves) are ignored.
  * A use that measures nothing, such as a stub of `performance.now`, takes an
  * `oxlint-disable-next-line` comment stating why.
  *
  * Options: `[{ helpers: ['helpers/scaling', 'percentile'] }]`. Each entry
- * matches a module specifier equal to it or ending in `/<entry>`, after a
- * trailing `.js`, `.ts`, `.mjs`, `.cjs`, `.jsx` or `.tsx` is stripped.
+ * matches a relative module specifier (`./` or `../`) ending in `/<entry>`,
+ * after a trailing `.js`, `.ts`, `.mjs`, `.cjs`, `.jsx` or `.tsx` is
+ * stripped. A package specifier such as `some-pkg/percentile` never matches.
  *
  * Not auto-fixable: the fix is a file rename or a split.
  */
@@ -26,6 +30,9 @@
 const TEST_FILE = /\.test\.[cm]?[jt]sx?$/;
 const TIMING_FILE = /\.timing\.test\.[cm]?[jt]sx?$/;
 const EXTENSION = /\.[cm]?[jt]sx?$/;
+
+/** Global objects through which `performance` and `process` are read. */
+const GLOBAL_OBJECTS = new Set(['globalThis', 'global', 'window']);
 
 /** Clock reads keyed by global object name. */
 const CLOCK_READS = new Map([
@@ -39,8 +46,70 @@ const CLOCK_READS = new Map([
  * @returns {boolean}
  */
 function isHelper(specifier, helpers) {
+  if (!specifier.startsWith('./') && !specifier.startsWith('../')) {
+    return false;
+  }
   const bare = specifier.replace(EXTENSION, '');
-  return helpers.some((h) => bare === h || bare.endsWith(`/${h}`));
+  return helpers.some((h) => bare.endsWith(`/${h}`));
+}
+
+/**
+ * @typedef {import('./types.cjs').NodeOf<'MemberExpression'>} MemberExpression
+ * @typedef {import('./types.cjs').NodeOf<'Property'>} Property
+ * @typedef {MemberExpression['object'] | import('./types.cjs').NodeOf<'VariableDeclarator'>['init']} ClockSource
+ * @typedef {import('./types.cjs').NodeOf<'ImportExpression'>['source'] | import('./types.cjs').NodeOf<'CallExpression'>['arguments'][number]} SpecifierSource
+ */
+
+/**
+ * The static property name of a member read or object-pattern property:
+ * `a.b`, `a['b']` and `{ b }` give `b`; any other computed key gives null.
+ *
+ * @param {MemberExpression | Property} node
+ * @returns {string | null}
+ */
+function propertyName(node) {
+  const key = node.type === 'MemberExpression' ? node.property : node.key;
+  if (!node.computed && key.type === 'Identifier') return key.name;
+  return key.type === 'Literal' && typeof key.value === 'string'
+    ? key.value
+    : null;
+}
+
+/**
+ * The clock-owning global an expression names, or null. Accepts
+ * `performance` and `globalThis.performance` (or `global.`, `window.`).
+ *
+ * @param {ClockSource} node
+ * @returns {string | null}
+ */
+function clockOwner(node) {
+  if (node?.type === 'Identifier') {
+    return CLOCK_READS.has(node.name) ? node.name : null;
+  }
+  if (
+    node?.type !== 'MemberExpression' ||
+    node.object.type !== 'Identifier' ||
+    !GLOBAL_OBJECTS.has(node.object.name)
+  ) {
+    return null;
+  }
+  const name = propertyName(node);
+  return name !== null && CLOCK_READS.has(name) ? name : null;
+}
+
+/**
+ * The string a literal or substitution-free template spells, or null.
+ *
+ * @param {SpecifierSource | undefined} node
+ * @returns {string | null}
+ */
+function staticString(node) {
+  if (node?.type === 'Literal' && typeof node.value === 'string') {
+    return node.value;
+  }
+  return node?.type === 'TemplateLiteral' && node.expressions.length === 0
+    ? (node.quasis[0]?.value.cooked ?? null)
+    : null;
 }
 
 /** @type {import('./types.cjs').Rule} */
@@ -79,38 +148,44 @@ module.exports = {
     const helpers = options?.helpers ?? [];
 
     /**
-     * @param {{ type: string, value?: unknown }} source
+     * @param {SpecifierSource} source
      * @param {import('./types.cjs').NodeOf<'ImportDeclaration' | 'ImportExpression' | 'CallExpression'>} node
      */
     function checkSpecifier(source, node) {
-      if (
-        source.type === 'Literal' &&
-        typeof source.value === 'string' &&
-        isHelper(source.value, helpers)
-      ) {
+      const value = staticString(source);
+      if (value !== null && isHelper(value, helpers)) {
         context.report({
           node,
           messageId: 'helperImport',
-          data: { what: source.value },
+          data: { what: value },
         });
       }
     }
 
     return {
       MemberExpression(node) {
-        if (
-          node.computed ||
-          node.object.type !== 'Identifier' ||
-          node.property.type !== 'Identifier'
-        ) {
-          return;
-        }
-        if (CLOCK_READS.get(node.object.name) === node.property.name) {
+        const owner = clockOwner(node.object);
+        const name = propertyName(node);
+        if (owner !== null && CLOCK_READS.get(owner) === name) {
           context.report({
             node,
             messageId: 'clockRead',
-            data: { what: `${node.object.name}.${node.property.name}` },
+            data: { what: `${owner}.${name}` },
           });
+        }
+      },
+      VariableDeclarator(node) {
+        const owner = clockOwner(node.init);
+        if (owner === null || node.id.type !== 'ObjectPattern') return;
+        for (const prop of node.id.properties) {
+          if (prop.type !== 'Property') continue;
+          if (propertyName(prop) === CLOCK_READS.get(owner)) {
+            context.report({
+              node: prop,
+              messageId: 'clockRead',
+              data: { what: `${owner}.${CLOCK_READS.get(owner)}` },
+            });
+          }
         }
       },
       ImportDeclaration(node) {

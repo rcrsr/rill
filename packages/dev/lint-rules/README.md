@@ -159,13 +159,22 @@ config that runs `*.timing.test.*` as its own project with
 `packages/core/vitest.config.ts`.
 
 Reports `performance.now`, `process.hrtime`, and any import, dynamic import or
-`require` of a module listed in `helpers`. Files not named `*.test.*`, such as
+`require` of a module listed in `helpers`. A clock read is also reported
+through `globalThis.`, `global.` or `window.`, with a string-literal computed
+key such as `performance['now']`, and by destructuring such as
+`const { now } = performance`. A specifier is read from a string literal or a
+template literal with no substitutions. Files not named `*.test.*`, such as
 the measurement helpers themselves, are ignored. `Date.now` is not reported,
 because tests read it for timestamps rather than durations.
 
+The rule reads syntax, not values, so an alias it cannot see past still
+escapes it: `const p = performance; p.now()`, or a computed key held in a
+variable.
+
 **Options:** `[{ helpers: ['helpers/scaling', 'percentile'] }]`. An entry
-matches a specifier equal to it or ending in `/<entry>`, with any `.js`, `.ts`,
-`.mjs`, `.cjs`, `.jsx` or `.tsx` extension stripped.
+matches a relative specifier (`./` or `../`) ending in `/<entry>`, with any
+`.js`, `.ts`, `.mjs`, `.cjs`, `.jsx` or `.tsx` extension stripped. A package
+specifier such as `some-pkg/percentile` never matches.
 
 ```typescript
 // Bad: latency.test.ts

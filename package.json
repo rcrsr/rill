@@ -21,7 +21,7 @@
     "bootstrap": "bash scripts/bootstrap.sh",
     "build": "pnpm -r run build",
     "build:dev": "pnpm -r --if-present run build:dev",
-    "test": "pnpm -r run test",
+    "test": "pnpm -r --workspace-concurrency=1 run test",
     "test:watch": "vitest",
     "test:examples": "pnpm --filter @rcrsr/rill run test:examples",
     "test:examples:fixtures": "vitest run scripts/test-examples.fixtures.test.ts scripts/reference/reference.test.ts scripts/reference/conventions.test.ts",
