@@ -111,7 +111,7 @@ One row per PR. Tick a row when its PR merges.
 | 15 | `errors` | 5 | 41 | 0 | #676 |
 | 16 | `limits` (write) | 5 | 14 | 0 | #676 |
 | 17 | `host-boundary` | 1 | 16 | 3 | #676 |
-| 18 | `builtins` (write) | 111 | 204 | 0 | |
+| 18 | `builtins` (write) | 111 | 204 | 0 | #676 |
 | 19 | Group and file defects | | | | |
 | 20 | Decide the inconsistencies | | | | |
 | 21 | Close the audit | | | | |
