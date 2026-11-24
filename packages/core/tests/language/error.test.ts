@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Error Statement
  * Tests for error statement syntax and behavior
@@ -6,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Language: Error Statement', () => {
   describe('Success Cases', () => {
@@ -13,20 +15,28 @@ describe('Rill Language: Error Statement', () => {
       await expect(run('error "test"')).rejects.toThrow('test');
     });
 
-    it('throws with RuntimeError code RILL-R016 (AC-1)', async () => {
-      try {
-        await run('error "test"');
-        expect.fail('Should have thrown');
-      } catch (err: any) {
-        expect(err.errorId).toBe('RILL-R016');
-        // Note: Error message includes location " at 1:1"
-        expect(err.message).toContain('test');
+    rule('error.halt').it(
+      'throws with RuntimeError code RILL-R016 (AC-1)',
+      async () => {
+        try {
+          await run('error "test"');
+          expect.fail('Should have thrown');
+        } catch (err: any) {
+          expect(err.errorId).toBe('RILL-R016');
+          // Note: Error message includes location " at 1:1"
+          expect(err.message).toContain('test');
+        }
       }
-    });
+    );
 
-    it('evaluates string interpolation in message (AC-3)', async () => {
-      await expect(run('error "Status: {404}"')).rejects.toThrow('Status: 404');
-    });
+    rule('error.interpolation').it(
+      'evaluates string interpolation in message (AC-3)',
+      async () => {
+        await expect(run('error "Status: {404}"')).rejects.toThrow(
+          'Status: 404'
+        );
+      }
+    );
 
     it('throws when in conditional then branch (AC-4)', async () => {
       await expect(run('true ? { error "msg" }')).rejects.toThrow('msg');
@@ -36,7 +46,7 @@ describe('Rill Language: Error Statement', () => {
       expect(await run('false ? { error "msg" } ! "ok"')).toBe('ok');
     });
 
-    it('throws with piped string form (AC-2)', async () => {
+    rule('error.halt').it('throws with piped string form (AC-2)', async () => {
       try {
         await run('"failed" -> error');
         expect.fail('Should have thrown');
@@ -78,15 +88,30 @@ describe('Rill Language: Error Statement', () => {
       }
     });
 
-    it('throws RILL-R002 when piping number (AC-ERR-4)', async () => {
-      try {
-        await run('42 -> error');
-        expect.fail('Should have thrown');
-      } catch (err: any) {
-        expect(err.errorId).toBe('RILL-R002');
-        expect(err.message).toContain('requires string message');
-        expect(err.message).toContain('got number');
+    rule('error.string').it(
+      'throws RILL-R002 when piping number (AC-ERR-4)',
+      async () => {
+        try {
+          await run('42 -> error');
+          expect.fail('Should have thrown');
+        } catch (err: any) {
+          expect(err.errorId).toBe('RILL-R002');
+          expect(err.message).toContain('requires string message');
+          expect(err.message).toContain('got number');
+        }
       }
+    );
+  });
+
+  describe('Written message on a pipe', () => {
+    rule('error.written-message').it.each([
+      '42 -> error "x"',
+      '"a" -> error "x"',
+    ])('%s halts RILL-R016 carrying the written message', async (src) => {
+      await expect(run(src)).rejects.toMatchObject({
+        errorId: 'RILL-R016',
+        message: expect.stringContaining('x'),
+      });
     });
   });
 
@@ -315,19 +340,22 @@ describe('Rill Language: Error Statement', () => {
       await expect(run(script)).rejects.toThrow('Value: not found');
     });
 
-    it('halts execution immediately (does not continue)', async () => {
-      const script = `
+    rule('halt.definition').it(
+      'halts execution immediately (does not continue)',
+      async () => {
+        const script = `
         "step 1" => $step1
         error "halted"
         "step 2" => $step2
       `;
-      try {
-        await run(script);
-        expect.fail('Should have thrown');
-      } catch (err: any) {
-        expect(err.message).toContain('halted');
+        try {
+          await run(script);
+          expect.fail('Should have thrown');
+        } catch (err: any) {
+          expect(err.message).toContain('halted');
+        }
       }
-    });
+    );
   });
 
   describe('Edge Cases', () => {
@@ -398,16 +426,19 @@ describe('Rill Language: Error Statement', () => {
   });
 
   describe('Parse Error Conditions', () => {
-    it('rejects error without message (EC-2)', async () => {
-      try {
-        await run('error');
-        expect.fail('Should have thrown');
-      } catch (err: any) {
-        // Note: Implementation throws RILL-P002 (Unexpected end of input)
-        expect(err.errorId).toBe('RILL-P002');
-        expect(err.message).toContain('expected string');
+    rule('error.no-message').it(
+      'rejects error without message (EC-2)',
+      async () => {
+        try {
+          await run('error');
+          expect.fail('Should have thrown');
+        } catch (err: any) {
+          // Note: Implementation throws RILL-P002 (Unexpected end of input)
+          expect(err.errorId).toBe('RILL-P002');
+          expect(err.message).toContain('expected string');
+        }
       }
-    });
+    );
 
     it('rejects error with variable instead of literal', async () => {
       try {

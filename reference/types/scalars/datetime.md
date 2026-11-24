@@ -61,6 +61,14 @@ r[datetime.wrong-type] A first argument that is not a string halts
 r[datetime.unknown-key] An unknown component name halts
 A spread key that names no parameter MUST halt with RILL-R001.
 
+r[datetime.component-type] A component that is not a number halts
+A named component or a unix count that is not a number MUST halt with `#TYPE_MISMATCH`.
+`datetime(...dict[year: "2026", month: 3, day: 1])` halts.
+
+r[datetime.one-form] A call takes one form of input
+A string argument followed by a second argument, a string with named components, and a unix
+count with `year`, `month`, or `day` MUST halt with `#INVALID_INPUT`.
+
 r[datetime.print] A datetime prints as UTC ISO 8601
 A datetime MUST print as `YYYY-MM-DDTHH:MM:SS.mmmZ`, with milliseconds always present.
 
@@ -88,7 +96,8 @@ A datetime MUST satisfy `:datetime`. A value of any other type MUST halt `:datet
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | A string, component, or argument count is invalid | `#INVALID_INPUT` | Yes |
-| The first argument is not a string | `#TYPE_MISMATCH` | Yes |
+| A call mixes the string, component, and unix forms | `#INVALID_INPUT` | Yes |
+| The first argument is not a string, or a component is not a number | `#TYPE_MISMATCH` | Yes |
 | A spread key names no parameter | RILL-R001 | Yes |
 | A datetime is ordered against a non-datetime or used in arithmetic | RILL-R002 | Yes |
 | A non-datetime is asserted as `:datetime` | `#TYPE_MISMATCH` | Yes |
@@ -117,7 +126,8 @@ datetime("2026-03-13") + 1
 
 ## Notes
 
-The component, formatting, and arithmetic methods, such as `.iso`, `.add`, and `.diff`, belong
-to the built-in methods chapter, as does `now()`. That chapter is not yet written.
+The component, formatting, and arithmetic methods are stated in the built-in methods chapter,
+one concept per method, such as `datetime.iso`, `datetime.add`, and `datetime.diff`, with the
+calendar rules they share in `datetime-calendar`. `now()` is stated in `now`.
 
 The core stores UTC only. IANA timezone names are outside the language.

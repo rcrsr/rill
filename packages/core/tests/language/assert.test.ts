@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Assert Statement
  * Tests for assert statement syntax and behavior
@@ -6,13 +7,17 @@
 import { describe, expect, it } from 'vitest';
 
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Assert Statement', () => {
   describe('Success Cases', () => {
-    it('returns piped value on true condition (AC-1)', async () => {
-      expect(await run('5 -> assert ($ > 0)')).toBe(5);
-    });
+    rule('assert.pass').it(
+      'returns piped value on true condition (AC-1)',
+      async () => {
+        expect(await run('5 -> assert ($ > 0)')).toBe(5);
+      }
+    );
 
     it('returns piped value with type check (AC-5)', async () => {
       expect(await run('"hello" -> assert $:?string')).toBe('hello');
@@ -41,17 +46,23 @@ describe('Rill Runtime: Assert Statement', () => {
   });
 
   describe('Error Cases - Assertion Failed', () => {
-    it('throws when condition is false without message (EC-1, AC-6)', async () => {
-      await expect(run('-1 -> assert ($ > 0)')).rejects.toThrow(
-        'Assertion failed'
-      );
-    });
+    rule('assert.fail').it(
+      'throws when condition is false without message (EC-1, AC-6)',
+      async () => {
+        await expect(run('-1 -> assert ($ > 0)')).rejects.toThrow(
+          'Assertion failed'
+        );
+      }
+    );
 
-    it('throws with custom message when condition is false (EC-2, AC-2)', async () => {
-      await expect(
-        run('-1 -> assert ($ > 0) "Must be positive"')
-      ).rejects.toThrow('Must be positive');
-    });
+    rule('assert.fail').it(
+      'throws with custom message when condition is false (EC-2, AC-2)',
+      async () => {
+        await expect(
+          run('-1 -> assert ($ > 0) "Must be positive"')
+        ).rejects.toThrow('Must be positive');
+      }
+    );
 
     it('throws on empty string check (AC-3)', async () => {
       await expect(run('"" -> assert !.empty "Empty input"')).rejects.toThrow(
@@ -65,7 +76,7 @@ describe('Rill Runtime: Assert Statement', () => {
       ).rejects.toThrow('Must be positive');
     });
 
-    it('includes error code RILL-R015 (AC-6)', async () => {
+    rule('assert.fail').it('includes error code RILL-R015 (AC-6)', async () => {
       try {
         await run('-1 -> assert ($ > 0)');
         expect.fail('Should have thrown');
@@ -116,11 +127,23 @@ describe('Rill Runtime: Assert Statement', () => {
       );
     });
 
-    it('includes error code for type error (assertion requires boolean)', async () => {
-      await expectHalt(() => run('"test" -> assert $'), {
-        code: 'RILL_R002',
-        hostErrorId: 'RILL-R002',
-        messagePattern: 'assert requires boolean condition, got string',
+    rule('assert.bool').it(
+      'includes error code for type error (assertion requires boolean)',
+      async () => {
+        await expectHalt(() => run('"test" -> assert $'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern: 'assert requires boolean condition, got string',
+        });
+      }
+    );
+  });
+
+  describe('Error Cases - No $ Bound', () => {
+    rule('assert.dollar').it('halts RILL-R005 when no $ is bound', async () => {
+      await expectHalt(() => run('assert true'), {
+        code: 'RILL_R005',
+        hostErrorId: 'RILL-R005',
       });
     });
   });

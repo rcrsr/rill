@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Using an invalid value
  *
@@ -17,6 +18,8 @@ import {
   type RillValue,
 } from '@rcrsr/rill';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
+import { run } from '../helpers/runtime.js';
 
 const HELD = 'guard(on: list[#NOT_A_CODE]) { 1 } => $x\n';
 
@@ -28,12 +31,15 @@ async function runRecovered(src: string): Promise<unknown> {
 }
 
 describe('Invalid value in string interpolation', () => {
-  it('guard around an interpolation yields the held code of $x', async () => {
-    const result = await runRecovered(
-      `${HELD}guard { "{$x}" } => $r\n$r.!code == $x.!code`
-    );
-    expect(result).toBe(true);
-  });
+  rule('invalid-value.interpolate').it(
+    'guard around an interpolation yields the held code of $x',
+    async () => {
+      const result = await runRecovered(
+        `${HELD}guard { "{$x}" } => $r\n$r.!code == $x.!code`
+      );
+      expect(result).toBe(true);
+    }
+  );
 
   it('halts when an interpolation is captured', async () => {
     await expectHalt(() => runRecovered(`${HELD}"{$x}" => $s`), {
@@ -49,23 +55,29 @@ describe('Invalid value in string interpolation', () => {
     expect(await runRecovered(`${HELD}"{$x.!code}"`)).toBe('#R001');
   });
 
-  it('halts RILL-R036 when a closure is interpolated', async () => {
-    await expectHalt(() => runRecovered('fn(a) { $a } => $fn\n"{$fn}"'), {
-      code: 'RILL_R036',
-      hostErrorId: 'RILL-R036',
-      messagePattern: /cannot convert fn to string/,
-    });
-  });
+  rule('conversion.no-string-form').it(
+    'halts RILL-R036 when a closure is interpolated',
+    async () => {
+      await expectHalt(() => runRecovered('fn(a) { $a } => $fn\n"{$fn}"'), {
+        code: 'RILL_R036',
+        hostErrorId: 'RILL-R036',
+        messagePattern: /cannot convert fn to string/,
+      });
+    }
+  );
 
-  it('halts RILL-R036 when an iterator is interpolated', async () => {
-    await expectHalt(() => runRecovered('range(0, 3) => $it\n"{$it}"'), {
-      code: 'RILL_R036',
-      hostErrorId: 'RILL-R036',
-      messagePattern: /cannot convert iterator to string/,
-    });
-  });
+  rule('conversion.no-string-form').it(
+    'halts RILL-R036 when an iterator is interpolated',
+    async () => {
+      await expectHalt(() => runRecovered('range(0, 3) => $it\n"{$it}"'), {
+        code: 'RILL_R036',
+        hostErrorId: 'RILL-R036',
+        messagePattern: /cannot convert iterator to string/,
+      });
+    }
+  );
 
-  it.each([
+  rule('conversion.no-string-nested').it.each([
     ['list', '"{list[$f]}"', /cannot convert list to string: contains fn/],
     ['dict', '"{dict[a: $f]}"', /cannot convert dict to string: contains fn/],
     [
@@ -97,7 +109,7 @@ describe('Invalid value in string interpolation', () => {
 });
 
 describe('Invalid value in a collection literal', () => {
-  it.each([
+  rule('invalid-value.collection').it.each([
     ['list element', 'list[$x]'],
     ['tuple element', 'tuple[$x]'],
     ['dict value', 'dict[a: $x]'],
@@ -111,7 +123,7 @@ describe('Invalid value in a collection literal', () => {
 
   // A literal holding an invalid value halts at construction, so a spread
   // source holding one must come from a host function.
-  it.each([
+  rule('invalid-value.origin').it.each([
     ['list spread', 'list[...nested_list()]'],
     ['dict spread', 'dict[...nested_dict()]'],
   ])('halts with the held code for a %s', async (_name, script) => {
@@ -143,4 +155,72 @@ describe('Invalid value in a collection literal', () => {
   it('does not halt on list[$x.!]', async () => {
     expect(await runRecovered(`${HELD}list[$x.!]`)).toEqual([true]);
   });
+});
+
+const CAUGHT = 'guard { 1 == "a" } => $r\n';
+
+describe('Status of an invalid value', () => {
+  rule('invalid-value.origin', 'invalid-value.status').it(
+    'a guard catch yields a value carrying the halt status',
+    async () => {
+      expect(
+        await run(
+          `${CAUGHT}list[$r.!, $r.!code == #TYPE_MISMATCH, $r.!message, $r.!provider -> :?string, $r.!raw -> :?string, $r.!trace -> :?list]`
+        )
+      ).toEqual([
+        true,
+        true,
+        'Cannot compare number with string using ==',
+        true,
+        true,
+        true,
+      ]);
+    }
+  );
+
+  rule('invalid-value.valid-status').it(
+    'a valid value reports #ok and empty fields',
+    async () => {
+      expect(
+        await run(
+          '5 => $v\nlist[$v.!, $v.!code == #ok, $v.!message, $v.!provider, $v.!raw, $v.!trace]'
+        )
+      ).toEqual([false, true, '', '', '', []]);
+    }
+  );
+
+  rule('invalid-value.probe').it.each([
+    '$r.!',
+    '$r.!code',
+    '$r.!message',
+    '$r.!provider',
+    '$r.!raw',
+    '$r.!trace',
+  ])('%s does not halt on an invalid value', async (probe) => {
+    await expect(run(`${CAUGHT}${probe}`)).resolves.toBeDefined();
+  });
+});
+
+describe('Using and holding an invalid value', () => {
+  rule('invalid-value.access').it.each([
+    ['a field read', '$r.a'],
+    ['an index read', '$r[0]'],
+    ['a method call', '$r -> .upper'],
+    ['an operator', '$r + 1'],
+    ['a comparison', '$r == 1'],
+    ['a pipe into a block', '$r -> { $ }'],
+    ['a conversion', '$r -> string'],
+  ])('%s raises the held halt', async (_name, use) => {
+    await expectHalt(() => run(`${CAUGHT}${use}`), { code: 'TYPE_MISMATCH' });
+  });
+
+  rule('invalid-value.hold').it(
+    'a capture, a variable read, ?? and a probe do not raise the held halt',
+    async () => {
+      expect(await run(`${CAUGHT}$r => $s\nlist[$s.!, $r ?? 1]`)).toEqual([
+        true,
+        1,
+      ]);
+    }
+  );
 });

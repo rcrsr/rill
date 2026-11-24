@@ -7,7 +7,7 @@ issues: []
 grammar: []
 errors: [RILL-R085]
 depends: [statement]
-tests: [vacancy-coerce.test.ts]
+tests: [vacancy-coerce.test.ts, streams.test.ts, values.test.ts]
 ---
 
 # Values
@@ -41,8 +41,8 @@ r[value.stream] A stream is the one stateful value
 A stream MUST be consumed as it is read. Every other value is immutable.
 
 r[value.valid-invalid] A value is valid or invalid
-Every value MUST be valid or invalid. An invalid value carries the halt that produced it, as the
-errors chapter states.
+Every value MUST be valid or invalid. An invalid value carries the halt that produced it
+(`invalid-value`).
 
 ## Interactions
 

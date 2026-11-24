@@ -4,24 +4,24 @@
  */
 
 import { checkBlockLayout } from './layout.js';
-import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { afterEach, describe, expect, it } from 'vitest';
-import {
-  checkCorpus,
-  findCitations,
-  parseProductions,
-  type CheckOptions,
-} from './check.js';
-import { lintFile, loadSpecIdPattern } from './lint.js';
+import { describe, expect, it } from 'vitest';
+import { checkCorpus, findCitations, parseProductions } from './check.js';
 import {
   loadCorpus,
   parseFile,
   parseFrontmatter,
   type Corpus,
 } from './parse.js';
+import {
+  baseOptions,
+  checkRepo,
+  concept,
+  lintText,
+  makeRepo,
+  realRoot,
+} from './test-helpers.js';
 import {
   currentOwners,
   findDependents,
@@ -36,71 +36,6 @@ import {
   pendingRules,
   searchRules,
 } from './query.js';
-
-const realRoot = path.resolve(import.meta.dirname, '../..');
-const specIdPattern = loadSpecIdPattern(realRoot);
-const tmpDirs: string[] = [];
-
-afterEach(() => {
-  for (const d of tmpDirs.splice(0)) fs.rmSync(d, { recursive: true });
-});
-
-/** Writes `files` (repo-relative path to content) into a fresh temp repo. */
-function makeRepo(files: Record<string, string>): string {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ref-test-'));
-  tmpDirs.push(root);
-  const defaults: Record<string, string> = {
-    'reference/README.md':
-      '---\nchapters:\n  - one\n  - two\n---\n\n# Readme\n',
-    'docs/ref-grammar.ebnf':
-      'item = "a" , { "b" } ;\n(* note *)\nother = item ;\n',
-    'packages/core/src/error-registry.ts': "  RILL_R001: 'RILL-R001',\n",
-  };
-  const all = new Map(Object.entries({ ...defaults, ...files }));
-  for (const [rel, content] of all) {
-    const abs = path.join(root, rel);
-    fs.mkdirSync(path.dirname(abs), { recursive: true });
-    fs.writeFileSync(abs, content);
-  }
-  return root;
-}
-
-function concept(
-  id: string,
-  extra: string,
-  body: string,
-  title = 'Thing'
-): string {
-  return `---\nid: ${id}\ntitle: ${title}\nstatus: normative\nsince: 0.24.0\n${extra}---\n\n# ${title}\n\nA thing.\n\n${body}`;
-}
-
-function lintText(text: string, chapter = 'one', file = 'thing'): string[] {
-  const parsed = parseFile(
-    text,
-    `reference/${chapter}/${file}.md`,
-    `/x/reference/${chapter}/${file}.md`,
-    chapter
-  );
-  return lintFile(parsed, { specIdPattern }).map(
-    (d) => `${d.severity}:${d.code}`
-  );
-}
-
-const baseOptions: CheckOptions = {
-  strict: false,
-  errorCodes: ['TYPE_MISMATCH'],
-};
-
-function checkRepo(
-  files: Record<string, string>,
-  options: Partial<CheckOptions> = {}
-): string[] {
-  const root = makeRepo(files);
-  const corpus = loadCorpus(root, path.join(root, 'reference'));
-  return checkCorpus(corpus, { ...baseOptions, ...options })
-    .filter((d) => d.severity !== 'info')
-    .map((d) => `${d.code}`);
-}
 
 describe('parseFrontmatter', () => {
   it('reads scalars, inline lists, block lists, and drops comments', () => {
@@ -446,6 +381,28 @@ describe('checkCorpus', () => {
         'reference/one/alpha.md': pendingRule,
       })
     ).toContain('citation-pending');
+  });
+
+  it('accepts conventions/ citations from the conventions test file only', () => {
+    const repo = (cite: string): Record<string, string> => ({
+      'reference/README.md':
+        '---\nchapters:\n  - conventions\n  - one\n---\n\n# Readme\n',
+      'reference/conventions/style.md': concept(
+        'style',
+        '',
+        '## Terms\n\nr[style.one] A convention\nIt MUST hold.\n'
+      ),
+      'reference/one/alpha.md': one,
+      'packages/core/tests/language/x.test.ts': "rule('alpha.one');",
+      'scripts/reference/conventions.test.ts': `rule(${cite});`,
+    });
+    const root = makeRepo(repo("'style.one'"));
+    const corpus = loadCorpus(root, path.join(root, 'reference'));
+    expect(checkCorpus(corpus, baseOptions)).toEqual([]);
+    expect(checkRepo(repo("'style.one', 'alpha.one'"))).toContain(
+      'citation-scope'
+    );
+    expect(checkRepo(repo("'style.zzz'"))).toContain('citation-unknown');
   });
 
   it('reports uncited built rules as info, and as errors under strict', () => {

@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Removed uniform value types
  *
@@ -7,6 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { rule } from '../helpers/rule.js';
 import { parse, ParseError } from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
@@ -24,7 +26,12 @@ function parseError(source: string): ParseError {
 
 describe('Rill Language: Removed uniform value types', () => {
   describe('uniform forms raise RILL-P012', () => {
-    it.each([
+    rule(
+      'dict.no-uniform',
+      'dict.fields',
+      'ordered.no-uniform',
+      'ordered.fields'
+    ).it.each([
       ['dict(number)', 'dict(number)'],
       ['ordered(fn)', 'ordered(fn)'],
       ['dict($t)', 'dict($t)'],
@@ -41,14 +48,17 @@ describe('Rill Language: Removed uniform value types', () => {
       expect(err.message).toContain('map(string,');
     });
 
-    it('names the written value type in the replacement', () => {
-      expect(parseError('dict(number)').message).toContain(
-        'map(string, number)'
-      );
-      expect(parseError('ordered(list(number))').message).toContain(
-        'map(string, list(number))'
-      );
-    });
+    rule('dict.no-uniform', 'ordered.no-uniform').it(
+      'names the written value type in the replacement',
+      () => {
+        expect(parseError('dict(number)').message).toContain(
+          'map(string, number)'
+        );
+        expect(parseError('ordered(list(number))').message).toContain(
+          'map(string, list(number))'
+        );
+      }
+    );
 
     it.each([
       ['dict(string, number)', 'dict(string, number)'],

@@ -4,10 +4,10 @@ title: Invocation
 status: normative
 since: 0.24.0
 issues: []
-grammar: []
-errors: [RILL-R001, RILL-R045]
-depends: [fn, defaults, scope]
-tests: [functions.test.ts, closure-semantics.test.ts, pipe-targets.test.ts, property-access.test.ts]
+grammar: [fn-call, host-call, host-name, arguments, argument]
+errors: [RILL-P001, RILL-R001, RILL-R006, RILL-R045]
+depends: [keyword, fn, defaults, scope]
+tests: [args.test.ts, functions.test.ts, closure-semantics.test.ts, pipe-targets.test.ts, property-access.test.ts]
 ---
 
 # Invocation
@@ -16,11 +16,27 @@ A call evaluates its arguments, binds them to the function's parameters, and run
 
 ## Syntax
 
+```ebnf
+fn-call = "$" , identifier , "(" , [ arguments ] , ")" ;
+host-call = host-name , "(" , [ arguments ] , ")" ;
+host-name = identifier ;
+arguments = argument , { "," , argument } ;
+argument = spread-arg | expression ;
+```
+
 ```text
 $f(a, b)
 v -> $f(b)
 v -> $f
+name(a)
+name
 ```
+
+## Static rules
+
+r[invocation.no-named] A call argument takes no name
+An argument written `name: value` MUST be rejected with RILL-P001, in a call of a script
+function, a built-in or host function, and a method.
 
 ## Evaluation
 
@@ -45,6 +61,10 @@ r[invocation.no-self-binding] A call does not bind $ to the dict it was read fro
 Calling a function read from a dict MUST NOT bind `$` to that dict. `$` in its body MUST resolve
 as it does when the same function is called through a variable.
 
+r[invocation.bare-name] A bare function name calls it with no arguments
+A built-in or host function name written without parentheses, outside a pipe target, MUST call
+that function with no arguments. `now => $t` MUST bind a datetime, and `$f(now)` MUST pass one.
+
 ## Interactions
 
 A host property function receives the collection it is selected or called from as `self` (`selection.property`).
@@ -61,6 +81,8 @@ A parameter without an argument takes its default (`defaults.param`), or the cal
 |-----------|-------|-----------|
 | An argument fails its parameter's type | RILL-R001 | No |
 | More arguments than parameters | RILL-R045 | No |
+| An argument written `name: value` | RILL-P001 | No |
+| A bare name names no function (`keyword.other`) | RILL-R006 | Yes |
 
 ## Examples
 

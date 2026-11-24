@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Strings (Extended)
  * Tests for triple-quote strings, comments, escape sequences, and interpolation edge cases
@@ -7,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { parse } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Strings (Extended)', () => {
   describe('Triple-Quote Multiline Strings', () => {
@@ -18,14 +20,17 @@ hello world
       expect(await run(script)).toBe('hello world\n');
     });
 
-    it('parses multi-line triple-quote string', async () => {
-      const script = `"""
+    rule('string.triple').it(
+      'parses multi-line triple-quote string',
+      async () => {
+        const script = `"""
 line one
 line two
 line three
 """`;
-      expect(await run(script)).toBe('line one\nline two\nline three\n');
-    });
+        expect(await run(script)).toBe('line one\nline two\nline three\n');
+      }
+    );
 
     it('preserves whitespace in triple-quote string', async () => {
       const script = `"""
@@ -35,19 +40,25 @@ line three
       expect(await run(script)).toBe('  indented\n    more indent\n');
     });
 
-    it('allows quotes in triple-quote string without escaping', async () => {
-      const script = `"""
+    rule('string.triple').it(
+      'allows quotes in triple-quote string without escaping',
+      async () => {
+        const script = `"""
 She said "hello" and 'goodbye'
 """`;
-      expect(await run(script)).toBe(`She said "hello" and 'goodbye'\n`);
-    });
+        expect(await run(script)).toBe(`She said "hello" and 'goodbye'\n`);
+      }
+    );
 
-    it('allows backslashes in triple-quote string without escaping', async () => {
-      const script = `"""
+    rule('string.triple').it(
+      'allows backslashes in triple-quote string without escaping',
+      async () => {
+        const script = `"""
 C:\\Users\\test\\file.txt
 """`;
-      expect(await run(script)).toBe('C:\\Users\\test\\file.txt\n');
-    });
+        expect(await run(script)).toBe('C:\\Users\\test\\file.txt\n');
+      }
+    );
 
     it('allows escaped braces in triple-quote string', async () => {
       const script = `"""
@@ -86,19 +97,22 @@ hi
   });
 
   describe('Comments', () => {
-    it('ignores single-line comment', async () => {
+    rule('whitespace.comment').it('ignores single-line comment', async () => {
       const script = `# This is a comment
 "hello"`;
       expect(await run(script)).toBe('hello');
     });
 
-    it('ignores comment at end of line', async () => {
-      const script = `"hello" => $x # capture greeting
+    rule('whitespace.comment').it(
+      'ignores comment at end of line',
+      async () => {
+        const script = `"hello" => $x # capture greeting
 $x`;
-      expect(await run(script)).toBe('hello');
-    });
+        expect(await run(script)).toBe('hello');
+      }
+    );
 
-    it('ignores multiple comments', async () => {
+    rule('whitespace.comment').it('ignores multiple comments', async () => {
       const script = `# First comment
 "a" => $a
 # Second comment
@@ -108,11 +122,14 @@ list[$a, $b]`;
       expect(await run(script)).toEqual(['a', 'b']);
     });
 
-    it('does not treat # inside string as comment', async () => {
-      expect(await run('"hello # world"')).toBe('hello # world');
-    });
+    rule('whitespace.string-hash').it(
+      'does not treat # inside string as comment',
+      async () => {
+        expect(await run('"hello # world"')).toBe('hello # world');
+      }
+    );
 
-    it('handles comment-only lines', async () => {
+    rule('whitespace.comment').it('handles comment-only lines', async () => {
       const script = `# comment 1
 # comment 2
 # comment 3
@@ -132,15 +149,18 @@ list[$a, $b]`;
   });
 
   describe('Escape Sequences', () => {
-    it('handles carriage return escape', async () => {
+    rule('string.escape').it('handles carriage return escape', async () => {
       expect(await run('"a\\rb"')).toBe('a\rb');
     });
 
-    it('handles escaped braces with {{ }}', async () => {
-      expect(await run('"value: {{not interpolated}}"')).toBe(
-        'value: {not interpolated}'
-      );
-    });
+    rule('string.brace-escape').it(
+      'handles escaped braces with {{ }}',
+      async () => {
+        expect(await run('"value: {{not interpolated}}"')).toBe(
+          'value: {not interpolated}'
+        );
+      }
+    );
 
     it('combines multiple escape types', async () => {
       expect(await run('"line1\\nline2\\ttab\\\\backslash"')).toBe(
@@ -172,7 +192,7 @@ list[$a, $b]`;
       ).toBe('second: 2');
     });
 
-    it('interpolates multiple values', async () => {
+    rule('string.value').it('interpolates multiple values', async () => {
       const script = `"a" => $x
 "b" => $y
 "{$x}-{$y}"`;
@@ -209,12 +229,15 @@ list[$s, $t]`;
       expect(await run(script)).toBe('value: 3');
     });
 
-    it('does not mistake a brace inside a nested string literal for the interpolation close', async () => {
-      // The nested string literal "}" contains a `}` that must not be
-      // counted toward the interpolation's own brace depth.
-      const script = `"result: {"}" -> .len}"`;
-      expect(await run(script)).toBe('result: 1');
-    });
+    rule('string.lone-brace').it(
+      'does not mistake a brace inside a nested string literal for the interpolation close',
+      async () => {
+        // The nested string literal "}" contains a `}` that must not be
+        // counted toward the interpolation's own brace depth.
+        const script = `"result: {"}" -> .len}"`;
+        expect(await run(script)).toBe('result: 1');
+      }
+    );
 
     it('skips a nested triple-quoted string (with braces) inside a single-quoted outer string', async () => {
       const script = `"value: {"""a {{ b }} c""" -> .len}"`;
@@ -223,12 +246,15 @@ list[$s, $t]`;
   });
 
   describe('Expression Interpolation', () => {
-    it('interpolates arithmetic expressions', async () => {
-      const script = `3 => $a
+    rule('string.interpolation').it(
+      'interpolates arithmetic expressions',
+      async () => {
+        const script = `3 => $a
 5 => $b
 "sum: {$a + $b}"`;
-      expect(await run(script)).toBe('sum: 8');
-    });
+        expect(await run(script)).toBe('sum: 8');
+      }
+    );
 
     it('interpolates comparison expressions', async () => {
       const script = `5 => $count
@@ -323,12 +349,15 @@ Hello, {$name}!
       expect(await run('""""""')).toBe('');
     });
 
-    it('skips opening newline in triple-quote string (AC-3)', async () => {
-      const script = `"""
+    rule('string.triple-newline').it(
+      'skips opening newline in triple-quote string (AC-3)',
+      async () => {
+        const script = `"""
 hello
 """`;
-      expect(await run(script)).toBe('hello\n');
-    });
+        expect(await run(script)).toBe('hello\n');
+      }
+    );
 
     it('interpolates variables in triple-quote string (AC-4)', async () => {
       const script = `"Alice" => $name
@@ -336,9 +365,12 @@ hello
       expect(await run(script)).toBe('Hello, Alice!');
     });
 
-    it('handles escaped braces in triple-quote string (AC-5)', async () => {
-      expect(await run('"""{{literal}}"""')).toBe('{literal}');
-    });
+    rule('string.brace-escape').it(
+      'handles escaped braces in triple-quote string (AC-5)',
+      async () => {
+        expect(await run('"""{{literal}}"""')).toBe('{literal}');
+      }
+    );
 
     it('interpolates an expression whose own closing brace touches the interpolation close', async () => {
       const script = '"""result: {5 -> { $ + 1 }}"""';
@@ -347,15 +379,21 @@ hello
   });
 
   describe('Triple-Quote Error Cases', () => {
-    it('throws LexerError for unterminated triple-quote string (AC-6)', async () => {
-      await expect(run('"""hello')).rejects.toThrow('Unterminated string');
-    });
+    rule('string.triple-unclosed').it(
+      'throws LexerError for unterminated triple-quote string (AC-6)',
+      async () => {
+        await expect(run('"""hello')).rejects.toThrow('Unterminated string');
+      }
+    );
 
-    it('throws LexerError for nested triple-quotes in interpolation (AC-7)', async () => {
-      await expect(run('"""{"""nested"""}"""')).rejects.toThrow(
-        'Triple-quotes not allowed in interpolation'
-      );
-    });
+    rule('string.triple-interpolation').it(
+      'throws LexerError for nested triple-quotes in interpolation (AC-7)',
+      async () => {
+        await expect(run('"""{"""nested"""}"""')).rejects.toThrow(
+          'Triple-quotes not allowed in interpolation'
+        );
+      }
+    );
 
     it('still throws LexerError for nested triple-quotes even when a brace precedes them', async () => {
       // A nested (non-triple) string is skipped as a unit inside a
@@ -371,11 +409,14 @@ hello
       expect(await run(script)).toBe('result: 1');
     });
 
-    it('throws ParseError for empty interpolation (AC-8)', async () => {
-      await expect(run('"""{   }"""')).rejects.toThrow(
-        'Empty string interpolation'
-      );
-    });
+    rule('string.empty-interpolation').it(
+      'throws ParseError for empty interpolation (AC-8)',
+      async () => {
+        await expect(run('"""{   }"""')).rejects.toThrow(
+          'Empty string interpolation'
+        );
+      }
+    );
 
     it('throws LexerError for unterminated string with open interpolation (AC-9)', async () => {
       // The string never reaches a closing `"`, so the lexer reports it as
@@ -391,11 +432,14 @@ hello
       expect(await run('"hello"')).toBe('hello');
     });
 
-    it('throws LexerError for unterminated double-quote string at EOF', async () => {
-      await expect(run('"hello')).rejects.toThrow(
-        'Unterminated string literal'
-      );
-    });
+    rule('string.single-line').it(
+      'throws LexerError for unterminated double-quote string at EOF',
+      async () => {
+        await expect(run('"hello')).rejects.toThrow(
+          'Unterminated string literal'
+        );
+      }
+    );
   });
 
   describe('Triple-Quote Boundary Conditions', () => {
@@ -496,5 +540,63 @@ hello
 
       expect(await run(script)).toBe('1');
     });
+  });
+
+  describe('string rules', () => {
+    rule('string.bad-escape').it(
+      'rejects an undefined backslash escape with RILL-L005',
+      async () => {
+        await expect(run('"a\\qb"')).rejects.toMatchObject({
+          errorId: 'RILL-L005',
+        });
+        await expect(run('"a\\u0041"')).rejects.toMatchObject({
+          errorId: 'RILL-L005',
+        });
+      }
+    );
+
+    rule('string.single-line').it(
+      'rejects a double-quoted string that crosses a line with RILL-L001',
+      async () => {
+        await expect(run('"abc\n"')).rejects.toMatchObject({
+          errorId: 'RILL-L001',
+        });
+      }
+    );
+
+    rule('string.empty-interpolation').it(
+      'rejects an empty interpolation with RILL-P004',
+      async () => {
+        await expect(run('"{}"')).rejects.toMatchObject({
+          errorId: 'RILL-P004',
+        });
+      }
+    );
+
+    rule('string.equality').it(
+      'compares code units with no case folding',
+      async () => {
+        expect(await run('"abc" == "abc"')).toBe(true);
+        expect(await run('"abc" == "ABC"')).toBe(false);
+      }
+    );
+
+    rule('string.ordering').it(
+      'orders by code unit with a proper prefix first',
+      async () => {
+        expect(await run('"ab" < "abc"')).toBe(true);
+        expect(await run('"B" < "a"')).toBe(true);
+        expect(await run('"abc" >= "abd"')).toBe(false);
+      }
+    );
+
+    rule('string.cross-order').it(
+      'halts RILL-R002 ordering a string against a number',
+      async () => {
+        await expect(run('"a" < 1')).rejects.toMatchObject({
+          errorId: 'RILL-R002',
+        });
+      }
+    );
   });
 });

@@ -4,8 +4,8 @@ title: Loops
 status: normative
 since: 0.24.0
 issues: []
-grammar: []
-errors: [RILL-P004, RILL-P025, RILL-R002, RILL-R005, RILL-R010]
+grammar: [loop, while_loop, do_while_loop]
+errors: [RILL-P004, RILL-P010, RILL-P025, RILL-R002, RILL-R005, RILL-R010, RILL-R079, RILL-R080]
 depends: [conditional]
 tests: [loops.test.ts]
 ---
@@ -15,6 +15,12 @@ tests: [loops.test.ts]
 `while` and `do` repeat a body, threading one value through `$` from each run to the next.
 
 ## Syntax
+
+```ebnf
+loop          = while_loop | do_while_loop ;
+while_loop    = "while" , "(" , expression , ")" , "do" , [ construct-options ] , block ;
+do_while_loop = "do" , [ construct-options ] , block , "while" , "(" , expression , ")" ;
+```
 
 ```text
 seed -> while (cond) do { body }
@@ -29,6 +35,20 @@ A newline between `while (cond)` and `{` stands for `do`.
 
 r[loop.do-required] A while body follows do
 `while (cond) { body }` on one line MUST be rejected with RILL-P004.
+
+r[loop.while-required] A do body is followed by while
+`do { body }` with no trailing `while (cond)` MUST be rejected with RILL-P004.
+
+r[loop.no-pre-at] A condition before @ is rejected
+`(cond) @ { body }` MUST be rejected with RILL-R079, with a message naming
+`while (cond) do { body }`.
+
+r[loop.no-post-at] A loop starting with @ is rejected
+`@ { body }`, with or without a trailing `? (cond)`, MUST be rejected with RILL-R080, with a
+message naming `do { body } while (cond)`.
+
+r[loop.at-expression] @ does not start an expression
+`@[` and `@$name` MUST be rejected with RILL-P010.
 
 r[loop.limit-literal] The limit is a positive integer literal
 `limit` MUST be written as a positive integer literal. A computed value or zero MUST be rejected
@@ -76,8 +96,12 @@ carries only through `$`.
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | `while (cond) { ... }` on one line | RILL-P004 | No |
+| `do { ... }` with no trailing `while (cond)` | RILL-P004 | No |
+| `(cond) @ { ... }` | RILL-R079 | No |
+| `@ { ... }`, with or without `? (cond)` | RILL-R080 | No |
+| `@[` or `@$name` | RILL-P010 | No |
 | `limit` is not a written positive integer literal, or the options hold a spread | RILL-P004 | No |
-| The options are written in angle brackets | RILL-P025 | No |
+| The options are written in angle brackets (`construct-options.parens`) | RILL-P025 | No |
 | The condition is not a bool | RILL-R002 | Yes |
 | No seed and no enclosing `$` | RILL-R005 | Yes |
 | The body would run past the limit | RILL-R010 | No |
@@ -111,5 +135,6 @@ carries only through `$`.
 
 ## Notes
 
-On 0.23.0 the limit is written `do<limit: N>`, and that form now halts RILL-P025. Exceeding the
+On 0.23.0 a loop is written `(cond) @ { body }` or `@ { body } ? (cond)`, and the limit is
+written `do<limit: N>`, and that form now halts RILL-P025. Exceeding the
 limit halts RILL-R010 "While loop exceeded N iterations".

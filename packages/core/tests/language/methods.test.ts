@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Built-in Methods
  * Tests for string methods, pattern methods, comparison methods
@@ -7,10 +8,11 @@ import { describe, expect, it } from 'vitest';
 
 import { createLogCollector, run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Built-in Methods', () => {
   describe('.empty', () => {
-    it('returns true for empty string', async () => {
+    rule('vacancy.empty').it('returns true for empty string', async () => {
       expect(await run('"" -> .empty')).toBe(true);
     });
 
@@ -24,7 +26,7 @@ describe('Rill Runtime: Built-in Methods', () => {
       );
     });
 
-    it('returns true for empty list', async () => {
+    rule('vacancy.empty').it('returns true for empty list', async () => {
       expect(await run('list[] -> .empty')).toBe(true);
     });
 
@@ -32,7 +34,7 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('list[1] -> .empty')).toBe(false);
     });
 
-    it('returns true for empty dict', async () => {
+    rule('vacancy.empty').it('returns true for empty dict', async () => {
       expect(await run('dict[] -> .empty')).toBe(true);
     });
 
@@ -52,7 +54,7 @@ describe('Rill Runtime: Built-in Methods', () => {
       );
     });
 
-    it('returns true for empty tuple', async () => {
+    rule('vacancy.empty').it('returns true for empty tuple', async () => {
       expect(await run('tuple[] -> .empty')).toBe(true);
     });
 
@@ -60,7 +62,7 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('tuple[1, 2] -> .empty')).toBe(false);
     });
 
-    it('returns true for empty ordered', async () => {
+    rule('vacancy.empty').it('returns true for empty ordered', async () => {
       expect(await run('ordered[] -> .empty')).toBe(true);
     });
 
@@ -70,7 +72,7 @@ describe('Rill Runtime: Built-in Methods', () => {
   });
 
   describe('.lines', () => {
-    it('splits on newlines', async () => {
+    rule('string.lines.newline').it('splits on newlines', async () => {
       expect(await run('"a\\nb\\nc" -> .lines')).toEqual(['a', 'b', 'c']);
     });
 
@@ -82,20 +84,23 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('"" -> .lines')).toEqual(['']);
     });
 
-    it('handles trailing newline', async () => {
+    rule('string.lines.newline').it('handles trailing newline', async () => {
       expect(await run('"a\\nb\\n" -> .lines')).toEqual(['a', 'b', '']);
     });
   });
 
   describe('log() global function', () => {
-    it('passes through value unchanged', async () => {
-      const { logs, callbacks } = createLogCollector();
-      const result = await run('"hello" -> log', { callbacks });
-      expect(result).toBe('hello');
-      expect(logs).toEqual(['hello']);
-    });
+    rule('log.value', 'log.text').it(
+      'passes through value unchanged',
+      async () => {
+        const { logs, callbacks } = createLogCollector();
+        const result = await run('"hello" -> log', { callbacks });
+        expect(result).toBe('hello');
+        expect(logs).toEqual(['hello']);
+      }
+    );
 
-    it('logs and continues in chain', async () => {
+    rule('log.value').it('logs and continues in chain', async () => {
       const { logs, callbacks } = createLogCollector();
       const result = await run('"test" -> log -> .contains("e")', {
         callbacks,
@@ -104,13 +109,13 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(logs).toEqual(['test']);
     });
 
-    it('logs numbers', async () => {
+    rule('log.text').it('logs numbers', async () => {
       const { logs, callbacks } = createLogCollector();
       await run('42 -> log', { callbacks });
       expect(logs).toEqual(['42']);
     });
 
-    it('logs tuples', async () => {
+    rule('log.text').it('logs tuples', async () => {
       const { logs, callbacks } = createLogCollector();
       await run('list[1, 2, 3] -> log', { callbacks });
       expect(logs).toEqual(['list[1, 2, 3]']);
@@ -126,15 +131,18 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('"hello world" -> .contains("xyz")')).toBe(false);
     });
 
-    it('returns true for empty substring', async () => {
-      expect(await run('"hello" -> .contains("")')).toBe(true);
-    });
+    rule('string.contains.text').it(
+      'returns true for empty substring',
+      async () => {
+        expect(await run('"hello" -> .contains("")')).toBe(true);
+      }
+    );
 
     it('returns false for empty string searching non-empty', async () => {
       expect(await run('"" -> .contains("x")')).toBe(false);
     });
 
-    it('is case sensitive', async () => {
+    rule('string.contains.text').it('is case sensitive', async () => {
       expect(await run('"Hello" -> .contains("hello")')).toBe(false);
     });
   });
@@ -145,9 +153,12 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(result).toEqual({ matched: 'world', index: 6, groups: [] });
     });
 
-    it('returns empty dict for no match', async () => {
-      expect(await run('"hello" -> .match("world")')).toEqual({});
-    });
+    rule('string.match.none').it(
+      'returns empty dict for no match',
+      async () => {
+        expect(await run('"hello" -> .match("world")')).toEqual({});
+      }
+    );
 
     it('returns capture groups', async () => {
       const result = await run('"error: 42" -> .match("error: (\\\\d+)")');
@@ -158,34 +169,46 @@ describe('Rill Runtime: Built-in Methods', () => {
       });
     });
 
-    it('returns multiple capture groups', async () => {
-      const result = await run(
-        '"v1.2.3" -> .match("v(\\\\d+)\\\\.(\\\\d+)\\\\.(\\\\d+)")'
-      );
-      expect(result).toEqual({
-        matched: 'v1.2.3',
-        index: 0,
-        groups: ['1', '2', '3'],
-      });
-    });
+    rule('string.match.first').it(
+      'returns multiple capture groups',
+      async () => {
+        const result = await run(
+          '"v1.2.3" -> .match("v(\\\\d+)\\\\.(\\\\d+)\\\\.(\\\\d+)")'
+        );
+        expect(result).toEqual({
+          matched: 'v1.2.3',
+          index: 0,
+          groups: ['1', '2', '3'],
+        });
+      }
+    );
 
-    it('halts with #INVALID_INPUT for invalid regex', async () => {
-      await expectHalt(() => run('"test" -> .match("[")'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('regex.invalid').it(
+      'halts with #INVALID_INPUT for invalid regex',
+      async () => {
+        await expectHalt(() => run('"test" -> .match("[")'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
-    it('invalid regex halt is catchable via guard', async () => {
-      const result = await run(
-        'guard { "test" -> .match("[") } ?? "recovered"'
-      );
-      expect(result).toBe('recovered');
-    });
+    rule('regex.invalid').it(
+      'invalid regex halt is catchable via guard',
+      async () => {
+        const result = await run(
+          'guard { "test" -> .match("[") } ?? "recovered"'
+        );
+        expect(result).toBe('recovered');
+      }
+    );
 
-    it('matches at any position and reports index', async () => {
-      const result = await run('"abc123xyz" -> .match("[0-9]+")');
-      expect(result).toEqual({ matched: '123', index: 3, groups: [] });
-    });
+    rule('string.match.first').it(
+      'matches at any position and reports index',
+      async () => {
+        const result = await run('"abc123xyz" -> .match("[0-9]+")');
+        expect(result).toEqual({ matched: '123', index: 3, groups: [] });
+      }
+    );
 
     it('works in conditionals with .empty check', async () => {
       expect(
@@ -203,14 +226,17 @@ describe('Rill Runtime: Built-in Methods', () => {
       ).toBe('none');
     });
 
-    it('maps an unmatched optional capture group to "" instead of undefined', async () => {
-      const result = await run('"abc" -> .match("(a)(x)?(c)?")');
-      expect(result).toEqual({
-        matched: 'a',
-        index: 0,
-        groups: ['a', '', ''],
-      });
-    });
+    rule('string.match.unset-group').it(
+      'maps an unmatched optional capture group to "" instead of undefined',
+      async () => {
+        const result = await run('"abc" -> .match("(a)(x)?(c)?")');
+        expect(result).toEqual({
+          matched: 'a',
+          index: 0,
+          groups: ['a', '', ''],
+        });
+      }
+    );
   });
 
   describe('.is_match', () => {
@@ -235,9 +261,12 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(result).toBe('recovered');
     });
 
-    it('matches partial patterns', async () => {
-      expect(await run('"abc123xyz" -> .is_match("[0-9]")')).toBe(true);
-    });
+    rule('string.is_match.anywhere').it(
+      'matches partial patterns',
+      async () => {
+        expect(await run('"abc123xyz" -> .is_match("[0-9]")')).toBe(true);
+      }
+    );
   });
 
   describe('.starts_with', () => {
@@ -249,11 +278,14 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('"hello world" -> .starts_with("world")')).toBe(false);
     });
 
-    it('returns true for empty prefix', async () => {
-      expect(await run('"hello" -> .starts_with("")')).toBe(true);
-    });
+    rule('string.starts_with.prefix').it(
+      'returns true for empty prefix',
+      async () => {
+        expect(await run('"hello" -> .starts_with("")')).toBe(true);
+      }
+    );
 
-    it('is case sensitive', async () => {
+    rule('string.starts_with.prefix').it('is case sensitive', async () => {
       expect(await run('"Hello" -> .starts_with("hello")')).toBe(false);
     });
   });
@@ -267,17 +299,20 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('"file.txt" -> .ends_with(".md")')).toBe(false);
     });
 
-    it('returns true for empty suffix', async () => {
-      expect(await run('"hello" -> .ends_with("")')).toBe(true);
-    });
+    rule('string.ends_with.suffix').it(
+      'returns true for empty suffix',
+      async () => {
+        expect(await run('"hello" -> .ends_with("")')).toBe(true);
+      }
+    );
 
-    it('is case sensitive', async () => {
+    rule('string.ends_with.suffix').it('is case sensitive', async () => {
       expect(await run('"File.TXT" -> .ends_with(".txt")')).toBe(false);
     });
   });
 
   describe('.lower', () => {
-    it('converts to lowercase', async () => {
+    rule('string.lower.case').it('converts to lowercase', async () => {
       expect(await run('"Hello World" -> .lower')).toBe('hello world');
     });
 
@@ -295,7 +330,7 @@ describe('Rill Runtime: Built-in Methods', () => {
   });
 
   describe('.upper', () => {
-    it('converts to uppercase', async () => {
+    rule('string.upper.case').it('converts to uppercase', async () => {
       expect(await run('"Hello World" -> .upper')).toBe('HELLO WORLD');
     });
 
@@ -313,7 +348,7 @@ describe('Rill Runtime: Built-in Methods', () => {
   });
 
   describe('.replace', () => {
-    it('replaces first match', async () => {
+    rule('string.replace.first').it('replaces first match', async () => {
       expect(await run('"a-b-c" -> .replace("-", "_")')).toBe('a_b-c');
     });
 
@@ -321,9 +356,12 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('"a1b2c3" -> .replace("[0-9]", "X")')).toBe('aXb2c3');
     });
 
-    it('returns original for no match', async () => {
-      expect(await run('"hello" -> .replace("x", "y")')).toBe('hello');
-    });
+    rule('string.replace.first').it(
+      'returns original for no match',
+      async () => {
+        expect(await run('"hello" -> .replace("x", "y")')).toBe('hello');
+      }
+    );
 
     it('halts with #INVALID_INPUT for invalid regex', async () => {
       await expectHalt(() => run('"test" -> .replace("[", "_")'), {
@@ -344,7 +382,7 @@ describe('Rill Runtime: Built-in Methods', () => {
   });
 
   describe('.replace_all', () => {
-    it('replaces all matches', async () => {
+    rule('string.replace_all.every').it('replaces all matches', async () => {
       expect(await run('"a-b-c" -> .replace_all("-", "_")')).toBe('a_b_c');
     });
 
@@ -377,11 +415,14 @@ describe('Rill Runtime: Built-in Methods', () => {
   });
 
   describe('.index_of', () => {
-    it('returns position of first match', async () => {
-      expect(await run('"hello world" -> .index_of("o")')).toBe(4);
-    });
+    rule('string.index_of.position').it(
+      'returns position of first match',
+      async () => {
+        expect(await run('"hello world" -> .index_of("o")')).toBe(4);
+      }
+    );
 
-    it('returns -1 for no match', async () => {
+    rule('string.index_of.absent').it('returns -1 for no match', async () => {
       expect(await run('"hello" -> .index_of("x")')).toBe(-1);
     });
 
@@ -393,108 +434,147 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('"hello world" -> .index_of("world")')).toBe(6);
     });
 
-    it('handles empty search string', async () => {
-      expect(await run('"hello" -> .index_of("")')).toBe(0);
-    });
+    rule('string.index_of.position').it(
+      'handles empty search string',
+      async () => {
+        expect(await run('"hello" -> .index_of("")')).toBe(0);
+      }
+    );
   });
 
   describe('.repeat', () => {
-    it('repeats string n times', async () => {
+    rule('string.repeat.count').it('repeats string n times', async () => {
       expect(await run('"ab" -> .repeat(3)')).toBe('ababab');
     });
 
-    it('returns empty for zero repeats', async () => {
-      expect(await run('"ab" -> .repeat(0)')).toBe('');
-    });
+    rule('string.repeat.count').it(
+      'returns empty for zero repeats',
+      async () => {
+        expect(await run('"ab" -> .repeat(0)')).toBe('');
+      }
+    );
 
     it('returns original for one repeat', async () => {
       expect(await run('"ab" -> .repeat(1)')).toBe('ab');
     });
 
-    it('halts with #INVALID_INPUT on negative number', async () => {
-      await expectHalt(() => run('"ab" -> .repeat(-1)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('string.repeat.invalid').it(
+      'halts with #INVALID_INPUT on negative number',
+      async () => {
+        await expectHalt(() => run('"ab" -> .repeat(-1)'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
     it('handles empty string', async () => {
       expect(await run('"" -> .repeat(5)')).toBe('');
     });
 
-    it('halts with #INVALID_INPUT when the result would be too large to allocate', async () => {
-      await expectHalt(() => run('"ab" -> .repeat(10000000000)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('value-size.string').it(
+      'halts with #INVALID_INPUT when the result would be too large to allocate',
+      async () => {
+        await expectHalt(() => run('"ab" -> .repeat(10000000000)'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
-    it('oversized repeat halt is catchable via guard', async () => {
-      const result = await run(
-        'guard { "ab" -> .repeat(10000000000) } ?? "recovered"'
-      );
-      expect(result).toBe('recovered');
-    });
+    rule('value-size.string').it(
+      'oversized repeat halt is catchable via guard',
+      async () => {
+        const result = await run(
+          'guard { "ab" -> .repeat(10000000000) } ?? "recovered"'
+        );
+        expect(result).toBe('recovered');
+      }
+    );
   });
 
   describe('.pad_start', () => {
-    it('pads start with spaces by default', async () => {
-      expect(await run('"42" -> .pad_start(5)')).toBe('   42');
-    });
+    rule('string.pad_start.fill').it(
+      'pads start with spaces by default',
+      async () => {
+        expect(await run('"42" -> .pad_start(5)')).toBe('   42');
+      }
+    );
 
     it('pads start with custom fill', async () => {
       expect(await run('"42" -> .pad_start(5, "0")')).toBe('00042');
     });
 
-    it('does not truncate if already long enough', async () => {
-      expect(await run('"hello" -> .pad_start(3)')).toBe('hello');
-    });
+    rule('string.pad_start.unchanged').it(
+      'does not truncate if already long enough',
+      async () => {
+        expect(await run('"hello" -> .pad_start(3)')).toBe('hello');
+      }
+    );
 
-    it('handles multi-char fill', async () => {
+    rule('string.pad_start.fill').it('handles multi-char fill', async () => {
       expect(await run('"1" -> .pad_start(5, "ab")')).toBe('abab1');
     });
 
-    it('halts with #INVALID_INPUT when the result would be too large to allocate', async () => {
-      await expectHalt(() => run('"ab" -> .pad_start(10000000000)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('value-size.string').it(
+      'halts with #INVALID_INPUT when the result would be too large to allocate',
+      async () => {
+        await expectHalt(() => run('"ab" -> .pad_start(10000000000)'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
-    it('oversized pad_start halt is catchable via guard', async () => {
-      const result = await run(
-        'guard { "ab" -> .pad_start(10000000000) } ?? "recovered"'
-      );
-      expect(result).toBe('recovered');
-    });
+    rule('value-size.string').it(
+      'oversized pad_start halt is catchable via guard',
+      async () => {
+        const result = await run(
+          'guard { "ab" -> .pad_start(10000000000) } ?? "recovered"'
+        );
+        expect(result).toBe('recovered');
+      }
+    );
   });
 
   describe('.pad_end', () => {
-    it('pads end with spaces by default', async () => {
-      expect(await run('"42" -> .pad_end(5)')).toBe('42   ');
-    });
+    rule('string.pad_end.fill').it(
+      'pads end with spaces by default',
+      async () => {
+        expect(await run('"42" -> .pad_end(5)')).toBe('42   ');
+      }
+    );
 
     it('pads end with custom fill', async () => {
       expect(await run('"42" -> .pad_end(5, "0")')).toBe('42000');
     });
 
-    it('does not truncate if already long enough', async () => {
-      expect(await run('"hello" -> .pad_end(3)')).toBe('hello');
-    });
+    rule('string.pad_end.unchanged').it(
+      'does not truncate if already long enough',
+      async () => {
+        expect(await run('"hello" -> .pad_end(3)')).toBe('hello');
+      }
+    );
 
-    it('handles multi-char fill', async () => {
+    rule('string.pad_end.fill').it('handles multi-char fill', async () => {
       expect(await run('"1" -> .pad_end(5, "ab")')).toBe('1abab');
     });
 
-    it('halts with #INVALID_INPUT when the result would be too large to allocate', async () => {
-      await expectHalt(() => run('"ab" -> .pad_end(10000000000)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('value-size.string').it(
+      'halts with #INVALID_INPUT when the result would be too large to allocate',
+      async () => {
+        await expectHalt(() => run('"ab" -> .pad_end(10000000000)'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
-    it('oversized pad_end halt is catchable via guard', async () => {
-      const result = await run(
-        'guard { "ab" -> .pad_end(10000000000) } ?? "recovered"'
-      );
-      expect(result).toBe('recovered');
-    });
+    rule('value-size.string').it(
+      'oversized pad_end halt is catchable via guard',
+      async () => {
+        const result = await run(
+          'guard { "ab" -> .pad_end(10000000000) } ?? "recovered"'
+        );
+        expect(result).toBe('recovered');
+      }
+    );
   });
 
   describe('.eq', () => {
@@ -555,35 +635,50 @@ describe('Rill Runtime: Built-in Methods', () => {
   });
 
   describe('.lt', () => {
-    it('returns true when less than', async () => {
+    rule('number.lt.operator').it('returns true when less than', async () => {
       expect(await run('1 -> .lt(2)')).toBe(true);
     });
 
-    it('returns false when equal', async () => {
+    rule('number.lt.operator').it('returns false when equal', async () => {
       expect(await run('2 -> .lt(2)')).toBe(false);
     });
 
-    it('returns false when greater than', async () => {
-      expect(await run('3 -> .lt(2)')).toBe(false);
-    });
+    rule('number.lt.operator').it(
+      'returns false when greater than',
+      async () => {
+        expect(await run('3 -> .lt(2)')).toBe(false);
+      }
+    );
 
-    it('compares strings lexicographically', async () => {
-      expect(await run('"a" -> .lt("b")')).toBe(true);
-    });
+    rule('string.lt.operator').it(
+      'compares strings lexicographically',
+      async () => {
+        expect(await run('"a" -> .lt("b")')).toBe(true);
+      }
+    );
 
-    it('returns true for a number less than another number (regression)', async () => {
-      expect(await run('3 -> .lt(5)')).toBe(true);
-    });
+    rule('number.lt.operator').it(
+      'returns true for a number less than another number (regression)',
+      async () => {
+        expect(await run('3 -> .lt(5)')).toBe(true);
+      }
+    );
 
-    it('returns true for a string less than another string (regression)', async () => {
-      expect(await run('"a" -> .lt("b")')).toBe(true);
-    });
+    rule('string.lt.operator').it(
+      'returns true for a string less than another string (regression)',
+      async () => {
+        expect(await run('"a" -> .lt("b")')).toBe(true);
+      }
+    );
 
-    it('halts with RILL-R002 comparing a number with a string', async () => {
-      await expect(run('1 -> .lt("a")')).rejects.toThrow(
-        expect.objectContaining({ errorId: 'RILL-R002' })
-      );
-    });
+    rule('number.lt.operator').it(
+      'halts with RILL-R002 comparing a number with a string',
+      async () => {
+        await expect(run('1 -> .lt("a")')).rejects.toThrow(
+          expect.objectContaining({ errorId: 'RILL-R002' })
+        );
+      }
+    );
 
     it('halts with RILL-R002 comparing a dict with a dict', async () => {
       await expect(run('dict[a: 1] -> .lt(dict[a: 1])')).rejects.toThrow(
@@ -599,27 +694,36 @@ describe('Rill Runtime: Built-in Methods', () => {
   });
 
   describe('.gt', () => {
-    it('returns true when greater than', async () => {
-      expect(await run('2 -> .gt(1)')).toBe(true);
-    });
+    rule('number.gt.operator').it(
+      'returns true when greater than',
+      async () => {
+        expect(await run('2 -> .gt(1)')).toBe(true);
+      }
+    );
 
-    it('returns false when equal', async () => {
+    rule('number.gt.operator').it('returns false when equal', async () => {
       expect(await run('2 -> .gt(2)')).toBe(false);
     });
 
-    it('returns false when less than', async () => {
+    rule('number.gt.operator').it('returns false when less than', async () => {
       expect(await run('1 -> .gt(2)')).toBe(false);
     });
 
-    it('compares strings lexicographically', async () => {
-      expect(await run('"b" -> .gt("a")')).toBe(true);
-    });
+    rule('string.gt.operator').it(
+      'compares strings lexicographically',
+      async () => {
+        expect(await run('"b" -> .gt("a")')).toBe(true);
+      }
+    );
 
-    it('halts with RILL-R002 comparing a number with a string', async () => {
-      await expect(run('1 -> .gt("a")')).rejects.toThrow(
-        expect.objectContaining({ errorId: 'RILL-R002' })
-      );
-    });
+    rule('number.gt.operator').it(
+      'halts with RILL-R002 comparing a number with a string',
+      async () => {
+        await expect(run('1 -> .gt("a")')).rejects.toThrow(
+          expect.objectContaining({ errorId: 'RILL-R002' })
+        );
+      }
+    );
 
     it('halts with RILL-R002 comparing a dict with a dict', async () => {
       await expect(run('dict[a: 1] -> .gt(dict[a: 1])')).rejects.toThrow(
@@ -635,23 +739,29 @@ describe('Rill Runtime: Built-in Methods', () => {
   });
 
   describe('.le', () => {
-    it('returns true when less than', async () => {
+    rule('number.le.operator').it('returns true when less than', async () => {
       expect(await run('1 -> .le(2)')).toBe(true);
     });
 
-    it('returns true when equal', async () => {
+    rule('number.le.operator').it('returns true when equal', async () => {
       expect(await run('2 -> .le(2)')).toBe(true);
     });
 
-    it('returns false when greater than', async () => {
-      expect(await run('3 -> .le(2)')).toBe(false);
-    });
+    rule('number.le.operator').it(
+      'returns false when greater than',
+      async () => {
+        expect(await run('3 -> .le(2)')).toBe(false);
+      }
+    );
 
-    it('halts with RILL-R002 comparing a number with a string', async () => {
-      await expect(run('1 -> .le("a")')).rejects.toThrow(
-        expect.objectContaining({ errorId: 'RILL-R002' })
-      );
-    });
+    rule('number.le.operator').it(
+      'halts with RILL-R002 comparing a number with a string',
+      async () => {
+        await expect(run('1 -> .le("a")')).rejects.toThrow(
+          expect.objectContaining({ errorId: 'RILL-R002' })
+        );
+      }
+    );
 
     it('halts with RILL-R002 comparing a dict with a dict', async () => {
       await expect(run('dict[a: 1] -> .le(dict[a: 1])')).rejects.toThrow(
@@ -667,23 +777,29 @@ describe('Rill Runtime: Built-in Methods', () => {
   });
 
   describe('.ge', () => {
-    it('returns true when greater than', async () => {
-      expect(await run('3 -> .ge(2)')).toBe(true);
-    });
+    rule('number.ge.operator').it(
+      'returns true when greater than',
+      async () => {
+        expect(await run('3 -> .ge(2)')).toBe(true);
+      }
+    );
 
-    it('returns true when equal', async () => {
+    rule('number.ge.operator').it('returns true when equal', async () => {
       expect(await run('2 -> .ge(2)')).toBe(true);
     });
 
-    it('returns false when less than', async () => {
+    rule('number.ge.operator').it('returns false when less than', async () => {
       expect(await run('1 -> .ge(2)')).toBe(false);
     });
 
-    it('halts with RILL-R002 comparing a number with a string', async () => {
-      await expect(run('1 -> .ge("a")')).rejects.toThrow(
-        expect.objectContaining({ errorId: 'RILL-R002' })
-      );
-    });
+    rule('number.ge.operator').it(
+      'halts with RILL-R002 comparing a number with a string',
+      async () => {
+        await expect(run('1 -> .ge("a")')).rejects.toThrow(
+          expect.objectContaining({ errorId: 'RILL-R002' })
+        );
+      }
+    );
 
     it('halts with RILL-R002 comparing a dict with a dict', async () => {
       await expect(run('dict[a: 1] -> .ge(dict[a: 1])')).rejects.toThrow(
@@ -699,37 +815,49 @@ describe('Rill Runtime: Built-in Methods', () => {
   });
 
   describe('.head / .tail / .at bounds and empty checks are catchable', () => {
-    it('.head on an empty list is catchable via guard', async () => {
-      const result = await run(`
+    rule('list.head.empty').it(
+      '.head on an empty list is catchable via guard',
+      async () => {
+        const result = await run(`
         guard { list[] -> .head } => $r
         $r.!
       `);
-      expect(result).toBe(true);
-    });
+        expect(result).toBe(true);
+      }
+    );
 
-    it('.head on an empty string is catchable via guard', async () => {
-      const result = await run(`
+    rule('string.head.empty').it(
+      '.head on an empty string is catchable via guard',
+      async () => {
+        const result = await run(`
         guard { "" -> .head } => $r
         $r.!
       `);
-      expect(result).toBe(true);
-    });
+        expect(result).toBe(true);
+      }
+    );
 
-    it('.tail on an empty list is catchable via guard', async () => {
-      const result = await run(`
+    rule('list.tail.empty').it(
+      '.tail on an empty list is catchable via guard',
+      async () => {
+        const result = await run(`
         guard { list[] -> .tail } => $r
         $r.!
       `);
-      expect(result).toBe(true);
-    });
+        expect(result).toBe(true);
+      }
+    );
 
-    it('.tail on an empty string is catchable via guard', async () => {
-      const result = await run(`
+    rule('string.tail.empty').it(
+      '.tail on an empty string is catchable via guard',
+      async () => {
+        const result = await run(`
         guard { "" -> .tail } => $r
         $r.!
       `);
-      expect(result).toBe(true);
-    });
+        expect(result).toBe(true);
+      }
+    );
 
     it('.at out of bounds on a list is catchable via guard', async () => {
       const result = await run(`
@@ -767,39 +895,51 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('list[1,2,3] -> .at(9) ?? 0')).toBe(0);
     });
 
-    it('caught .head empty-list halt reports RILL_R002 via .!code -> string', async () => {
-      const result = await run(`
+    rule('list.head.empty').it(
+      'caught .head empty-list halt reports RILL_R002 via .!code -> string',
+      async () => {
+        const result = await run(`
         guard { list[] -> .head } => $r
         $r.!code -> string
       `);
-      expect(result).toBe('RILL_R002');
-    });
+        expect(result).toBe('RILL_R002');
+      }
+    );
 
-    it('caught .tail empty-list halt reports RILL_R002 via .!code -> string', async () => {
-      const result = await run(`
+    rule('list.tail.empty').it(
+      'caught .tail empty-list halt reports RILL_R002 via .!code -> string',
+      async () => {
+        const result = await run(`
         guard { list[] -> .tail } => $r
         $r.!code -> string
       `);
-      expect(result).toBe('RILL_R002');
-    });
+        expect(result).toBe('RILL_R002');
+      }
+    );
 
-    it('.head on an empty list halts uncaught with the expected message', async () => {
-      await expect(run('list[] -> .head')).rejects.toThrow(
-        expect.objectContaining({
-          errorId: 'RILL-R002',
-          rawMessage: 'Cannot get head of empty list',
-        })
-      );
-    });
+    rule('list.head.empty').it(
+      '.head on an empty list halts uncaught with the expected message',
+      async () => {
+        await expect(run('list[] -> .head')).rejects.toThrow(
+          expect.objectContaining({
+            errorId: 'RILL-R002',
+            rawMessage: 'Cannot get head of empty list',
+          })
+        );
+      }
+    );
 
-    it('.tail on an empty list halts uncaught with the expected message', async () => {
-      await expect(run('list[] -> .tail')).rejects.toThrow(
-        expect.objectContaining({
-          errorId: 'RILL-R002',
-          rawMessage: 'Cannot get tail of empty list',
-        })
-      );
-    });
+    rule('list.tail.empty').it(
+      '.tail on an empty list halts uncaught with the expected message',
+      async () => {
+        await expect(run('list[] -> .tail')).rejects.toThrow(
+          expect.objectContaining({
+            errorId: 'RILL-R002',
+            rawMessage: 'Cannot get tail of empty list',
+          })
+        );
+      }
+    );
 
     it('.at out of bounds on a list halts uncaught with the expected message', async () => {
       await expect(run('list[1,2,3] -> .at(3)')).rejects.toThrow(

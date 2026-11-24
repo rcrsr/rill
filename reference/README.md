@@ -64,19 +64,19 @@ earlier one.
 | Chapter | Covers |
 |---------|--------|
 | [conventions](conventions/) | Notation and the vocabulary of halts |
-| lexical (not yet written) | Source text, tokens, comments, literals |
+| [lexical](lexical/) | Source text, whitespace and comments, identifiers, keywords, tokens |
 | [program](program/) | Scripts, frontmatter, statements, annotations, the return value |
 | [values](values/) | The value model, equality, vacancy |
 | [types](types/) | Type values, type forms, built-in types, maps, declarations, assertions, carried types, type locks, conversion |
 | [variables](variables/) | Variables, `$` binding, scope, capture |
-| [expressions](expressions/) | Pipes, selection, dispatch, existence, destructure, slice, spread, interpolation |
+| [expressions](expressions/) | Operators, arithmetic, logical operators, pipes, pipe targets, access forms, selection, dispatch, existence, destructure, slice, spread, interpolation |
 | [callables](callables/) | Blocks, functions, parameters, invocation |
 | [control-flow](control-flow/) | Control statements and their options, loops |
 | [collections](collections/) | `seq`, `fan`, `filter`, `fold`, `acc`, `sort`, slicing |
 | [errors](errors/) | Invalid values, recovery, `assert`, `error` |
-| limits (not yet written) | Iteration, concurrency, call depth, timeouts |
+| [limits](limits/) | Call depth, calls in flight, slicing results, nesting depth, the host timeout, string length, the datetime range |
 | [host-boundary](host-boundary/) | `use`, and what a script observes of host functions and resources |
-| builtins (not yet written) | Built-in methods and functions |
+| [builtins](builtins/) | Built-in methods and functions, regex patterns, slicing and time-domain operators |
 
 ## Open decisions
 

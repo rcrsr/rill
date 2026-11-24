@@ -7,7 +7,7 @@ issues: []
 grammar: []
 errors: [RILL-R002, RILL-R010, RILL-R044, RILL-R045, TYPE_MISMATCH]
 depends: [scope, pipe, break]
-tests: [collection-operators.test.ts, iterators.test.ts, streams.test.ts, map-iteration.test.ts]
+tests: [collection-operators.test.ts, iterators.test.ts, streams.test.ts, map-iteration.test.ts, sort.test.ts]
 ---
 
 # Iteration
@@ -68,6 +68,15 @@ r[iteration.ceiling] fan, filter, and sort share the 10,000-element ceiling
 `fan`, `filter`, and `sort` MUST halt with RILL-R010 when the source holds more than 10,000
 elements, as `seq`, `fold`, and `acc` do.
 
+r[iteration.limit-first] An over-limit list, tuple, or string halts before any call
+An operator whose source is a list, a tuple, or a string holding more than 10,000 elements MUST
+halt with RILL-R010 before it calls the function.
+
+r[iteration.extra-argument] An argument past an operator's last parameter halts
+`fan` and `filter` take a source, a function, and an options dict. `fold` and `acc` take a
+source, a seed, and a function. `sort` takes a source and a key function. One more argument
+MUST halt with RILL-R045.
+
 r[iteration.callable] The function argument is callable
 A function argument that is not callable MUST halt with `#TYPE_MISMATCH`.
 
@@ -109,6 +118,7 @@ A map's entries are stated in `map.iteration`.
 | The source is not a list, tuple, string, dict, ordered, map, iterator, or stream | RILL-R002 | Yes |
 | An iterator or stream yields more than 10,000 elements | RILL-R010 | No |
 | An operator's source holds more than 10,000 elements | RILL-R010 | No |
+| An argument past the operator's last parameter | RILL-R045 | No |
 | The function argument is not callable | `#TYPE_MISMATCH` | Yes |
 | `seq`, `fan`, `filter`, or `sort` calls a function that takes no argument | RILL-R045 | No |
 | `seq`, `fan`, `filter`, or `sort` calls a function that requires a second argument | RILL-R044 | No |
@@ -165,7 +175,7 @@ guard { list[...$big, 0] -> fan({ $ }) }
 
 ## Notes
 
-The limit on `fan` calls in flight is a host limit, stated with limits, not here.
+The limit on calls in flight across `fan`, `filter`, and `sort` is `call-depth.in-flight`.
 
 Superseded: `iteration.sources`, now `iteration.source-kinds`, and `iteration.non-source`, now
 `iteration.other-source`. On 0.23.0 a tuple and an ordered halt RILL-R002 as sources.

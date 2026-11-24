@@ -80,28 +80,31 @@ describe('Rill Language: tuple types name positions', () => {
       });
     });
 
-    it('two-position types stay positional and exact', async () => {
-      expect(await run('tuple[1, 2].^type == tuple(number, number)')).toBe(
-        true
-      );
-      expect(await run('tuple[1, 2] -> :tuple(number, number)')).toEqual(
-        tuple(1, 2)
-      );
-      expect(await run('tuple[1, 2, 3] -> :?tuple(number, number)')).toBe(
-        false
-      );
-      expect(await run('tuple[1, 2, 3] -> tuple(number, number)')).toEqual(
-        tuple(1, 2)
-      );
-    });
+    rule('tuple.positions').it(
+      'two-position types stay positional and exact',
+      async () => {
+        expect(await run('tuple[1, 2].^type == tuple(number, number)')).toBe(
+          true
+        );
+        expect(await run('tuple[1, 2] -> :tuple(number, number)')).toEqual(
+          tuple(1, 2)
+        );
+        expect(await run('tuple[1, 2, 3] -> :?tuple(number, number)')).toBe(
+          false
+        );
+        expect(await run('tuple[1, 2, 3] -> tuple(number, number)')).toEqual(
+          tuple(1, 2)
+        );
+      }
+    );
 
-    it('bare tuple accepts any tuple', async () => {
+    rule('tuple.bare').it('bare tuple accepts any tuple', async () => {
       expect(await run('tuple[1, 2, 3] -> :?tuple')).toBe(true);
     });
   });
 
   describe('no uniform form', () => {
-    it('a tuple does not have a list type', async () => {
+    rule('tuple.not-list').it('a tuple does not have a list type', async () => {
       expect(await run('tuple[1, 2, 3] -> :?list(number)')).toBe(false);
     });
 

@@ -64,15 +64,12 @@ exponent, so `1e21` prints `1e+21`. A nonzero number whose magnitude is below `1
 with `e-` and the exponent, so `0.00000015` prints `1.5e-7`. Every magnitude between prints in
 plain decimal.
 
-r[number.equality] Two numbers are equal when their values are equal
-`==` between two numbers MUST yield true exactly when both hold the same value. `1 == 1.0` ⇒
-`true`, and `-0 == 0` ⇒ `true`.
-
 r[number.ordering] Numbers order by value
 `<`, `>`, `<=`, and `>=` between two numbers MUST compare their values.
 
 ## Interactions
 
+Two numbers compare by value per `equality.number`.
 Equality against a non-number value follows `equality.no-overlap`.
 
 r[number.no-coercion] A number never coerces to or from another type
@@ -151,3 +148,5 @@ A number MUST satisfy `:number`. A value of any other type MUST halt `:number` w
 
 A literal past the double range reads as infinity in the current runtime, which breaks
 `number.finite` (#603). The conversion `"Infinity" -> number` halts RILL-R038.
+
+Superseded: `number.equality`, now `equality.number`.

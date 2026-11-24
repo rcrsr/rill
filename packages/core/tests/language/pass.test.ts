@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Pass Keyword Runtime Behavior
  * Tests for pass keyword evaluation in various contexts
@@ -7,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ParseError } from '@rcrsr/rill';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Language: Pass Keyword', () => {
@@ -106,14 +108,20 @@ describe('Rill Language: Pass Keyword', () => {
   });
 
   describe('Pass Standalone', () => {
-    it('throws error when pass used without pipe context', async () => {
-      await expect(run('pass')).rejects.toThrow("Variable '$' not defined");
-    });
+    rule('pass.identity').it(
+      'throws error when pass used without pipe context',
+      async () => {
+        await expect(run('pass')).rejects.toThrow("Variable '$' not defined");
+      }
+    );
 
-    it('preserves piped value through pass in block', async () => {
-      const result = await run('"hello" -> { pass }');
-      expect(result).toBe('hello');
-    });
+    rule('pass.identity').it(
+      'preserves piped value through pass in block',
+      async () => {
+        const result = await run('"hello" -> { pass }');
+        expect(result).toBe('hello');
+      }
+    );
 
     it('chains pass expressions in block', async () => {
       const result = await run('42 -> { pass }');
@@ -157,7 +165,7 @@ describe('Rill Language: Pass Keyword', () => {
   describe('Error Cases', () => {
     // `-> pass` is rejected at parse time before any call, method or field
     // access on pass is reached: a piped `pass` requires a body block.
-    it.each([
+    rule('pass.target-body').it.each([
       ['"x" -> pass()', 8],
       ['"x" -> pass("arg")', 8],
       ['"x" -> pass.method', 8],
@@ -233,4 +241,15 @@ describe('Rill Language: Pass Keyword', () => {
       expect(result).toEqual({ items: ['item', 'item'] });
     });
   });
+});
+
+describe('Rill Language: pass body', () => {
+  rule('pass.body').it(
+    'runs the body with $ bound and yields the piped value',
+    async () => {
+      // The body halts unless $ is the piped value, and its result 1 is discarded.
+      expect(await run('5 -> pass { ($ == 5) ? 1 ! (1 / 0) }')).toBe(5);
+      expect(await run('5 -> pass { $ * 100 }')).toBe(5);
+    }
+  );
 });

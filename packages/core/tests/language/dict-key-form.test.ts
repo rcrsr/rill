@@ -126,19 +126,25 @@ describe('AST keyForm metadata', () => {
 });
 
 describe('Dict key method ordering', () => {
-  it('.keys returns string keys in sorted order regardless of literal order', async () => {
-    const result = await run('dict[zebra: 1, apple: 2, mango: 3] -> .keys');
-    expect(result).toEqual(['apple', 'mango', 'zebra']);
-  });
+  rule('dict.keys.order').it(
+    '.keys returns string keys in sorted order regardless of literal order',
+    async () => {
+      const result = await run('dict[zebra: 1, apple: 2, mango: 3] -> .keys');
+      expect(result).toEqual(['apple', 'mango', 'zebra']);
+    }
+  );
 
-  it('.entries aligns keys and values under sorted key order', async () => {
-    const result = await run(
-      'dict[zebra: 1, apple: 2, mango: 3] -> .entries => $e\n$e == list[tuple["apple", 2], tuple["mango", 3], tuple["zebra", 1]]'
-    );
-    expect(result).toBe(true);
-  });
+  rule('dict.entries.order').it(
+    '.entries aligns keys and values under sorted key order',
+    async () => {
+      const result = await run(
+        'dict[zebra: 1, apple: 2, mango: 3] -> .entries => $e\n$e == list[tuple["apple", 2], tuple["mango", 3], tuple["zebra", 1]]'
+      );
+      expect(result).toBe(true);
+    }
+  );
 
-  rule('dict.entries-type').it(
+  rule('dict.entries-type', 'ordered.entries.order').it(
     '.entries of a dict and of an ordered has type list(tuple(string, number))',
     async () => {
       const dictEntries = 'dict[b: 2, a: 1] -> .entries => $e\n';
@@ -158,15 +164,21 @@ describe('Dict key method ordering', () => {
     }
   );
 
-  it('sorts number-spelled keys as strings, so "10" precedes "9"', async () => {
-    const result = await run('dict[9: "a", 10: "b", 1: "c"] -> .keys');
-    expect(result).toEqual(['1', '10', '9']);
-  });
+  rule('dict.keys.order').it(
+    'sorts number-spelled keys as strings, so "10" precedes "9"',
+    async () => {
+      const result = await run('dict[9: "a", 10: "b", 1: "c"] -> .keys');
+      expect(result).toEqual(['1', '10', '9']);
+    }
+  );
 
-  it('.values follows the same sorted key order as .keys and .entries', async () => {
-    const result = await run('dict[zebra: 1, apple: 2, mango: 3] -> .values');
-    expect(result).toEqual([2, 3, 1]);
-  });
+  rule('dict.values.order').it(
+    '.values follows the same sorted key order as .keys and .entries',
+    async () => {
+      const result = await run('dict[zebra: 1, apple: 2, mango: 3] -> .values');
+      expect(result).toEqual([2, 3, 1]);
+    }
+  );
 
   it('doc example: dict[name: "test", count: 42] -> .keys yields sorted keys', async () => {
     const result = await run('dict[name: "test", count: 42] -> .keys');

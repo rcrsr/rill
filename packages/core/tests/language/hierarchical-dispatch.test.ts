@@ -11,13 +11,16 @@ import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Hierarchical Dispatch', () => {
   describe('Dict Path Navigation', () => {
-    it('returns nested value for dict path (AC-1)', async () => {
-      // AC-1: Dict path returns nested value
-      const result = await run(
-        'list["name", "given"] -> dict[name: dict[given: "Alice"]]'
-      );
-      expect(result).toBe('Alice');
-    });
+    rule('dispatch.path').it(
+      'returns nested value for dict path (AC-1)',
+      async () => {
+        // AC-1: Dict path returns nested value
+        const result = await run(
+          'list["name", "given"] -> dict[name: dict[given: "Alice"]]'
+        );
+        expect(result).toBe('Alice');
+      }
+    );
 
     it('returns deeply nested value through multiple dicts', async () => {
       const result = await run(
@@ -28,13 +31,16 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
   });
 
   describe('List Path Navigation', () => {
-    it('returns nested element for list path (AC-2)', async () => {
-      // AC-2: List path returns nested element (navigate to first list, get second element)
-      const result = await run(
-        'list[0, 1] -> list[list[1, 2, 3], list[4, 5, 6]]'
-      );
-      expect(result).toBe(2);
-    });
+    rule('dispatch.path').it(
+      'returns nested element for list path (AC-2)',
+      async () => {
+        // AC-2: List path returns nested element (navigate to first list, get second element)
+        const result = await run(
+          'list[0, 1] -> list[list[1, 2, 3], list[4, 5, 6]]'
+        );
+        expect(result).toBe(2);
+      }
+    );
 
     it('returns deeply nested element through multiple lists', async () => {
       const result = await run(
@@ -69,13 +75,16 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
   });
 
   describe('Terminal Closure Receives Final Key', () => {
-    it('terminal closure receives $ = final key (AC-5)', async () => {
-      // AC-5: Terminal closure receives `$` = final key
-      const result = await run(
-        'list["req", "draft"] -> dict[req: dict[draft: { "key={$}" }]]'
-      );
-      expect(result).toBe('key=draft');
-    });
+    rule('dispatch.block').it(
+      'terminal closure receives $ = final key (AC-5)',
+      async () => {
+        // AC-5: Terminal closure receives `$` = final key
+        const result = await run(
+          'list["req", "draft"] -> dict[req: dict[draft: { "key={$}" }]]'
+        );
+        expect(result).toBe('key=draft');
+      }
+    );
 
     it('terminal closure accesses final key in computation', async () => {
       const result = await run(
@@ -93,16 +102,22 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
   });
 
   describe('Empty and Single-Element Paths', () => {
-    it('returns target unchanged for empty path (AC-6)', async () => {
-      // AC-6: Empty path returns target unchanged
-      const result = await run('list[] -> dict[a: 1]');
-      expect(result).toEqual({ a: 1 });
-    });
+    rule('dispatch.empty-path').it(
+      'returns target unchanged for empty path (AC-6)',
+      async () => {
+        // AC-6: Empty path returns target unchanged
+        const result = await run('list[] -> dict[a: 1]');
+        expect(result).toEqual({ a: 1 });
+      }
+    );
 
-    it('returns list unchanged for empty path', async () => {
-      const result = await run('list[] -> list[1, 2, 3]');
-      expect(result).toEqual([1, 2, 3]);
-    });
+    rule('dispatch.empty-path').it(
+      'returns list unchanged for empty path',
+      async () => {
+        const result = await run('list[] -> list[1, 2, 3]');
+        expect(result).toEqual([1, 2, 3]);
+      }
+    );
 
     it('single-element path equals scalar dispatch (AC-7)', async () => {
       // AC-7: Single-element path equals scalar dispatch
@@ -158,13 +173,16 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
   });
 
   describe('Boundary Conditions', () => {
-    it('returns default value on missing key (AC-16)', async () => {
-      // AC-16: Default value on missing key
-      const result = await run(
-        'list["a", "missing"] -> dict[a: dict[x: 1]] ?? "default"'
-      );
-      expect(result).toBe('default');
-    });
+    rule('dispatch.miss-message').it(
+      'returns default value on missing key (AC-16)',
+      async () => {
+        // AC-16: Default value on missing key
+        const result = await run(
+          'list["a", "missing"] -> dict[a: dict[x: 1]] ?? "default"'
+        );
+        expect(result).toBe('default');
+      }
+    );
 
     it('uses variable as path for navigation (AC-18)', async () => {
       // AC-18: Variable path works
@@ -201,31 +219,46 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
   });
 
   describe('Error Cases', () => {
-    it('halts a string key on a list with the bracket read message', async () => {
-      await expect(run('list["0"] -> list[1, 2, 3]')).rejects.toThrow(
-        /List index must be number, got string/
-      );
-    });
+    rule('dispatch.path').it(
+      'halts a string key on a list with the bracket read message',
+      async () => {
+        await expect(run('list["0"] -> list[1, 2, 3]')).rejects.toThrow(
+          /List index must be number, got string/
+        );
+      }
+    );
 
-    it('selects a number index in an ordered value as the bracket read does', async () => {
-      expect(await run('list["a", 0] -> dict[a: ordered[x: 5]]')).toBe(5);
-    });
+    rule('dispatch.path').it(
+      'selects a number index in an ordered value as the bracket read does',
+      async () => {
+        expect(await run('list["a", 0] -> dict[a: ordered[x: 5]]')).toBe(5);
+      }
+    );
 
-    it('selects a number index in a tuple as the bracket read does', async () => {
-      expect(await run('list["a", 1] -> dict[a: tuple[1, 2]]')).toBe(2);
-    });
+    rule('dispatch.path').it(
+      'selects a number index in a tuple as the bracket read does',
+      async () => {
+        expect(await run('list["a", 1] -> dict[a: tuple[1, 2]]')).toBe(2);
+      }
+    );
 
-    it('halts a bad key on an ordered value with the bracket read message', async () => {
-      await expect(
-        run('list["a", list[1]] -> dict[a: ordered[x: 5]]')
-      ).rejects.toThrow(/Ordered index must be string or number, got list/);
-    });
+    rule('dispatch.path').it(
+      'halts a bad key on an ordered value with the bracket read message',
+      async () => {
+        await expect(
+          run('list["a", list[1]] -> dict[a: ordered[x: 5]]')
+        ).rejects.toThrow(/Ordered index must be string or number, got list/);
+      }
+    );
 
-    it('names a missing ordered key as the bracket read does', async () => {
-      await expect(
-        run('list["a", "z"] -> dict[a: ordered[x: 5]]')
-      ).rejects.toThrow(/Undefined ordered key: z/);
-    });
+    rule('dispatch.path').it(
+      'names a missing ordered key as the bracket read does',
+      async () => {
+        await expect(
+          run('list["a", "z"] -> dict[a: ordered[x: 5]]')
+        ).rejects.toThrow(/Undefined ordered key: z/);
+      }
+    );
 
     it('halts #TYPE_MISMATCH for number index on dict', async () => {
       await expect(run('list[0] -> dict[a: 1]')).rejects.toThrow(

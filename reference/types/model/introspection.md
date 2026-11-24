@@ -89,6 +89,9 @@ tuple type with no defaults MUST return an empty map.
 r[introspection.defaults-halt] A type with no named fields has no defaults
 `.defaults` on a list, map, union, stream, or scalar type MUST halt with RILL-R003.
 
+r[introspection.defaults-leaf] .defaults on a non-scalar leaf type halts
+`.defaults` on `vector`, `iterator`, `type`, or `any` MUST halt with RILL-R003.
+
 r[introspection.annotations] .annotations lists field annotations
 `.annotations` on a `dict`, `ordered`, or function type MUST return a dict keyed by field or
 parameter name. The value at each key MUST be the annotation dict of that field or parameter. A
@@ -110,6 +113,8 @@ r[introspection.annotations-halt] .annotations on a type with no fields halts
 RILL-R003.
 
 ## Interactions
+
+`map.inner` and `map.inner-unspecified` state the inner of a map type.
 
 r[introspection.presence] The presence probe reports a property without halting
 `.?p` on a type value MUST return `true` exactly when `.p` does not halt.

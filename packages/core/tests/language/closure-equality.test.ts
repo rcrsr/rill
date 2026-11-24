@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Closure Equality
  *
@@ -10,17 +11,21 @@
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Closure Equality', () => {
   describe('identical closures', () => {
-    it('closures with same body are equal', async () => {
-      const code = `
+    rule('equality.function').it(
+      'closures with same body are equal',
+      async () => {
+        const code = `
         fn { .trim } => $a
         fn { .trim } => $b
         ($a == $b) ? true ! false
       `;
-      expect(await run(code)).toBe(true);
-    });
+        expect(await run(code)).toBe(true);
+      }
+    );
   });
 
   describe('different closures', () => {
@@ -35,15 +40,18 @@ describe('Rill Runtime: Closure Equality', () => {
   });
 
   describe('captured values', () => {
-    it('closures with same captured values are equal', async () => {
-      const code = `
+    rule('equality.function').it(
+      'closures with same captured values are equal',
+      async () => {
+        const code = `
         "hello" => $x
         { $x } => $a
         { $x } => $b
         ($a == $b) ? true ! false
       `;
-      expect(await run(code)).toBe(true);
-    });
+        expect(await run(code)).toBe(true);
+      }
+    );
 
     it('closures with different captured values are not equal', async () => {
       // With new block-closure semantics, use explicit default parameter literals
@@ -196,13 +204,16 @@ describe('Rill Runtime: Closure Equality', () => {
       expect(await run(code)).toBe(true);
     });
 
-    it('same closure reference equals itself', async () => {
-      const code = `
+    rule('equality.function').it(
+      'same closure reference equals itself',
+      async () => {
+        const code = `
         fn { .trim } => $a
         ($a == $a) ? true ! false
       `;
-      expect(await run(code)).toBe(true);
-    });
+        expect(await run(code)).toBe(true);
+      }
+    );
 
     it('closures with tuples are equal', async () => {
       const code = `

@@ -5,9 +5,9 @@ status: normative
 since: 0.24.0
 issues: []
 grammar: [field-key]
-errors: [RILL-P006, RILL-P012, RILL-P027, TYPE_MISMATCH]
+errors: [RILL-P006, RILL-P012, RILL-P027, RILL-R002, TYPE_MISMATCH]
 depends: [type-value, type-form]
-tests: [uniform-value-type.test.ts, structural-type-identity.test.ts, structural-type-boundaries.test.ts, type-inner-outer.test.ts, type-assertions.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts, type-field-keys.test.ts, bare-bracket-literals.test.ts]
+tests: [uniform-value-type.test.ts, structural-type-errors.test.ts, structural-type-identity.test.ts, structural-type-boundaries.test.ts, type-inner-outer.test.ts, type-assertions.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts, type-field-keys.test.ts, bare-bracket-literals.test.ts, dict-key-form.test.ts, dict-variable-keys.test.ts, type-constructors.test.ts, bare-syntax.test.ts, dict.test.ts, string-dict-keys.test.ts, identifier-prototype-names.test.ts, parser-syntax-errors.test.ts]
 ---
 
 # Dict types
@@ -99,11 +99,15 @@ r[dict.entries-type] A dict's entries are string-keyed tuples
 `.entries` on a dict or an ordered whose values have type `V` MUST return
 `list(tuple(string, V))`, one `tuple[key, value]` per entry.
 
+r[dict.no-order] Dicts have no order
+`<`, `>`, `<=`, and `>=` between two dicts MUST halt with RILL-R002.
+
 ## Interactions
 
 An unknown type name as an argument follows `type-form.unknown-name`, and a variable argument
 that holds a non-type follows `type-value.variable-halt`. Which dicts have a dict type follows
-`structural-typing.exact-dict` and `structural-typing.bare-dict`.
+`structural-typing.exact-dict` and `structural-typing.bare-dict`. Variable, computed, and multi-key
+entries follow `dict-literal`.
 
 ## Errors
 
@@ -114,6 +118,7 @@ that holds a non-type follows `type-value.variable-halt`. Which dicts have a dic
 | Value has a field a named form does not name (`structural-typing.exact-dict`) | `#TYPE_MISMATCH` | Yes |
 | A literal spells one key twice | RILL-P027 | No |
 | A type names one key twice | RILL-P027 | No |
+| An ordering operator between two dicts | RILL-R002 | Yes |
 
 ## Examples
 
@@ -136,11 +141,6 @@ dict[a: 1] => $d
 
 ```rill
 [1: "x"] == dict["1": "x"]
-# Result: true
-```
-
-```rill
-dict[a: 1, b: 2] -> :?dict
 # Result: true
 ```
 
@@ -176,14 +176,11 @@ ordered[while: 1, true: 2, 1: 3].^type.signature
 
 ## Notes
 
-The 0.23.0 runtime accepts the uniform form: `dict(number)` is a type, `dict[a: 1, b: 2] -> :?dict(number)`
-is true, `.inner` of `dict(T)` is `T`, and mixing named and unnamed arguments halts
-`#INVALID_INPUT`. The form now halts RILL-P012, and a script rewrites `dict(V)` to `map(string, V)`.
+On 0.23.0, `dict(number)` is a uniform type whose `.inner` is `number`, and a number or bool key
+stays typed, so `dict[1: "n"] == dict["1": "n"]` is false. The uniform form now halts RILL-P012,
+and a script rewrites `dict(V)` to `map(string, V)`.
 
 Superseded rule ids: `dict.forms`, `dict.mixed`, `dict.uniform-count`, `dict.value-type`,
-`dict.equality`, `dict.inner`, `dict.print`, `dict.unspecified`, `dict.any`,
-`dict.named-membership`.
+`dict.equality`, `dict.inner`, `dict.print`, `dict.unspecified`, `dict.any`, `dict.named-membership`.
 
-The 0.23.0 runtime keeps a number or bool key as a typed key, so `dict[1: "n"] == dict["1": "n"]`
-is false and `.keys` returns `list[1]`. An empty dict infers the unspecified type, as an empty
-list does, so `dict[].^type == dict()` is true and its type prints `dict`.
+An empty dict infers the unspecified type, as an empty list does, so `dict[].^type == dict()`.

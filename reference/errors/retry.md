@@ -4,9 +4,9 @@ title: Retry
 status: normative
 since: 0.24.0
 issues: []
-grammar: []
-errors: [RILL-P004, RILL-P025]
-depends: [guard]
+grammar: [retry-block]
+errors: [RILL-P001, RILL-P004, RILL-P025]
+depends: [guard, invalid-value]
 tests: [guard-retry.test.ts]
 ---
 
@@ -16,6 +16,10 @@ tests: [guard-retry.test.ts]
 completes.
 
 ## Syntax
+
+```ebnf
+retry-block = "retry" , construct-options , block ;
+```
 
 ```text
 retry(attempts: 3) { body }
@@ -31,6 +35,9 @@ RILL-P004, and so MUST a spread (`construct-options.literal-bound`).
 r[retry.attempts-name] The count is named attempts
 The count MUST be written `attempts`, and counts every run, the first included.
 
+r[retry.not-target] retry is not a pipe target
+`v -> retry(attempts: N) { body }` MUST be rejected with RILL-P001.
+
 ## Evaluation
 
 r[retry.success] The first run that completes ends the retry
@@ -45,10 +52,15 @@ r[retry.guard] Each run catches as guard does
 Each run MUST catch, select, and pass through halts and signals as `guard` does. A halt the
 selector does not list MUST propagate at once, without another run.
 
+r[retry.trace] Each caught run appends a frame
+Each run that raises a caught halt MUST append one `guard-caught` frame whose `fn` is `"retry"`
+(`invalid-value.trace-catch`), so exhausting N attempts appends N frames.
+
 ## Errors
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
+| `retry` is written as a pipe target | RILL-P001 | No |
 | `attempts` is not a positive integer literal, or the options hold a spread | RILL-P004 | No |
 | The options are written in angle brackets | RILL-P025 | No |
 

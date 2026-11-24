@@ -44,10 +44,12 @@ A rule that the current runtime does not satisfy MUST end its marker with `{pend
 
 ## Values in prose
 
-r[notation.code] Code in prose is rill source
-Text in backticks inside a rule body MUST be valid rill source or a fragment of it, unless it is
-an error id, an error code, or a grammar production name. A rule body MAY show malformed or
-non-rill text in backticks when the body names that text as rejected or as a format.
+Text in backticks inside a rule body is rill source or a fragment of it, except an error id, an
+error code, a grammar production name, or text the body names as rejected or as a format.
 
-r[notation.result] An arrow in prose reads "evaluates to"
-A rule body MAY write `a` ⇒ `b`. It means that evaluating `a` yields a value equal to `b`.
+`a` ⇒ `b` in a rule body reads "evaluating `a` yields a value equal to `b`".
+
+## Notes
+
+`notation.code` and `notation.result` were rules until no check could prove them. The text under
+"Values in prose" states both as definitions; neither id is reused.

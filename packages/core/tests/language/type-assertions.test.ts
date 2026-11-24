@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Type Assertions and Checks
  * Tests for type assertion (expr:type) and type check (expr:?type) syntax
@@ -7,6 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { rule } from '../helpers/rule.js';
 
 import { ParseError } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
@@ -14,9 +16,12 @@ import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 
 describe('Rill Runtime: Type Assertions', () => {
   describe('Pipe Shorthand :type', () => {
-    it('asserts string type on pipe value', async () => {
-      expect(await run('"hello" -> :string')).toBe('hello');
-    });
+    rule('assertion.pipe-target', 'assertion.pass').it(
+      'asserts string type on pipe value',
+      async () => {
+        expect(await run('"hello" -> :string')).toBe('hello');
+      }
+    );
 
     it('asserts number type on pipe value', async () => {
       expect(await run('42 -> :number')).toBe(42);
@@ -75,13 +80,19 @@ describe('Rill Runtime: Type Assertions', () => {
   });
 
   describe('Pipe Shorthand :?type (Type Check)', () => {
-    it('returns true when type matches - string', async () => {
-      expect(await run('"hello" -> :?string')).toBe(true);
-    });
+    rule('structural-typing.has').it(
+      'returns true when type matches - string',
+      async () => {
+        expect(await run('"hello" -> :?string')).toBe(true);
+      }
+    );
 
-    it('returns false when type mismatches - string', async () => {
-      expect(await run('42 -> :?string')).toBe(false);
-    });
+    rule('structural-typing.has').it(
+      'returns false when type mismatches - string',
+      async () => {
+        expect(await run('42 -> :?string')).toBe(false);
+      }
+    );
 
     it('returns true when type matches - number', async () => {
       expect(await run('42 -> :?number')).toBe(true);
@@ -129,12 +140,15 @@ describe('Rill Runtime: Type Assertions', () => {
       expect(await run('"hello" -> :string -> .len')).toBe(5);
     });
 
-    it('assertion fails and stops chain', async () => {
-      await expectHalt(() => run('42 -> :string -> string'), {
-        code: 'TYPE_MISMATCH',
-        messagePattern: 'expected string, got number',
-      });
-    });
+    rule('assertion.mismatch').it(
+      'assertion fails and stops chain',
+      async () => {
+        await expectHalt(() => run('42 -> :string -> string'), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: 'expected string, got number',
+        });
+      }
+    );
 
     it('multiple type assertions in chain', async () => {
       expect(await run('"test" -> :string -> .len -> :number')).toBe(4);
@@ -190,11 +204,14 @@ describe('Rill Runtime: Type Assertions', () => {
       expect(await run('identity("test") -> :string')).toBe('test');
     });
 
-    it('asserts .^type returns type value (typeName via host API)', async () => {
-      // .^type.^name no longer works; typeName accessible via host typeName property
-      const result = (await run('42 => $v\n$v.^type')) as any;
-      expect(result.typeName).toBe('number');
-    });
+    rule('carried-type.type-probe').it(
+      'asserts .^type returns type value (typeName via host API)',
+      async () => {
+        // .^type.^name no longer works; typeName accessible via host typeName property
+        const result = (await run('42 => $v\n$v.^type')) as any;
+        expect(result.typeName).toBe('number');
+      }
+    );
   });
 
   describe('Edge Cases', () => {
@@ -274,7 +291,7 @@ describe('Rill Runtime: Type Assertions', () => {
       expect(await run(script)).toEqual([10, 5, 0]);
     });
 
-    it('chained type checks', async () => {
+    rule('assertion.check').it('chained type checks', async () => {
       const script = `
         "test" => $v
         list[
@@ -392,12 +409,15 @@ describe('Rill Runtime: Type Assertions', () => {
       );
     });
 
-    it('EC-6: tuple(x: string) annotation (named) halts with "requires positional arguments"', async () => {
-      await expectHaltMessage(
-        () => run('"x" :tuple(x: string)'),
-        'tuple() requires positional arguments'
-      );
-    });
+    rule('tuple.unnamed').it(
+      'EC-6: tuple(x: string) annotation (named) halts with "requires positional arguments"',
+      async () => {
+        await expectHaltMessage(
+          () => run('"x" :tuple(x: string)'),
+          'tuple() requires positional arguments'
+        );
+      }
+    );
 
     it('EC-7: non-type-value as type arg halts with "not a valid type reference"', async () => {
       const script = `
@@ -425,5 +445,119 @@ describe('Rill Runtime: Type Assertions', () => {
       expect(err).toBeInstanceOf(ParseError);
       expect((err as ParseError).errorId).toBe('RILL-P001');
     });
+  });
+
+  describe('Scalar membership', () => {
+    const cases: Array<[string, string, string[]]> = [
+      ['atom', '#a', ['"a"', '5']],
+      ['bool', 'true', ['1', '"true"']],
+      ['datetime', 'datetime("2026-03-13")', ['"2026-03-13"']],
+      ['duration', 'duration("1ms")', ['1']],
+      ['error_code', '#TIMEOUT', ['#ok', '#wired', '"TIMEOUT"']],
+      ['number', '1', ['"1"']],
+      ['string', '"a"', ['1', '#a']],
+    ];
+
+    rule(
+      'atom.membership',
+      'bool.membership',
+      'datetime.membership',
+      'duration.membership',
+      'error-code.membership',
+      'number.membership',
+      'string.membership'
+    ).it(
+      'a scalar satisfies its own type and any other value halts #TYPE_MISMATCH',
+      async () => {
+        for (const [type, member, others] of cases) {
+          expect(await run(`${member} -> :?${type}`)).toBe(true);
+          for (const other of others) {
+            await expectHalt(() => run(`${other} -> :${type}`), {
+              code: 'TYPE_MISMATCH',
+            });
+          }
+        }
+      }
+    );
+  });
+
+  describe('Assertion position and labels', () => {
+    rule('assertion.position').it(
+      'accepts :T and :?T after a primary and after postfix operators',
+      async () => {
+        expect(await run('list[1, 2][0]:number')).toBe(1);
+        expect(await run('"abc".len:number')).toBe(3);
+        expect(await run('"abc".len:?string')).toBe(false);
+        expect(await run('dict[a: 1].a:?number')).toBe(true);
+      }
+    );
+
+    rule('assertion.binding').it(
+      'binds a postfix assertion tighter than a following method',
+      async () => {
+        expect(await run('"abc":string.len')).toBe(3);
+        await expectHalt(() => run('"abc":number.len'), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: 'expected number, got string',
+        });
+      }
+    );
+
+    rule('assertion.leaf-args').it(
+      'halts #INVALID_INPUT for a leaf type with arguments in :T and :?T',
+      async () => {
+        for (const src of [
+          '"hello" :string(number)',
+          '"hello" :?string(number)',
+          '"hello" -> :?string(number)',
+        ]) {
+          await expectHalt(() => run(src), {
+            code: 'INVALID_INPUT',
+            messagePattern: 'string does not accept type arguments',
+          });
+        }
+      }
+    );
+
+    rule('assertion.short-form', 'assertion.label').it(
+      'gives a capture annotation the value and type of an assertion then a capture',
+      async () => {
+        expect(
+          await run(
+            '1 => $x:union(string, number)\nlist[$x, $x.^type.signature]'
+          )
+        ).toEqual([1, 'union(number, string)']);
+        expect(
+          await run(
+            '1 -> :union(string, number) => $y\nlist[$y, $y.^type.signature]'
+          )
+        ).toEqual([1, 'union(number, string)']);
+      }
+    );
+
+    rule('assertion.any').it(
+      'sets no asserted type and keeps a carried type unchanged',
+      async () => {
+        expect(await run('1 => $x:any\n$x.^type.signature')).toBe('number');
+        expect(
+          await run(
+            '1 => $x:union(string, number)\n$x -> :any -> .^type.signature'
+          )
+        ).toBe('union(number, string)');
+      }
+    );
+
+    rule('assertion.bare-kind').it(
+      'labels :list and :dict with the bare kind',
+      async () => {
+        expect(await run('list[1] -> :list -> .^type.signature')).toBe('list');
+        expect(await run('dict[a: 1] -> :dict -> .^type.signature')).toBe(
+          'dict'
+        );
+        expect(await run('dict[a: 1] => $d:dict\n$d.^type.signature')).toBe(
+          'dict'
+        );
+      }
+    );
   });
 });

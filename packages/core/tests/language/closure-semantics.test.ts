@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Closure Semantics
  *
@@ -10,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 import { run, runWithContext } from '../helpers/runtime.js';
 import { expectHalt, expectRuntimeError } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Closure Semantics', () => {
   describe('Block Produces Closure Type', () => {
@@ -291,35 +293,41 @@ describe('Rill Runtime: Closure Semantics', () => {
       );
     });
 
-    it('AC-10: excess arguments to block-closure throws RUNTIME_TYPE_ERROR', async () => {
-      // Block-closure accepts only 1 implicit $ argument
-      await expectRuntimeError(
-        () =>
-          run(`
+    rule('invocation.excess').it(
+      'AC-10: excess arguments to block-closure throws RUNTIME_TYPE_ERROR',
+      async () => {
+        // Block-closure accepts only 1 implicit $ argument
+        await expectRuntimeError(
+          () =>
+            run(`
           fn { $ + 1 } => $a
           $a(1, 2)
         `),
-        {
-          code: 'RILL-R045',
-          messagePattern: /expects 1 argument, got 2/,
-        }
-      );
-    });
+          {
+            code: 'RILL-R045',
+            messagePattern: /expects 1 argument, got 2/,
+          }
+        );
+      }
+    );
 
-    it('AC-11: arguments to zero-param closure throws RUNTIME_TYPE_ERROR', async () => {
-      // Zero-param closure fn() {} should not accept arguments
-      await expectRuntimeError(
-        () =>
-          run(`
+    rule('invocation.excess').it(
+      'AC-11: arguments to zero-param closure throws RUNTIME_TYPE_ERROR',
+      async () => {
+        // Zero-param closure fn() {} should not accept arguments
+        await expectRuntimeError(
+          () =>
+            run(`
           fn() { 42 } => $a
           $a(5)
         `),
-        {
-          code: 'RILL-R045',
-          messagePattern: /expects 0 arguments, got 1/,
-        }
-      );
-    });
+          {
+            code: 'RILL-R045',
+            messagePattern: /expects 0 arguments, got 1/,
+          }
+        );
+      }
+    );
 
     it('AC-12: missing argument to explicit param closure throws RUNTIME_TYPE_ERROR', async () => {
       // Explicit parameter closure requires argument

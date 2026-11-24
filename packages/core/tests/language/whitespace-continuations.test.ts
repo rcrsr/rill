@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Whitespace Continuations
  * Tests for multi-line continuation gaps G1-G6 and statement boundary guard.
@@ -8,13 +9,17 @@ import { anyTypeValue, parse, ParseError } from '@rcrsr/rill';
 
 import { asPostfixHead, getStatementAt } from '../helpers/ast.js';
 import { run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Whitespace Continuations', () => {
   describe('G1: Binary Operators across newlines', () => {
-    it('adds two variables split across newline', async () => {
-      const result = await run(`1 => $x\n2 => $y\n$x +\n$y`);
-      expect(result).toBe(3);
-    });
+    rule('statement.trailing-operator').it(
+      'adds two variables split across newline',
+      async () => {
+        const result = await run(`1 => $x\n2 => $y\n$x +\n$y`);
+        expect(result).toBe(3);
+      }
+    );
 
     it('produces same result as single-line addition', async () => {
       const multiLine = await run(`3 => $x\n4 => $y\n$x +\n$y`);
@@ -27,15 +32,21 @@ describe('Rill Runtime: Whitespace Continuations', () => {
       expect(result).toBe(true);
     });
 
-    it('logical && across newline', async () => {
-      const result = await run(`true => $a\nfalse => $b\n$a &&\n$b`);
-      expect(result).toBe(false);
-    });
+    rule('statement.trailing-operator').it(
+      'logical && across newline',
+      async () => {
+        const result = await run(`true => $a\nfalse => $b\n$a &&\n$b`);
+        expect(result).toBe(false);
+      }
+    );
 
-    it('comparison == across newline', async () => {
-      const result = await run(`"hello" => $a\n"hello" => $b\n$a ==\n$b`);
-      expect(result).toBe(true);
-    });
+    rule('statement.trailing-operator').it(
+      'comparison == across newline',
+      async () => {
+        const result = await run(`"hello" => $a\n"hello" => $b\n$a ==\n$b`);
+        expect(result).toBe(true);
+      }
+    );
 
     it('comparison != across newline', async () => {
       const result = await run(`1 => $a\n2 => $b\n$a !=\n$b`);
@@ -52,10 +63,13 @@ describe('Rill Runtime: Whitespace Continuations', () => {
       expect(result).toBe(5);
     });
 
-    it('modulo across newline', async () => {
-      const result = await run(`7 => $x\n3 => $y\n$x %\n$y`);
-      expect(result).toBe(1);
-    });
+    rule('statement.trailing-operator').it(
+      'modulo across newline',
+      async () => {
+        const result = await run(`7 => $x\n3 => $y\n$x %\n$y`);
+        expect(result).toBe(1);
+      }
+    );
   });
 
   describe('G2: Fn structure with newlines around parentheses', () => {
@@ -83,19 +97,22 @@ describe('Rill Runtime: Whitespace Continuations', () => {
       expect(result).toBe('alice');
     });
 
-    it('bracket at start of next line starts a new statement, not an index continuation', () => {
-      const script = parse(`$x\n[0]`);
-      expect(script.statements).toHaveLength(2);
-      const second = script.statements[1]!;
-      if (second.type !== 'Statement') {
-        expect.fail('Expected second statement to be a plain Statement node');
+    rule('statement.leading-bracket').it(
+      'bracket at start of next line starts a new statement, not an index continuation',
+      () => {
+        const script = parse(`$x\n[0]`);
+        expect(script.statements).toHaveLength(2);
+        const second = script.statements[1]!;
+        if (second.type !== 'Statement') {
+          expect.fail('Expected second statement to be a plain Statement node');
+        }
+        expect(second.expression.head.type).toBe('PostfixExpr');
+        const { primary } = second.expression.head as {
+          primary: { type: string };
+        };
+        expect(primary.type).toBe('ListLiteral');
       }
-      expect(second.expression.head.type).toBe('PostfixExpr');
-      const { primary } = second.expression.head as {
-        primary: { type: string };
-      };
-      expect(primary.type).toBe('ListLiteral');
-    });
+    );
 
     it('same-line index access still parses as a continuation', async () => {
       const result = await run(`list["a", "b"] => $items\n$items[0]`);
@@ -192,10 +209,13 @@ describe('Rill Runtime: Whitespace Continuations', () => {
   });
 
   describe('Boundary Conditions', () => {
-    it('AC-11: multiple blank lines after binary operator evaluates correctly', async () => {
-      const result = await run('5 +\n\n\n3');
-      expect(result).toBe(8);
-    });
+    rule('statement.trailing-operator').it(
+      'AC-11: multiple blank lines after binary operator evaluates correctly',
+      async () => {
+        const result = await run('5 +\n\n\n3');
+        expect(result).toBe(8);
+      }
+    );
 
     it('AC-12: access chain newline before [ with invalid index throws ParseError', () => {
       try {
@@ -364,15 +384,21 @@ describe('Rill Runtime: Whitespace Continuations', () => {
   });
 
   describe('G9: Trailing connective token at end of line continues the statement', () => {
-    it('trailing -> continues onto the pipe target on the next line', async () => {
-      const result = await run('"hello" ->\n.upper');
-      expect(result).toBe('HELLO');
-    });
+    rule('statement.trailing-operator').it(
+      'trailing -> continues onto the pipe target on the next line',
+      async () => {
+        const result = await run('"hello" ->\n.upper');
+        expect(result).toBe('HELLO');
+      }
+    );
 
-    it('trailing => continues onto the captured variable on the next line', async () => {
-      const result = await run('5 =>\n$x\n$x + 1');
-      expect(result).toBe(6);
-    });
+    rule('statement.trailing-operator').it(
+      'trailing => continues onto the captured variable on the next line',
+      async () => {
+        const result = await run('5 =>\n$x\n$x + 1');
+        expect(result).toBe(6);
+      }
+    );
 
     it('trailing ? continues onto the then-branch on the next line', async () => {
       const result = await run('true ?\n1 ! 2');

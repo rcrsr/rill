@@ -4,7 +4,7 @@ title: Break and return
 status: normative
 since: 0.24.0
 issues: []
-grammar: []
+grammar: [chain-terminator]
 errors: [RILL-R002]
 depends: [loop]
 tests: [loops.test.ts]
@@ -16,6 +16,10 @@ tests: [loops.test.ts]
 early; neither is a halt.
 
 ## Syntax
+
+```ebnf
+chain-terminator = "break" | "return" | "yield" ;
+```
 
 ```text
 break           end the loop, with the current $
@@ -39,6 +43,10 @@ A `break` inside a code block nested in a loop body MUST end that loop.
 r[break.unsupported] break is rejected where nothing can catch it
 `break` inside `fan`, `filter`, or `fold`, or outside any loop, MUST halt with RILL-R002.
 
+r[break.other-operators] break is rejected in the other operator functions
+`break` inside a function passed to `sort`, `start_when`, `stop_when`, or `iterate` MUST halt with
+RILL-R002.
+
 r[break.return-body] return ends the innermost body
 `v -> return` MUST end the innermost code block, function body, or collection operator call
 with `v`. At the top level it ends the script (`statement.return`).
@@ -56,6 +64,7 @@ the construct they end.
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | `break` in `fan`, `filter`, `fold`, or outside a loop | RILL-R002 | No |
+| `break` in `sort`, `start_when`, `stop_when`, or `iterate` | RILL-R002 | No |
 
 ## Examples
 

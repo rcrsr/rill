@@ -4,10 +4,10 @@ title: Ordered types
 status: normative
 since: 0.24.0
 issues: []
-grammar: []
-errors: [RILL-P006, RILL-P012, TYPE_MISMATCH]
+grammar: [ordered, ordered-element]
+errors: [RILL-P006, RILL-P012, RILL-R002, TYPE_MISMATCH]
 depends: [type-value, type-form, dict]
-tests: [uniform-value-type.test.ts, structural-type-identity.test.ts, structural-type-boundaries.test.ts, structural-type-defaults.test.ts, type-inner-outer.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts, type-field-keys.test.ts]
+tests: [uniform-value-type.test.ts, structural-type-errors.test.ts, structural-type-identity.test.ts, structural-type-boundaries.test.ts, structural-type-defaults.test.ts, type-inner-outer.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts, type-field-keys.test.ts, type-constructors.test.ts]
 ---
 
 # Ordered types
@@ -15,6 +15,12 @@ tests: [uniform-value-type.test.ts, structural-type-identity.test.ts, structural
 An ordered type describes a keyed collection whose fields keep their written order, with one type per named field.
 
 ## Syntax
+
+```ebnf
+ordered         = "ordered" , "[" , [ ordered-element , { "," , ordered-element } ] , "]" ;
+ordered-element = "..." , expression
+                | dict-key , ":" , expression ;
+```
 
 ```text
 ordered                          any ordered
@@ -54,6 +60,9 @@ r[ordered.field-inner] An ordered type's inner is its fields
 r[ordered.field-print] An ordered type prints its fields
 An ordered type MUST print as `ordered(a: T, ...)`.
 
+r[ordered.no-order] Ordered values have no order
+`<`, `>`, `<=`, and `>=` between two ordered values MUST halt with RILL-R002.
+
 ## Interactions
 
 An unknown type name as an argument follows `type-form.unknown-name`, and a variable argument
@@ -68,6 +77,7 @@ ordered type, field order included, follows `structural-typing.exact-position`, 
 | Outer on a type that takes none | RILL-P006 | No |
 | An argument with no field name, as in `ordered(V)` | RILL-P012 | No |
 | Value has a field a named form does not name (`structural-typing.exact-position`) | `#TYPE_MISMATCH` | Yes |
+| An ordering operator between two ordered values | RILL-R002 | Yes |
 
 ## Examples
 

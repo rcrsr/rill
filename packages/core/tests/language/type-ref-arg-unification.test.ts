@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Type-Ref Arg Unification
  *
@@ -13,6 +14,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { rule } from '../helpers/rule.js';
 
 import {
   isTuple,
@@ -30,12 +32,15 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
   // ============================================================
 
   describe('AC-1: dict with default field, invoke/convert with empty dict', () => {
-    it('closure param annotation hydrates dict default to 5', async () => {
-      const result = await run(
-        'fn(a: dict(b: number = 5)) { $a } => $fn\n$fn(dict[])'
-      );
-      expect(result).toEqual({ b: 5 });
-    });
+    rule('defaults.arg-hydrate').it(
+      'closure param annotation hydrates dict default to 5',
+      async () => {
+        const result = await run(
+          'fn(a: dict(b: number = 5)) { $a } => $fn\n$fn(dict[])'
+        );
+        expect(result).toEqual({ b: 5 });
+      }
+    );
 
     it('accessing hydrated default field returns 5', async () => {
       const result = await run(
@@ -108,15 +113,18 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
       expect(annotResult).toEqual({ b: 42 });
     });
 
-    it('dict(b: number = 5) structure matches between contexts', async () => {
-      // Expression context
-      const exprType = (await run('dict(b: number = 5)')) as any;
-      // Annotation context: -> conversion hydrates defaults
-      const convResult = await run('dict[] -> dict(b: number = 5)');
-      expect(exprType.structure.fields.b.type).toEqual({ kind: 'number' });
-      expect(exprType.structure.fields.b.defaultValue).toBe(5);
-      expect(convResult).toEqual({ b: 5 });
-    });
+    rule('type-value.contexts').it(
+      'dict(b: number = 5) structure matches between contexts',
+      async () => {
+        // Expression context
+        const exprType = (await run('dict(b: number = 5)')) as any;
+        // Annotation context: -> conversion hydrates defaults
+        const convResult = await run('dict[] -> dict(b: number = 5)');
+        expect(exprType.structure.fields.b.type).toEqual({ kind: 'number' });
+        expect(exprType.structure.fields.b.defaultValue).toBe(5);
+        expect(convResult).toEqual({ b: 5 });
+      }
+    );
   });
 
   // ============================================================
@@ -124,12 +132,15 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
   // ============================================================
 
   describe('AC-6: identical type arg lists produce equal type values', () => {
-    it('dict(a: number, b: string) == dict(a: number, b: string) is true', async () => {
-      const result = await run(
-        'dict(a: number, b: string) == dict(a: number, b: string)'
-      );
-      expect(result).toBe(true);
-    });
+    rule('type-value.equality').it(
+      'dict(a: number, b: string) == dict(a: number, b: string) is true',
+      async () => {
+        const result = await run(
+          'dict(a: number, b: string) == dict(a: number, b: string)'
+        );
+        expect(result).toBe(true);
+      }
+    );
 
     it('dict(a: number = 5) == dict(a: number = 5) is true', async () => {
       const result = await run('dict(a: number = 5) == dict(a: number = 5)');
@@ -154,10 +165,13 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
       expect(result).toBe(true);
     });
 
-    it('dict(a: number = 5) != dict(a: number) is true', async () => {
-      const result = await run('dict(a: number = 5) != dict(a: number)');
-      expect(result).toBe(true);
-    });
+    rule('defaults.equality').it(
+      'dict(a: number = 5) != dict(a: number) is true',
+      async () => {
+        const result = await run('dict(a: number = 5) != dict(a: number)');
+        expect(result).toBe(true);
+      }
+    );
   });
 
   // ============================================================
@@ -435,11 +449,14 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
   // ============================================================
 
   describe('EC-4: non-type variable used as type ref -> typed-atom halt', () => {
-    it('variable holding number used as type ref halts #TYPE_MISMATCH', async () => {
-      await expectHalt(() => run('42 => $t\n"hello" -> :$t'), {
-        code: 'TYPE_MISMATCH',
-      });
-    });
+    rule('type-value.variable-halt').it(
+      'variable holding number used as type ref halts #TYPE_MISMATCH',
+      async () => {
+        await expectHalt(() => run('42 => $t\n"hello" -> :$t'), {
+          code: 'TYPE_MISMATCH',
+        });
+      }
+    );
   });
 
   // ============================================================
@@ -447,12 +464,15 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
   // ============================================================
 
   describe('EC-10: tuple non-trailing default -> typed-atom halt', () => {
-    it('tuple(number = 0, string) halts for non-trailing default', async () => {
-      await expectHaltMessage(
-        () => run('tuple(number = 0, string)'),
-        /tuple\(\) default values must be trailing/
-      );
-    });
+    rule('tuple.default-trailing').it(
+      'tuple(number = 0, string) halts for non-trailing default',
+      async () => {
+        await expectHaltMessage(
+          () => run('tuple(number = 0, string)'),
+          /tuple\(\) default values must be trailing/
+        );
+      }
+    );
 
     it('tuple(string = "x", number, bool = true) halts for non-trailing default', async () => {
       await expectHaltMessage(

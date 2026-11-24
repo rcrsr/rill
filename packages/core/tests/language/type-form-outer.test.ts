@@ -96,7 +96,7 @@ describe('Rill Language: Type form outer', () => {
     }
   );
 
-  rule('list.no-outer').it(
+  rule('list.no-outer', 'type-form.slots').it(
     'rejects an outer on list in type position',
     async () => {
       await expectOuterRejected('1 -> :list(number):string');
@@ -171,7 +171,7 @@ describe('Rill Language: Type form outer', () => {
     }
   );
 
-  rule('type-form.uniform', 'type-form.name').it(
+  rule('type-form.uniform', 'type-form.name', 'stream.bare-outer').it(
     'reads a bare name with an outer as the unspecified inner',
     async () => {
       expect(await run('stream:number == stream(any):number')).toBe(true);
@@ -203,6 +203,23 @@ describe('Rill Language: Type form outer', () => {
     async () => {
       await expectOuterRejected('list:number');
       await expectOuterRejected('"x" -> :?dict:string');
+    }
+  );
+  rule('type-form.unknown-name').it(
+    'raises RILL-P003 for an unknown type name in every type form',
+    async () => {
+      for (const source of [
+        'list(unknown_name)',
+        '5 -> :foo',
+        '5 -> :?foo',
+        '5 => $x:foo',
+        'fn(x: foo) { $x }',
+        'dict(a: foo)',
+      ]) {
+        await expect(run(source)).rejects.toMatchObject({
+          errorId: 'RILL-P003',
+        });
+      }
     }
   );
 });

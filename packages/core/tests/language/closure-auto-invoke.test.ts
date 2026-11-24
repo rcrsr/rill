@@ -36,13 +36,16 @@ describe('Rill Runtime: Closure Operands Are Not Invoked', () => {
       await expectHalt(() => run(script), NEGATION_TYPE_ERROR);
     });
 
-    it('arithmetic halts on a zero-param closure operand', async () => {
-      const script = `
+    rule('arithmetic.number-only').it(
+      'arithmetic halts on a zero-param closure operand',
+      async () => {
+        const script = `
         fn() { 1 } => $inc
         5 -> ($inc + 10)
       `;
-      await expectHalt(() => run(script), ARITHMETIC_TYPE_ERROR);
-    });
+        await expectHalt(() => run(script), ARITHMETIC_TYPE_ERROR);
+      }
+    );
 
     it('equality halts on a closure operand', async () => {
       const script = `
@@ -112,19 +115,22 @@ describe('Rill Runtime: Closure Operands Are Not Invoked', () => {
       expect(result.typeName).toBe('fn');
     });
 
-    it('&& halts on a closure operand', async () => {
-      const script = `
+    rule('logical.bool-operands').it(
+      '&& halts on a closure operand',
+      async () => {
+        const script = `
         fn(x) { $x > 0 } => $a
         fn(x) { $x < 10 } => $b
         5 -> ($a && $b)
       `;
-      await expectHalt(() => run(script), {
-        code: 'RILL_R002',
-        hostErrorId: 'RILL-R002',
-        messagePattern:
-          /Logical operator \(&&\) requires boolean operand, got fn/,
-      });
-    });
+        await expectHalt(() => run(script), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern:
+            /Logical operator \(&&\) requires boolean operand, got fn/,
+        });
+      }
+    );
 
     it('|| halts on a closure operand', async () => {
       const script = `

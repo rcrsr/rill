@@ -28,6 +28,9 @@ r[dispatch.ordered] A pipe into an ordered selects by key
 r[dispatch.path] A list piped into nested collections descends one level per element
 `list["a", "b"] -> $d` MUST select `"a"` in `$d`, then `"b"` in that result. Each step MUST select as `[k]` does on that receiver, so a number indexes an ordered value or a tuple, and a key the receiver rejects halts with the bracket read's message.
 
+r[dispatch.empty-path] An empty path selects nothing
+`list[] -> $d` MUST yield `$d` unchanged.
+
 r[dispatch.miss-message] A dispatch miss reads as the bracket read's
 A missing key in `k -> $d`, in a dispatch table `k -> dict[...]`, and in a hierarchical step MUST halt with the error id and message `$d[k]` raises for the same miss on the same receiver: RILL-R009 `Undefined dict key: k` on a dict, `Undefined ordered key: k` on an ordered, and `{Kind} index out of bounds: n` on a list, tuple, or ordered. `??` recovers each genuine miss.
 

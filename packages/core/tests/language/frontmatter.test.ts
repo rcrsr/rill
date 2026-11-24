@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Frontmatter
  * Tests for YAML frontmatter parsing at script start
@@ -7,6 +8,7 @@ import { ParseError, parse } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Frontmatter', () => {
   describe('Parsing', () => {
@@ -82,22 +84,28 @@ items: list[a, b, c]
   });
 
   describe('Execution', () => {
-    it('executes script with frontmatter', async () => {
-      const script = `---
+    rule('frontmatter.inert').it(
+      'executes script with frontmatter',
+      async () => {
+        const script = `---
 model: sonnet
 ---
 "hello"`;
-      expect(await run(script)).toBe('hello');
-    });
+        expect(await run(script)).toBe('hello');
+      }
+    );
 
-    it('frontmatter does not affect execution', async () => {
-      const script = `---
+    rule('frontmatter.inert').it(
+      'frontmatter does not affect execution',
+      async () => {
+        const script = `---
 x: 1
 y: 2
 ---
 list[1, 2, 3] -> .len`;
-      expect(await run(script)).toBe(3);
-    });
+        expect(await run(script)).toBe(3);
+      }
+    );
 
     it('executes multi-statement script with frontmatter', async () => {
       const script = `---
@@ -109,14 +117,17 @@ list[$x, $y]`;
       expect(await run(script)).toEqual(['a', 'b']);
     });
 
-    it('executes script with frontmatter after a leading blank line', async () => {
-      const script = `
+    rule('frontmatter.position').it(
+      'executes script with frontmatter after a leading blank line',
+      async () => {
+        const script = `
 ---
 model: sonnet
 ---
 "hello"`;
-      expect(await run(script)).toBe('hello');
-    });
+        expect(await run(script)).toBe('hello');
+      }
+    );
 
     it('handles frontmatter followed by triple-quote string', async () => {
       const script = `---
@@ -151,16 +162,19 @@ time: 10:30
   });
 
   describe('Edge Cases', () => {
-    it('requires frontmatter at script start', async () => {
-      // Frontmatter-like content after first statement is invalid
-      const script = `"hello"
+    rule('frontmatter.position').it(
+      'requires frontmatter at script start',
+      async () => {
+        // Frontmatter-like content after first statement is invalid
+        const script = `"hello"
 ---
 not: frontmatter
 ---`;
-      const err = await run(script).catch((e: unknown) => e);
-      expect(err).toBeInstanceOf(ParseError);
-      expect((err as ParseError).errorId).toBe('RILL-P001');
-    });
+        const err = await run(script).catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(ParseError);
+        expect((err as ParseError).errorId).toBe('RILL-P001');
+      }
+    );
 
     it('handles complex expressions after frontmatter', async () => {
       const script = `---
@@ -223,19 +237,22 @@ emoji: 🚀✨
       expect(await run(script)).toBe('unicode');
     });
 
-    it('handles frontmatter with dashes not at line start', async () => {
-      const script = `---
+    rule('frontmatter.close').it(
+      'handles frontmatter with dashes not at line start',
+      async () => {
+        const script = `---
 cmd: some-command
 range: 1---10
 separator: " --- "
 ---
 100`;
-      const ast = parse(script);
-      expect(ast.frontmatter?.content).toContain('some-command');
-      expect(ast.frontmatter?.content).toContain('1---10');
-      expect(ast.frontmatter?.content).toContain(' --- ');
-      expect(await run(script)).toBe(100);
-    });
+        const ast = parse(script);
+        expect(ast.frontmatter?.content).toContain('some-command');
+        expect(ast.frontmatter?.content).toContain('1---10');
+        expect(ast.frontmatter?.content).toContain(' --- ');
+        expect(await run(script)).toBe(100);
+      }
+    );
 
     it('handles frontmatter with only whitespace lines', async () => {
       const script = `---
@@ -275,24 +292,79 @@ single: 'also quoted'
       expect(await run(script)).toBe(5);
     });
 
-    it('rejects a closing delimiter with an extra dash', () => {
-      const script = `---
+    rule('frontmatter.extra-dash').it(
+      'rejects a closing delimiter with an extra dash',
+      () => {
+        const script = `---
 model: opus
 ----
 "hello"`;
-      expect(() => parse(script)).toThrow(
-        /malformed frontmatter closing delimiter/i
-      );
-    });
+        expect(() => parse(script)).toThrow(
+          /malformed frontmatter closing delimiter/i
+        );
+      }
+    );
 
-    it('rejects a closing delimiter with several extra dashes', () => {
-      const script = `---
+    rule('frontmatter.extra-dash').it(
+      'rejects a closing delimiter with several extra dashes',
+      () => {
+        const script = `---
 model: opus
 ------
 "hello"`;
-      expect(() => parse(script)).toThrow(
-        /malformed frontmatter closing delimiter/i
-      );
+        expect(() => parse(script)).toThrow(
+          /malformed frontmatter closing delimiter/i
+        );
+      }
+    );
+  });
+
+  describe('Frontmatter rules', () => {
+    rule('frontmatter.position').it(
+      'accepts comments before frontmatter',
+      async () => {
+        expect(await run('# c\n---\nk: v\n---\n1')).toBe(1);
+      }
+    );
+
+    rule('frontmatter.close').it(
+      'reads no line between the delimiters as a statement',
+      async () => {
+        expect(await run('---\n$undefined\n1 +\n---\n2')).toBe(2);
+      }
+    );
+
+    rule('frontmatter.unclosed').it(
+      'rejects frontmatter with no closing line with RILL-P005',
+      async () => {
+        await expect(run('---\nk: v\n1')).rejects.toMatchObject({
+          errorId: 'RILL-P005',
+        });
+      }
+    );
+
+    rule('frontmatter.extra-dash').it(
+      'rejects a four-dash closing line with RILL-P023',
+      async () => {
+        await expect(run('---\nk: v\n----\n1')).rejects.toMatchObject({
+          errorId: 'RILL-P023',
+        });
+      }
+    );
+
+    rule('frontmatter.removed-key').it.each([
+      ['use', '---\nuse: x\n---\n1'],
+      ['export', '---\nexport: x\n---\n1'],
+      ['indented use', '---\n  use: x\n---\n1'],
+    ])('halts the removed %s key with RILL-R060', async (_name, source) => {
+      await expect(run(source)).rejects.toMatchObject({ errorId: 'RILL-R060' });
     });
+
+    rule('frontmatter.inert').it(
+      'accepts a key that only begins like a removed one',
+      async () => {
+        expect(await run('---\nuser: x\nexports: y\n---\n1')).toBe(1);
+      }
+    );
   });
 });

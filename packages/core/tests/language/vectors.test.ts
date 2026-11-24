@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Vector Type
  * Tests for vector type operations, methods, and error conditions
@@ -13,6 +14,7 @@ import { describe, expect, it } from 'vitest';
 
 import { run, runWithContext } from '../helpers/runtime.js';
 import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Vector Type', () => {
   describe('.^type typeName [AC-9]', () => {
@@ -28,45 +30,57 @@ describe('Rill Runtime: Vector Type', () => {
   });
 
   describe('.similarity() method [AC-10]', () => {
-    it('returns number in [-1, 1] for parallel vectors', async () => {
-      const vecA = createVector(new Float32Array([1.0, 0.0, 0.0]), 'model-a');
-      const vecB = createVector(new Float32Array([2.0, 0.0, 0.0]), 'model-a');
-      const result = await run('$a -> .similarity($b)', {
-        functions: {
-          vec_a: { returnType: anyTypeValue, params: [], fn: () => vecA },
-          vec_b: { returnType: anyTypeValue, params: [], fn: () => vecB },
-        },
-        variables: {
-          a: vecA,
-          b: vecB,
-        },
-      });
-      expect(result).toBe(1.0);
-    });
+    rule('vector.similarity.cosine').it(
+      'returns number in [-1, 1] for parallel vectors',
+      async () => {
+        const vecA = createVector(new Float32Array([1.0, 0.0, 0.0]), 'model-a');
+        const vecB = createVector(new Float32Array([2.0, 0.0, 0.0]), 'model-a');
+        const result = await run('$a -> .similarity($b)', {
+          functions: {
+            vec_a: { returnType: anyTypeValue, params: [], fn: () => vecA },
+            vec_b: { returnType: anyTypeValue, params: [], fn: () => vecB },
+          },
+          variables: {
+            a: vecA,
+            b: vecB,
+          },
+        });
+        expect(result).toBe(1.0);
+      }
+    );
 
-    it('returns 0 for orthogonal vectors', async () => {
-      const vecA = createVector(new Float32Array([1.0, 0.0, 0.0]), 'model-a');
-      const vecB = createVector(new Float32Array([0.0, 1.0, 0.0]), 'model-a');
-      const result = await run('$a -> .similarity($b)', {
-        variables: {
-          a: vecA,
-          b: vecB,
-        },
-      });
-      expect(result).toBe(0.0);
-    });
+    rule('vector.similarity.cosine').it(
+      'returns 0 for orthogonal vectors',
+      async () => {
+        const vecA = createVector(new Float32Array([1.0, 0.0, 0.0]), 'model-a');
+        const vecB = createVector(new Float32Array([0.0, 1.0, 0.0]), 'model-a');
+        const result = await run('$a -> .similarity($b)', {
+          variables: {
+            a: vecA,
+            b: vecB,
+          },
+        });
+        expect(result).toBe(0.0);
+      }
+    );
 
-    it('returns -1 for opposite vectors', async () => {
-      const vecA = createVector(new Float32Array([1.0, 0.0, 0.0]), 'model-a');
-      const vecB = createVector(new Float32Array([-1.0, 0.0, 0.0]), 'model-a');
-      const result = await run('$a -> .similarity($b)', {
-        variables: {
-          a: vecA,
-          b: vecB,
-        },
-      });
-      expect(result).toBe(-1.0);
-    });
+    rule('vector.similarity.cosine').it(
+      'returns -1 for opposite vectors',
+      async () => {
+        const vecA = createVector(new Float32Array([1.0, 0.0, 0.0]), 'model-a');
+        const vecB = createVector(
+          new Float32Array([-1.0, 0.0, 0.0]),
+          'model-a'
+        );
+        const result = await run('$a -> .similarity($b)', {
+          variables: {
+            a: vecA,
+            b: vecB,
+          },
+        });
+        expect(result).toBe(-1.0);
+      }
+    );
 
     it('handles arbitrary normalized vectors', async () => {
       // Two unit vectors at 60 degrees (cos(60°) = 0.5)
@@ -195,7 +209,7 @@ describe('Rill Runtime: Vector Type', () => {
   describe('string form', () => {
     const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
 
-    it.each([
+    rule('conversion.no-string-vector').it.each([
       ['interpolation', '"Vector: {$v}"', /cannot convert vector to string/],
       [
         'interpolation with surrounding text',
@@ -286,7 +300,7 @@ describe('Rill Runtime: Vector Type', () => {
   });
 
   describe('.dimensions method', () => {
-    it('returns dimension count', async () => {
+    rule('vector.dimensions.count').it('returns dimension count', async () => {
       const vec3d = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
       const result = await run('$v -> .dimensions', {
         variables: { v: vec3d },
@@ -294,16 +308,19 @@ describe('Rill Runtime: Vector Type', () => {
       expect(result).toBe(3);
     });
 
-    it('returns 5 for 5-dimensional vector', async () => {
-      const vec5d = createVector(
-        new Float32Array([1.0, 2.0, 3.0, 4.0, 5.0]),
-        'model-a'
-      );
-      const result = await run('$v -> .dimensions', {
-        variables: { v: vec5d },
-      });
-      expect(result).toBe(5);
-    });
+    rule('vector.dimensions.count').it(
+      'returns 5 for 5-dimensional vector',
+      async () => {
+        const vec5d = createVector(
+          new Float32Array([1.0, 2.0, 3.0, 4.0, 5.0]),
+          'model-a'
+        );
+        const result = await run('$v -> .dimensions', {
+          variables: { v: vec5d },
+        });
+        expect(result).toBe(5);
+      }
+    );
 
     it('throws RILL-R003 for non-vector receiver', async () => {
       await expect(run('list[1, 2, 3] -> .dimensions')).rejects.toThrow(
@@ -313,7 +330,7 @@ describe('Rill Runtime: Vector Type', () => {
   });
 
   describe('.model property access', () => {
-    it('returns model name', async () => {
+    rule('vector.model.name').it('returns model name', async () => {
       const vec = createVector(
         new Float32Array([1.0, 2.0, 3.0]),
         'gpt-4-turbo'
@@ -324,30 +341,36 @@ describe('Rill Runtime: Vector Type', () => {
       expect(result).toBe('gpt-4-turbo');
     });
 
-    it('returns different model names correctly', async () => {
-      const vec = createVector(
-        new Float32Array([1.0, 2.0]),
-        'text-embedding-3-small'
-      );
-      const result = await run('$v -> .model', {
-        variables: { v: vec },
-      });
-      expect(result).toBe('text-embedding-3-small');
-    });
+    rule('vector.model.name').it(
+      'returns different model names correctly',
+      async () => {
+        const vec = createVector(
+          new Float32Array([1.0, 2.0]),
+          'text-embedding-3-small'
+        );
+        const result = await run('$v -> .model', {
+          variables: { v: vec },
+        });
+        expect(result).toBe('text-embedding-3-small');
+      }
+    );
   });
 
   describe('.dot() method', () => {
-    it('calculates dot product of aligned vectors', async () => {
-      const vecA = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
-      const vecB = createVector(new Float32Array([4.0, 5.0, 6.0]), 'model-a');
-      const result = await run('$a -> .dot($b)', {
-        variables: { a: vecA, b: vecB },
-      });
-      // 1*4 + 2*5 + 3*6 = 4 + 10 + 18 = 32
-      expect(result).toBe(32);
-    });
+    rule('vector.dot.sum').it(
+      'calculates dot product of aligned vectors',
+      async () => {
+        const vecA = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
+        const vecB = createVector(new Float32Array([4.0, 5.0, 6.0]), 'model-a');
+        const result = await run('$a -> .dot($b)', {
+          variables: { a: vecA, b: vecB },
+        });
+        // 1*4 + 2*5 + 3*6 = 4 + 10 + 18 = 32
+        expect(result).toBe(32);
+      }
+    );
 
-    it('returns 0 for orthogonal vectors', async () => {
+    rule('vector.dot.sum').it('returns 0 for orthogonal vectors', async () => {
       const vecA = createVector(new Float32Array([1.0, 0.0]), 'model-a');
       const vecB = createVector(new Float32Array([0.0, 1.0]), 'model-a');
       const result = await run('$a -> .dot($b)', {
@@ -377,24 +400,30 @@ describe('Rill Runtime: Vector Type', () => {
   });
 
   describe('.distance() method', () => {
-    it('calculates Euclidean distance', async () => {
-      const vecA = createVector(new Float32Array([0.0, 0.0]), 'model-a');
-      const vecB = createVector(new Float32Array([3.0, 4.0]), 'model-a');
-      const result = await run('$a -> .distance($b)', {
-        variables: { a: vecA, b: vecB },
-      });
-      // sqrt((3-0)^2 + (4-0)^2) = sqrt(9 + 16) = 5
-      expect(result).toBe(5);
-    });
+    rule('vector.distance.euclidean').it(
+      'calculates Euclidean distance',
+      async () => {
+        const vecA = createVector(new Float32Array([0.0, 0.0]), 'model-a');
+        const vecB = createVector(new Float32Array([3.0, 4.0]), 'model-a');
+        const result = await run('$a -> .distance($b)', {
+          variables: { a: vecA, b: vecB },
+        });
+        // sqrt((3-0)^2 + (4-0)^2) = sqrt(9 + 16) = 5
+        expect(result).toBe(5);
+      }
+    );
 
-    it('returns 0 for identical vectors', async () => {
-      const vecA = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
-      const vecB = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
-      const result = await run('$a -> .distance($b)', {
-        variables: { a: vecA, b: vecB },
-      });
-      expect(result).toBe(0);
-    });
+    rule('vector.distance.euclidean').it(
+      'returns 0 for identical vectors',
+      async () => {
+        const vecA = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
+        const vecB = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
+        const result = await run('$a -> .distance($b)', {
+          variables: { a: vecA, b: vecB },
+        });
+        expect(result).toBe(0);
+      }
+    );
 
     it('throws RILL-R003 for dimension mismatch', async () => {
       const vecA = createVector(new Float32Array([1.0, 2.0]), 'model-a');
@@ -417,14 +446,17 @@ describe('Rill Runtime: Vector Type', () => {
   });
 
   describe('.norm() method', () => {
-    it('calculates L2 norm (magnitude)', async () => {
-      const vec = createVector(new Float32Array([3.0, 4.0]), 'model-a');
-      const result = await run('$v -> .norm', {
-        variables: { v: vec },
-      });
-      // sqrt(3^2 + 4^2) = sqrt(9 + 16) = 5
-      expect(result).toBe(5);
-    });
+    rule('vector.norm.length').it(
+      'calculates L2 norm (magnitude)',
+      async () => {
+        const vec = createVector(new Float32Array([3.0, 4.0]), 'model-a');
+        const result = await run('$v -> .norm', {
+          variables: { v: vec },
+        });
+        // sqrt(3^2 + 4^2) = sqrt(9 + 16) = 5
+        expect(result).toBe(5);
+      }
+    );
 
     it('returns 1 for unit vector', async () => {
       const vec = createVector(new Float32Array([1.0, 0.0, 0.0]), 'model-a');
@@ -434,7 +466,7 @@ describe('Rill Runtime: Vector Type', () => {
       expect(result).toBe(1);
     });
 
-    it('calculates norm for 3d vector', async () => {
+    rule('vector.norm.length').it('calculates norm for 3d vector', async () => {
       const vec = createVector(new Float32Array([1.0, 2.0, 2.0]), 'model-a');
       const result = await run('$v -> .norm', {
         variables: { v: vec },
@@ -451,15 +483,18 @@ describe('Rill Runtime: Vector Type', () => {
   });
 
   describe('.normalize() method', () => {
-    it('returns unit vector in same direction', async () => {
-      const vec = createVector(new Float32Array([3.0, 4.0]), 'model-a');
-      const result = await run('$v -> .normalize -> .norm', {
-        variables: { v: vec },
-      });
-      expect(result).toBeCloseTo(1.0, 5);
-    });
+    rule('vector.normalize.unit').it(
+      'returns unit vector in same direction',
+      async () => {
+        const vec = createVector(new Float32Array([3.0, 4.0]), 'model-a');
+        const result = await run('$v -> .normalize -> .norm', {
+          variables: { v: vec },
+        });
+        expect(result).toBeCloseTo(1.0, 5);
+      }
+    );
 
-    it('preserves direction', async () => {
+    rule('vector.normalize.unit').it('preserves direction', async () => {
       const vec = createVector(new Float32Array([3.0, 4.0]), 'model-a');
       const { context } = await runWithContext(
         '$v -> .normalize => $result\ntrue',
@@ -473,7 +508,7 @@ describe('Rill Runtime: Vector Type', () => {
       }
     });
 
-    it('preserves model name', async () => {
+    rule('vector.normalize.unit').it('preserves model name', async () => {
       const vec = createVector(new Float32Array([3.0, 4.0]), 'test-model');
       const result = await run('$v -> .normalize -> .model', {
         variables: { v: vec },
@@ -548,15 +583,18 @@ describe('Rill Runtime: Vector Type', () => {
   // the parser is updated to recognize "vector" as a valid type name.
 
   describe('json() serialization [AC-13]', () => {
-    it('halts with "vectors are not JSON-serializable" (AC-13)', async () => {
-      const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
-      await expectHaltMessage(
-        () =>
-          run('$v -> json', {
-            variables: { v: vec },
-          }),
-        'vectors are not JSON-serializable'
-      );
-    });
+    rule('json.unsupported').it(
+      'halts with "vectors are not JSON-serializable" (AC-13)',
+      async () => {
+        const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
+        await expectHaltMessage(
+          () =>
+            run('$v -> json', {
+              variables: { v: vec },
+            }),
+          'vectors are not JSON-serializable'
+        );
+      }
+    );
   });
 });

@@ -4,8 +4,8 @@ title: Construct options
 status: normative
 since: 0.24.0
 issues: []
-grammar: []
-errors: [INVALID_INPUT, RILL-P004, RILL-P025, RILL-P027, RILL-R002, TYPE_MISMATCH]
+grammar: [construct-options, positive-integer, timeout-block]
+errors: [INVALID_INPUT, RILL-P001, RILL-P004, RILL-P025, RILL-P027, RILL-R002, RILL-R082, RILL-R083, TYPE_MISMATCH]
 depends: [loop, pass]
 tests: [construct-options.test.ts, timeout.test.ts, throttling.test.ts]
 ---
@@ -15,6 +15,12 @@ tests: [construct-options.test.ts, timeout.test.ts, throttling.test.ts]
 A control statement takes its options as a dict in parentheses between its keyword and its body.
 
 ## Syntax
+
+```ebnf
+construct-options = "(" , [ dict-element , { "," , dict-element } ] , ")" ;
+positive-integer  = nonzero-digit , { digit } ;
+timeout-block     = "timeout" , construct-options , block ;
+```
 
 ```text
 keyword(name: value, ...) { body }
@@ -42,6 +48,10 @@ r[construct-options.dict] Options are a dict of the keyword's options type
 The options MUST be checked as a dict against the keyword's options type. An unknown option,
 a missing required option, or a value of the wrong type MUST halt with `#TYPE_MISMATCH`. An
 option with a default MAY be absent. A written option repeated MUST be rejected with RILL-P027.
+
+r[construct-options.named] An option is written with its name
+Each entry MUST be a `name: value` entry or a spread. A bare value, as in `retry(3)` or
+`guard(1)`, MUST be rejected with RILL-P001.
 
 r[construct-options.order] Options have no order
 Options MUST be accepted in any order.
@@ -99,6 +109,12 @@ A `timeout` `total` or `idle` limit above 2147483647 milliseconds, about 24.8 da
 `#INVALID_INPUT` naming the option before the body runs. A limit of exactly 2147483647 milliseconds
 MUST be accepted.
 
+r[construct-options.timeout-total-expiry] total expiry halts RILL-R082
+A body still running when its `total` limit elapses MUST halt with RILL-R082.
+
+r[construct-options.timeout-idle-expiry] idle expiry halts RILL-R083
+A body with no activity for its `idle` limit MUST halt with RILL-R083.
+
 ## Errors
 
 | Condition | Error | Catchable |
@@ -106,12 +122,16 @@ MUST be accepted.
 | An unknown option, a missing required option, or a wrong value type | `#TYPE_MISMATCH` | Yes |
 | `limit` or `attempts` is not a written positive integer literal | RILL-P004 | No |
 | A spread, or a variable, computed, or multi-key entry, in the options of `retry`, `do`, or `while ... do` | RILL-P004 | No |
+| An option written as a bare value | RILL-P001 | No |
+| A `timeout` body does not start on the line where its options end (`construct-options.timeout-context`) | RILL-P004 | No |
 | Options written in angle brackets, `keyword<...>` | RILL-P025 | No |
 | A written option repeated | RILL-P027 | No |
 | A spread field repeats a written option, or a spread or computed key duplicates another key | `#INVALID_INPUT` | Yes |
 | A spread value is not a dict | RILL-R002 | Yes |
 | A time bound's duration has a months part | `#INVALID_INPUT` | Yes |
 | A `timeout` `total` or `idle` limit is above 2147483647 milliseconds | `#INVALID_INPUT` | Yes |
+| A `timeout` body outlasts its `total` limit | RILL-R082 | Yes |
+| A `timeout` body has no activity for its `idle` limit | RILL-R083 | Yes |
 
 ## Examples
 

@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Arithmetic Expressions
  * Tests for arithmetic syntax (standalone and grouped)
@@ -7,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { expectHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Arithmetic', () => {
   describe('Standalone Arithmetic', () => {
@@ -14,11 +16,14 @@ describe('Rill Runtime: Arithmetic', () => {
       expect(await run('5 + 3')).toBe(8);
     });
 
-    it('respects operator precedence without parens', async () => {
-      expect(await run('2 + 3 * 4')).toBe(14);
-    });
+    rule('operator.precedence').it(
+      'respects operator precedence without parens',
+      async () => {
+        expect(await run('2 + 3 * 4')).toBe(14);
+      }
+    );
 
-    it('chains operations without parens', async () => {
+    rule('operator.left').it('chains operations without parens', async () => {
       expect(await run('10 - 4 - 2')).toBe(4);
     });
 
@@ -26,9 +31,12 @@ describe('Rill Runtime: Arithmetic', () => {
       expect(await run('5 + 3 => $x\n$x * 2')).toBe(16);
     });
 
-    it('comparison as standalone expression', async () => {
-      expect(await run('5 > 3')).toBe(true);
-    });
+    rule('number.ordering').it(
+      'comparison as standalone expression',
+      async () => {
+        expect(await run('5 > 3')).toBe(true);
+      }
+    );
 
     it('equality as standalone expression', async () => {
       expect(await run('5 == 5')).toBe(true);
@@ -40,23 +48,23 @@ describe('Rill Runtime: Arithmetic', () => {
   });
 
   describe('Basic Operations', () => {
-    it('adds two numbers', async () => {
+    rule('arithmetic.basic').it('adds two numbers', async () => {
       expect(await run('(5 + 3)')).toBe(8);
     });
 
-    it('subtracts two numbers', async () => {
+    rule('arithmetic.basic').it('subtracts two numbers', async () => {
       expect(await run('(10 - 4)')).toBe(6);
     });
 
-    it('multiplies two numbers', async () => {
+    rule('arithmetic.basic').it('multiplies two numbers', async () => {
       expect(await run('(6 * 7)')).toBe(42);
     });
 
-    it('divides two numbers', async () => {
+    rule('arithmetic.basic').it('divides two numbers', async () => {
       expect(await run('(20 / 4)')).toBe(5);
     });
 
-    it('handles modulo', async () => {
+    rule('arithmetic.modulo').it('handles modulo', async () => {
       expect(await run('(17 % 5)')).toBe(2);
     });
 
@@ -66,15 +74,18 @@ describe('Rill Runtime: Arithmetic', () => {
   });
 
   describe('Operator Precedence', () => {
-    it('multiplication before addition', async () => {
-      expect(await run('(2 + 3 * 4)')).toBe(14);
-    });
+    rule('operator.precedence').it(
+      'multiplication before addition',
+      async () => {
+        expect(await run('(2 + 3 * 4)')).toBe(14);
+      }
+    );
 
-    it('division before subtraction', async () => {
+    rule('operator.precedence').it('division before subtraction', async () => {
       expect(await run('(10 - 8 / 2)')).toBe(6);
     });
 
-    it('respects parentheses', async () => {
+    rule('operator.group').it('respects parentheses', async () => {
       expect(await run('((2 + 3) * 4)')).toBe(20);
     });
 
@@ -84,7 +95,7 @@ describe('Rill Runtime: Arithmetic', () => {
   });
 
   describe('Unary Minus', () => {
-    it('negates a number', async () => {
+    rule('arithmetic.negate').it('negates a number', async () => {
       expect(await run('(-5)')).toBe(-5);
     });
 
@@ -92,13 +103,13 @@ describe('Rill Runtime: Arithmetic', () => {
       expect(await run('(10 + -3)')).toBe(7);
     });
 
-    it('double negation', async () => {
+    rule('arithmetic.negate').it('double negation', async () => {
       expect(await run('(--5)')).toBe(5);
     });
   });
 
   describe('With Variables', () => {
-    it('uses pipe variable', async () => {
+    rule('pipe.grouped').it('uses pipe variable', async () => {
       expect(await run('10 -> ($ + 5)')).toBe(15);
     });
 
@@ -134,43 +145,55 @@ describe('Rill Runtime: Arithmetic', () => {
       expect(await run('(3.5 + 2.5)')).toBe(6);
     });
 
-    it('handles decimal division', async () => {
+    rule('arithmetic.basic').it('handles decimal division', async () => {
       expect(await run('(7 / 2)')).toBe(3.5);
     });
   });
 
   describe('Error Handling', () => {
-    it('errors on division by zero', async () => {
+    rule('number.finite').it('errors on division by zero', async () => {
       await expect(run('(10 / 0)')).rejects.toThrow('Division by zero');
     });
 
-    it('errors on modulo by zero', async () => {
+    rule('number.finite').it('errors on modulo by zero', async () => {
       await expect(run('(10 % 0)')).rejects.toThrow('Modulo by zero');
     });
 
-    it('errors on non-number variable', async () => {
-      await expect(run('"hello" => $x\n($x + 1)')).rejects.toThrow(
-        'Arithmetic requires number, got string'
-      );
-    });
+    rule('string.no-arithmetic').it(
+      'errors on non-number variable',
+      async () => {
+        await expect(run('"hello" => $x\n($x + 1)')).rejects.toThrow(
+          'Arithmetic requires number, got string'
+        );
+      }
+    );
 
-    it('errors on non-number pipe value', async () => {
-      await expect(run('"hello" -> ($ + 1)')).rejects.toThrow(
-        'Arithmetic requires number, got string'
-      );
-    });
+    rule('string.no-arithmetic').it(
+      'errors on non-number pipe value',
+      async () => {
+        await expect(run('"hello" -> ($ + 1)')).rejects.toThrow(
+          'Arithmetic requires number, got string'
+        );
+      }
+    );
 
-    it('halts #INVALID_INPUT when multiplication overflows to Infinity', async () => {
-      await expectHalt(() => run('"1e308" -> number => $x\n($x * 10)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('number.finite').it(
+      'halts #INVALID_INPUT when multiplication overflows to Infinity',
+      async () => {
+        await expectHalt(() => run('"1e308" -> number => $x\n($x * 10)'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
-    it('halts #INVALID_INPUT when addition overflows to -Infinity', async () => {
-      await expectHalt(() => run('"-1e308" -> number => $x\n($x + $x)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('number.finite').it(
+      'halts #INVALID_INPUT when addition overflows to -Infinity',
+      async () => {
+        await expectHalt(() => run('"-1e308" -> number => $x\n($x + $x)'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
     it('still evaluates finite arithmetic after the overflow check', async () => {
       expect(await run('(5 + 3)')).toBe(8);
@@ -180,27 +203,39 @@ describe('Rill Runtime: Arithmetic', () => {
   });
 
   describe('String to Number Conversion', () => {
-    it('halts converting "Infinity" to number', async () => {
-      await expect(run('"Infinity" -> number')).rejects.toThrow(
-        'cannot convert string "Infinity" to number'
-      );
-    });
+    rule('number.from-string-fail').it(
+      'halts converting "Infinity" to number',
+      async () => {
+        await expect(run('"Infinity" -> number')).rejects.toThrow(
+          'cannot convert string "Infinity" to number'
+        );
+      }
+    );
 
-    it('halts converting "-Infinity" to number', async () => {
-      await expect(run('"-Infinity" -> number')).rejects.toThrow(
-        'cannot convert string "-Infinity" to number'
-      );
-    });
+    rule('number.from-string-fail').it(
+      'halts converting "-Infinity" to number',
+      async () => {
+        await expect(run('"-Infinity" -> number')).rejects.toThrow(
+          'cannot convert string "-Infinity" to number'
+        );
+      }
+    );
 
-    it('halts converting "NaN" to number', async () => {
-      await expect(run('"NaN" -> number')).rejects.toThrow(
-        'cannot convert string "NaN" to number'
-      );
-    });
+    rule('number.from-string-fail').it(
+      'halts converting "NaN" to number',
+      async () => {
+        await expect(run('"NaN" -> number')).rejects.toThrow(
+          'cannot convert string "NaN" to number'
+        );
+      }
+    );
 
-    it('still converts clean decimal strings to number', async () => {
-      expect(await run('"3.5" -> number')).toBe(3.5);
-    });
+    rule('number.from-string').it(
+      'still converts clean decimal strings to number',
+      async () => {
+        expect(await run('"3.5" -> number')).toBe(3.5);
+      }
+    );
   });
 
   describe('In Conditionals', () => {
@@ -255,5 +290,16 @@ describe('Rill Runtime: Arithmetic', () => {
         code: 'TYPE_MISMATCH',
       });
     });
+  });
+
+  describe('Ordering against a non-number', () => {
+    rule('number.no-coercion').it(
+      'halts RILL-R002 ordering a number against a string',
+      async () => {
+        await expect(run('1 < "a"')).rejects.toMatchObject({
+          errorId: 'RILL-R002',
+        });
+      }
+    );
   });
 });

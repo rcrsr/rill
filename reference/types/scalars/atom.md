@@ -46,15 +46,12 @@ Nothing is registered. A name MUST NOT resolve to a different atom. `#wired`, `#
 r[atom.value] An atom literal yields an atom of its name
 `#name` MUST yield the atom named `name`. `#ok` is an ordinary atom.
 
-r[atom.equality] Two atoms are equal when their names are equal
-`==` between two atoms with no closed-set carried type MUST yield true exactly when both names are
-equal, whatever the names are. `#TIMEOUT == #TIMEUOT` ⇒ `false`.
-
 r[atom.print] An atom prints with its hash
 An atom MUST print as `#` followed by its name. Interpolating an atom inserts that text.
 
 ## Interactions
 
+Two atoms compare by name per `equality.atom`, and a narrowed atom per `equality.closed-set`.
 Equality against a non-atom value follows `equality.no-overlap`.
 
 r[atom.from-string] A string converts to the atom of its name
@@ -77,12 +74,6 @@ r[atom.unordered] Atoms have no order
 r[atom.no-arithmetic] An atom is not a number
 An arithmetic operator with an atom operand MUST halt with RILL-R002.
 
-r[atom.closed-set] A narrowed atom compared outside its set halts
-`==` and `!=` between an operand whose carried type is a closed set of atoms and an atom
-outside that set MUST halt with `#TYPE_MISMATCH`. With `$kind` asserted as
-`union(#wired, #wireless)`, `$kind == #wirless` MUST halt, and `$kind == #wireless` MUST yield
-a bool.
-
 r[atom.membership] Only an atom satisfies atom
 An atom MUST satisfy `:atom`. A value of any other type MUST halt `:atom` with
 `#TYPE_MISMATCH`.
@@ -96,7 +87,7 @@ An atom MUST satisfy `:atom`. A value of any other type MUST halt `:atom` with
 | An atom is ordered or used in arithmetic | RILL-R002 | Yes |
 | A value that is neither atom nor string is converted to atom | RILL-R036 | Yes |
 | A non-atom is asserted as `:atom` | `#TYPE_MISMATCH` | Yes |
-| A closed-set atom is compared outside its set | `#TYPE_MISMATCH` | Yes |
+| A closed-set atom is compared outside its set (`equality.closed-set`) | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 
@@ -125,4 +116,4 @@ $kind == #wirless
 
 On 0.23.0 `==` between an atom and a value outside its asserted set yields false.
 
-`equality.closed-set` states the same halt for strings, numbers, and bools.
+Superseded: `atom.equality`, now `equality.atom`; `atom.closed-set`, now `equality.closed-set`.

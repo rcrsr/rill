@@ -244,7 +244,7 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
   describe('Dict membership is exact', () => {
     const wide = 'dict[a: 1, b: 2]';
 
-    rule('assertion.membership').it(
+    rule('assertion.membership', 'structural-typing.exact-dict').it(
       'halts #TYPE_MISMATCH when an assertion meets an unnamed key',
       async () => {
         await expectHalt(() => run(`${wide} -> :dict(a: number)`), {
@@ -263,14 +263,14 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       }
     );
 
-    rule('assertion.membership').it(
+    rule('assertion.membership', 'structural-typing.exact-dict').it(
       'returns false from a check that meets an unnamed key',
       async () => {
         expect(await run(`${wide} -> :?dict(a: number)`)).toBe(false);
       }
     );
 
-    rule('assertion.membership').it(
+    rule('assertion.membership', 'structural-typing.bare-dict').it(
       'keeps bare dict, and dict() open to a wider dict',
       async () => {
         expect(await run(`${wide} -> :?dict`)).toBe(true);
@@ -278,7 +278,7 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       }
     );
 
-    rule('assertion.membership').it(
+    rule('assertion.membership', 'structural-typing.defaulted').it(
       'accepts an absent defaulted field',
       async () => {
         expect(
@@ -353,7 +353,7 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       }
     );
 
-    rule('assertion.membership').it(
+    rule('assertion.membership', 'structural-typing.exact-dict').it(
       'passes a conversion result through a later assertion',
       async () => {
         expect(

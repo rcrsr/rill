@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Closure Annotation Defaults
  *
@@ -11,6 +12,7 @@
 import { describe, expect, it } from 'vitest';
 import { parse, ParseError } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Language: Closure Annotation Defaults', () => {
   // ============================================================
@@ -226,25 +228,31 @@ describe('Rill Language: Closure Annotation Defaults', () => {
   // ============================================================
 
   describe('EC-1: non-literal after = produces RILL-P001', () => {
-    it('= $var throws ParseError with RILL-P001', () => {
-      try {
-        parse('fn(x: string = $var) { $x }');
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        expect((err as ParseError).errorId).toBe('RILL-P001');
+    rule('defaults.non-literal').it(
+      '= $var throws ParseError with RILL-P001',
+      () => {
+        try {
+          parse('fn(x: string = $var) { $x }');
+          expect.fail('Should have thrown ParseError');
+        } catch (err) {
+          expect(err).toBeInstanceOf(ParseError);
+          expect((err as ParseError).errorId).toBe('RILL-P001');
+        }
       }
-    });
+    );
 
-    it('= (1 + 2) throws ParseError with RILL-P001', () => {
-      try {
-        parse('fn(x: number = (1 + 2)) { $x }');
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        expect((err as ParseError).errorId).toBe('RILL-P001');
+    rule('defaults.non-literal').it(
+      '= (1 + 2) throws ParseError with RILL-P001',
+      () => {
+        try {
+          parse('fn(x: number = (1 + 2)) { $x }');
+          expect.fail('Should have thrown ParseError');
+        } catch (err) {
+          expect(err).toBeInstanceOf(ParseError);
+          expect((err as ParseError).errorId).toBe('RILL-P001');
+        }
       }
-    });
+    );
   });
 
   // ============================================================

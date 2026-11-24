@@ -4,10 +4,10 @@ title: List types
 status: normative
 since: 0.24.0
 issues: []
-grammar: [type-constructor]
-errors: [RILL-P001, RILL-P006, INVALID_INPUT]
+grammar: [type-constructor, list, list-element]
+errors: [RILL-P001, RILL-P006, RILL-R002, INVALID_INPUT]
 depends: [type-value, type-form]
-tests: [structural-type-identity.test.ts, structural-type-boundaries.test.ts, type-inner-outer.test.ts, type-assertions.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts, bare-bracket-literals.test.ts]
+tests: [structural-type-identity.test.ts, structural-type-boundaries.test.ts, structural-type-errors.test.ts, type-inner-outer.test.ts, type-assertions.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts, bare-bracket-literals.test.ts, type-constructors.test.ts]
 ---
 
 # List types
@@ -20,6 +20,12 @@ A list type describes a sequence in which every element has one element type.
 type-constructor = ( "list" | "dict" | "tuple" | "ordered" | "map" ) , "(" , [ field-arg-list ] , ")"
                  | union-type
                  | "stream" , "(" , [ field-arg-list ] , ")" , [ ":" , type-ref ] ;
+list             = "[" , "]"
+                 | "[" , list-element , { "," , list-element } , "]"
+                 | "list" , "[" , "]"
+                 | "list" , "[" , list-element , { "," , list-element } , "]" ;
+list-element     = "..." , expression
+                 | expression ;
 ```
 
 r[list.form] A list type is the name alone or the name with one type
@@ -79,6 +85,9 @@ r[list.value-print] A list value prints in the keyword spelling
 A list value MUST print as `list[...]` and never as a bare bracket list, so `[1, 2]` prints
 `list[1, 2]` and a nested list prints `list[list[1], list[2]]`.
 
+r[list.no-order] Lists have no order
+`<`, `>`, `<=`, and `>=` between two lists MUST halt with RILL-R002.
+
 ## Interactions
 
 An unknown type name as the argument follows `type-form.unknown-name`, and a variable argument
@@ -91,6 +100,7 @@ that holds a non-type follows `type-value.variable-halt`.
 | More or fewer than one argument, or a named argument | `#INVALID_INPUT` | Yes |
 | Outer on a type that takes none | RILL-P006 | No |
 | A bracket literal mixes positional and keyed entries | RILL-P001 | No |
+| An ordering operator between two lists | RILL-R002 | Yes |
 
 ## Examples
 

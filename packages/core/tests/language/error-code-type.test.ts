@@ -26,7 +26,7 @@ describe('Rill Language: error_code type', () => {
       expect(await run('#TIMEOUT -> :error_code')).toEqual(atom('TIMEOUT'));
     });
 
-    it('halts #TYPE_MISMATCH for #ok', async () => {
+    rule('error-code.no-ok').it('halts #TYPE_MISMATCH for #ok', async () => {
       await expectHalt(() => run('#ok -> :error_code'), {
         code: 'TYPE_MISMATCH',
         messagePattern: 'Type assertion failed: expected error_code, got #ok',
@@ -46,23 +46,49 @@ describe('Rill Language: error_code type', () => {
       expect(await run(`#${code} -> :?error_code`)).toBe(true);
     });
 
-    it('equals the union of every error-code literal', async () => {
-      const members = ERROR_CODES.map((c) => `#${c}`).join(', ');
-      expect(await run(`error_code == union(${members})`)).toBe(true);
-    });
+    rule('error-code.members').it(
+      'equals the union of every error-code literal',
+      async () => {
+        const members = ERROR_CODES.map((c) => `#${c}`).join(', ');
+        expect(await run(`error_code == union(${members})`)).toBe(true);
+      }
+    );
+
+    rule('error-code.members', 'error-code.no-ok').it(
+      'lists every error code and not #ok in error_code.inner',
+      async () => {
+        expect(await run('error_code.inner -> .len')).toBe(ERROR_CODES.length);
+        for (const code of ERROR_CODES) {
+          expect(await run(`error_code.inner -> .has(#${code})`)).toBe(true);
+        }
+        expect(await run('error_code.inner -> .has(#ok)')).toBe(false);
+      }
+    );
+
+    rule('error-code.is-atom').it.each(ERROR_CODES)(
+      '#%s satisfies :atom',
+      async (code) => {
+        expect(await run(`#${code} -> :?atom`)).toBe(true);
+      }
+    );
   });
 
   describe('type value', () => {
-    it('names itself error_code', async () => {
+    rule('error-code.name').it('names itself error_code', async () => {
       expect(await run('error_code.name')).toBe('error_code');
     });
 
-    it('collapses with its own members and with atom in a union', async () => {
-      expect(await run('union(#TIMEOUT, error_code) == error_code')).toBe(true);
-      expect(await run('union(atom, error_code) == atom')).toBe(true);
-    });
+    rule('error-code.reduce').it(
+      'collapses with its own members and with atom in a union',
+      async () => {
+        expect(await run('union(#TIMEOUT, error_code) == error_code')).toBe(
+          true
+        );
+        expect(await run('union(atom, error_code) == atom')).toBe(true);
+      }
+    );
 
-    it('rejects type arguments', async () => {
+    rule('error-code.no-args').it('rejects type arguments', async () => {
       await expectHalt(() => run('#TIMEOUT -> :error_code(string)'), {
         code: 'INVALID_INPUT',
       });
@@ -76,15 +102,21 @@ describe('Rill Language: error_code type', () => {
   });
 
   describe('signature display', () => {
-    it('prints error_code as a single word', async () => {
-      expect(await run('error_code.signature')).toBe('error_code');
-    });
+    rule('error-code.name', 'error-code.print').it(
+      'prints error_code as a single word',
+      async () => {
+        expect(await run('error_code.signature')).toBe('error_code');
+      }
+    );
 
-    it('prints a union with #ok and error_code compactly', async () => {
-      expect(await run('union(#ok, error_code).signature')).toBe(
-        'union(error_code, #ok)'
-      );
-    });
+    rule('error-code.print-union').it(
+      'prints a union with #ok and error_code compactly',
+      async () => {
+        expect(await run('union(#ok, error_code).signature')).toBe(
+          'union(error_code, #ok)'
+        );
+      }
+    );
 
     it('prints a union missing one error code in full', async () => {
       const members = ERROR_CODES.slice(1)
@@ -111,9 +143,12 @@ describe('Rill Language: error_code type', () => {
       ).toBe(true);
     });
 
-    it('leaves the type of an atom value as atom', async () => {
-      expect(await run('#TIMEOUT.^type == atom')).toBe(true);
-    });
+    rule('error-code.is-atom', 'inference.scalar').it(
+      'leaves the type of an atom value as atom',
+      async () => {
+        expect(await run('#TIMEOUT.^type == atom')).toBe(true);
+      }
+    );
 
     it('accepts an error code captured from an invalid value', async () => {
       expect(
@@ -147,9 +182,14 @@ describe('Rill Language: error_code type', () => {
   });
 
   describe('declared status code', () => {
-    it('carries union(#ok, error_code) as the declared type of .!code', async () => {
-      expect(await run('"x".!code.^type == union(#ok, error_code)')).toBe(true);
-    });
+    rule('error-code.status').it(
+      'carries union(#ok, error_code) as the declared type of .!code',
+      async () => {
+        expect(await run('"x".!code.^type == union(#ok, error_code)')).toBe(
+          true
+        );
+      }
+    );
 
     it('spells the declared type as #ok plus every error-code literal', async () => {
       const members = ERROR_CODES.map((c) => `#${c}`).join(', ');
@@ -160,14 +200,17 @@ describe('Rill Language: error_code type', () => {
       expect(await run('"x".!code.^effective == atom')).toBe(true);
     });
 
-    it('locks a captured .!code to union(#ok, error_code)', async () => {
-      expect(await run('"x".!code => $c\n#TIMEOUT => $c\n$c')).toEqual(
-        atom('TIMEOUT')
-      );
-      await expectHalt(() => run('"x".!code => $c\n"s" => $c'), {
-        code: 'RILL_R001',
-      });
-    });
+    rule('error-code.status-lock').it(
+      'locks a captured .!code to union(#ok, error_code)',
+      async () => {
+        expect(await run('"x".!code => $c\n#TIMEOUT => $c\n$c')).toEqual(
+          atom('TIMEOUT')
+        );
+        await expectHalt(() => run('"x".!code => $c\n"s" => $c'), {
+          code: 'RILL_R001',
+        });
+      }
+    );
 
     rule('error-code.closed-compare').it(
       'compares .!code with #ok as a bool',

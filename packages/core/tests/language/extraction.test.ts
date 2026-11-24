@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Extraction Operators
  * Tests for destruct<> (destructure), slice<> (slice), and enumerate() function
@@ -6,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { run, runWithContext } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Extraction Operators', () => {
   describe('Destructure destruct<>', () => {
@@ -19,12 +21,15 @@ describe('Rill Runtime: Extraction Operators', () => {
         expect(context.variables.get('c')).toBe(3);
       });
 
-      it('returns original input unchanged', async () => {
-        const result = await run(`
+      rule('destruct.result').it(
+        'returns original input unchanged',
+        async () => {
+          const result = await run(`
           list[1, 2, 3] -> destruct<$a, $b, $c>
         `);
-        expect(result).toEqual([1, 2, 3]);
-      });
+          expect(result).toEqual([1, 2, 3]);
+        }
+      );
 
       it('allows typed captures', async () => {
         // Mixed-type list [1, "hello", true] fails at construction (Phase 2 RILL-R002).
@@ -55,7 +60,7 @@ describe('Rill Runtime: Extraction Operators', () => {
     });
 
     describe('Skip placeholder _', () => {
-      it('skips elements with _', async () => {
+      rule('destruct.skip').it('skips elements with _', async () => {
         const { context } = await runWithContext(`
           list[1, 2, 3] -> destruct<$a, _, $c>
         `);
@@ -74,7 +79,7 @@ describe('Rill Runtime: Extraction Operators', () => {
     });
 
     describe('Dict destructuring', () => {
-      it('extracts by key', async () => {
+      rule('destruct.keyed-source').it('extracts by key', async () => {
         const { context } = await runWithContext(`
           dict[name: "Alice", age: 30] -> destruct<name: $n, age: $a>
         `);
@@ -97,15 +102,18 @@ describe('Rill Runtime: Extraction Operators', () => {
     });
 
     describe('Tuple and ordered sources', () => {
-      it('binds a tuple positionally', async () => {
-        const { context } = await runWithContext(
-          `tuple[1, 2] -> destruct<$a, $b>`
-        );
-        expect(context.variables.get('a')).toBe(1);
-        expect(context.variables.get('b')).toBe(2);
-      });
+      rule('destruct.positional-source').it(
+        'binds a tuple positionally',
+        async () => {
+          const { context } = await runWithContext(
+            `tuple[1, 2] -> destruct<$a, $b>`
+          );
+          expect(context.variables.get('a')).toBe(1);
+          expect(context.variables.get('b')).toBe(2);
+        }
+      );
 
-      it('binds an ordered by key', async () => {
+      rule('destruct.keyed-source').it('binds an ordered by key', async () => {
         const { context } = await runWithContext(
           `ordered[a: 1, b: 2] -> destruct<a: $x, b: $y>`
         );
@@ -113,23 +121,29 @@ describe('Rill Runtime: Extraction Operators', () => {
         expect(context.variables.get('y')).toBe(2);
       });
 
-      it('rejects an iterator, naming the kind', async () => {
-        const error = await run(`range(0, 2) -> destruct<$a, $b>`).catch(
-          (e: unknown) => e as Error
-        );
-        expect(error).toMatchObject({ errorId: 'RILL-R002' });
-        expect((error as Error).message).toContain('got iterator');
-        expect((error as Error).message).not.toContain('object');
-      });
+      rule('destruct.positional-source').it(
+        'rejects an iterator, naming the kind',
+        async () => {
+          const error = await run(`range(0, 2) -> destruct<$a, $b>`).catch(
+            (e: unknown) => e as Error
+          );
+          expect(error).toMatchObject({ errorId: 'RILL-R002' });
+          expect((error as Error).message).toContain('got iterator');
+          expect((error as Error).message).not.toContain('object');
+        }
+      );
 
-      it('names the tuple in a length mismatch', async () => {
-        const error = await run(`tuple[1, 2] -> destruct<$a>`).catch(
-          (e: unknown) => e as Error
-        );
-        expect(error).toMatchObject({ errorId: 'RILL-R002' });
-        expect((error as Error).message).toContain('tuple has 2');
-        expect((error as Error).message).not.toContain('object');
-      });
+      rule('destruct.length').it(
+        'names the tuple in a length mismatch',
+        async () => {
+          const error = await run(`tuple[1, 2] -> destruct<$a>`).catch(
+            (e: unknown) => e as Error
+          );
+          expect(error).toMatchObject({ errorId: 'RILL-R002' });
+          expect((error as Error).message).toContain('tuple has 2');
+          expect((error as Error).message).not.toContain('object');
+        }
+      );
     });
 
     describe('Type errors', () => {
@@ -149,17 +163,20 @@ describe('Rill Runtime: Extraction Operators', () => {
 
   describe('Slice slice<>', () => {
     describe('List slicing', () => {
-      it('slices with start:stop', async () => {
+      rule('slice.half-open').it('slices with start:stop', async () => {
         const result = await run(`list[1, 2, 3, 4, 5] -> slice<1:4>`);
         expect(result).toEqual([2, 3, 4]);
       });
 
-      it('slices from beginning with :stop', async () => {
-        const result = await run(`list[1, 2, 3, 4, 5] -> slice<:3>`);
-        expect(result).toEqual([1, 2, 3]);
-      });
+      rule('slice.defaults').it(
+        'slices from beginning with :stop',
+        async () => {
+          const result = await run(`list[1, 2, 3, 4, 5] -> slice<:3>`);
+          expect(result).toEqual([1, 2, 3]);
+        }
+      );
 
-      it('slices to end with start:', async () => {
+      rule('slice.defaults').it('slices to end with start:', async () => {
         const result = await run(`list[1, 2, 3, 4, 5] -> slice<2:>`);
         expect(result).toEqual([3, 4, 5]);
       });
@@ -169,12 +186,12 @@ describe('Rill Runtime: Extraction Operators', () => {
         expect(result).toEqual([1, 3, 5]);
       });
 
-      it('reverses with negative step', async () => {
+      rule('slice.defaults').it('reverses with negative step', async () => {
         const result = await run(`list[1, 2, 3, 4, 5] -> slice<::-1>`);
         expect(result).toEqual([5, 4, 3, 2, 1]);
       });
 
-      it('supports negative indices', async () => {
+      rule('slice.negative').it('supports negative indices', async () => {
         const result = await run(`list[1, 2, 3, 4, 5] -> slice<-3:-1>`);
         expect(result).toEqual([3, 4]);
       });
@@ -186,21 +203,27 @@ describe('Rill Runtime: Extraction Operators', () => {
     });
 
     describe('Tuple and ordered slicing', () => {
-      it('slices a tuple with a negative step into a tuple', async () => {
-        expect(await run(`tuple[0, 1, 2, 3] -> slice<::-2>`)).toMatchObject({
-          __rill_tuple: true,
-          entries: [3, 1],
-        });
-      });
+      rule('slice.sources').it(
+        'slices a tuple with a negative step into a tuple',
+        async () => {
+          expect(await run(`tuple[0, 1, 2, 3] -> slice<::-2>`)).toMatchObject({
+            __rill_tuple: true,
+            entries: [3, 1],
+          });
+        }
+      );
 
-      it('rejects slicing an ordered, naming the kind', async () => {
-        const error = await run(`ordered[a: 1] -> slice<0:1>`).catch(
-          (e: unknown) => e as Error
-        );
-        expect(error).toMatchObject({ errorId: 'RILL-R002' });
-        expect((error as Error).message).toContain('got ordered');
-        expect((error as Error).message).not.toContain('object');
-      });
+      rule('slice.sources').it(
+        'rejects slicing an ordered, naming the kind',
+        async () => {
+          const error = await run(`ordered[a: 1] -> slice<0:1>`).catch(
+            (e: unknown) => e as Error
+          );
+          expect(error).toMatchObject({ errorId: 'RILL-R002' });
+          expect((error as Error).message).toContain('got ordered');
+          expect((error as Error).message).not.toContain('object');
+        }
+      );
     });
 
     describe('Sibling slice forms remain unchanged', () => {
@@ -232,7 +255,7 @@ describe('Rill Runtime: Extraction Operators', () => {
     });
 
     describe('String slicing', () => {
-      it('slices strings', async () => {
+      rule('slice.sources').it('slices strings', async () => {
         const result = await run(`"hello" -> slice<1:4>`);
         expect(result).toBe('ell');
       });
@@ -273,10 +296,13 @@ describe('Rill Runtime: Extraction Operators', () => {
     });
 
     describe('Edge cases', () => {
-      it('returns empty for out-of-range', async () => {
-        const result = await run(`list[1, 2, 3] -> slice<10:20>`);
-        expect(result).toEqual([]);
-      });
+      rule('slice.empty-result').it(
+        'returns empty for out-of-range',
+        async () => {
+          const result = await run(`list[1, 2, 3] -> slice<10:20>`);
+          expect(result).toEqual([]);
+        }
+      );
 
       it('throws on zero step', async () => {
         await expect(run(`list[1, 2, 3] -> slice<::0>`)).rejects.toThrow(
@@ -284,12 +310,15 @@ describe('Rill Runtime: Extraction Operators', () => {
         );
       });
 
-      it('zero step halt is catchable with INVALID_INPUT code', async () => {
-        const result = await run(
-          `guard { list[1, 2, 3] -> slice<::0> } => $r\n($r.!code == #INVALID_INPUT)`
-        );
-        expect(result).toBe(true);
-      });
+      rule('slice.step-zero').it(
+        'zero step halt is catchable with INVALID_INPUT code',
+        async () => {
+          const result = await run(
+            `guard { list[1, 2, 3] -> slice<::0> } => $r\n($r.!code == #INVALID_INPUT)`
+          );
+          expect(result).toBe(true);
+        }
+      );
 
       it('throws on non-sliceable type', async () => {
         await expect(run(`42 -> slice<0:2>`)).rejects.toThrow(/list.*string/i);
@@ -299,7 +328,7 @@ describe('Rill Runtime: Extraction Operators', () => {
 
   describe('enumerate() function', () => {
     describe('List enumeration', () => {
-      it('adds index to each element', async () => {
+      rule('enumerate.list').it('adds index to each element', async () => {
         const result = await run(`enumerate(list[10, 20, 30])`);
         expect(result).toEqual([
           { index: 0, value: 10 },
@@ -308,12 +337,12 @@ describe('Rill Runtime: Extraction Operators', () => {
         ]);
       });
 
-      it('handles empty list', async () => {
+      rule('enumerate.list').it('handles empty list', async () => {
         const result = await run(`enumerate(list[])`);
         expect(result).toEqual([]);
       });
 
-      it('preserves complex values', async () => {
+      rule('enumerate.list').it('preserves complex values', async () => {
         const result = await run(`enumerate(list[list[1, 2], list[3, 4]])`);
         expect(result).toEqual([
           { index: 0, value: [1, 2] },
@@ -323,16 +352,19 @@ describe('Rill Runtime: Extraction Operators', () => {
     });
 
     describe('Dict enumeration', () => {
-      it('adds index and key to each entry', async () => {
-        const result = await run(`enumerate(dict[b: 2, a: 1])`);
-        // Keys sorted alphabetically
-        expect(result).toEqual([
-          { index: 0, key: 'a', value: 1 },
-          { index: 1, key: 'b', value: 2 },
-        ]);
-      });
+      rule('enumerate.dict').it(
+        'adds index and key to each entry',
+        async () => {
+          const result = await run(`enumerate(dict[b: 2, a: 1])`);
+          // Keys sorted alphabetically
+          expect(result).toEqual([
+            { index: 0, key: 'a', value: 1 },
+            { index: 1, key: 'b', value: 2 },
+          ]);
+        }
+      );
 
-      it('handles empty dict', async () => {
+      rule('enumerate.dict').it('handles empty dict', async () => {
         const result = await run(`enumerate(dict[])`);
         expect(result).toEqual([]);
       });
@@ -361,7 +393,7 @@ describe('Rill Runtime: Extraction Operators', () => {
         expect(result).toBe(false);
       });
 
-      it('compares nested lists', async () => {
+      rule('equality.nested').it('compares nested lists', async () => {
         const result = await run(
           `list[list[1, 2], list[3, 4]] -> .eq(list[list[1, 2], list[3, 4]]) ? true ! false`
         );
@@ -370,12 +402,15 @@ describe('Rill Runtime: Extraction Operators', () => {
     });
 
     describe('Dict equality', () => {
-      it('compares dicts by content (order-independent)', async () => {
-        const result = await run(
-          `dict[a: 1, b: 2] -> .eq(dict[b: 2, a: 1]) ? true ! false`
-        );
-        expect(result).toBe(true);
-      });
+      rule('equality.keyed').it(
+        'compares dicts by content (order-independent)',
+        async () => {
+          const result = await run(
+            `dict[a: 1, b: 2] -> .eq(dict[b: 2, a: 1]) ? true ! false`
+          );
+          expect(result).toBe(true);
+        }
+      );
 
       it('detects unequal dicts', async () => {
         const result = await run(

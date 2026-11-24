@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Built-in Methods (formerly functions)
  * Tests for identity, str, num, len, join, split, trim, first, last, at
@@ -6,19 +7,20 @@
 import { describe, expect, it } from 'vitest';
 
 import { expectRuntimeError } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Built-in Functions', () => {
   describe('identity', () => {
-    it('returns string unchanged', async () => {
+    rule('identity.value').it('returns string unchanged', async () => {
       expect(await run('identity("x")')).toBe('x');
     });
 
-    it('returns number unchanged', async () => {
+    rule('identity.value').it('returns number unchanged', async () => {
       expect(await run('identity(42)')).toBe(42);
     });
 
-    it('returns tuple unchanged', async () => {
+    rule('identity.value').it('returns tuple unchanged', async () => {
       expect(await run('identity(list[1, 2, 3])')).toEqual([1, 2, 3]);
     });
 
@@ -68,15 +70,18 @@ describe('Rill Runtime: Built-in Methods', () => {
   });
 
   describe('.join', () => {
-    it('joins with default separator (comma)', async () => {
-      expect(await run('list["a", "b", "c"] -> .join')).toBe('a,b,c');
-    });
+    rule('list.join.default').it(
+      'joins with default separator (comma)',
+      async () => {
+        expect(await run('list["a", "b", "c"] -> .join')).toBe('a,b,c');
+      }
+    );
 
-    it('joins with custom separator', async () => {
+    rule('list.join.separator').it('joins with custom separator', async () => {
       expect(await run('list["a", "b", "c"] -> .join("-")')).toBe('a-b-c');
     });
 
-    it('joins with empty separator', async () => {
+    rule('list.join.separator').it('joins with empty separator', async () => {
       expect(await run('list["a", "b", "c"] -> .join("")')).toBe('abc');
     });
 
@@ -84,11 +89,14 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('list["only"] -> .join')).toBe('only');
     });
 
-    it('returns empty string for empty tuple', async () => {
-      expect(await run('list[] -> .join')).toBe('');
-    });
+    rule('list.join.separator').it(
+      'returns empty string for empty tuple',
+      async () => {
+        expect(await run('list[] -> .join')).toBe('');
+      }
+    );
 
-    it('converts non-string elements', async () => {
+    rule('list.join.separator').it('converts non-string elements', async () => {
       expect(await run('list[1, 2, 3] -> .join(":")')).toBe('1:2:3');
     });
   });
@@ -288,25 +296,38 @@ describe('Rill Runtime: Closures', () => {
       expect(await run('fn(x: bool) { $x } => $fn\n$fn(true)')).toBe(true);
     });
 
-    it('rejects number for string parameter', async () => {
-      await expect(run('fn(x: string) { $x } => $fn\n$fn(42)')).rejects.toThrow(
-        'Parameter type mismatch: x expects string, got number'
-      );
-    });
+    rule('invocation.type').it(
+      'rejects number for string parameter',
+      async () => {
+        await expect(
+          run('fn(x: string) { $x } => $fn\n$fn(42)')
+        ).rejects.toThrow(
+          'Parameter type mismatch: x expects string, got number'
+        );
+      }
+    );
 
-    it('rejects string for number parameter', async () => {
-      await expect(
-        run('fn(x: number) { $x } => $fn\n$fn("hello")')
-      ).rejects.toThrow(
-        'Parameter type mismatch: x expects number, got string'
-      );
-    });
+    rule('invocation.type').it(
+      'rejects string for number parameter',
+      async () => {
+        await expect(
+          run('fn(x: number) { $x } => $fn\n$fn("hello")')
+        ).rejects.toThrow(
+          'Parameter type mismatch: x expects number, got string'
+        );
+      }
+    );
 
-    it('rejects string for bool parameter', async () => {
-      await expect(
-        run('fn(x: bool) { $x } => $fn\n$fn("true")')
-      ).rejects.toThrow('Parameter type mismatch: x expects bool, got string');
-    });
+    rule('invocation.type').it(
+      'rejects string for bool parameter',
+      async () => {
+        await expect(
+          run('fn(x: bool) { $x } => $fn\n$fn("true")')
+        ).rejects.toThrow(
+          'Parameter type mismatch: x expects bool, got string'
+        );
+      }
+    );
 
     it('rejects number in for loop with string param', async () => {
       await expect(
@@ -338,4 +359,113 @@ describe('Rill Runtime: Closures', () => {
       );
     });
   });
+});
+
+describe('Rill Runtime: Invocation', () => {
+  rule('invocation.positional').it('binds arguments by position', async () => {
+    expect(
+      await run('fn(a: number, b: number) { $a - $b } => $f\n$f(5, 2)')
+    ).toBe(3);
+    expect(
+      await run('fn(a: number, b: number) { $a - $b } => $f\n$f(2, 5)')
+    ).toBe(-3);
+  });
+
+  rule('invocation.arguments-first').it(
+    'evaluates every argument before checking the argument count',
+    async () => {
+      await expect(
+        run(
+          'fn() { error "argument ran" } => $g\nfn(a) { $a } => $f\n$f(1, $g())'
+        )
+      ).rejects.toThrow('argument ran');
+    }
+  );
+
+  rule('invocation.arguments-first').it(
+    'evaluates every argument before checking parameter types',
+    async () => {
+      await expect(
+        run(
+          'fn() { error "argument ran" } => $g\nfn(a: number, b: number) { $a } => $f\n$f("s", $g())'
+        )
+      ).rejects.toThrow('argument ran');
+    }
+  );
+
+  rule('invocation.arguments-first').it(
+    'evaluates arguments left to right',
+    async () => {
+      await expect(
+        run(
+          'fn() { error "first" } => $g1\nfn() { error "second" } => $g2\nfn(a, b) { $a } => $f\n$f($g1(), $g2())'
+        )
+      ).rejects.toThrow('first');
+    }
+  );
+
+  rule('invocation.type').it(
+    'reports the first failing parameter in order',
+    async () => {
+      await expect(
+        run('fn(a: number, b: string) { $a } => $f\n$f("x", 1)')
+      ).rejects.toMatchObject({
+        errorId: 'RILL-R001',
+        message: expect.stringContaining('a expects number, got string'),
+      });
+      await expect(
+        run('fn(a: number, b: string) { $a } => $f\n$f(1, 1)')
+      ).rejects.toMatchObject({
+        errorId: 'RILL-R001',
+        message: expect.stringContaining('b expects string, got number'),
+      });
+    }
+  );
+
+  rule('invocation.before-body').it(
+    'does not run the body when a parameter fails its type',
+    async () => {
+      await expect(
+        run('fn(a: number) { error "body ran" } => $f\n$f("x")')
+      ).rejects.toMatchObject({ errorId: 'RILL-R001' });
+    }
+  );
+
+  rule('invocation.before-body').it(
+    'does not run the body when an argument is missing',
+    async () => {
+      await expect(
+        run('fn(a, b) { error "body ran" } => $f\n$f(1)')
+      ).rejects.toMatchObject({ errorId: 'RILL-R044' });
+    }
+  );
+
+  rule('invocation.no-named').it(
+    'rejects a name: value argument in every call form',
+    async () => {
+      for (const source of [
+        'fn(a) { $a } => $f\n$f(a: 1)',
+        'fn(a) { $a } => $f\n1 -> $f(a: 1)',
+        'log(message: 1)',
+        'list[1, 2] -> .join(sep: ",")',
+      ]) {
+        await expect(run(source)).rejects.toMatchObject({
+          errorId: 'RILL-P001',
+        });
+      }
+    }
+  );
+
+  rule('invocation.bare-name').it(
+    'calls a bare built-in name with no arguments',
+    async () => {
+      expect(await run('now => $t\n$t.^type.signature')).toBe('datetime');
+      expect(await run('fn(x) { $x.^type.signature } => $f\n$f(now)')).toBe(
+        'datetime'
+      );
+      await expect(run('log')).rejects.toMatchObject({
+        errorId: 'RILL-R044',
+      });
+    }
+  );
 });

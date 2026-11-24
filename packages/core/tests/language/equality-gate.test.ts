@@ -30,12 +30,13 @@ function makeStreamFn(chunks: RillValue[]) {
 }
 
 describe('Rill Language: equality gate', () => {
-  rule('equality.no-overlap', 'structural-typing.overlap-scalar').it(
-    'halts == between number and string',
-    async () => {
-      await expectHalt(() => run('1 == "1"'), { code: 'TYPE_MISMATCH' });
-    }
-  );
+  rule(
+    'equality.no-overlap',
+    'structural-typing.overlap-scalar',
+    'number.no-equality-coercion'
+  ).it('halts == between number and string', async () => {
+    await expectHalt(() => run('1 == "1"'), { code: 'TYPE_MISMATCH' });
+  });
 
   rule('equality.no-overlap', 'structural-typing.overlap-kind').it(
     'halts == between a tuple and a list',
@@ -77,7 +78,7 @@ describe('Rill Language: equality gate', () => {
     }
   );
 
-  rule('structural-typing.overlap-union').it(
+  rule('structural-typing.overlap-union', 'equality.kind').it(
     'compares a union-declared variable with a member type without halting',
     async () => {
       expect(await run('42 => $x:union(string, number)\n$x == "a"')).toBe(
@@ -171,15 +172,21 @@ describe('Rill Language: equality gate', () => {
       );
     });
 
-    it('keeps two undeclared atoms comparable', async () => {
-      expect(await run('#TIMEOUT == #TIMEUOT')).toBe(false);
-    });
+    rule('equality.closed-set').it(
+      'keeps two undeclared atoms comparable',
+      async () => {
+        expect(await run('#TIMEOUT == #TIMEUOT')).toBe(false);
+      }
+    );
 
-    it('halts a declared string literal union compared with an outside value', async () => {
-      await expectHalt(() => run('"c" => $u:union("c", "f")\n$u == "x"'), {
-        code: 'TYPE_MISMATCH',
-      });
-    });
+    rule('equality.closed-set').it(
+      'halts a declared string literal union compared with an outside value',
+      async () => {
+        await expectHalt(() => run('"c" => $u:union("c", "f")\n$u == "x"'), {
+          code: 'TYPE_MISMATCH',
+        });
+      }
+    );
   });
 
   rule('equality.no-overlap', 'structural-typing.overlap-fields').it(
@@ -245,13 +252,34 @@ describe('Rill Language: equality gate', () => {
     }
   );
 
-  it('halts RILL-R002 when the right operand is a stream', async () => {
-    await expectHalt(
-      () =>
-        run('make_stream() => $s\n1 == $s', {
-          functions: { make_stream: makeStreamFn([1]) },
-        }),
-      { code: 'RILL_R002', hostErrorId: 'RILL-R002' }
-    );
-  });
+  rule('equality.stream').it(
+    'halts RILL-R002 when the right operand is a stream',
+    async () => {
+      await expectHalt(
+        () =>
+          run('make_stream() => $s\n1 == $s', {
+            functions: { make_stream: makeStreamFn([1]) },
+          }),
+        { code: 'RILL_R002', hostErrorId: 'RILL-R002' }
+      );
+    }
+  );
+  rule('structural-typing.overlap-literal', 'equality.no-overlap').it(
+    'compares literal unions that share a member and halts on disjoint ones',
+    async () => {
+      expect(
+        await run(
+          '"a" => $x:union("a", "b")\n"b" => $y:union("b", "c")\n$x == $y'
+        )
+      ).toBe(false);
+      await expectHalt(
+        () => run('"a" => $x:union("a")\n"b" => $y:union("b")\n$x == $y'),
+        { code: 'TYPE_MISMATCH' }
+      );
+      await expectHalt(
+        () => run('1 => $x:union(1, 2)\n3 => $y:union(3, 4)\n$x == $y'),
+        { code: 'TYPE_MISMATCH' }
+      );
+    }
+  );
 });

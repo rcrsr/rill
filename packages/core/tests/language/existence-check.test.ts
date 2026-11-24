@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Existence Check (.?field)
  * Tests for field existence check operator that returns boolean
@@ -5,11 +6,12 @@
 
 import { describe, expect, it } from 'vitest';
 import { run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 import { expectHalt } from '../helpers/halt.js';
 
 describe('Existence Check', () => {
   describe('Basic Existence Check (.?field)', () => {
-    it('returns true when field exists', async () => {
+    rule('existence.found').it('returns true when field exists', async () => {
       const result = await run(`
         dict[type: "blocked"] => $result
         $result.?type
@@ -17,13 +19,16 @@ describe('Existence Check', () => {
       expect(result).toBe(true);
     });
 
-    it('returns false when field does not exist', async () => {
-      const result = await run(`
+    rule('existence.missing').it(
+      'returns false when field does not exist',
+      async () => {
+        const result = await run(`
         dict[name: "test"] => $result
         $result.?missing
       `);
-      expect(result).toBe(false);
-    });
+        expect(result).toBe(false);
+      }
+    );
 
     it('returns true for nested field access when field exists', async () => {
       const result = await run(`
@@ -85,23 +90,29 @@ describe('Existence Check', () => {
   });
 
   describe('Existence Check with Variable Key', () => {
-    it('checks existence using named variable as key', async () => {
-      const result = await run(`
+    rule('existence.found').it(
+      'checks existence using named variable as key',
+      async () => {
+        const result = await run(`
         dict[name: "test", age: 30] => $data
         "name" => $key
         $data.?$key
       `);
-      expect(result).toBe(true);
-    });
+        expect(result).toBe(true);
+      }
+    );
 
-    it('returns false when named variable key does not exist', async () => {
-      const result = await run(`
+    rule('existence.missing').it(
+      'returns false when named variable key does not exist',
+      async () => {
+        const result = await run(`
         dict[name: "test"] => $data
         "age" => $key
         $data.?$key
       `);
-      expect(result).toBe(false);
-    });
+        expect(result).toBe(false);
+      }
+    );
   });
 
   describe('across a newline continuation', () => {
@@ -227,7 +238,7 @@ describe('Existence Check', () => {
   });
 
   describe('A missing step before .? halts', () => {
-    it.each([
+    rule('existence.chain').it.each([
       ['dict[a: 1] => $d\n$d.x.?y', "Dict has no field 'x'"],
       ['dict[a: 1] => $d\n$d["x"].?y', 'Undefined dict key: x'],
       ['list[1] => $l\n$l[5].?y', 'List index out of bounds: 5'],
@@ -253,13 +264,16 @@ describe('Existence Check', () => {
       ).toBe(true);
     });
 
-    it('halts a ?? default across a missing earlier step', async () => {
-      await expectHalt(() => run('dict[a: 1] => $d\n$d.x.y ?? 0'), {
-        code: 'RILL_R009',
-      });
-    });
+    rule('selection.default-last-step').it(
+      'halts a ?? default across a missing earlier step',
+      async () => {
+        await expectHalt(() => run('dict[a: 1] => $d\n$d.x.y ?? 0'), {
+          code: 'RILL_R009',
+        });
+      }
+    );
 
-    it.each([
+    rule('selection.default-last-step').it.each([
       ['variable', 'dict[a: 1] => $d\n$d.x.?b ?? true', 'RILL_R009'],
       ['bracket', 'dict[a: 1] => $d\n$d["x"].?b ?? true', 'RILL_R009'],
       ['annotation', 'fn(x) { $x } => $f\n$f.^zz.?b ?? true', 'RILL_R008'],
@@ -271,8 +285,40 @@ describe('Existence Check', () => {
       }
     );
 
-    it('recovers a ?? default on a missing right-most step', async () => {
-      expect(await run('dict[a: 1] => $d\n$d.y ?? 0')).toBe(0);
-    });
+    rule('selection.default-last-step').it(
+      'recovers a ?? default on a missing right-most step',
+      async () => {
+        expect(await run('dict[a: 1] => $d\n$d.y ?? 0')).toBe(0);
+      }
+    );
   });
+});
+
+describe('Existence check by a number index', () => {
+  rule('existence.index').it(
+    'yields true for .?$k holding an index from -len to len - 1',
+    async () => {
+      for (const decl of ['list[10, 20] => $c', 'tuple[10, 20] => $c']) {
+        for (const k of [-2, -1, 0, 1]) {
+          expect(await run(`${decl}\n${k} => $k\n$c.?$k`)).toBe(true);
+        }
+      }
+    }
+  );
+
+  rule('existence.integer').it(
+    'halts #INVALID_INPUT for .?$k holding a non-integer index',
+    async () => {
+      for (const decl of [
+        'list[10, 20] => $c',
+        'tuple[10, 20] => $c',
+        'ordered[a: 1] => $c',
+      ]) {
+        await expectHalt(() => run(`${decl}\n0.5 => $k\n$c.?$k`), {
+          code: 'INVALID_INPUT',
+          messagePattern: 'index must be an integer, got 0.5',
+        });
+      }
+    }
+  );
 });

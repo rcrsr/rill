@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language: Collection Slicing
  *
@@ -18,37 +19,52 @@
 import { describe, expect, it } from 'vitest';
 
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Language: Collection Slicing', () => {
   describe('start_when', () => {
-    it('returns an empty list when the predicate never matches', async () => {
-      expect(await run('list[1, 2, 3] -> start_when({ $ > 100 })')).toEqual([]);
-    });
+    rule('start-when.no-match').it(
+      'returns an empty list when the predicate never matches',
+      async () => {
+        expect(await run('list[1, 2, 3] -> start_when({ $ > 100 })')).toEqual(
+          []
+        );
+      }
+    );
 
-    it('stays triggered after the first match without re-evaluating the predicate', async () => {
-      expect(await run('list[1, 5, 2, 6, 1] -> start_when({ $ > 4 })')).toEqual(
-        [5, 2, 6, 1]
-      );
-    });
+    rule('start-when.from-match').it(
+      'stays triggered after the first match without re-evaluating the predicate',
+      async () => {
+        expect(
+          await run('list[1, 5, 2, 6, 1] -> start_when({ $ > 4 })')
+        ).toEqual([5, 2, 6, 1]);
+      }
+    );
 
-    it('slices a string input into characters from the first match', async () => {
-      expect(await run('"abcde" -> start_when({ $ == "c" })')).toEqual([
-        'c',
-        'd',
-        'e',
-      ]);
-    });
+    rule('slicing.sources', 'start-when.from-match').it(
+      'slices a string input into characters from the first match',
+      async () => {
+        expect(await run('"abcde" -> start_when({ $ == "c" })')).toEqual([
+          'c',
+          'd',
+          'e',
+        ]);
+      }
+    );
 
-    it('slices a dict input into entries from the first match', async () => {
-      expect(
-        await run(
-          'dict[a: 1, b: 2, c: 3] -> start_when({ $.value == 2 }) -> seq({ $.key })'
-        )
-      ).toEqual(['b', 'c']);
-    });
+    rule('slicing.sources').it(
+      'slices a dict input into entries from the first match',
+      async () => {
+        expect(
+          await run(
+            'dict[a: 1, b: 2, c: 3] -> start_when({ $.value == 2 }) -> seq({ $.key })'
+          )
+        ).toEqual(['b', 'c']);
+      }
+    );
 
-    it('slices an iterator input', async () => {
+    rule('slicing.sources').it('slices an iterator input', async () => {
       expect(await run('range(1, 8) -> start_when({ $ > 4 })')).toEqual([
         5, 6, 7,
       ]);
@@ -72,7 +88,7 @@ describe('Rill Language: Collection Slicing', () => {
   });
 
   describe('cycle', () => {
-    it('repeats a single-element list', async () => {
+    rule('cycle.repeat').it('repeats a single-element list', async () => {
       expect(await run('list["x"] -> cycle -> take(4)')).toEqual([
         'x',
         'x',
@@ -99,12 +115,15 @@ describe('Rill Language: Collection Slicing', () => {
       ).toEqual([1, 2]);
     });
 
-    it('halts on a non-iterable input', async () => {
-      await expectHalt(() => run('5 -> cycle -> take(3)'), {
-        code: 'RILL_R002',
-        hostErrorId: 'RILL-R002',
-      });
-    });
+    rule('slicing.other-source').it(
+      'halts on a non-iterable input',
+      async () => {
+        await expectHalt(() => run('5 -> cycle -> take(3)'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+        });
+      }
+    );
   });
 
   describe('skip', () => {
@@ -114,21 +133,30 @@ describe('Rill Language: Collection Slicing', () => {
       ]);
     });
 
-    it('drops leading characters of a string', async () => {
-      expect(await run('"abcde" -> skip(2)')).toEqual(['c', 'd', 'e']);
-    });
+    rule('slicing.sources', 'skip.rest').it(
+      'drops leading characters of a string',
+      async () => {
+        expect(await run('"abcde" -> skip(2)')).toEqual(['c', 'd', 'e']);
+      }
+    );
 
-    it('drops leading entries of a dict', async () => {
-      expect(
-        await run('dict[a: 1, b: 2, c: 3] -> skip(1) -> seq({ $.key })')
-      ).toEqual(['b', 'c']);
-    });
+    rule('slicing.sources', 'skip.rest').it(
+      'drops leading entries of a dict',
+      async () => {
+        expect(
+          await run('dict[a: 1, b: 2, c: 3] -> skip(1) -> seq({ $.key })')
+        ).toEqual(['b', 'c']);
+      }
+    );
 
-    it('halts with #INVALID_INPUT for a fractional n', async () => {
-      await expectHalt(() => run('list[1, 2, 3] -> skip(1.5)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
+    rule('slicing.integer').it(
+      'halts with #INVALID_INPUT for a fractional n',
+      async () => {
+        await expectHalt(() => run('list[1, 2, 3] -> skip(1.5)'), {
+          code: 'INVALID_INPUT',
+        });
+      }
+    );
 
     it('rejects a non-number n with a parameter type mismatch', async () => {
       await expect(run('list[1, 2, 3] -> skip("2")')).rejects.toThrow(

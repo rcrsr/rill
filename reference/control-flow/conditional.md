@@ -4,10 +4,10 @@ title: Conditional
 status: normative
 since: 0.24.0
 issues: []
-grammar: [conditional]
-errors: [RILL-R002, RILL-R005]
+grammar: [conditional, else-clause, body]
+errors: [RILL-P006, RILL-R002, RILL-R005]
 depends: []
-tests: [conditionals.test.ts]
+tests: [conditionals.test.ts, parser-syntax-errors.test.ts]
 ---
 
 # Conditional
@@ -18,6 +18,8 @@ A conditional `cond ? then ! else` runs one of two bodies, chosen by a bool.
 
 ```ebnf
 conditional = body , "?" , body , [ "!" , else-clause ] | "?" , body , [ "!" , else-clause ] ;
+else-clause = conditional | body ;
+body        = block | grouped-expr | postfix-expr ;
 ```
 
 ```text
@@ -28,6 +30,12 @@ c1 ? a ! c2 ? b ! d   else-if chain
 ```
 
 `?` and `!` may begin a line, continuing the conditional from the line before.
+
+## Static rules
+
+r[conditional.branch-shape] A branch is a block, a group, or a postfix expression
+Each branch MUST be a code block, a grouped expression, or a postfix expression. A branch that is
+a binary expression, such as `true ? 1 + 1 ! 2`, MUST be rejected with RILL-P006.
 
 ## Evaluation
 
@@ -64,6 +72,7 @@ directly (`pipe.no-literal`), so a constant condition after a pipe is grouped: `
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
+| A branch is a binary expression | RILL-P006 | No |
 | The condition is not a bool | RILL-R002 | Yes |
 | A missing else runs where no `$` is bound | RILL-R005 | Yes |
 

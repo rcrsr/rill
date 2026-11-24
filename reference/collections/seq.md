@@ -7,7 +7,7 @@ issues: []
 grammar: []
 errors: [RILL-R045]
 depends: [iteration]
-tests: [collection-operators.test.ts]
+tests: [collection-operators.test.ts, collection-union-inference.test.ts]
 ---
 
 # seq

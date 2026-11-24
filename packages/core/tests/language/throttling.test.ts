@@ -94,17 +94,23 @@ describe('debounce: static-clock semantics (AC-3, IR-4)', () => {
     expect(result).toEqual([0]);
   });
 
-  it('empty iterator returns empty list', async () => {
-    const result = await run('range(0, 0) -> debounce(duration("50ms"))');
-    expect(result).toEqual([]);
-  });
+  rule('time-domain.empty').it(
+    'empty iterator returns empty list',
+    async () => {
+      const result = await run('range(0, 0) -> debounce(duration("50ms"))');
+      expect(result).toEqual([]);
+    }
+  );
 
-  it('stream input: only last chunk emitted', async () => {
-    const result = await run('make_stream() -> debounce(duration("50ms"))', {
-      functions: { make_stream: makeStreamFn([10, 20, 30]) },
-    });
-    expect(result).toEqual([30]);
-  });
+  rule('debounce.last').it(
+    'stream input: only last chunk emitted',
+    async () => {
+      const result = await run('make_stream() -> debounce(duration("50ms"))', {
+        functions: { make_stream: makeStreamFn([10, 20, 30]) },
+      });
+      expect(result).toEqual([30]);
+    }
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -125,17 +131,23 @@ describe('throttle: static-clock semantics (AC-4, IR-5)', () => {
     expect(result).toEqual([0]);
   });
 
-  it('empty iterator returns empty list', async () => {
-    const result = await run('range(0, 0) -> throttle(duration("100ms"))');
-    expect(result).toEqual([]);
-  });
+  rule('time-domain.empty').it(
+    'empty iterator returns empty list',
+    async () => {
+      const result = await run('range(0, 0) -> throttle(duration("100ms"))');
+      expect(result).toEqual([]);
+    }
+  );
 
-  it('stream input: only first chunk emitted', async () => {
-    const result = await run('make_stream() -> throttle(duration("100ms"))', {
-      functions: { make_stream: makeStreamFn([10, 20, 30]) },
-    });
-    expect(result).toEqual([10]);
-  });
+  rule('throttle.first').it(
+    'stream input: only first chunk emitted',
+    async () => {
+      const result = await run('make_stream() -> throttle(duration("100ms"))', {
+        functions: { make_stream: makeStreamFn([10, 20, 30]) },
+      });
+      expect(result).toEqual([10]);
+    }
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -155,12 +167,15 @@ describe('sample: static-clock semantics (AC-5, IR-6)', () => {
     expect(result).toEqual([0]);
   });
 
-  it('empty iterator returns empty list', async () => {
-    const result = await run('range(0, 0) -> sample(duration("100ms"))');
-    expect(result).toEqual([]);
-  });
+  rule('time-domain.empty').it(
+    'empty iterator returns empty list',
+    async () => {
+      const result = await run('range(0, 0) -> sample(duration("100ms"))');
+      expect(result).toEqual([]);
+    }
+  );
 
-  it('stream input: only last chunk emitted', async () => {
+  rule('sample.last').it('stream input: only last chunk emitted', async () => {
     const result = await run('make_stream() -> sample(duration("100ms"))', {
       functions: { make_stream: makeStreamFn([10, 20, 30]) },
     });
@@ -205,20 +220,20 @@ describe('AC-25: per-operator distinct semantics', () => {
 // ---------------------------------------------------------------------------
 
 describe('EC-10 / AC-10: list input raises #INVALID_INPUT', () => {
-  it('debounce rejects list input', async () => {
+  rule('time-domain.sources').it('debounce rejects list input', async () => {
     await expectHalt(() => run('list[1, 2, 3] -> debounce(duration("10ms"))'), {
       code: 'INVALID_INPUT',
     });
   });
 
-  it('throttle rejects list input', async () => {
+  rule('time-domain.sources').it('throttle rejects list input', async () => {
     await expectHalt(
       () => run('list[1, 2, 3] -> throttle(duration("100ms"))'),
       { code: 'INVALID_INPUT' }
     );
   });
 
-  it('sample rejects list input', async () => {
+  rule('time-domain.sources').it('sample rejects list input', async () => {
     await expectHalt(() => run('list[1, 2, 3] -> sample(duration("100ms"))'), {
       code: 'INVALID_INPUT',
     });

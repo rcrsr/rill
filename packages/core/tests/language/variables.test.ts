@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Variables
  * Tests for named variables, pipe variable, field access, and capture
@@ -7,18 +8,22 @@ import { describe, expect, it } from 'vitest';
 
 import { run, runWithContext } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 import { parse, type VariableNode } from '@rcrsr/rill';
 
 describe('Rill Runtime: Variables', () => {
   describe('=> Capture Operator', () => {
-    it('=> captures and continues chain', async () => {
+    rule('capture.pass-on').it('=> captures and continues chain', async () => {
       expect(await run('"hello" => $x -> .upper')).toBe('HELLO');
     });
 
-    it('=> captured value equals original', async () => {
-      const { context } = await runWithContext('"hello" => $x -> .upper');
-      expect(context.variables.get('x')).toBe('hello');
-    });
+    rule('capture.bind', 'variable.bind').it(
+      '=> captured value equals original',
+      async () => {
+        const { context } = await runWithContext('"hello" => $x -> .upper');
+        expect(context.variables.get('x')).toBe('hello');
+      }
+    );
 
     it('=> at end of chain emits value', async () => {
       expect(await run('"hello" => $x')).toBe('hello');
@@ -72,11 +77,11 @@ describe('Rill Runtime: Variables', () => {
       ).toBe('OUTER');
     });
 
-    it('=> with type annotation', async () => {
+    rule('capture.assert').it('=> with type annotation', async () => {
       expect(await run('"hello" => $x:string -> .upper')).toBe('HELLO');
     });
 
-    it('=> type mismatch errors', async () => {
+    rule('capture.mismatch').it('=> type mismatch errors', async () => {
       await expectHalt(() => run('42 => $x:string'), {
         code: 'TYPE_MISMATCH',
         messagePattern: 'Type assertion failed',
@@ -91,13 +96,16 @@ describe('Rill Runtime: Variables', () => {
   });
 
   describe('Named Variables', () => {
-    it('captures and reads variable', async () => {
+    rule('variable.read').it('captures and reads variable', async () => {
       expect(await run('"x" => $v\n$v')).toBe('x');
     });
 
-    it('overwrites variable', async () => {
-      expect(await run('"a" => $v\n"b" => $v\n$v')).toBe('b');
-    });
+    rule('capture.rebind', 'variable.read').it(
+      'overwrites variable',
+      async () => {
+        expect(await run('"a" => $v\n"b" => $v\n$v')).toBe('b');
+      }
+    );
 
     it('supports multiple variables', async () => {
       expect(await run('"a" => $x\n"b" => $y\nlist[$x, $y]')).toEqual([
@@ -106,7 +114,7 @@ describe('Rill Runtime: Variables', () => {
       ]);
     });
 
-    it('errors for undefined variable', async () => {
+    rule('variable.undefined').it('errors for undefined variable', async () => {
       await expect(run('$undefined')).rejects.toThrow('Undefined variable');
     });
 
@@ -210,7 +218,7 @@ describe('Rill Runtime: Variables', () => {
   });
 
   describe('Initial Variables', () => {
-    it('accesses pre-set variable', async () => {
+    rule('variable.host').it('accesses pre-set variable', async () => {
       expect(await run('$name', { variables: { name: 'Alice' } })).toBe(
         'Alice'
       );
@@ -226,7 +234,7 @@ describe('Rill Runtime: Variables', () => {
       ).toBe('b');
     });
 
-    it('can overwrite pre-set variable', async () => {
+    rule('variable.host').it('can overwrite pre-set variable', async () => {
       expect(
         await run('"new" => $name\n$name', { variables: { name: 'old' } })
       ).toBe('new');
@@ -317,5 +325,69 @@ describe('Rill Runtime: Variables', () => {
       );
       expect(context.variables.get('retry')).toBe(2);
     });
+  });
+
+  describe('variable and capture forms', () => {
+    rule('variable.sigil', 'capture.target').it(
+      'rejects a capture target without $ and calls a bare name',
+      async () => {
+        await expect(run('5 => x')).rejects.toMatchObject({
+          errorId: 'RILL-P001',
+        });
+        await expectHalt(() => run('5 => $total\ntotal'), {
+          code: 'RILL_R006',
+          hostErrorId: 'RILL-R006',
+        });
+      }
+    );
+
+    rule('variable.name').it(
+      'rejects a variable name that starts with a digit with RILL-L003',
+      async () => {
+        await expect(run('$1')).rejects.toMatchObject({
+          errorId: 'RILL-L003',
+        });
+        await expect(run('5 => $1')).rejects.toMatchObject({
+          errorId: 'RILL-L003',
+        });
+      }
+    );
+
+    rule('variable.reserved').it(
+      'rejects a capture into $ or $@ with RILL-P001',
+      async () => {
+        await expect(run('5 => $')).rejects.toMatchObject({
+          errorId: 'RILL-P001',
+        });
+        await expect(run('5 => $@')).rejects.toMatchObject({
+          errorId: 'RILL-P001',
+        });
+      }
+    );
+
+    rule('capture.no-eval').it(
+      'binds a function uncalled and a value unconverted',
+      async () => {
+        expect(await run('fn { 1 } => $f\n$f()')).toBe(1);
+        expect(
+          await run('dict[a: 1] => $d:dict(a: number, b: number = 2)\n$d')
+        ).toEqual({ a: 1 });
+      }
+    );
+
+    rule('variable.callable').it(
+      'calls a script function through its variable, never bare',
+      async () => {
+        expect(
+          await run(
+            'fn(x) { $x * 2 } => $double\nlist[$double(3), 3 -> $double]'
+          )
+        ).toEqual([6, 6]);
+        await expectHalt(() => run('fn(x) { $x * 2 } => $double\ndouble(3)'), {
+          code: 'RILL_R006',
+          hostErrorId: 'RILL-R006',
+        });
+      }
+    );
   });
 });

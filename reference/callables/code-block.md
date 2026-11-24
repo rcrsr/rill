@@ -64,12 +64,13 @@ r[code-block.held] A collection entry holds the block uncalled
 A code block written as a dict value, an ordered value, a list element, or a tuple element
 MUST be held as a code block. It MUST NOT convert to a function.
 
-r[code-block.dispatch] Dispatch runs a held block with the selector
-`sel -> $c` that selects a held block MUST run it with `$` bound to `sel`, and yield its result.
-
 r[code-block.access] Access runs a held block with the enclosing $
 `$c.name`, `$c.$k`, `$c[sel]`, `.at(i)`, and a destructure position that select a held block
 MUST run it with `$` bound to the enclosing `$`, and yield its result.
+
+r[code-block.access-call] A call on an accessed held block calls its result
+`$c.name(args)`, `$c.$k(args)`, and `$c[sel](args)` that select a held block MUST run it as
+access does (`code-block.access`), then call its result with `args`.
 
 r[code-block.access-target] In a pipe target the enclosing $ is the piped value
 Access written as a pipe target MUST run a held block with `$` bound to the piped value.
@@ -80,6 +81,10 @@ Iteration, `enumerate`, `.values`, `.entries`, `.first`, `.head`, `.tail`, `.rev
 `.has_any`, `.has_all`, spread, slicing, `take`, `skip`, `chain`, equality, interpolation,
 conversion, and `log` that reach a held block MUST halt with `#TYPE_MISMATCH` naming the entry.
 `.^type` and a type lock MUST see a held entry as `fn()`.
+
+r[code-block.shape-reads] .len and .keys do not run held blocks
+`.len` and `.keys` on a collection that holds a block MUST count and name the entry without
+running it.
 
 r[code-block.host] Host conversion reports a held entry as fn()
 Converting a collection that holds a block to a host value MUST report the entry as the
@@ -100,7 +105,8 @@ A code block yields its last statement (`statement.result`), and `return` ends i
 
 Storing a function needs `fn` in front of the block: `fn { 5 } => $x` binds a function
 (`fn.bare-literal`), where `{ 5 } => $x` binds 5. A function written with `fn` as an entry is
-a value, and selecting it returns it uncalled (`dispatch.fn`). A block passed as a whole
+a value, and selecting it returns it uncalled (`dispatch.fn`). Dispatch runs a held block with
+the selector bound (`dispatch.block`, `dispatch.block-held`, `dispatch.block-list`). A block passed as a whole
 argument is a function, not a code block, and takes the unnamed parameters its body reads
 (`fn.block-type`). An assertion on such a block sets the function's outer (`fn.block-outer`).
 
@@ -187,5 +193,5 @@ function: `{ 5 } => $x` binds a closure, `$d.a` returns one, and `3 -> { 5 }` yi
 assertion after a block tests the closure, so `3 -> { $ + 1 }:number` halts `#TYPE_MISMATCH`
 (got closure), `:?number` yields false, and `true ? { 5 }:number ! { 6 }` halts RILL-P001.
 
-Superseded: `code-block.ignores-input`, now built as `pipe.uses-value`.
-
+Superseded: `code-block.ignores-input`, now built as `pipe.uses-value`, and
+`code-block.dispatch`, stated by `dispatch.block` and `dispatch.block-held`.

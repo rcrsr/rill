@@ -4,7 +4,7 @@ title: Halts
 status: normative
 since: 0.24.0
 depends: [notation]
-tests: [error.test.ts, guard-retry.test.ts, access-halt.test.ts]
+tests: [error.test.ts, guard-retry.test.ts, access-halt.test.ts, halt-catchability.test.ts]
 ---
 
 # Halts

@@ -27,7 +27,7 @@ Every value MUST have the type `any`, including a block, a type value, and an em
 r[any.assert] Asserting any returns the value unchanged
 `:any` on a value MUST return the value unchanged.
 
-r[any.collection] A collection of any admits every collection of its kind
+r[any.collection] A list of any admits every list
 `list(any)` MUST admit every list.
 
 r[any.union] A union containing any reduces to any

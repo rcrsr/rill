@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: pass(async: true) Block (Phase 1, Task 1.5)
  *
@@ -26,6 +27,7 @@ import { invalidate } from '../../src/runtime/core/types/status.js';
 import { createTraceFrame } from '../../src/runtime/core/types/trace.js';
 import { RuntimeHaltSignal } from '../../src/runtime/core/types/halt.js';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 import { run, runWithContext } from '../helpers/runtime.js';
 
 /** A promise the test resolves explicitly, so no test depends on elapsed time. */
@@ -42,24 +44,30 @@ function createDeferred(): { promise: Promise<void>; resolve: () => void } {
 // ---------------------------------------------------------------------------
 
 describe('AC-2 / SC-2: pass(async: true) flows pipe-entry value downstream', () => {
-  it('returns the pipe-entry value immediately when async body is fired', async () => {
-    // The body runs asynchronously. The pipe-entry value (42) is returned
-    // immediately without waiting for body completion.
-    const result = await run('42 -> pass(async: true) { $ }');
-    expect(result).toBe(42);
-  });
+  rule('pass.async').it(
+    'returns the pipe-entry value immediately when async body is fired',
+    async () => {
+      // The body runs asynchronously. The pipe-entry value (42) is returned
+      // immediately without waiting for body completion.
+      const result = await run('42 -> pass(async: true) { $ }');
+      expect(result).toBe(42);
+    }
+  );
 
   it('returns a string pipe-entry value unchanged', async () => {
     const result = await run('"hello" -> pass(async: true) { $ -> .upper }');
     expect(result).toBe('hello');
   });
 
-  it('does not block on async body — body return value is discarded', async () => {
-    // The body captures its computation result but pass(async: true) returns
-    // the original pipe value, not the body's result.
-    const result = await run('10 -> pass(async: true) { $ * 100 }');
-    expect(result).toBe(10);
-  });
+  rule('pass.async').it(
+    'does not block on async body — body return value is discarded',
+    async () => {
+      // The body captures its computation result but pass(async: true) returns
+      // the original pipe value, not the body's result.
+      const result = await run('10 -> pass(async: true) { $ * 100 }');
+      expect(result).toBe(10);
+    }
+  );
 
   it('can chain after async pass — downstream sees original pipe value', async () => {
     const result = await run('5 -> pass(async: true) { $ + 1 } -> { $ * 2 }');

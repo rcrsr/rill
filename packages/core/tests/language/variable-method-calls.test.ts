@@ -1,9 +1,11 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 import { describe, it, expect } from 'vitest';
 import { run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Variable Method Calls', () => {
   describe('.len method', () => {
-    it('calls .len on list variable', async () => {
+    rule('list.len.count').it('calls .len on list variable', async () => {
       expect(await run('list[0,1,2] => $v\n$v.len')).toBe(3);
     });
 
@@ -11,7 +13,7 @@ describe('Variable Method Calls', () => {
       expect(await run('"hello" => $s\n$s.len')).toBe(5);
     });
 
-    it('calls .len on dict variable', async () => {
+    rule('dict.len.count').it('calls .len on dict variable', async () => {
       expect(await run('dict[a:1, b:2] => $d\n$d.len')).toBe(2);
     });
 
@@ -33,7 +35,7 @@ $l1 == $l2`;
   });
 
   describe('other built-in methods', () => {
-    it('calls .trim on string variable', async () => {
+    rule('string.trim.ends').it('calls .trim on string variable', async () => {
       expect(await run('"  hello  " => $s\n$s.trim')).toBe('hello');
     });
 
@@ -45,11 +47,11 @@ $l1 == $l2`;
       expect(await run('"HELLO" => $s\n$s.lower')).toBe('hello');
     });
 
-    it('calls .head on list variable', async () => {
+    rule('list.head.first').it('calls .head on list variable', async () => {
       expect(await run('list[1,2,3] => $list\n$list.head')).toBe(1);
     });
 
-    it('calls .tail on list variable', async () => {
+    rule('list.tail.last').it('calls .tail on list variable', async () => {
       expect(await run('list[1,2,3] => $list\n$list.tail')).toBe(3);
     });
 
@@ -88,7 +90,7 @@ $l1 == $l2`;
       );
     });
 
-    it('$v.trim equals $v -> .trim', async () => {
+    rule('method.receiver').it('$v.trim equals $v -> .trim', async () => {
       expect(await run('"  test  " => $v\n$v.trim')).toBe(
         await run('"  test  " => $v\n$v -> .trim')
       );

@@ -21,6 +21,8 @@ concept.
 | Do the unwritten chapters gate 0.24.0? | Yes, all three. |
 | Where do citations go? | In the locked suite. A `rule(...)` citation on an existing test, or a new test for an untested rule, is an allowed lock change. One lock update per PR, with `bash scripts/check-test-lock.sh --update`. Never change an existing test's body to make a rule pass. |
 | How does the work land? | One PR per slice in the Progress table, in that order. |
+| Who decides findings during chapter slices? | Nobody. A chapter slice captures each disputed or under-specified case in [INCONSISTENCIES.md](INCONSISTENCIES.md) and keeps working; a new rule states only behavior consistent with every equivalent form. Slice 20 decides every row. |
+| When are defects filed? | After the last chapter slice. Each slice adds its defects to [Findings](#findings) as `Collected`, with the probe evidence. Slice 19 groups them by root cause and files one issue per group. A defect that blocks a slice is filed at once. |
 
 ## Per-file checklist
 
@@ -29,7 +31,7 @@ A file is done when all four columns are ticked in the Files tables below.
 1. **Correct.** Probe every rule against `packages/core/dist`, per [CLAUDE.md](CLAUDE.md) "Probing
    the runtime", edges included: empty input, wrong kind, extra and missing arguments, nesting,
    and `guard`. Verify each Catchable cell by running the source inside `guard`. A rule the runtime
-   breaks is a defect: file it and list it under Findings. Never edit the rule to match.
+   breaks is a defect: add it to Findings as `Collected`. Never edit the rule to match.
 2. **Consistent.** Compare each rule with its own examples and Notes, with the concepts it cites,
    and with every equivalent form elsewhere (the "Consistency over scope" rule in the root
    `CLAUDE.md`). Remove a fact stated by two owners from the one it does not belong to. Record
@@ -48,14 +50,18 @@ update, then `pnpm check`.
 Mechanical checks run once in the first PR. Each finding goes to the Files row it belongs to, or to
 an unwritten chapter's backlog.
 
-| Sweep | Compares | Feeds |
-|-------|----------|-------|
-| Error ids | Every id in `packages/core/src/error-registry.ts` against every Errors table | Complete |
-| Grammar | Every production in `docs/ref-grammar.ebnf` against every `grammar:` frontmatter list | Complete, `lexical` |
-| Test files | Every file in `packages/core/tests/language/` against every `tests:` frontmatter list | Cited |
-| Built-ins | Every built-in method and function the runtime registers against the reference | `builtins` |
-| Limits | Every ceiling, depth limit, and timeout the runtime enforces against the reference | `limits` |
-| Docs topics | Every behavior claim in `docs/llm/` against the reference | Complete |
+| Sweep | Compares | Feeds | Result at a897cfc3 |
+|-------|----------|-------|--------------------|
+| Error ids | Every id in `packages/core/src/error-registry.ts` against every Errors table | Complete | 121 ids, 79 in no concept file |
+| Grammar | Every production in `docs/ref-grammar.ebnf` against every `grammar:` frontmatter list | Complete, `lexical` | 118 productions, 77 in no list |
+| Test files | Every file in `packages/core/tests/language/` against every `tests:` frontmatter list | Cited | 126 files, 25 in no list |
+| Built-ins | Every built-in method and function the runtime registers against the reference | `builtins` | 151 built-ins, 92 with no rule, 12 partial |
+| Limits | Every ceiling, depth limit, and timeout the runtime enforces against the reference | `limits` | 29 limits, 15 unstated, 3 partial |
+| Docs topics | Every behavior claim in `docs/llm/` against the reference | Complete | 52 claims no rule states, outside `builtins`; 8 conflicts |
+
+Every result is routed to a chapter under [Backlog](#backlog). Conflicts where the runtime may be
+right went to [INCONSISTENCIES.md](INCONSISTENCIES.md). Defects and wrong docs are under
+[Findings](#findings).
 
 ## Writing a chapter
 
@@ -76,7 +82,7 @@ The last row in Progress:
 
 - `pnpm ref check` reports 0 `uncited-rule`. `uncited-rule` becomes an error, so a new uncited rule
   fails CI.
-- [INCONSISTENCIES.md](INCONSISTENCIES.md) has no rows.
+- [INCONSISTENCIES.md](INCONSISTENCIES.md) has no rows, and no Findings row is `Collected`.
 - The README "Test citation is incomplete during the pilot" sentence and the matching line in
   [CLAUDE.md](CLAUDE.md) "Tests" are removed.
 - `pnpm ref lint`, `pnpm ref check`, `pnpm ref check --issues`, `pnpm test:examples`, and `pnpm check`
@@ -88,26 +94,27 @@ One row per PR. Tick a row when its PR merges.
 
 | # | Slice | Files | Rules | Uncited | PR |
 |---|-------|-------|-------|---------|----|
-| 1 | Setup and sweeps | | | | |
-| 2 | `conventions` | 2 | 17 | 17 | |
-| 3 | `lexical` (write) | 0 | 0 | 0 | |
-| 4 | `program` | 2 | 17 | 17 | |
-| 5 | `values` | 3 | 29 | 27 | |
-| 6 | `types/constructors` | 8 | 149 | 61 | |
-| 7 | `types/model` | 6 | 70 | 54 | |
-| 8 | `types/scalars` | 7 | 123 | 113 | |
-| 9 | `types/typing` | 8 | 121 | 68 | |
-| 10 | `variables` | 3 | 24 | 24 | |
-| 11 | `expressions` | 8 | 111 | 89 | |
-| 12 | `callables` | 3 | 33 | 15 | |
-| 13 | `control-flow` | 5 | 43 | 31 | |
-| 14 | `collections` | 7 | 53 | 47 | |
-| 15 | `errors` | 5 | 33 | 32 | |
-| 16 | `limits` (write) | 0 | 0 | 0 | |
-| 17 | `host-boundary` | 1 | 14 | 11 | |
-| 18 | `builtins` (write) | 0 | 0 | 0 | |
-| 19 | Decide the inconsistencies | | | | |
-| 20 | Close the audit | | | | |
+| 1 | Setup and sweeps | 68 | 837 | 606 | #676 |
+| 2 | `conventions` | 2 | 15 | 1 | #676 |
+| 3 | `lexical` (write) | 5 | 23 | 0 | #676 |
+| 4 | `program` | 3 | 32 | 0 | #676 |
+| 5 | `values` | 3 | 30 | 0 | #676 |
+| 6 | `types/constructors` | 9 | 160 | 0 | #676 |
+| 7 | `types/model` | 6 | 69 | 0 | #676 |
+| 8 | `types/scalars` | 7 | 124 | 0 | #676 |
+| 9 | `types/typing` | 8 | 122 | 0 | #676 |
+| 10 | `variables` | 3 | 27 | 0 | #676 |
+| 11 | `expressions` | 13 | 137 | 2 | #676 |
+| 12 | `callables` | 3 | 37 | 0 | #676 |
+| 13 | `control-flow` | 5 | 52 | 4 | #676 |
+| 14 | `collections` | 7 | 56 | 0 | #676 |
+| 15 | `errors` | 5 | 41 | 0 | #676 |
+| 16 | `limits` (write) | 5 | 14 | 0 | #676 |
+| 17 | `host-boundary` | 1 | 16 | 3 | #676 |
+| 18 | `builtins` (write) | 111 | 204 | 0 | #676 |
+| 19 | Group and file defects | | | | |
+| 20 | Decide the inconsistencies | | | | |
+| 21 | Close the audit | | | | |
 
 At the start, on `main` at 3e0f88f7: 68 files, 837 rules, 606 uncited.
 
@@ -119,154 +126,418 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `conventions/halt.md` | 9 | 9 | | | | |
-| `conventions/notation.md` | 8 | 8 | | | | |
+| `conventions/halt.md` | 9 | 1 | x | x | x | |
+| `conventions/notation.md` | 6 | 0 | x | x | x | x |
+
+### `lexical`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `lexical/identifier.md` | 3 | 0 | x | x | x | x |
+| `lexical/keyword.md` | 4 | 0 | x | x | x | x |
+| `lexical/source-text.md` | 5 | 0 | x | x | x | x |
+| `lexical/token.md` | 4 | 0 | x | x | x | x |
+| `lexical/whitespace.md` | 7 | 0 | x | x | x | x |
 
 ### `program`
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `program/annotation.md` | 10 | 10 | | | | |
-| `program/statement.md` | 7 | 7 | | | | |
+| `program/annotation.md` | 14 | 0 | x | x | x | x |
+| `program/frontmatter.md` | 6 | 0 | x | x | x | x |
+| `program/statement.md` | 12 | 0 | x | x | x | x |
 
 ### `values`
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `values/equality.md` | 15 | 13 | | | | |
-| `values/vacancy.md` | 6 | 6 | | | | |
-| `values/value.md` | 8 | 8 | | | | |
+| `values/equality.md` | 16 | 0 | x | x | x | x |
+| `values/vacancy.md` | 6 | 0 | x | x | x | x |
+| `values/value.md` | 8 | 0 | x | x | x | x |
 
 ### `types/constructors`
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `types/constructors/dict.md` | 17 | 10 | | | | |
-| `types/constructors/fn.md` | 27 | 0 | | | | |
-| `types/constructors/list.md` | 14 | 8 | | | | |
-| `types/constructors/map.md` | 36 | 0 | | | | |
-| `types/constructors/ordered.md` | 9 | 7 | | | | |
-| `types/constructors/stream.md` | 12 | 9 | | | | |
-| `types/constructors/tuple.md` | 16 | 10 | | | | |
-| `types/constructors/union.md` | 18 | 17 | | | | |
+| `types/constructors/dict.md` | 18 | 0 | x | x | x | x |
+| `types/constructors/dict-literal.md` | 2 | 0 | x | x | x | x |
+| `types/constructors/fn.md` | 30 | 0 | x | x | x | x |
+| `types/constructors/list.md` | 15 | 0 | x | x | x | x |
+| `types/constructors/map.md` | 37 | 0 | x | x | x | x |
+| `types/constructors/ordered.md` | 10 | 0 | x | x | x | x |
+| `types/constructors/stream.md` | 13 | 0 | x | x | x | x |
+| `types/constructors/tuple.md` | 17 | 0 | x | x | x | x |
+| `types/constructors/union.md` | 18 | 0 | x | x | x | x |
 
 ### `types/model`
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `types/model/any.md` | 6 | 6 | | | | |
-| `types/model/introspection.md` | 22 | 15 | | | | |
-| `types/model/structural-typing.md` | 21 | 14 | | | | |
-| `types/model/type-form.md` | 5 | 3 | | | | |
-| `types/model/type-position.md` | 6 | 6 | | | | |
-| `types/model/type-value.md` | 10 | 10 | | | | |
+| `types/model/any.md` | 6 | 0 | x | x | x | x |
+| `types/model/introspection.md` | 23 | 0 | x | x | x | x |
+| `types/model/structural-typing.md` | 19 | 0 | x | x | x | x |
+| `types/model/type-form.md` | 5 | 0 | x | x | x | x |
+| `types/model/type-position.md` | 6 | 0 | x | x | x | x |
+| `types/model/type-value.md` | 10 | 0 | x | x | x | x |
 
 ### `types/scalars`
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `types/scalars/atom.md` | 16 | 16 | | | | |
-| `types/scalars/bool.md` | 13 | 13 | | | | |
-| `types/scalars/datetime.md` | 19 | 19 | | | | |
-| `types/scalars/duration.md` | 20 | 13 | | | | |
-| `types/scalars/error-code.md` | 13 | 12 | | | | |
-| `types/scalars/number.md` | 19 | 18 | | | | |
-| `types/scalars/string.md` | 23 | 22 | | | | |
+| `types/scalars/atom.md` | 14 | 0 | x | x | x | x |
+| `types/scalars/bool.md` | 13 | 0 | x | x | x | x |
+| `types/scalars/datetime.md` | 21 | 0 | x | x | x | x |
+| `types/scalars/duration.md` | 22 | 0 | x | x | x | x |
+| `types/scalars/error-code.md` | 13 | 0 | x | x | x | x |
+| `types/scalars/number.md` | 18 | 0 | x | x | x | x |
+| `types/scalars/string.md` | 23 | 0 | x | x | x | x |
 
 ### `types/typing`
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `types/typing/assertion.md` | 17 | 14 | | | | |
-| `types/typing/carried-type.md` | 13 | 9 | | | | |
-| `types/typing/conversion.md` | 20 | 19 | | | | |
-| `types/typing/declaration.md` | 13 | 3 | | | | |
-| `types/typing/defaults.md` | 19 | 11 | | | | |
-| `types/typing/inference.md` | 15 | 8 | | | | |
-| `types/typing/strict-mode.md` | 10 | 0 | | | | |
-| `types/typing/type-lock.md` | 14 | 4 | | | | |
+| `types/typing/assertion.md` | 17 | 0 | x | x | x | x |
+| `types/typing/carried-type.md` | 15 | 0 | x | x | x | x |
+| `types/typing/conversion.md` | 20 | 0 | x | x | x | x |
+| `types/typing/declaration.md` | 13 | 0 | x | x | x | x |
+| `types/typing/defaults.md` | 18 | 0 | x | x | x | x |
+| `types/typing/inference.md` | 15 | 0 | x | x | x | x |
+| `types/typing/strict-mode.md` | 10 | 0 | x | x | x | x |
+| `types/typing/type-lock.md` | 14 | 0 | x | x | x | x |
 
 ### `variables`
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `variables/capture.md` | 6 | 6 | | | | |
-| `variables/scope.md` | 10 | 10 | | | | |
-| `variables/variable.md` | 8 | 8 | | | | |
+| `variables/capture.md` | 7 | 0 | x | x | x | x |
+| `variables/scope.md` | 12 | 0 | x | x | x | x |
+| `variables/variable.md` | 8 | 0 | x | x | x | x |
 
 ### `expressions`
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `expressions/destruct.md` | 12 | 12 | | | | |
-| `expressions/dispatch.md` | 13 | 9 | | | | |
-| `expressions/existence.md` | 11 | 7 | | | | |
-| `expressions/interpolation.md` | 8 | 8 | | | | |
-| `expressions/pipe.md` | 17 | 16 | | | | |
-| `expressions/selection.md` | 28 | 15 | | | | |
-| `expressions/slice.md` | 10 | 10 | | | | |
-| `expressions/spread.md` | 12 | 12 | | | | |
+| `expressions/access.md` | 5 | 0 | x | x | x | x |
+| `expressions/arithmetic.md` | 4 | 0 | x | x | x | x |
+| `expressions/destruct.md` | 12 | 0 | x | x | x | x |
+| `expressions/dispatch.md` | 14 | 0 | x | x | x | x |
+| `expressions/existence.md` | 11 | 0 | x | x | x | x |
+| `expressions/interpolation.md` | 8 | 0 | x | x | x | x |
+| `expressions/logical.md` | 6 | 0 | x | x | x | x |
+| `expressions/operator.md` | 6 | 0 | x | x | x | x |
+| `expressions/pipe.md` | 17 | 0 | x | x | x | x |
+| `expressions/pipe-target.md` | 4 | 0 | x | x | x | x |
+| `expressions/selection.md` | 28 | 0 | x | x | x | x |
+| `expressions/slice.md` | 10 | 0 | x | x | x | x |
+| `expressions/spread.md` | 12 | 2 | x | x | x | |
 
 ### `callables`
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `callables/annotation-access.md` | 7 | 6 | | | | |
-| `callables/code-block.md` | 20 | 4 | | | | |
-| `callables/invocation.md` | 6 | 5 | | | | |
+| `callables/annotation-access.md` | 8 | 0 | x | x | x | x |
+| `callables/code-block.md` | 21 | 0 | x | x | x | x |
+| `callables/invocation.md` | 8 | 0 | x | x | x | x |
 
 ### `control-flow`
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `control-flow/break.md` | 7 | 7 | | | | |
-| `control-flow/conditional.md` | 7 | 7 | | | | |
-| `control-flow/construct-options.md` | 13 | 1 | | | | |
-| `control-flow/loop.md` | 10 | 10 | | | | |
-| `control-flow/pass.md` | 6 | 6 | | | | |
+| `control-flow/break.md` | 8 | 2 | x | x | x | |
+| `control-flow/conditional.md` | 8 | 0 | x | x | x | x |
+| `control-flow/construct-options.md` | 16 | 0 | x | x | x | x |
+| `control-flow/loop.md` | 14 | 1 | x | x | x | |
+| `control-flow/pass.md` | 6 | 1 | x | x | x | |
 
 ### `collections`
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `collections/acc.md` | 2 | 2 | | | | |
-| `collections/fan.md` | 7 | 7 | | | | |
-| `collections/filter.md` | 5 | 4 | | | | |
-| `collections/fold.md` | 6 | 5 | | | | |
-| `collections/iteration.md` | 18 | 15 | | | | |
-| `collections/seq.md` | 4 | 4 | | | | |
-| `collections/sort.md` | 11 | 10 | | | | |
+| `collections/acc.md` | 2 | 0 | x | x | x | x |
+| `collections/fan.md` | 7 | 0 | x | x | x | x |
+| `collections/filter.md` | 5 | 0 | x | x | x | x |
+| `collections/fold.md` | 6 | 0 | x | x | x | x |
+| `collections/iteration.md` | 20 | 0 | x | x | x | x |
+| `collections/seq.md` | 4 | 0 | x | x | x | x |
+| `collections/sort.md` | 12 | 0 | x | x | x | x |
 
 ### `errors`
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `errors/assert.md` | 5 | 5 | | | | |
-| `errors/error.md` | 4 | 4 | | | | |
-| `errors/guard.md` | 10 | 10 | | | | |
-| `errors/invalid-value.md` | 9 | 8 | | | | |
-| `errors/retry.md` | 5 | 5 | | | | |
+| `errors/assert.md` | 5 | 0 | x | x | x | x |
+| `errors/error.md` | 6 | 0 | x | x | x | x |
+| `errors/guard.md` | 11 | 0 | x | x | x | x |
+| `errors/invalid-value.md` | 12 | 0 | x | x | x | x |
+| `errors/retry.md` | 7 | 0 | x | x | x | x |
+
+### `limits`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `limits/call-depth.md` | 3 | 0 | x | x | x | x |
+| `limits/host-timeout.md` | 4 | 0 | x | x | x | x |
+| `limits/nesting-depth.md` | 2 | 0 | x | x | x | x |
+| `limits/slicing-limit.md` | 3 | 0 | x | x | x | x |
+| `limits/value-size.md` | 2 | 0 | x | x | x | x |
 
 ### `host-boundary`
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
 |------|-------|---------|---------|------------|----------|-------|
-| `host-boundary/use.md` | 14 | 11 | | | | |
+| `host-boundary/use.md` | 16 | 3 | x | x | x | |
 
-### Unwritten chapters
+### `builtins`
 
-Each gets a table when its PR splits it into concepts.
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/method.md` | 6 | 0 | x | x | x | x |
+| `builtins/regex.md` | 3 | 0 | x | x | x | x |
 
-| Chapter | Covers |
-|---------|--------|
-| `lexical` | Source text, tokens, comments, literals |
-| `limits` | Iteration, concurrency, call depth, timeouts |
-| `builtins` | Built-in methods and functions |
+### `builtins/string`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/string/string.contains.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.ends_with.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.first.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.ge.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.gt.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.head.md` | 2 | 0 | x | x | x | x |
+| `builtins/string/string.index_of.md` | 2 | 0 | x | x | x | x |
+| `builtins/string/string.is_match.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.le.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.len.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.lines.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.lower.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.lt.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.match.md` | 3 | 0 | x | x | x | x |
+| `builtins/string/string.pad_end.md` | 3 | 0 | x | x | x | x |
+| `builtins/string/string.pad_start.md` | 3 | 0 | x | x | x | x |
+| `builtins/string/string.repeat.md` | 2 | 0 | x | x | x | x |
+| `builtins/string/string.replace.md` | 2 | 0 | x | x | x | x |
+| `builtins/string/string.replace_all.md` | 2 | 0 | x | x | x | x |
+| `builtins/string/string.split.md` | 4 | 0 | x | x | x | x |
+| `builtins/string/string.starts_with.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.tail.md` | 2 | 0 | x | x | x | x |
+| `builtins/string/string.trim.md` | 1 | 0 | x | x | x | x |
+| `builtins/string/string.upper.md` | 1 | 0 | x | x | x | x |
+
+### `builtins/list`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/list/list.first.md` | 1 | 0 | x | x | x | x |
+| `builtins/list/list.head.md` | 2 | 0 | x | x | x | x |
+| `builtins/list/list.join.md` | 3 | 0 | x | x | x | x |
+| `builtins/list/list.len.md` | 1 | 0 | x | x | x | x |
+| `builtins/list/list.reverse.md` | 1 | 0 | x | x | x | x |
+| `builtins/list/list.tail.md` | 2 | 0 | x | x | x | x |
+
+### `builtins/dict`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/dict/dict.entries.md` | 1 | 0 | x | x | x | x |
+| `builtins/dict/dict.first.md` | 1 | 0 | x | x | x | x |
+| `builtins/dict/dict.keys.md` | 1 | 0 | x | x | x | x |
+| `builtins/dict/dict.len.md` | 1 | 0 | x | x | x | x |
+| `builtins/dict/dict.values.md` | 1 | 0 | x | x | x | x |
+
+### `builtins/ordered`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/ordered/ordered.entries.md` | 1 | 0 | x | x | x | x |
+| `builtins/ordered/ordered.keys.md` | 1 | 0 | x | x | x | x |
+| `builtins/ordered/ordered.len.md` | 1 | 0 | x | x | x | x |
+| `builtins/ordered/ordered.values.md` | 1 | 0 | x | x | x | x |
+
+### `builtins/number`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/number/number.ge.md` | 1 | 0 | x | x | x | x |
+| `builtins/number/number.gt.md` | 1 | 0 | x | x | x | x |
+| `builtins/number/number.le.md` | 1 | 0 | x | x | x | x |
+| `builtins/number/number.lt.md` | 1 | 0 | x | x | x | x |
+
+### `builtins/datetime`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/datetime/datetime-calendar.md` | 4 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.add.md` | 3 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.date.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.day.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.diff.md` | 2 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.ge.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.gt.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.hour.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.iso.md` | 4 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.le.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.local_date.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.local_iso.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.local_offset.md` | 2 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.local_time.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.lt.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.minute.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.month.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.ms.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.second.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.time.md` | 2 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.unix.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.weekday.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.year.md` | 1 | 0 | x | x | x | x |
+| `builtins/datetime/datetime.zero.md` | 1 | 0 | x | x | x | x |
+
+### `builtins/duration`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/duration/duration-split.md` | 2 | 0 | x | x | x | x |
+| `builtins/duration/duration.add.md` | 2 | 0 | x | x | x | x |
+| `builtins/duration/duration.days.md` | 1 | 0 | x | x | x | x |
+| `builtins/duration/duration.display.md` | 1 | 0 | x | x | x | x |
+| `builtins/duration/duration.hours.md` | 1 | 0 | x | x | x | x |
+| `builtins/duration/duration.minutes.md` | 1 | 0 | x | x | x | x |
+| `builtins/duration/duration.months.md` | 1 | 0 | x | x | x | x |
+| `builtins/duration/duration.ms.md` | 1 | 0 | x | x | x | x |
+| `builtins/duration/duration.multiply.md` | 4 | 0 | x | x | x | x |
+| `builtins/duration/duration.seconds.md` | 1 | 0 | x | x | x | x |
+| `builtins/duration/duration.subtract.md` | 3 | 0 | x | x | x | x |
+| `builtins/duration/duration.total_ms.md` | 2 | 0 | x | x | x | x |
+| `builtins/duration/duration.zero.md` | 1 | 0 | x | x | x | x |
+
+### `builtins/vector`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/vector/vector-operand.md` | 3 | 0 | x | x | x | x |
+| `builtins/vector/vector.dimensions.md` | 1 | 0 | x | x | x | x |
+| `builtins/vector/vector.distance.md` | 1 | 0 | x | x | x | x |
+| `builtins/vector/vector.dot.md` | 1 | 0 | x | x | x | x |
+| `builtins/vector/vector.model.md` | 1 | 0 | x | x | x | x |
+| `builtins/vector/vector.norm.md` | 1 | 0 | x | x | x | x |
+| `builtins/vector/vector.normalize.md` | 2 | 0 | x | x | x | x |
+| `builtins/vector/vector.similarity.md` | 2 | 0 | x | x | x | x |
+
+### `builtins/functions`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `builtins/functions/batch.md` | 6 | 0 | x | x | x | x |
+| `builtins/functions/chain.md` | 3 | 0 | x | x | x | x |
+| `builtins/functions/cycle.md` | 2 | 0 | x | x | x | x |
+| `builtins/functions/debounce.md` | 2 | 0 | x | x | x | x |
+| `builtins/functions/enumerate.md` | 2 | 0 | x | x | x | x |
+| `builtins/functions/identity.md` | 1 | 0 | x | x | x | x |
+| `builtins/functions/iterate.md` | 2 | 0 | x | x | x | x |
+| `builtins/functions/json.md` | 7 | 0 | x | x | x | x |
+| `builtins/functions/log.md` | 3 | 0 | x | x | x | x |
+| `builtins/functions/now.md` | 2 | 0 | x | x | x | x |
+| `builtins/functions/range.md` | 5 | 0 | x | x | x | x |
+| `builtins/functions/repeat.md` | 3 | 0 | x | x | x | x |
+| `builtins/functions/sample.md` | 1 | 0 | x | x | x | x |
+| `builtins/functions/skip.md` | 3 | 0 | x | x | x | x |
+| `builtins/functions/slicing.md` | 5 | 0 | x | x | x | x |
+| `builtins/functions/start-when.md` | 3 | 0 | x | x | x | x |
+| `builtins/functions/stop-when.md` | 3 | 0 | x | x | x | x |
+| `builtins/functions/take.md` | 3 | 0 | x | x | x | x |
+| `builtins/functions/throttle.md` | 2 | 0 | x | x | x | x |
+| `builtins/functions/time-domain.md` | 3 | 0 | x | x | x | x |
+| `builtins/functions/window.md` | 4 | 0 | x | x | x | x |
+
+## Backlog
+
+What the sweeps found that no rule states yet, routed to the slice that owns it. Every chapter backlog is settled. A slice works its
+backlog in the Complete and Cited columns: probe each item, then write a rule or record why none is
+needed. Strike nothing here; the slice PR deletes the items it settles.
+
+### Out of scope
+
+Not language surface, so no rule is owed. Each slice confirms its share is never raised by a
+script.
+
+- Retired, never raised: RILL-P008, RILL-R013, RILL-R014, RILL-R039, RILL-R041, RILL-R042,
+  RILL-R064 to RILL-R067.
+- CLI and config: RILL-C001 to RILL-C004.
+- Extension packages: RILL-R017 to RILL-R035.
+- Host registration and policy: RILL-R059, RILL-R061, RILL-R068 to RILL-R073, RILL-R075,
+  RILL-R077, RILL-R086 to RILL-R089, RILL-R091. RILL-R011 rejects an `autoExceptions` pattern in `createRuntimeContext`. RILL-R074 is raised by the host API `createVector`; a script sees it only through a host function (INCONSISTENCIES.md, Built-ins). A script parameter default of the wrong type halts
+  `#TYPE_MISMATCH` instead (`defaults.type-match`). RILL-R091 fires in `createRuntimeContext`,
+  before any script runs.
+- Built-in resolver failures: RILL-R050 to RILL-R053, RILL-R062, RILL-R063. Under `use<>` each
+  surfaces as RILL-R056 (`use.resolver-failure`). RILL-R076 is raised only by the test context
+  in `runtime/ext`.
+- Host API: `toNative` converts a value for the host and is never called from a script.
+- Test files: `ref-llms-full-assertions.test.ts` checks `docs/`, not the language.
+  `parser-recovery.test.ts` and `parser-spans.test.ts` test the `parseWithRecovery` host API and
+  AST spans.
 
 ## Findings
 
-Defects filed and decisions made during the audit. An omission or inconsistency fixed in a PR needs
-no row; the PR names it.
+Defects and decisions found during the audit. An omission or inconsistency fixed in a PR needs no
+row; the PR names it. A defect stays `Collected` until slice 19 files it, then its Outcome names
+the issue. Each row carries enough evidence to file without probing again. Rows below were probed
+at a897cfc3 unless they say otherwise.
 
 | File | Finding | Outcome |
 |------|---------|---------|
+| `expressions/selection.md`, `builtins` | RILL-R003 catchability differs by site: `list[1] -> .keys` halts RILL-R003 and escapes `guard`; `$l.a` halts RILL-R003 and `guard` catches it | Collected |
+| `limits` | The 2147483647 ms timer ceiling applies to `timeout(...)` only. `range(0, 2) -> debounce(duration(...dict[ms: 2147483648]))` returns; `throttle`, `sample`, and `batch(idle_flush:)` also skip the check. At 93e55c14, the host `timeout` option skips it too: at 2147483648, 0, or -5, `sleep(10)` halts RILL-R012 within 1 ms, and Node.js warns TimeoutOverflowWarning | Collected |
+| `limits/value-size.md`, `types/scalars/datetime.md` | `value-size.datetime`: a unix count outside the range must halt `#INVALID_INPUT`. `datetime(...dict[unix: 8640000000000001])` builds and returns `.unix`; interpolating it halts `#INVALID_INPUT`. At 93e55c14 its `.year` is `NaN` and `.iso` is `+000NaN-NaN-NaNTNaN:NaN:NaNZ`, while components, ISO strings, and `.add` past the bound halt | Collected |
+| `limits/nesting-depth.md`, `error-registry.ts` RILL-P015 | `MAX_NESTING` is 150 and the registry example nests 151 parentheses, but RILL-P015 fires at 75 nested parentheses, `list[`, `dict[a: `, or blocks; 74 parse. Probed at 93e55c14 | Collected |
+| `docs/llm/cheatsheet.txt:55` | Says failures are "uncatchable"; `guard { 1 == "1" }` catches `#TYPE_MISMATCH` (`halt.catchable`) | Collected |
+| `docs/llm/cheatsheet.txt:92`, `anti-patterns.txt:400` | Say a space after `#` is required; `1 #1` and `1 #!x` run as comments (`atom.comment`) | Collected |
+| `docs/llm/errors.txt:141` | Lists `0` and `false` as vacant; `0 ?? 5` is `0` (`vacancy.zero-false`) | Collected |
+| `docs/llm/stdlib.txt:260,266`, `control-flow.txt:157-176` | Show `start_when` on a list returning a stream; it returns a list | Collected |
+| `docs/llm/anti-patterns.txt:290` | Says `.len` is not a method call; `list[1, 2] -> .len()` returns 2 | Collected |
+| `docs/llm/anti-patterns.txt:235` | `$l -> list(number)[0]` halts RILL-R009 because `$l` acts as a dispatch path, not for the reason given | Collected |
+| `error-registry.ts` RILL-R012 | Recommends a `^(timeout: ms)` annotation; `^(timeout: 10) slow()` on a 200 ms host function returns | Collected |
+| `error-registry.ts` RILL-R010 | Says to raise the iteration limit "via RuntimeOptions"; no such option exists | Collected |
+| `collections/iteration.md` | RILL-R010 from `take` and `skip` is catchable; the Errors row says No | Collected in INCONSISTENCIES.md |
+| `expressions/interpolation.md` | A datetime interpolates, but its string conversion halts RILL-R036 | Collected in INCONSISTENCIES.md |
+| `callables/code-block.md` | A suffix on a construct body checks the construct's result, not each run | Collected in INCONSISTENCIES.md |
+| `collections/iteration.md` | `start_when`, `stop_when`, and `chain` halt RILL-R040, not `#TYPE_MISMATCH` | Collected in INCONSISTENCIES.md |
+| `collections/filter.md` | An invalid predicate result halts RILL-R001, not `#TYPE_MISMATCH` | Collected in INCONSISTENCIES.md |
+| `expressions/selection.md` | `.name` on a literal receiver halts RILL-R007, and a locked test pins it; `selection.no-name` says RILL-R003 | Collected in INCONSISTENCIES.md |
+| `conventions/halt.md` | `#TYPE_MISMATCH` and `#DISPOSED` halts carry no error id; `halt.error-id` says every halt does | Collected in INCONSISTENCIES.md |
+| `conventions/notation.md` | `notation.code` and `notation.result` cannot be proven by any check | Demoted to definitions |
+| `lexical/token.md` | An unclosed `{` or bare `(` halts RILL-P001; an unclosed `(1 + 2` or `list[` halts RILL-P005 | Collected in INCONSISTENCIES.md |
+| `lexical/source-text.md` | A lone carriage return is a space outside strings but ends a one-line string with RILL-L001 | Collected in INCONSISTENCIES.md |
+| `host-boundary/use.md`, `expressions/destruct.md`, `expressions/slice.md` | `destruct <` and `slice <` halt RILL-P001; `use <` halts RILL-P007 | Collected in INCONSISTENCIES.md |
+| `program/statement.md` | A leading `.name`, `:type`, `.?`, or `.!`, and a trailing `.`, `.?`, or `??`, continue a line after some receivers and not others | Collected in INCONSISTENCIES.md |
+| `program/statement.md` | A leading binary operator halts RILL-P001 at statement level and RILL-P005 inside brackets | Collected in INCONSISTENCIES.md |
+| `program/annotation.md` | A spread stores the reserved keys; a later string sets `description`; `^(limit: N)` halts in every expression position; type arguments take annotations unevenly | Collected in INCONSISTENCIES.md |
+| `program/annotation.md`, `program/frontmatter.md` | The `annotation-arg` and `yaml-char` productions disagree with the runtime and the rules | Collected in INCONSISTENCIES.md |
+| `program/frontmatter.md` | Text after a delimiter on its line is accepted: frontmatter text on the opening line, a statement on the closing line | Collected in INCONSISTENCIES.md |
+| `values/equality.md` | `equality.methods`: the methods compare as `==` does, including its halts. With `$s` a host stream, `$s == $s` and `$s != 1` halt RILL-R002, but `$s -> .eq($s)` and `list[$s] -> .has($s)` yield `true`. With `range(0, 3) => $i`, `$i == $i` halts RILL-R002, but `$i -> .eq($i)` and `list[$i] -> .has($i)` yield `true`. Probed at c611430c | Collected |
+| `values/equality.md` | `equality.kind` names an `any` operand, but no probed operand carries `any` | Collected in INCONSISTENCIES.md |
+| `values/value.md`, `values/vacancy.md` | `value.kinds` omits iterators and vectors; an iterator or stream that yields nothing is not vacant; `value.no-alias` and `scope.late-binding` disagree | Collected in INCONSISTENCIES.md |
+| `types/constructors/stream.md` | `stream.accepts`: a stream type accepts when its chunk and resolution types accept the stream's. The runtime compares them by equality. With `fn(x):stream(string):number { $x -> yield` then `1 } => $f` and `$f("a") => $s`, `$s -> :?stream(union(string, number))` and `$s -> :?stream(string):union(number, string)` yield `false`. A `stream(dict(a: number))` value fails `:?stream(dict)`, and a `stream(list(number))` value fails `:?stream(list)`. A `stream()` value passes `:?stream(number)`. `list["a"] -> :?list(union(string, number))` yields `true`. Probed at 289206aa | Collected |
+| `scripts/reference/check.ts` | `grammar-syntax` drops the first production after a `text` fence. `parseProductions` splits the joined Syntax fences on `;` and keeps a statement only when it starts with `name =`. A `text` fence has no `;`, so its text joins the first production of the next `ebnf` fence. With the `text` fence first, `map.md`, `ordered.md`, and `tuple.md` failed for `map`, `ordered`, and `tuple`, while `map-entry` and `map-key` passed. Putting the `ebnf` fence first clears it. Probed at 289206aa | Collected |
+| `types/constructors` | Dict method names as keys; dict duplicates through multi-key and computed keys; `.entries` on mixed values; the halt for unordered operands; extra stream arguments; a stream's printed form | Collected in INCONSISTENCIES.md |
+| `types/model` | RILL-P014 from a non-type expression that starts with a type name; `number()` and `any(number)` differ by position; RILL-P001 for an outer on a scalar in a type position; `??` after an early missing read; the type a literal operand carries in an overlap check. Probed at 6cc38b29 | Collected in INCONSISTENCIES.md |
+| `types/scalars` | The ISO 8601 subset `datetime` accepts; a fractional unix count truncates; a unix count drops time components; a string piped into `datetime` halts RILL-R036 while `duration` parses it. Probed at c7ef8720 | Collected in INCONSISTENCIES.md |
+| `types/typing` | A bracket after a postfix bare-kind assertion; dict iteration under a carried type; the carried type of a `??` right operand; union defaults in conversion against a call. Probed at c2fdd19f | Collected in INCONSISTENCIES.md |
+| `variables/scope.md` | A capture into a parameter inside its own body halts RILL-R001 as an outer rebinding; no rule says which scope a function body's parent is. Probed at 9b5a9c67 | Collected in INCONSISTENCIES.md |
+| `expressions/selection.md` | `selection.at`: `.at` on a dict or an ordered halts RILL-R003, and the Errors row says Yes. `dict[a: 1].at(0)` and `ordered[a: 1].at(0)` halt RILL-R003 "Cannot call .at() on object" and escape `guard`. Shares the root cause of the `.keys` row above. Probed at 21eecdfb | Collected |
+| `expressions` | A tuple or ordered literal is not a dispatch target, while a list or dict literal is; `spread.list-uniform` contradicts `inference.literal-union`; `spread.arg-positional` does not say whether positional arguments may precede the spread. Probed at 21eecdfb | Collected in INCONSISTENCIES.md |
+| `control-flow/loop.md`, `control-flow/pass.md`, `control-flow/conditional.md` | A construct with no `$` bound reads a missing value instead of halting RILL-R005, which `loop.seed` requires, and which bare `pass` and `false ? "y"` raise. At the top level, `while (false) do { 1 } => $x` then `$x` prints `type(null)`, and its `.^type.name` is `"string"`. `do { 1 } while (false)` yields 1. `pass { 1 }` and `pass(ignore_halts: true) { 1 / 0 }` yield an empty printout. `? 1 ! 2` halts RILL-R002 "Piped conditional requires boolean, got string". Probed at 23491968 | Collected |
+| `callables` | An empty `fn` body parses and halts RILL-R043 on call while every other empty block halts RILL-P004; `$d.a()` on a non-function field halts RILL-R007 while `$n()` halts RILL-R002; a call suffix after a method in a pipe target starts a new statement; `annotation-existence` omits the `&T` suffix the runtime accepts. Probed at 97c5b292 | Collected in INCONSISTENCIES.md |
+| `collections` | `seq` and `acc` read an iterator lazily, so `break` beats the limit `iteration.sequential-limit` states for every kind; `fold` reads it eagerly while `acc` does not; `sort` key calls overlap with no `concurrency` option. Probed at 5d3bb63f | Collected in INCONSISTENCIES.md |
+| `control-flow` | Which body `return` ends; `break` inside a called function; a bare `break` with no `$`; a halt in an async `pass` body; an empty `pass` body; `timeout` with no parentheses. Probed at 23491968 | Collected in INCONSISTENCIES.md |
+| `errors/invalid-value.md` | `invalid-value.access`: an operator on an invalid value raises the halt it holds. An invalid value used directly as a bool operand halts RILL-R002 "requires boolean, got dict" instead. With `guard { 1 == "a" } => $r`, `!$r`, `$r && true`, `$r \|\| true`, `$r ? 1 ! 2`, `assert $r`, and `while ($r) do { 1 }` halt RILL-R002, while `$r -> ($ ? 1 ! 2)` and `$r == 1` raise `#TYPE_MISMATCH`. Probed at e7d4d0cd | Collected |
+| `errors` | Text after `assert cond` starts a new statement while `error` rejects it; `.!foo` yields `""`; no rule lists the core error set; trace origin frames have no named vocabulary. Probed at e7d4d0cd | Collected in INCONSISTENCIES.md |
+| `limits/slicing-limit.md`, `values/value.md` | `value.immutable`: a value never changes. A stored `iterate` iterator counts its function calls across reads. `iterate(0, { $ + 1 }) => $it`, then `$it -> take(6000)` twice: the second read halts RILL-R010 "iterate: iteration exceeded 10000 limit", uncatchable. `range(0, 20000) => $it` read the same way yields 6000 both times. Probed at 93e55c14 | Collected |
+| `host-boundary/use.md` | `use.source`: a source module runs in a scope of its own, and the caller's variables are not visible to it. `use.source-dollar`: with no piped value, a module that reads `$` halts RILL-R005. The module runs in a child scope of the use site instead. With `"o" => $outer`, a module `$outer` yields `"o"`, and a module `fn { $outer }` called later yields the caller's current value. With `"o" => $outer`, a module `2 => $outer` halts RILL-R001 "Cannot reassign outer variable", uncatchable. `5 -> {`, `log($)`, `use<m:x>`, `}` with a module `$` yields 5. Probed at da098e5d | Collected |
+| `host-boundary` | `use.static-id` names RILL-P022 where the runtime raises RILL-P020, RILL-P021, and RILL-P001; a computed identifier passes a resource the static form rejects; a throwing host function yields an invalid value `#R999` while a throwing resolver halts; RILL-R084 depends on a core error set no rule lists. Probed at da098e5d | Collected in INCONSISTENCIES.md |
+| `limits/value-size.md`, `conventions/halt.md` | `halt.error-code`: a runtime halt carries an error code. A string past the maximum length raises a bare "Invalid string length" with no code or id, and `guard` cannot catch it: `"a" -> .repeat(300000000) => $s` then `"{$s}{$s}"` or `list[$s, $s] -> .join("")`, and `"a" -> .pad_start(536870889, "x")` and `.pad_end(536870889, "x")`. `.pad_start(600000000, "x")` halts `#INVALID_INPUT`, catchable, and `.repeat(536870889)` halts `#INVALID_INPUT`. Probed at 93e55c14 | Collected |
+| `builtins/method.md`, `builtins` | `method.wrong-kind`: a method the receiver's kind lacks halts RILL-R003, catchable. For most methods registered on one or two kinds, the halt escapes `guard`: `dict[a: 1] -> .head`, `tuple[1, 2].head`, `ordered[b: 1].first`, `range(0, 3) -> .head`; `5 -> .year`, `.iso`, `.add`, `.diff`, `.weekday`, `.local_iso`, `duration("1h") -> .unix`, `5 -> .zero`; `"x".total_ms`, `5.days`, `list[1].multiply(2)`; `"s".dimensions`, `list[1].norm`, `5.similarity($v)`. `5 -> .trim`, `list[1] -> .upper`, and a field-style miss on a vector halt RILL-R003 that `guard` catches. Shares the root cause of the `.keys` and `.at` rows. Probed at 36149582 | Collected |
+| `builtins/datetime/datetime.local_offset.md` | `method.wrong-kind`: `.local_offset` checks no receiver. `5 -> .local_offset` and `"x" -> .local_offset` yield 0, or 2 with host `timezone: 2`. Probed at 36149582 | Collected |
+| `error-registry.ts` duration range message | `duration.range` allows a fractional millisecond count (`duration("1s0.5ms")`), but the out-of-range halt from `.add` and `.multiply` says "each component must be a non-negative integer no larger than 9007199254740991": `duration(...dict[ms: 9007199254740991]).add(duration("1ms"))`. Probed at 36149582 | Collected |
+| `builtins/functions/batch.md` | An `ordered` options argument halts `#INVALID_INPUT` "batch: unknown option '__rill_ordered'", exposing an internal key; a list, string, or number halts `#TYPE_MISMATCH` "options must be a dict" (`batch.options-kind`). `list[1, 2, 3] -> batch(2, ordered[drop_partial: true])`. Probed at 36149582 | Collected |
+| `builtins/functions/now.md`, `expressions/spread.md` | `spread.arg-dict`, `spread.arg-tuple`: a spread passes each field or element as an argument. `now(...dict[])` and `now(...tuple[])` halt RILL-R001 "Spread not supported for zero-parameter function 'fn'", catchable, while `fn() { 1 } => $f` then `$f(...dict[])` yields 1. Probed at 36149582 | Collected |
+| `scripts/test-examples-mock-host.ts` | The examples mock host reads the `embed` model argument wrongly: `$app.embed("b", "other").model` returns `"[object Object]"`. Not language surface. Probed at 36149582 | Collected |
+| `builtins` | No concept owns the iterator protocol (`.value`, `.done`, `.next`); `string.first`, `list.first`, `range`, and `repeat` read it. `"ab" -> .first -> .next -> .value` halts RILL-R003 "Method .value not available on callable". Probed at 36149582 | Collected in INCONSISTENCIES.md |

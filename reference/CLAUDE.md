@@ -67,7 +67,8 @@ guard is not catchable. Record `No` only after observing the escape.
    decided, add `Open decision: #N` to Notes and a row to the README Open decisions table.
 
 File every defect you find while writing, even when it is outside the file you are working on.
-An unfiled defect is lost.
+An unfiled defect is lost. While [AUDIT.md](AUDIT.md) is open, add the defect to its Findings
+table instead, with the probe evidence; the audit files them grouped by root cause.
 
 ## Pending rules, trackers, and open decisions
 

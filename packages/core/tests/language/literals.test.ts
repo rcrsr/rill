@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Literals
  * Tests for strings, numbers, booleans, tuples, and dicts
@@ -7,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import type { RillValue } from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: Literals', () => {
   describe('Strings', () => {
@@ -22,25 +24,28 @@ describe('Rill Runtime: Literals', () => {
       expect(await run('"hello world"')).toBe('hello world');
     });
 
-    it('handles escape: newline', async () => {
+    rule('string.escape').it('handles escape: newline', async () => {
       expect(await run('"a\\nb"')).toBe('a\nb');
     });
 
-    it('handles escape: tab', async () => {
+    rule('string.escape').it('handles escape: tab', async () => {
       expect(await run('"a\\tb"')).toBe('a\tb');
     });
 
-    it('handles escape: backslash', async () => {
+    rule('string.escape').it('handles escape: backslash', async () => {
       expect(await run('"a\\\\b"')).toBe('a\\b');
     });
 
-    it('handles escape: quote', async () => {
+    rule('string.escape').it('handles escape: quote', async () => {
       expect(await run('"a\\"b"')).toBe('a"b');
     });
 
-    it('interpolates variable', async () => {
-      expect(await run('"x" => $v\n"val:{$v}"')).toBe('val:x');
-    });
+    rule('string.interpolation', 'string.print').it(
+      'interpolates variable',
+      async () => {
+        expect(await run('"x" => $v\n"val:{$v}"')).toBe('val:x');
+      }
+    );
 
     it('interpolates pipe variable in block', async () => {
       // Direct $ interpolation in pipe target isn't supported; use block
@@ -53,7 +58,7 @@ describe('Rill Runtime: Literals', () => {
   });
 
   describe('Numbers', () => {
-    it('evaluates integer', async () => {
+    rule('number.literal').it('evaluates integer', async () => {
       expect(await run('42')).toBe(42);
     });
 
@@ -61,11 +66,11 @@ describe('Rill Runtime: Literals', () => {
       expect(await run('0')).toBe(0);
     });
 
-    it('evaluates negative integer', async () => {
+    rule('number.literal').it('evaluates negative integer', async () => {
       expect(await run('-5')).toBe(-5);
     });
 
-    it('evaluates decimal', async () => {
+    rule('number.literal').it('evaluates decimal', async () => {
       expect(await run('3.14')).toBe(3.14);
     });
 
@@ -289,16 +294,74 @@ describe('Rill Runtime: Literals', () => {
       );
     });
 
-    it('throws LexerError for digit separators in a number literal', async () => {
-      await expect(run('1_000')).rejects.toThrow(
-        'digit separators are not supported'
-      );
-    });
+    rule('number.malformed').it(
+      'throws LexerError for digit separators in a number literal',
+      async () => {
+        await expect(run('1_000')).rejects.toThrow(
+          'digit separators are not supported'
+        );
+      }
+    );
 
     it('throws LexerError when a number is immediately followed by an identifier character', async () => {
       await expect(run('1abc')).rejects.toThrow(
         "malformed number literal: unexpected 'a' after number"
       );
     });
+  });
+
+  describe('number literal forms and printing', () => {
+    rule('number.malformed').it(
+      'rejects an exponent and a radix prefix with RILL-L003',
+      async () => {
+        await expect(run('1e3')).rejects.toMatchObject({
+          errorId: 'RILL-L003',
+        });
+        await expect(run('0x10')).rejects.toMatchObject({
+          errorId: 'RILL-L003',
+        });
+      }
+    );
+
+    rule('number.bare-point').it(
+      'rejects a leading or trailing bare point with RILL-P001',
+      async () => {
+        await expect(run('.5')).rejects.toMatchObject({ errorId: 'RILL-P001' });
+        await expect(run('5.')).rejects.toMatchObject({ errorId: 'RILL-P001' });
+      }
+    );
+
+    rule('number.value').it('holds one binary64 value', async () => {
+      expect(await run('0.1 + 0.2')).toBe(0.30000000000000004);
+      expect(await run('0.1 + 0.2 == 0.3')).toBe(false);
+    });
+
+    rule('number.precision').it(
+      'rounds an integer beyond 2^53 to the nearest binary64 value',
+      async () => {
+        expect(await run('9007199254740993 == 9007199254740992')).toBe(true);
+      }
+    );
+
+    rule('number.print').it(
+      'prints the shortest round-trip form, integral values without a point',
+      async () => {
+        expect(await run('"{1.0}"')).toBe('1');
+        expect(await run('"{0 * -1}"')).toBe('0');
+        expect(await run('"{3.14}"')).toBe('3.14');
+      }
+    );
+
+    rule('number.print-exponent').it(
+      'prints extreme magnitudes in exponent form',
+      async () => {
+        expect(await run('"{1000000000000000000000}"')).toBe('1e+21');
+        expect(await run('"{100000000000000000000}"')).toBe(
+          '100000000000000000000'
+        );
+        expect(await run('"{0.00000015}"')).toBe('1.5e-7');
+        expect(await run('"{0.000001}"')).toBe('0.000001');
+      }
+    );
   });
 });

@@ -45,9 +45,14 @@ describe('Rill Language: collection union inference', () => {
       ).toBe(true);
     });
 
-    it('member order does not change the inferred type', async () => {
-      expect(await run('list["a", 1].^type == list[1, "a"].^type')).toBe(true);
-    });
+    rule('equality.type').it(
+      'member order does not change the inferred type',
+      async () => {
+        expect(await run('list["a", 1].^type == list[1, "a"].^type')).toBe(
+          true
+        );
+      }
+    );
 
     it('a number and a list infer a union of both', async () => {
       expect(
@@ -55,11 +60,14 @@ describe('Rill Language: collection union inference', () => {
       ).toBe(true);
     });
 
-    it('uniform elements still infer one element type', async () => {
-      expect(await run('list[1, 2].^type == list(number)')).toBe(true);
-    });
+    rule('inference.uniform', 'declaration.kind').it(
+      'uniform elements still infer one element type',
+      async () => {
+        expect(await run('list[1, 2].^type == list(number)')).toBe(true);
+      }
+    );
 
-    it('an empty list infers list(any)', async () => {
+    rule('inference.empty').it('an empty list infers list(any)', async () => {
       expect(await run('list[].^type == list(any)')).toBe(true);
     });
 
@@ -99,11 +107,14 @@ describe('Rill Language: collection union inference', () => {
       ).toBe(true);
     });
 
-    it('an empty inner list yields to its populated sibling', async () => {
-      expect(
-        await run('list[list[], list[1]].^type == list(list(number))')
-      ).toBe(true);
-    });
+    rule('inference.empty-sibling').it(
+      'an empty inner list yields to its populated sibling',
+      async () => {
+        expect(
+          await run('list[list[], list[1]].^type == list(list(number))')
+        ).toBe(true);
+      }
+    );
 
     it('a nested mixed list still has the bare list type', async () => {
       expect(await run('list[list[1], list["a"]] -> :?list(list)')).toBe(true);
@@ -125,6 +136,26 @@ describe('Rill Language: collection union inference', () => {
       ).toBe(true);
     });
 
+    rule('inference.order-independent').it(
+      'dict element order and count do not change the inferred type',
+      async () => {
+        const union = 'list(union(dict(a: number), dict(b: number)))';
+        expect(
+          await run(
+            `list[dict[a: 1], dict[b: 2], dict[a: 3]].^type == ${union}`
+          )
+        ).toBe(true);
+        expect(
+          await run(
+            `list[dict[a: 1], dict[a: 3], dict[b: 2]].^type == ${union}`
+          )
+        ).toBe(true);
+        expect(
+          await run(`list[dict[b: 2], dict[a: 1]].^type == ${union}`)
+        ).toBe(true);
+      }
+    );
+
     it('dicts that differ in value type infer a union of their shapes', async () => {
       expect(
         await run(
@@ -135,21 +166,27 @@ describe('Rill Language: collection union inference', () => {
   });
 
   describe('collection operator results', () => {
-    it('seq infers the union of its callback results', async () => {
-      expect(
-        await run(
-          '(list[1, 2] -> seq({ ($ == 1) ? "a" ! 2 }) -> .^type) == list(union(string, number))'
-        )
-      ).toBe(true);
-    });
+    rule('inference.union-element').it(
+      'seq infers the union of its callback results',
+      async () => {
+        expect(
+          await run(
+            '(list[1, 2] -> seq({ ($ == 1) ? "a" ! 2 }) -> .^type) == list(union(string, number))'
+          )
+        ).toBe(true);
+      }
+    );
 
-    it('fan infers the union of its callback results', async () => {
-      expect(
-        await run(
-          '(list[1, 2] -> fan({ ($ == 1) ? "a" ! 2 }) -> .^type) == list(union(string, number))'
-        )
-      ).toBe(true);
-    });
+    rule('inference.union-element').it(
+      'fan infers the union of its callback results',
+      async () => {
+        expect(
+          await run(
+            '(list[1, 2] -> fan({ ($ == 1) ? "a" ! 2 }) -> .^type) == list(union(string, number))'
+          )
+        ).toBe(true);
+      }
+    );
 
     it('filter keeps the source union element type', async () => {
       expect(
@@ -159,13 +196,16 @@ describe('Rill Language: collection union inference', () => {
       ).toBe(true);
     });
 
-    it('acc infers the union of its running values', async () => {
-      expect(
-        await run(
-          '(list[1, 2] -> acc(0, fn(e, a) { ($e == 1) ? "a" ! 2 }) -> .^type) == list(union(string, number))'
-        )
-      ).toBe(true);
-    });
+    rule('inference.union-element').it(
+      'acc infers the union of its running values',
+      async () => {
+        expect(
+          await run(
+            '(list[1, 2] -> acc(0, fn(e, a) { ($e == 1) ? "a" ! 2 }) -> .^type) == list(union(string, number))'
+          )
+        ).toBe(true);
+      }
+    );
 
     it('a uniform seq result keeps one element type', async () => {
       expect(
@@ -191,13 +231,16 @@ describe('Rill Language: collection union inference', () => {
       ).toBe(true);
     });
 
-    it('seq over the values of a mixed dict infers the union of the values', async () => {
-      expect(
-        await run(
-          '(dict[a: 1, b: "x"] -> seq({ $.value }) -> .^type) == list(union(number, string))'
-        )
-      ).toBe(true);
-    });
+    rule('seq.result-type').it(
+      'seq over the values of a mixed dict infers the union of the values',
+      async () => {
+        expect(
+          await run(
+            '(dict[a: 1, b: "x"] -> seq({ $.value }) -> .^type) == list(union(number, string))'
+          )
+        ).toBe(true);
+      }
+    );
 
     it('seq over a mixed dict infers the union of its entry types', async () => {
       expect(

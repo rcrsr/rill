@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Parameterized destruct<> Type Annotations
  * Tests for type-annotated destructure patterns: destruct<$a:list(string)>,
@@ -17,6 +18,7 @@
 import { describe, expect, it } from 'vitest';
 import { run, runWithContext } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Language: Parameterized destruct<> Type Annotations', () => {
   // ============================================================
@@ -160,18 +162,24 @@ describe('Rill Language: Parameterized destruct<> Type Annotations', () => {
   // ============================================================
 
   describe('BC-6: Simple destruct<$a:string> backward compatibility', () => {
-    it('accepts string element with :string annotation', async () => {
-      const { context } = await runWithContext(
-        'list["hello"] -> destruct<$a:string>'
-      );
-      expect(context.variables.get('a')).toBe('hello');
-    });
+    rule('destruct.typed').it(
+      'accepts string element with :string annotation',
+      async () => {
+        const { context } = await runWithContext(
+          'list["hello"] -> destruct<$a:string>'
+        );
+        expect(context.variables.get('a')).toBe('hello');
+      }
+    );
 
-    it('halts #TYPE_MISMATCH for number element with :string annotation', async () => {
-      await expectHalt(() => run('list[42] -> destruct<$a:string>'), {
-        code: 'TYPE_MISMATCH',
-      });
-    });
+    rule('destruct.typed').it(
+      'halts #TYPE_MISMATCH for number element with :string annotation',
+      async () => {
+        await expectHalt(() => run('list[42] -> destruct<$a:string>'), {
+          code: 'TYPE_MISMATCH',
+        });
+      }
+    );
 
     it('halts #TYPE_MISMATCH for bool element with :string annotation', async () => {
       await expectHalt(() => run('list[true] -> destruct<$a:string>'), {

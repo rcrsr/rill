@@ -4,8 +4,8 @@ title: Guard
 status: normative
 since: 0.24.0
 issues: []
-grammar: []
-errors: [INVALID_INPUT, RILL-P004, RILL-P025, TYPE_MISMATCH]
+grammar: [guard-block]
+errors: [INVALID_INPUT, RILL-P001, RILL-P004, RILL-P025, TYPE_MISMATCH]
 depends: [invalid-value]
 tests: [guard-retry.test.ts]
 ---
@@ -15,6 +15,10 @@ tests: [guard-retry.test.ts]
 `guard { body }` runs a body and turns a catchable halt inside it into an invalid value.
 
 ## Syntax
+
+```ebnf
+guard-block = "guard" , [ construct-options ] , block ;
+```
 
 ```text
 guard { body }
@@ -33,6 +37,10 @@ A written `on: list[]` MUST be rejected with RILL-P004.
 
 r[guard.on-single] A selector may be one atom
 `on: #CODE` MUST mean `on: list[#CODE]`.
+
+r[guard.not-target] guard is not a pipe target
+`v -> guard { body }` MUST be rejected with RILL-P001. To run a body on `v`, write
+`v -> { guard { body } }`.
 
 ## Evaluation
 
@@ -63,6 +71,7 @@ r[guard.dollar] The body sees the incoming $
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
+| `guard` is written as a pipe target | RILL-P001 | No |
 | A written `on` names an atom outside the core set, or is empty | RILL-P004 | No |
 | The selector is written in angle brackets | RILL-P025 | No |
 | A computed `on` is an empty list | `#INVALID_INPUT` | Yes |

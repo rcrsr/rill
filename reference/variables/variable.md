@@ -4,10 +4,10 @@ title: Variables
 status: normative
 since: 0.24.0
 issues: []
-grammar: [identifier]
+grammar: [identifier, variable]
 errors: [RILL-L003, RILL-P001, RILL-R005]
-depends: [capture, statement]
-tests: [capture-types.test.ts, late-bound-closures.test.ts]
+depends: [identifier, capture, statement]
+tests: [capture-types.test.ts, late-bound-closures.test.ts, variables.test.ts]
 ---
 
 # Variables
@@ -18,10 +18,11 @@ A variable is a name written `$name` that holds one value, bound by a capture.
 
 ```ebnf
 identifier = ( letter | "_" ) , { letter | digit | "_" } ;
+variable      = "$" , identifier , { property-access } , [ default-value ] , [ existence-check ]
+              | "$" , { property-access } , [ default-value ] , [ existence-check ] ;
 ```
 
-A variable is `$` followed by an identifier: `$total`, `$_tmp`, `$row2`. A letter is an ASCII
-letter. snake_case is the convention, not a rule.
+A variable is `$` followed by an identifier (`identifier.form`): `$total`, `$_tmp`, `$row2`.
 
 ## Static rules
 
@@ -33,7 +34,7 @@ r[variable.name] A name starts with a letter or underscore
 `$` followed by a digit MUST be rejected with RILL-L003.
 
 r[variable.reserved] $ and $@ are not capture targets
-`=> $` MUST be rejected with RILL-P001. `$` and `$@` are bound only by a pipe, a call, or a
+`=> $` and `=> $@` MUST be rejected with RILL-P001. `$` and `$@` are bound only by a pipe, a call, or a
 collection operator (`code-block`, `statement`).
 
 ## Evaluation
@@ -65,7 +66,7 @@ A variable's type locks on its first binding (`type-lock`). A capture with a typ
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | `$` followed by a digit | RILL-L003 | No |
-| A capture into `$` | RILL-P001 | No |
+| A capture into `$` or `$@` | RILL-P001 | No |
 | A variable read where none is bound | RILL-R005 | Yes |
 
 ## Examples

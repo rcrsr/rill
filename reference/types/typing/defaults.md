@@ -40,10 +40,6 @@ An operator after a literal default in a type argument list MUST raise RILL-P014
 
 ## Static rules
 
-r[defaults.tuple-trailing] A tuple default is trailing
-In a tuple type, every position after a defaulted position MUST also carry a default.
-Otherwise constructing the type MUST halt with `#INVALID_INPUT`.
-
 r[defaults.element] An element type carries no default
 A default on the element type of a list, as in `list(number = 1)`, or on the chunk or return type of a stream, as in
 `stream(number = 1)` or `stream(number, string = "x")`, MUST halt with `#INVALID_INPUT` when the
@@ -106,7 +102,7 @@ Two types that differ only by a present or absent default MUST compare unequal.
 | A token that is not a literal follows `=` | RILL-P001 | No |
 | An operator follows a literal default in a type argument list | RILL-P014 | No |
 | A default does not match its field type | `#TYPE_MISMATCH` | Yes |
-| A tuple default is followed by a position without one | `#INVALID_INPUT` | Yes |
+| A tuple default is followed by a position without one (`tuple.default-trailing`) | `#INVALID_INPUT` | Yes |
 | A list element type or stream chunk or return type carries a default | `#INVALID_INPUT` | Yes |
 | A conversion omits a field or position with no default | RILL-R044 | Yes |
 | A call omits an argument for a parameter with no default | RILL-R044 | No |
@@ -150,3 +146,5 @@ On 0.23.0 a call with no arguments where `$` is bound received `$` as its first 
 Superseded: `defaults.fn-match`. A function has a function type only when its defaults equal the
 type's (`structural-typing.function`, `fn.equality`). On 0.23.0 a function whose parameters declare
 defaults satisfies a type that omits them.
+
+Superseded: `defaults.tuple-trailing`, now `tuple.default-trailing`.

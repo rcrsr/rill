@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: Pipe Targets
  * Tests for various pipe target types: invoke, bare functions, variable calls
@@ -7,6 +8,7 @@ import type { RillFunction, RillValue } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { createLogCollector, run } from '../helpers/runtime.js';
+import { rule } from '../helpers/rule.js';
 import {
   expectHalt,
   expectHaltMessage,
@@ -21,13 +23,19 @@ import {
 
 describe('Rill Runtime: Pipe Targets', () => {
   describe('Invoke Pipe Target (-> $())', () => {
-    it('invokes closure pipe value with no args', async () => {
-      expect(await run('fn() { "hello" } -> $()')).toBe('hello');
-    });
+    rule('pipe-target.invoke').it(
+      'invokes closure pipe value with no args',
+      async () => {
+        expect(await run('fn() { "hello" } -> $()')).toBe('hello');
+      }
+    );
 
-    it('invokes closure pipe value with args', async () => {
-      expect(await run('fn(x) { $x } -> $("world")')).toBe('world');
-    });
+    rule('pipe-target.invoke').it(
+      'invokes closure pipe value with args',
+      async () => {
+        expect(await run('fn(x) { $x } -> $("world")')).toBe('world');
+      }
+    );
 
     it('invokes closure variable with pipe-style', async () => {
       expect(await run('fn(x) { $x } => $fn\n"test" -> $fn()')).toBe('test');
@@ -199,18 +207,24 @@ list[1, 2, 3] -> seq({ $double($) })`;
       expect(await run('identity("explicit")')).toBe('explicit');
     });
 
-    it('bare function uses piped value as first arg', async () => {
-      expect(await run('"piped" -> identity')).toBe('piped');
-    });
+    rule('pipe.call-operand').it(
+      'bare function uses piped value as first arg',
+      async () => {
+        expect(await run('"piped" -> identity')).toBe('piped');
+      }
+    );
 
-    it('auto-prepends piped value when no bare `$` is present', async () => {
-      // IR-8: when no top-level $ appears in args, pipe value auto-prepends at position 0
-      expect(await run('"ignored" -> identity()')).toBe('ignored');
-    });
+    rule('pipe.call-operand').it(
+      'auto-prepends piped value when no bare `$` is present',
+      async () => {
+        // IR-8: when no top-level $ appears in args, pipe value auto-prepends at position 0
+        expect(await run('"ignored" -> identity()')).toBe('ignored');
+      }
+    );
   });
 
   describe('Pipe to Blocks and Conditionals', () => {
-    it('pipes to block', async () => {
+    rule('pipe.block').it('pipes to block', async () => {
       expect(await run('"x" -> { "{$}y" }')).toBe('xy');
     });
 
@@ -228,7 +242,7 @@ list[1, 2, 3] -> seq({ $double($) })`;
       expect(await run('0 -> while ($ < 3) do { ($ + 1) }')).toBe(3);
     });
 
-    it('pipes to string template', async () => {
+    rule('pipe.string').it('pipes to string template', async () => {
       expect(await run('"world" -> "hello {$}"')).toBe('hello world');
     });
   });
@@ -315,12 +329,15 @@ $val -> fn(x) { $x -> .len }`;
       });
     });
 
-    it('zero-param closure variable as pipe target halts on the piped argument', async () => {
-      await expectRuntimeError(() => run('fn() { 1 } => $f\n3 -> $f'), {
-        code: 'RILL-R045',
-        messagePattern: /expects 0 arguments, got 1/,
-      });
-    });
+    rule('pipe.zero-param').it(
+      'zero-param closure variable as pipe target halts on the piped argument',
+      async () => {
+        await expectRuntimeError(() => run('fn() { 1 } => $f\n3 -> $f'), {
+          code: 'RILL-R045',
+          messagePattern: /expects 0 arguments, got 1/,
+        });
+      }
+    );
 
     it('calling a zero-param closure with an argument halts with the same id', async () => {
       await expectRuntimeError(() => run('fn() { 1 } => $f\n$f(3)'), {
@@ -329,9 +346,12 @@ $val -> fn(x) { $x -> .len }`;
       });
     });
 
-    it('block closure variable as pipe target still receives the operand', async () => {
-      expect(await run('fn { $ + 1 } => $f\n3 -> $f')).toBe(4);
-    });
+    rule('pipe.zero-param', 'pipe.function').it(
+      'block closure variable as pipe target still receives the operand',
+      async () => {
+        expect(await run('fn { $ + 1 } => $f\n3 -> $f')).toBe(4);
+      }
+    );
   });
 
   describe('Complex Pipe Chains', () => {
@@ -395,17 +415,23 @@ $fn(3)`;
   // ============================================================
 
   describe('Piped Value as First Closure Argument', () => {
-    it('prepends the piped value before written arguments', async () => {
-      const script = `fn(a, b) { list[$a, $b] } => $h
+    rule('pipe.script-operand').it(
+      'prepends the piped value before written arguments',
+      async () => {
+        const script = `fn(a, b) { list[$a, $b] } => $h
 3 -> $h(4)`;
-      expect(await run(script)).toEqual([3, 4]);
-    });
+        expect(await run(script)).toEqual([3, 4]);
+      }
+    );
 
-    it('leaves arguments unchanged when a top-level $ places the value', async () => {
-      const script = `fn(a, b) { list[$a, $b] } => $h
+    rule('pipe.call-dollar').it(
+      'leaves arguments unchanged when a top-level $ places the value',
+      async () => {
+        const script = `fn(a, b) { list[$a, $b] } => $h
 3 -> $h($, 4)`;
-      expect(await run(script)).toEqual([3, 4]);
-    });
+        expect(await run(script)).toEqual([3, 4]);
+      }
+    );
 
     it('prepends when $ appears only inside a nested block argument', async () => {
       const script = `fn(a, f, c) { list[$a, $c] } => $h
@@ -422,12 +448,15 @@ $fn(3)`;
       });
     });
 
-    it('uses only written arguments for a call in primary position', async () => {
-      const script = `fn(a, b) { list[$a, $b] } => $h
+    rule('pipe.call-operand').it(
+      'uses only written arguments for a call in primary position',
+      async () => {
+        const script = `fn(a, b) { list[$a, $b] } => $h
 5 -> { $
 $h(1, 2) }`;
-      expect(await run(script)).toEqual([1, 2]);
-    });
+        expect(await run(script)).toEqual([1, 2]);
+      }
+    );
   });
 
   describe('Pipe Binding Rule (IR-8)', () => {
@@ -585,13 +614,19 @@ $h(1, 2) }`;
   });
 
   describe('Postfix Index After a Bare/Host-Call Pipe Target (-> fn[i])', () => {
-    it('indexes the result of a bare builtin call', async () => {
-      expect(await run('list[3,1,2] -> sort[0]')).toBe(1);
-    });
+    rule('pipe-target.postfix').it(
+      'indexes the result of a bare builtin call',
+      async () => {
+        expect(await run('list[3,1,2] -> sort[0]')).toBe(1);
+      }
+    );
 
-    it('indexes from the end of the result of a bare builtin call', async () => {
-      expect(await run('list[3,1,2] -> sort[-1]')).toBe(3);
-    });
+    rule('pipe-target.postfix').it(
+      'indexes from the end of the result of a bare builtin call',
+      async () => {
+        expect(await run('list[3,1,2] -> sort[-1]')).toBe(3);
+      }
+    );
 
     it('indexes the result of an arg-bearing builtin call', async () => {
       // Explicit $ placement supplies the sole arg directly, avoiding the
@@ -644,7 +679,7 @@ $h(1, 2) }`;
       await expect(run(source)).rejects.toMatchObject({ errorId: 'RILL-P031' });
     });
 
-    it.each([
+    rule('pipe-target.method-head').it.each([
       ['a string interpolating $', '5 -> "x{$}"', 'x5'],
       ['a block reading $', '3 -> { $ + 1 }', 4],
       ['a block with a leading method', '"a" -> { .upper }', 'A'],
@@ -709,14 +744,17 @@ $h(1, 2) }`;
   });
 
   describe('List and dict literal targets cannot read $ at the top level', () => {
-    it('rejects a list literal reading $ and names the block form', async () => {
-      await expect(run('3 -> list[$, $]')).rejects.toMatchObject({
-        errorId: 'RILL-P030',
-        message: expect.stringContaining('3 -> { list[$, $] }'),
-      });
-    });
+    rule('pipe.data-no-dollar').it(
+      'rejects a list literal reading $ and names the block form',
+      async () => {
+        await expect(run('3 -> list[$, $]')).rejects.toMatchObject({
+          errorId: 'RILL-P030',
+          message: expect.stringContaining('3 -> { list[$, $] }'),
+        });
+      }
+    );
 
-    it.each([
+    rule('pipe.data-no-dollar').it.each([
       ['an expression over $', '0 -> list[$ + 1, 9]'],
       ['a dict field', '"a" -> dict[a: $]'],
       ['a nested list', '3 -> list[list[$]]'],
@@ -734,17 +772,23 @@ $h(1, 2) }`;
   });
 
   describe('Operand placement in a call argument', () => {
-    it('prepends the operand when $ sits only in a later pipe target', async () => {
-      const script = `fn(a, b) { list[$a, $b] } => $f
+    rule('pipe.call-dollar').it(
+      'prepends the operand when $ sits only in a later pipe target',
+      async () => {
+        const script = `fn(a, b) { list[$a, $b] } => $f
 fn(x) { $x * 10 } => $g
 5 -> $f(2 -> $g($))`;
-      expect(await run(script)).toEqual([5, 20]);
-    });
+        expect(await run(script)).toEqual([5, 20]);
+      }
+    );
 
-    it('does not prepend when $ sits in a conditional branch', async () => {
-      const script = `fn(a) { $a } => $f
+    rule('pipe.call-dollar').it(
+      'does not prepend when $ sits in a conditional branch',
+      async () => {
+        const script = `fn(a) { $a } => $f
 5 -> $f(true ? { $ } ! { 0 })`;
-      expect(await run(script)).toBe(5);
-    });
+        expect(await run(script)).toBe(5);
+      }
+    );
   });
 });

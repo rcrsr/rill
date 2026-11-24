@@ -7,7 +7,7 @@ issues: []
 grammar: []
 errors: [TYPE_MISMATCH, RILL-R002]
 depends: [value]
-tests: [closure-equality.test.ts, equality-gate.test.ts, list-membership.test.ts]
+tests: [closure-equality.test.ts, equality-gate.test.ts, list-membership.test.ts, values.test.ts, boolean.test.ts, atoms.test.ts, duration.test.ts, extraction.test.ts, collection-union-inference.test.ts]
 ---
 
 # Equality
@@ -69,6 +69,9 @@ Two type values MUST be equal under `structural-typing`.
 r[equality.stream] Streams are not comparable
 `==` with a stream operand MUST halt with RILL-R002.
 
+r[equality.iterator] Iterators are not comparable
+`==` and `!=` with an iterator operand MUST halt with RILL-R002.
+
 r[equality.methods] .eq, .ne, .has, .has_any, and .has_all follow the operators
 `.eq`, `.ne`, `.has`, `.has_any`, and `.has_all` MUST compare as `==` does, including its
 halts.
@@ -93,6 +96,7 @@ A carried type decides whether a comparison halts, never its result (`carried-ty
 | The operands' types do not overlap | `#TYPE_MISMATCH` | Yes |
 | A declared literal set is compared with a literal outside it | `#TYPE_MISMATCH` | Yes |
 | An operand is a stream | RILL-R002 | Yes |
+| An operand is an iterator | RILL-R002 | Yes |
 
 ## Examples
 
@@ -111,6 +115,11 @@ $f == $g
 ```rill
 # Error: #TYPE_MISMATCH
 1 == "1"
+```
+
+```rill
+# Error: RILL-R002
+range(0, 3) == range(0, 3)
 ```
 
 ```rill

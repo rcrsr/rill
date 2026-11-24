@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Streams
  *
@@ -24,6 +25,7 @@ import {
 import { getNextFn, hostParam } from '../helpers/host.js';
 import { run, runFull } from '../helpers/runtime.js';
 import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 // ============================================================
 // HELPERS
@@ -92,16 +94,19 @@ describe('Streams: bracket access with a default', () => {
 describe('Streams: Success Cases', () => {
   // AC-S1: $s -> seq({ }) processes chunks sequentially, returns list
   describe('AC-S1: each on stream', () => {
-    it('processes chunks sequentially and returns list', async () => {
-      const result = await run(
-        `
+    rule('iteration.stream').it(
+      'processes chunks sequentially and returns list',
+      async () => {
+        const result = await run(
+          `
           make_stream() => $s
           $s -> seq({ $ })
         `,
-        { functions: { make_stream: makeStreamFn([1, 2, 3]) } }
-      );
-      expect(result).toEqual([1, 2, 3]);
-    });
+          { functions: { make_stream: makeStreamFn([1, 2, 3]) } }
+        );
+        expect(result).toEqual([1, 2, 3]);
+      }
+    );
 
     it('applies body expression to each chunk', async () => {
       const result = await run(
@@ -453,18 +458,21 @@ describe('Streams: Success Cases', () => {
 describe('Streams: Error Cases', () => {
   // AC-E1: Re-iterating consumed stream halts with RILL-R002
   describe('AC-E1: re-iteration of consumed stream', () => {
-    it('halts when re-iterating exhausted stream', async () => {
-      await expect(
-        run(
-          `
+    rule('value.stream', 'iteration.stream').it(
+      'halts when re-iterating exhausted stream',
+      async () => {
+        await expect(
+          run(
+            `
             make_stream() => $s
             $s -> seq({ $ })
             $s -> seq({ $ })
           `,
-          { functions: { make_stream: makeStreamFn([1, 2]) } }
-        )
-      ).rejects.toThrow('Stream already consumed');
-    });
+            { functions: { make_stream: makeStreamFn([1, 2]) } }
+          )
+        ).rejects.toThrow('Stream already consumed');
+      }
+    );
   });
 
   // AC-E2: Stale .next() halts with error
@@ -629,20 +637,23 @@ describe('Streams: Boundary Conditions', () => {
 
   // BC-4: Stream at ceiling + 1
   describe('BC-4: stream at ceiling + 1', () => {
-    it('halts with RILL-R010 at 10001 chunks', async () => {
-      const chunks = Array.from({ length: 10001 }, (_, i) => i);
-      await expectHalt(
-        () =>
-          run('make_stream() -> seq({ $ })', {
-            functions: { make_stream: makeStreamFn(chunks) },
-          }),
-        {
-          code: 'RILL_R010',
-          hostErrorId: 'RILL-R010',
-          messagePattern: 'Stream expansion exceeded 10000 iterations',
-        }
-      );
-    });
+    rule('iteration.expansion').it(
+      'halts with RILL-R010 at 10001 chunks',
+      async () => {
+        const chunks = Array.from({ length: 10001 }, (_, i) => i);
+        await expectHalt(
+          () =>
+            run('make_stream() -> seq({ $ })', {
+              functions: { make_stream: makeStreamFn(chunks) },
+            }),
+          {
+            code: 'RILL_R010',
+            hostErrorId: 'RILL-R010',
+            messagePattern: 'Stream expansion exceeded 10000 iterations',
+          }
+        );
+      }
+    );
   });
 
   // BC-5: $s() before iteration

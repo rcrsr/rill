@@ -7,7 +7,7 @@ issues: []
 grammar: [destructure, positional-list, positional-pattern, keyed-list, keyed-pattern]
 errors: [RILL-P001, RILL-P026, RILL-R001, RILL-R002, RILL-R009, TYPE_MISMATCH]
 depends: [pipe, selection]
-tests: [destruct-slice-keyword.test.ts, extraction.test.ts]
+tests: [destruct-slice-keyword.test.ts, extraction.test.ts, parameterized-destruct.test.ts]
 ---
 
 # Destructure

@@ -533,8 +533,20 @@ function lintProse(file: ParsedFile, ctx: LintContext, add: Add): void {
     }
 
     if (file.inFence[i] || heading) continue;
-    if (INFORMATIVE_SECTIONS.includes(section)) continue;
     const prose = stripInlineCode(text);
+    if (INFORMATIVE_SECTIONS.includes(section)) {
+      // Examples and Notes add no rule (notation.informative).
+      const keyword = prose.match(/\b(MUST|MAY)\b/);
+      if (keyword) {
+        add(
+          lineNo,
+          'error',
+          'informative-normative',
+          `Normative '${keyword[0]}' in ${section}, which is informative`
+        );
+      }
+      continue;
+    }
     const voice = prose.match(/\b(you|we)\b|\blet['’]s\b/i);
     if (voice) {
       add(

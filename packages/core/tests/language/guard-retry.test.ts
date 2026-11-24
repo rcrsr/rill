@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: Guard / Retry Recovery Blocks (Phase 2, Task 2.3)
  *
@@ -50,6 +51,7 @@ import { createTraceFrame } from '../../src/runtime/core/types/trace.js';
 import { RuntimeHaltSignal } from '../../src/runtime/core/types/halt.js';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 /**
  * Produce an invalid RillValue via parse-recovery. The selector in
@@ -69,10 +71,13 @@ async function runRecovered(src: string): Promise<unknown> {
 }
 
 describe('Guard block (AC-4)', () => {
-  it('returns body result when body completes without halting', async () => {
-    const result = await run('guard { "value" }');
-    expect(result).toBe('value');
-  });
+  rule('guard.pass').it(
+    'returns body result when body completes without halting',
+    async () => {
+      const result = await run('guard { "value" }');
+      expect(result).toBe('value');
+    }
+  );
 
   it('AC-4: pipe through host fn inside guard returns the host result', async () => {
     const result = await run(`
@@ -101,48 +106,51 @@ describe('Retry block (AC-5, AC-B3)', () => {
     expect(result).toBe('ok');
   });
 
-  it('AC-5: `retry(attempts: 3)` halting once then succeeding returns after 2 executions', async () => {
-    // First invocation throws a catchable RuntimeHaltSignal directly;
-    // second invocation returns "ok". The retry mixin catches the halt
-    // on attempt 1, retries, and returns the success on attempt 2.
-    let callCount = 0;
-    const result = await run(
-      `
+  rule('retry.success').it(
+    'AC-5: `retry(attempts: 3)` halting once then succeeding returns after 2 executions',
+    async () => {
+      // First invocation throws a catchable RuntimeHaltSignal directly;
+      // second invocation returns "ok". The retry mixin catches the halt
+      // on attempt 1, retries, and returns the success on attempt 2.
+      let callCount = 0;
+      const result = await run(
+        `
       retry(attempts: 3) {
         try_twice()
       }
     `,
-      {
-        functions: {
-          try_twice: {
-            params: [],
-            returnType: { __type: 'any' } as never,
-            fn: () => {
-              callCount++;
-              if (callCount === 1) {
-                // Fabricate a catchable invalid and halt. The trace frame
-                // records the synthetic `host` origin so the invalid
-                // carries a well-formed sidecar.
-                const invalid = invalidate(
-                  {},
-                  { code: 'TIMEOUT', provider: 'try_twice' },
-                  createTraceFrame({
-                    site: '<test>',
-                    kind: 'host',
-                    fn: 'try_twice',
-                  })
-                );
-                throw new RuntimeHaltSignal(invalid, true);
-              }
-              return 'ok';
+        {
+          functions: {
+            try_twice: {
+              params: [],
+              returnType: { __type: 'any' } as never,
+              fn: () => {
+                callCount++;
+                if (callCount === 1) {
+                  // Fabricate a catchable invalid and halt. The trace frame
+                  // records the synthetic `host` origin so the invalid
+                  // carries a well-formed sidecar.
+                  const invalid = invalidate(
+                    {},
+                    { code: 'TIMEOUT', provider: 'try_twice' },
+                    createTraceFrame({
+                      site: '<test>',
+                      kind: 'host',
+                      fn: 'try_twice',
+                    })
+                  );
+                  throw new RuntimeHaltSignal(invalid, true);
+                }
+                return 'ok';
+              },
             },
           },
-        },
-      }
-    );
-    expect(callCount).toBe(2);
-    expect(result).toBe('ok');
-  });
+        }
+      );
+      expect(callCount).toBe(2);
+      expect(result).toBe('ok');
+    }
+  );
 });
 
 describe('Guard empty-valued body (AC-B1)', () => {
@@ -166,14 +174,17 @@ describe('Guard empty-valued body (AC-B1)', () => {
 });
 
 describe('Retry zero / negative attempts (AC-B2)', () => {
-  it('AC-B2 (parser): `retry(attempts: 0)` is a parse error (RILL-P004)', () => {
-    // The parser enforces attempts >= 1 at source level, so `retry(attempts: 0)`
-    // never reaches the runtime. The runtime also rejects a non-positive
-    // count for hosts that synthesise RetryBlock nodes directly. See next case.
-    expect(() => parse('retry(attempts: 0) { "x" }')).toThrow(
-      /positive integer/
-    );
-  });
+  rule('retry.attempts').it(
+    'AC-B2 (parser): `retry(attempts: 0)` is a parse error (RILL-P004)',
+    () => {
+      // The parser enforces attempts >= 1 at source level, so `retry(attempts: 0)`
+      // never reaches the runtime. The runtime also rejects a non-positive
+      // count for hosts that synthesise RetryBlock nodes directly. See next case.
+      expect(() => parse('retry(attempts: 0) { "x" }')).toThrow(
+        /positive integer/
+      );
+    }
+  );
 
   it('AC-B2 (runtime): a synthesised RetryBlock with attempts=0 halts #INVALID_INPUT', async () => {
     // Bypass the parser's positive-integer guard by editing the parsed
@@ -228,21 +239,30 @@ describe('Nested guard frame appends (AC-B4)', () => {
 });
 
 describe('Non-catchable halts: `error` and `assert` (AC-E2, AC-E3)', () => {
-  it('AC-E2 / EC-8: `guard { error "msg" }` propagates the error', async () => {
-    await expect(run('guard { error "boom" }')).rejects.toThrow('boom');
-  });
+  rule('halt.non-catchable', 'guard.non-catchable', 'error.non-catchable').it(
+    'AC-E2 / EC-8: `guard { error "msg" }` propagates the error',
+    async () => {
+      await expect(run('guard { error "boom" }')).rejects.toThrow('boom');
+    }
+  );
 
-  it('AC-E3 / EC-9: `guard { assert false "msg" }` propagates the assertion', async () => {
-    await expect(
-      run('guard { false -> assert $ "must be true" }')
-    ).rejects.toThrow(/must be true/);
-  });
+  rule('halt.non-catchable', 'guard.non-catchable', 'assert.non-catchable').it(
+    'AC-E3 / EC-9: `guard { assert false "msg" }` propagates the assertion',
+    async () => {
+      await expect(
+        run('guard { false -> assert $ "must be true" }')
+      ).rejects.toThrow(/must be true/);
+    }
+  );
 
-  it('AC-E2: retry does not swallow a non-catchable error either', async () => {
-    await expect(run('retry(attempts: 3) { error "boom" }')).rejects.toThrow(
-      'boom'
-    );
-  });
+  rule('retry.guard').it(
+    'AC-E2: retry does not swallow a non-catchable error either',
+    async () => {
+      await expect(run('retry(attempts: 3) { error "boom" }')).rejects.toThrow(
+        'boom'
+      );
+    }
+  );
 });
 
 describe('Guard `<on:>` filter (AC-E7)', () => {
@@ -266,36 +286,42 @@ describe('Guard `<on:>` filter (AC-E7)', () => {
     ).rejects.toBeDefined();
   });
 
-  it('AC-E7 inverse: guard(on: list[#R001]) catches the matching halt', async () => {
-    const src = `
+  rule('halt.error-code').it(
+    'AC-E7 inverse: guard(on: list[#R001]) catches the matching halt',
+    async () => {
+      const src = `
       guard(on: list[#NOT_A_CODE]) { 1 } => $x
       guard(on: list[#R001]) { $x.foo }
     `;
-    const result = await runRecovered(src);
-    expect(isInvalid(result as never)).toBe(true);
-    expect(getStatus(result as never).code).toBe(resolveAtom('R001'));
-  });
+      const result = await runRecovered(src);
+      expect(isInvalid(result as never)).toBe(true);
+      expect(getStatus(result as never).code).toBe(resolveAtom('R001'));
+    }
+  );
 });
 
 describe('Retry exhaustion (AC-E8)', () => {
-  it('AC-E8: `retry(attempts: 3) { halt }` returns invalid with 3 guard-caught frames', async () => {
-    // Each failed attempt adds ONE guard-caught frame plus one access
-    // frame (from the `.foo` access that produced the halt).
-    const src = `
+  rule('retry.exhaust', 'retry.trace').it(
+    'AC-E8: `retry(attempts: 3) { halt }` returns invalid with 3 guard-caught frames',
+    async () => {
+      // Each failed attempt adds ONE guard-caught frame plus one access
+      // frame (from the `.foo` access that produced the halt).
+      const src = `
       guard(on: list[#NOT_A_CODE]) { 1 } => $x
       retry(attempts: 3) { $x.foo }
     `;
-    const result = await runRecovered(src);
-    expect(isInvalid(result as never)).toBe(true);
-    const frames = getStatus(result as never).trace;
-    const guardCaught = frames.filter((f) => f.kind === 'guard-caught');
-    expect(guardCaught.length).toBe(3);
-    // All guard-caught frames should carry fn === 'retry' per recovery.ts
-    // convention distinguishing retry from guard at frame creation.
-    for (const frame of guardCaught) {
-      expect(frame.fn).toBe('retry');
+      const result = await runRecovered(src);
+      expect(isInvalid(result as never)).toBe(true);
+      const frames = getStatus(result as never).trace;
+      const guardCaught = frames.filter((f) => f.kind === 'guard-caught');
+      expect(guardCaught.length).toBe(3);
+      // All guard-caught frames should carry fn === 'retry' per recovery.ts
+      // convention distinguishing retry from guard at frame creation.
+      for (const frame of guardCaught) {
+        expect(frame.fn).toBe('retry');
+      }
     }
-  });
+  );
 });
 
 describe('Guard with on-codes outside the core error set (EC-14)', () => {
@@ -323,11 +349,14 @@ describe('Guard with on-codes outside the core error set (EC-14)', () => {
 });
 
 describe('Recovery composed with default operator (??)', () => {
-  it('guard catching type-coercion halt falls back via ??', async () => {
-    const result = await run('guard { "a" -> number } ?? 0');
-    expect(result).toBe(0);
-    expect(isInvalid(result as never)).toBe(false);
-  });
+  rule('halt.catchable', 'guard.catch').it(
+    'guard catching type-coercion halt falls back via ??',
+    async () => {
+      const result = await run('guard { "a" -> number } ?? 0');
+      expect(result).toBe(0);
+      expect(isInvalid(result as never)).toBe(false);
+    }
+  );
   it('guard fallback to string default', async () => {
     const result = await run('guard { "a" -> number } ?? "fallback"');
     expect(result).toBe('fallback');
@@ -425,11 +454,14 @@ describe('Guard and retry `on:` filter over the core error set', () => {
     expect(await run('guard(on: list[#RILL_R002]) { 1 / 0 } ?? 9')).toBe(9);
   });
 
-  it('guard(on: list[#TIMEOUT]) propagates a non-matching halt', async () => {
-    await expect(
-      run('guard(on: list[#TIMEOUT]) { 1 / 0 }')
-    ).rejects.toMatchObject({ errorId: 'RILL-R002' });
-  });
+  rule('guard.selector').it(
+    'guard(on: list[#TIMEOUT]) propagates a non-matching halt',
+    async () => {
+      await expect(
+        run('guard(on: list[#TIMEOUT]) { 1 / 0 }')
+      ).rejects.toMatchObject({ errorId: 'RILL-R002' });
+    }
+  );
 
   it('guard(on: #TIMEOUT) returns the body value when nothing halts', async () => {
     expect(await run('guard(on: #TIMEOUT) { 1 }')).toBe(1);
@@ -443,24 +475,35 @@ describe('Guard and retry `on:` filter over the core error set', () => {
     expect(await run('retry(attempts: 2, on: #TIMEOUT) { 1 }')).toBe(1);
   });
 
-  it('guard(on: #RILL_R002) catches a halt carrying that code and passes others', async () => {
-    expect(await run('guard(on: #RILL_R002) { 1 / 0 } => $r\n$r.!')).toBe(true);
-    await expectHalt(() => run('guard(on: #TIMEOUT) { 1 / 0 }'), {
-      code: 'RILL_R002',
-    });
-  });
+  rule('guard.selector', 'guard.on-single').it(
+    'guard(on: #RILL_R002) catches a halt carrying that code and passes others',
+    async () => {
+      expect(await run('guard(on: #RILL_R002) { 1 / 0 } => $r\n$r.!')).toBe(
+        true
+      );
+      await expectHalt(() => run('guard(on: #TIMEOUT) { 1 / 0 }'), {
+        code: 'RILL_R002',
+      });
+    }
+  );
 
-  it('halts #INVALID_INPUT for a computed empty on list', async () => {
-    await expectHalt(() => run('list[] => $c\nguard(on: $c) { 1 }'), {
-      code: 'INVALID_INPUT',
-    });
-  });
+  rule('guard.on-runtime').it(
+    'halts #INVALID_INPUT for a computed empty on list',
+    async () => {
+      await expectHalt(() => run('list[] => $c\nguard(on: $c) { 1 }'), {
+        code: 'INVALID_INPUT',
+      });
+    }
+  );
 
-  it('halts #TYPE_MISMATCH for a computed on atom outside the core set', async () => {
-    await expectHalt(() => run('#FOO => $c\nguard(on: $c) { 1 }'), {
-      code: 'TYPE_MISMATCH',
-    });
-  });
+  rule('guard.on-runtime').it(
+    'halts #TYPE_MISMATCH for a computed on atom outside the core set',
+    async () => {
+      await expectHalt(() => run('#FOO => $c\nguard(on: $c) { 1 }'), {
+        code: 'TYPE_MISMATCH',
+      });
+    }
+  );
 
   it('accepts a computed on list of core codes', async () => {
     expect(
@@ -470,10 +513,13 @@ describe('Guard and retry `on:` filter over the core error set', () => {
     ).toBe(true);
   });
 
-  it('rejects a written #FOO on atom and a written empty list with RILL-P004', () => {
-    expect(parseErrorOf('guard(on: #FOO) { 1 }').errorId).toBe('RILL-P004');
-    expect(parseErrorOf('guard(on: list[]) { 1 }').errorId).toBe('RILL-P004');
-  });
+  rule('guard.on-codes', 'guard.on-empty').it(
+    'rejects a written #FOO on atom and a written empty list with RILL-P004',
+    () => {
+      expect(parseErrorOf('guard(on: #FOO) { 1 }').errorId).toBe('RILL-P004');
+      expect(parseErrorOf('guard(on: list[]) { 1 }').errorId).toBe('RILL-P004');
+    }
+  );
 
   it('rejects guard(on: list[]) with RILL-P004 and recovers to a RecoveryError node', () => {
     const err = parseErrorOf('guard(on: list[]) { 1 / 0 }');
@@ -503,4 +549,99 @@ describe('Guard and retry `on:` filter over the core error set', () => {
       code: 'TYPE_MISMATCH',
     });
   });
+});
+
+describe('Guard and retry placement, signals, and traces', () => {
+  rule('guard.not-target').it(
+    'rejects guard as a pipe target with RILL-P001',
+    () => {
+      expect(() => parse('7 -> guard { $ }')).toThrow(
+        expect.objectContaining({ errorId: 'RILL-P001' })
+      );
+    }
+  );
+
+  rule('retry.not-target').it(
+    'rejects retry as a pipe target with RILL-P001',
+    () => {
+      expect(() => parse('7 -> retry(attempts: 2) { $ }')).toThrow(
+        expect.objectContaining({ errorId: 'RILL-P001' })
+      );
+    }
+  );
+
+  rule('guard.dollar').it(
+    'the body sees the $ bound where guard stands',
+    async () => {
+      expect(await run('7 -> { guard { $ * 2 } }')).toBe(14);
+      expect(await run('7 -> { retry(attempts: 2) { $ + 1 } }')).toBe(8);
+    }
+  );
+
+  rule('guard.signals').it(
+    'break and return pass through guard and retry',
+    async () => {
+      expect(
+        await run('list[1, 2, 3] -> seq({ guard { ($ == 2) ? break\n$ } })')
+      ).toEqual([1]);
+      expect(
+        await run(
+          'list[1, 2, 3] -> seq({ retry(attempts: 2) { ($ == 2) ? break\n$ } })'
+        )
+      ).toEqual([1]);
+      expect(
+        await run('fn(x) { guard { $x -> return }\n9 } => $f\n$f(5)')
+      ).toBe(5);
+    }
+  );
+
+  rule('retry.attempts-name').it(
+    'attempts counts every run, and limit is not an option',
+    async () => {
+      let calls = 0;
+      const result = await run(
+        'retry(attempts: 2) { count() -> number } => $r\n$r.!',
+        {
+          functions: {
+            count: {
+              params: [],
+              returnType: { __type: 'any' } as never,
+              fn: () => {
+                calls++;
+                return 'x';
+              },
+            },
+          },
+        }
+      );
+      expect(result).toBe(true);
+      expect(calls).toBe(2);
+      await expectHalt(() => run('retry(limit: 2) { 1 }'), {
+        code: 'TYPE_MISMATCH',
+      });
+    }
+  );
+
+  rule(
+    'invalid-value.trace-order',
+    'invalid-value.trace-access',
+    'invalid-value.trace-catch'
+  ).it(
+    'access and each catch append frames after the earlier ones',
+    async () => {
+      const first = (await run(
+        'guard { 1 / 0 } => $r\n$r.!trace -> seq({ "{$.kind}:{$.fn}" })'
+      )) as string[];
+      const second = (await run(
+        'guard { 1 / 0 } => $r\nguard { $r + 1 } => $s\n$s.!trace -> seq({ "{$.kind}:{$.fn}" })'
+      )) as string[];
+      expect(first.slice(1)).toEqual(['guard-caught:guard']);
+      expect(second.slice(0, first.length)).toEqual(first);
+      expect(second.slice(first.length).map((f) => f.split(':')[0])).toEqual([
+        'access',
+        'guard-caught',
+      ]);
+      expect(second[second.length - 1]).toBe('guard-caught:guard');
+    }
+  );
 });

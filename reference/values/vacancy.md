@@ -7,7 +7,7 @@ issues: []
 grammar: [default-value]
 errors: [RILL-R003]
 depends: [value]
-tests: [vacancy-coerce.test.ts, default-value-operator.test.ts, status-probe.test.ts, map-iteration.test.ts]
+tests: [vacancy-coerce.test.ts, default-value-operator.test.ts, status-probe.test.ts, map-iteration.test.ts, methods.test.ts, values.test.ts]
 ---
 
 # Vacancy

@@ -105,15 +105,18 @@ describe('AC-1 / SC-1: timeout(total:) completes within window', () => {
 // ---------------------------------------------------------------------------
 
 describe('AC-12 / EC-1: timeout(total:) fires #TIMEOUT_TOTAL', () => {
-  it('produces #TIMEOUT_TOTAL when body uses signal-aware host delay', async () => {
-    // Guard catches the catchable TIMEOUT_TOTAL halt and returns the invalid value.
-    const result = await run(
-      'guard { timeout(total: duration("50ms")) { slow_op() } }',
-      { functions: { slow_op: makeSlowFn() } }
-    );
-    expect(isInvalid(result as never)).toBe(true);
-    expect(getStatus(result as never).code).toBe(resolveAtom('RILL_R082'));
-  });
+  rule('construct-options.timeout-total-expiry').it(
+    'produces #TIMEOUT_TOTAL when body uses signal-aware host delay',
+    async () => {
+      // Guard catches the catchable TIMEOUT_TOTAL halt and returns the invalid value.
+      const result = await run(
+        'guard { timeout(total: duration("50ms")) { slow_op() } }',
+        { functions: { slow_op: makeSlowFn() } }
+      );
+      expect(isInvalid(result as never)).toBe(true);
+      expect(getStatus(result as never).code).toBe(resolveAtom('RILL_R082'));
+    }
+  );
 
   it('#TIMEOUT_TOTAL atom code matches expected resolveAtom value', async () => {
     const result = await run(
@@ -474,27 +477,33 @@ describe('timeout limits have a ceiling', () => {
 });
 
 describe('AC-15 / EC-2: timeout(idle:) fires #TIMEOUT_IDLE', () => {
-  it('produces #TIMEOUT_IDLE when body does not complete within idle window', async () => {
-    // A host call that never returns is a body with no activity, so the idle
-    // timer is never restarted and fires. A signal-aware host function
-    // aborts when the idle timer fires.
-    const result = await run(
-      'guard { timeout(idle: duration("50ms")) { idle_slow() } }',
-      { functions: { idle_slow: makeSlowFn() } }
-    );
-    expect(isInvalid(result as never)).toBe(true);
-    expect(getStatus(result as never).code).toBe(resolveAtom('RILL_R083'));
-  });
+  rule('construct-options.timeout-idle-expiry').it(
+    'produces #TIMEOUT_IDLE when body does not complete within idle window',
+    async () => {
+      // A host call that never returns is a body with no activity, so the idle
+      // timer is never restarted and fires. A signal-aware host function
+      // aborts when the idle timer fires.
+      const result = await run(
+        'guard { timeout(idle: duration("50ms")) { idle_slow() } }',
+        { functions: { idle_slow: makeSlowFn() } }
+      );
+      expect(isInvalid(result as never)).toBe(true);
+      expect(getStatus(result as never).code).toBe(resolveAtom('RILL_R083'));
+    }
+  );
 
-  it('timeout(idle:) is catchable — guard catches #TIMEOUT_IDLE', async () => {
-    // Same as above; verifies the guard path explicitly.
-    const result = await run(
-      'guard { timeout(idle: duration("50ms")) { idle_slow() } }',
-      { functions: { idle_slow: makeSlowFn() } }
-    );
-    expect(isInvalid(result as never)).toBe(true);
-    expect(getStatus(result as never).code).toBe(resolveAtom('RILL_R083'));
-  });
+  rule('construct-options.timeout-idle-expiry').it(
+    'timeout(idle:) is catchable — guard catches #TIMEOUT_IDLE',
+    async () => {
+      // Same as above; verifies the guard path explicitly.
+      const result = await run(
+        'guard { timeout(idle: duration("50ms")) { idle_slow() } }',
+        { functions: { idle_slow: makeSlowFn() } }
+      );
+      expect(isInvalid(result as never)).toBe(true);
+      expect(getStatus(result as never).code).toBe(resolveAtom('RILL_R083'));
+    }
+  );
 });
 
 // ---------------------------------------------------------------------------

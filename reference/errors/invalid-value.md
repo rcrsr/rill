@@ -4,16 +4,22 @@ title: Invalid values
 status: normative
 since: 0.24.0
 issues: []
-grammar: []
+grammar: [status-probe]
 errors: []
 depends: []
-tests: [status-probe.test.ts, guard-retry.test.ts, vacancy-coerce.test.ts, invalid-value-use.test.ts, map-literal.test.ts]
+tests: [status-probe.test.ts, guard-retry.test.ts, vacancy-coerce.test.ts, invalid-value-use.test.ts, map-literal.test.ts, trace-frames.test.ts]
 ---
 
 # Invalid values
 
 An invalid value is a failure held as a value: it carries the halt that produced it, and using
 it raises that halt again.
+
+## Syntax
+
+```ebnf
+status-probe = ".!" , [ identifier ] ;
+```
 
 ## Evaluation
 
@@ -49,6 +55,17 @@ literal MUST raise the halt it holds.
 
 r[invalid-value.map] A map literal does not hold an invalid value
 An invalid value written as an entry of a map literal MUST raise the halt it holds.
+
+r[invalid-value.trace-order] The trace is append-only
+`.!trace` MUST list frames in the order they were added, origin first and latest last. Adding a
+frame MUST NOT remove or change an earlier one.
+
+r[invalid-value.trace-access] Access appends an access frame
+Raising the held halt on access MUST append one frame whose `kind` is `"access"`.
+
+r[invalid-value.trace-catch] A catch appends a guard-caught frame
+When `guard` catches a halt, it MUST append one frame whose `kind` is `"guard-caught"` and whose
+`fn` is `"guard"`.
 
 ## Interactions
 

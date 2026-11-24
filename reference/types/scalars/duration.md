@@ -35,6 +35,9 @@ A negative component MUST halt with `#INVALID_INPUT`.
 r[duration.fractional-months] A fractional months component halts
 A `months` component that is not an integer MUST halt with `#INVALID_INPUT`.
 
+r[duration.fractional-years] A fractional years component halts
+A `years` component that is not an integer MUST halt with `#INVALID_INPUT`.
+
 r[duration.not-finite] A component that is not a finite number halts
 A component that is not a finite number MUST halt with `#TYPE_MISMATCH`. A string component
 halts.
@@ -60,6 +63,10 @@ halt with RILL-R036. `("500ms" -> duration) == duration("500ms")` ⇒ `true`.
 
 r[duration.string-malformed] A string that does not parse halts
 A string argument that is not in the printed form MUST halt with `#INVALID_INPUT`.
+
+r[duration.one-form] A call takes one form of input
+A string argument followed by a second argument or by named components MUST halt with
+`#INVALID_INPUT`.
 
 r[duration.print] A duration prints its non-zero components
 A duration MUST print as its non-zero components in the order years, months, days, hours,
@@ -107,11 +114,12 @@ A duration MUST satisfy `:duration`. A value of any other type MUST halt `:durat
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
-| A component is negative or `months` is fractional | `#INVALID_INPUT` | Yes |
+| A component is negative, or `months` or `years` is fractional | `#INVALID_INPUT` | Yes |
 | A component is not a finite number | `#TYPE_MISMATCH` | Yes |
 | A spread key names no parameter | RILL-R001 | Yes |
-| A positional number argument | RILL-R001 | Yes |
+| A positional number argument (`halt.non-catchable`) | RILL-R001 | No |
 | A string argument or a piped string is not in the printed form | `#INVALID_INPUT` | Yes |
+| A string argument is followed by another argument | `#INVALID_INPUT` | Yes |
 | A number or a dict is piped into `duration` | RILL-R036 | Yes |
 | A component total exceeds 9007199254740991 | `#INVALID_INPUT` | Yes |
 | Durations disagree on months and milliseconds when ordered | RILL-R002 | Yes |
@@ -165,5 +173,7 @@ duration(...dict[months: 1]) < duration(...dict[days: 30])
 On 0.23.0 a positional number fills the `years` component, so `duration(500)` means 500 years,
 and a string argument halts `#TYPE_MISMATCH`.
 
-The built-in methods, such as `.add`, `.multiply`, and `.total_ms`, belong to the built-in
-methods chapter.
+The built-in methods are stated in their own concepts: `duration.months`, `duration.days`,
+`duration.hours`, `duration.minutes`, `duration.seconds`, `duration.ms` (the parts are in
+`duration-split`), `duration.total_ms`, `duration.display`, `duration.zero`, `duration.add`,
+`duration.subtract`, and `duration.multiply`.

@@ -4,8 +4,8 @@ title: Capture
 status: normative
 since: 0.24.0
 issues: []
-grammar: []
-errors: [RILL-R001, TYPE_MISMATCH]
+grammar: [capture, capture-type]
+errors: [RILL-P001, RILL-R001, TYPE_MISMATCH]
 depends: [statement, assertion, type-lock]
 tests: [capture-types.test.ts, lexer-capture-arrow.test.ts, variables.test.ts, type-var-positions.test.ts, union-types.test.ts, error-code-type.test.ts, structural-type-defaults.test.ts]
 ---
@@ -16,11 +16,21 @@ A capture `=> $x` binds the incoming value to a variable and passes the value on
 
 ## Syntax
 
+```ebnf
+capture       = "$" , identifier , [ ":" , capture-type ] ;
+capture-type  = type-ref ;
+```
+
 ```text
 v => $x          bind
 v => $x:T        bind and assert
 v => $x -> ...   bind, then continue the chain
 ```
+
+## Static rules
+
+r[capture.target] A capture target without $ is rejected
+`v => x` MUST be rejected with RILL-P001 (`variable.sigil`).
 
 ## Evaluation
 
@@ -53,6 +63,7 @@ A code block before `=>` runs by its own rule (`code-block.head`), not because o
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
+| The target has no `$` | RILL-P001 | No |
 | The value does not have the capture's type | `#TYPE_MISMATCH` | Yes |
 | The value breaks the variable's type lock | RILL-R001 | Yes |
 

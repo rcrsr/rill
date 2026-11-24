@@ -7,7 +7,7 @@ issues: []
 grammar: []
 errors: [RILL-R001, RILL-R005]
 depends: [variable, capture, statement]
-tests: [block-scoping.test.ts, closure-hoist-validation.test.ts, late-bound-closures.test.ts]
+tests: [block-scoping.test.ts, closure-hoist-validation.test.ts, late-bound-closures.test.ts, scope-isolation.test.ts]
 ---
 
 # Scope
@@ -48,6 +48,14 @@ argument even when an enclosing scope binds the same name.
 r[scope.late-binding] A function resolves names when it runs
 A function body MUST resolve each variable it reads when the body runs, not when the function
 is created. A name bound after the function was created is visible to it.
+
+r[scope.lexical] A function resolves names where it was created
+A function body MUST resolve each variable through the scope the function was created in and
+that scope's parents, never through the scope that calls it. Reading a name that only the
+calling scope binds MUST halt with RILL-R005.
+
+r[scope.closure] A function keeps the scope it was created in
+A function created in a child scope MUST read that scope's variables after the scope ends.
 
 r[scope.recursion] A function reaches itself through its variable
 A function stored in `$f` MUST be able to call `$f` from its body, because the name resolves
@@ -96,13 +104,31 @@ $f(2)
 ```
 
 ```rill
-# Error: Cannot reassign outer variable
+# Error: RILL-R001 Cannot reassign outer variable
 0 => $count
-list[1, 2] -> seq({ $count + 1 => $count })
+list[1, 2] -> seq({ $ + $count => $count })
 ```
 
 ```rill
-# Error: Undefined variable
-1 -> { 2 => $t }
+# Error: RILL-R005 Undefined variable
+1 -> { $ + 1 => $t }
 $t
+```
+
+```rill
+# Error: RILL-R005 Undefined variable
+fn { $ + $w } => $f
+1 -> {
+  $ => $w
+  $ -> $f
+}
+```
+
+```rill
+1 -> {
+  $ => $k
+  fn { $k }
+} => $get
+$get()
+# Result: 1
 ```

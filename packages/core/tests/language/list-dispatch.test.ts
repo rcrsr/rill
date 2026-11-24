@@ -39,12 +39,12 @@ describe('Rill Language: List Dispatch', () => {
   // ============================================================
 
   describe('basic index dispatch with list[...] form (AC-19)', () => {
-    it('index 0 returns first element', async () => {
+    rule('dispatch.select').it('index 0 returns first element', async () => {
       const result = await run('0 -> list["first", "second"]');
       expect(result).toBe('first');
     });
 
-    it('index 1 returns second element', async () => {
+    rule('dispatch.select').it('index 1 returns second element', async () => {
       const result = await run('1 -> list["first", "second"]');
       expect(result).toBe('second');
     });
@@ -86,10 +86,13 @@ describe('Rill Language: List Dispatch', () => {
   // ============================================================
 
   describe('default value with ?? (AC-21)', () => {
-    it('out-of-bounds index with ?? returns default value', async () => {
-      const result = await run('5 -> list["a", "b"] ?? "default"');
-      expect(result).toBe('default');
-    });
+    rule('dispatch.miss-message').it(
+      'out-of-bounds index with ?? returns default value',
+      async () => {
+        const result = await run('5 -> list["a", "b"] ?? "default"');
+        expect(result).toBe('default');
+      }
+    );
 
     it('in-bounds index ignores ?? default', async () => {
       const result = await run('0 -> list["found"] ?? "default"');

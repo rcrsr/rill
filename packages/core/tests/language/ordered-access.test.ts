@@ -48,30 +48,42 @@ describe('ordered value access', () => {
     expect(await run(`${decl}$o[-1]`)).toBe(2);
   });
 
-  it('$o["x"] halts with RILL-R009 (undefined ordered key)', async () => {
-    await expect(runOrThrow(`${decl}$o["x"]`)).rejects.toHaveProperty(
-      'errorId',
-      'RILL-R009'
-    );
-  });
+  rule('selection.missing').it(
+    '$o["x"] halts with RILL-R009 (undefined ordered key)',
+    async () => {
+      await expect(runOrThrow(`${decl}$o["x"]`)).rejects.toHaveProperty(
+        'errorId',
+        'RILL-R009'
+      );
+    }
+  );
 
   it('$o.missing halts', async () => {
     await expect(runOrThrow(`${decl}$o.missing`)).rejects.toBeTruthy();
   });
 
-  it('$o.keys evaluates to list["a", "b"]', async () => {
-    expect(await run(`${decl}$o.keys`)).toEqual(['a', 'b']);
-  });
+  rule('ordered.keys.order').it(
+    '$o.keys evaluates to list["a", "b"]',
+    async () => {
+      expect(await run(`${decl}$o.keys`)).toEqual(['a', 'b']);
+    }
+  );
 
-  it('$o.values evaluates to list[1, 2]', async () => {
-    expect(await run(`${decl}$o.values`)).toEqual([1, 2]);
-  });
+  rule('ordered.values.order').it(
+    '$o.values evaluates to list[1, 2]',
+    async () => {
+      expect(await run(`${decl}$o.values`)).toEqual([1, 2]);
+    }
+  );
 
-  it('$o.entries evaluates to list[tuple["a", 1], tuple["b", 2]]', async () => {
-    expect(
-      await run(`${decl}$o.entries == list[tuple["a", 1], tuple["b", 2]]`)
-    ).toBe(true);
-  });
+  rule('ordered.entries.order').it(
+    '$o.entries evaluates to list[tuple["a", 1], tuple["b", 2]]',
+    async () => {
+      expect(
+        await run(`${decl}$o.entries == list[tuple["a", 1], tuple["b", 2]]`)
+      ).toBe(true);
+    }
+  );
 
   rule('dict.entries-type').it(
     '$o.entries has type list(tuple(string, number))',
@@ -82,7 +94,7 @@ describe('ordered value access', () => {
     }
   );
 
-  it('$o.len evaluates to 2', async () => {
+  rule('ordered.len.count').it('$o.len evaluates to 2', async () => {
     expect(await run(`${decl}$o.len`)).toBe(2);
   });
 
@@ -101,21 +113,27 @@ describe('ordered value access', () => {
     );
   });
 
-  it('$o.?a evaluates to true', async () => {
+  rule('existence.found').it('$o.?a evaluates to true', async () => {
     expect(await run(`${decl}$o.?a`)).toBe(true);
   });
 
-  it('$o.?x evaluates to false', async () => {
+  rule('existence.missing').it('$o.?x evaluates to false', async () => {
     expect(await run(`${decl}$o.?x`)).toBe(false);
   });
 
-  it('$o.?$k evaluates to true when $k names an existing key', async () => {
-    expect(await run(`${decl}"a" => $k\n$o.?$k`)).toBe(true);
-  });
+  rule('existence.found').it(
+    '$o.?$k evaluates to true when $k names an existing key',
+    async () => {
+      expect(await run(`${decl}"a" => $k\n$o.?$k`)).toBe(true);
+    }
+  );
 
-  it('$o.?$k evaluates to false when $k names a missing key', async () => {
-    expect(await run(`${decl}"x" => $k\n$o.?$k`)).toBe(false);
-  });
+  rule('existence.missing', 'existence.variable').it(
+    '$o.?$k evaluates to false when $k names a missing key',
+    async () => {
+      expect(await run(`${decl}"x" => $k\n$o.?$k`)).toBe(false);
+    }
+  );
 
   it('$o.?["a"] evaluates to true (computed existence check, existing key)', async () => {
     expect(await run(`${decl}$o.?["a"]`)).toBe(true);
@@ -133,12 +151,15 @@ describe('ordered value access', () => {
     expect(await run(`${decl}-1 => $i\n$o[$i]`)).toBe(2);
   });
 
-  it('$o[$i] halts with RILL-R009 for an out-of-bounds numeric index', async () => {
-    await expect(runOrThrow(`${decl}9 => $i\n$o[$i]`)).rejects.toHaveProperty(
-      'errorId',
-      'RILL-R009'
-    );
-  });
+  rule('selection.range').it(
+    '$o[$i] halts with RILL-R009 for an out-of-bounds numeric index',
+    async () => {
+      await expect(runOrThrow(`${decl}9 => $i\n$o[$i]`)).rejects.toHaveProperty(
+        'errorId',
+        'RILL-R009'
+      );
+    }
+  );
 
   it('postfix ordered[a: 1, b: 2]["a"] evaluates to 1', async () => {
     expect(await run('ordered[a: 1, b: 2]["a"]')).toBe(1);
@@ -156,16 +177,22 @@ describe('tuple value access', () => {
     expect(await run(`${decl}$t[0]`)).toBe(1);
   });
 
-  it('$t[-1] evaluates to "a" (negative index from end)', async () => {
-    expect(await run(`${decl}$t[-1]`)).toBe('a');
-  });
+  rule('selection.negative').it(
+    '$t[-1] evaluates to "a" (negative index from end)',
+    async () => {
+      expect(await run(`${decl}$t[-1]`)).toBe('a');
+    }
+  );
 
-  it('$t[9] halts with RILL-R009 (out of bounds)', async () => {
-    await expect(runOrThrow(`${decl}$t[9]`)).rejects.toHaveProperty(
-      'errorId',
-      'RILL-R009'
-    );
-  });
+  rule('selection.range').it(
+    '$t[9] halts with RILL-R009 (out of bounds)',
+    async () => {
+      await expect(runOrThrow(`${decl}$t[9]`)).rejects.toHaveProperty(
+        'errorId',
+        'RILL-R009'
+      );
+    }
+  );
 
   it('$t -> .at(1) evaluates to "a"', async () => {
     expect(await run(`${decl}$t -> .at(1)`)).toBe('a');
