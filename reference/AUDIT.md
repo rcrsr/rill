@@ -109,7 +109,7 @@ One row per PR. Tick a row when its PR merges.
 | 13 | `control-flow` | 5 | 52 | 4 | #676 |
 | 14 | `collections` | 7 | 56 | 0 | #676 |
 | 15 | `errors` | 5 | 41 | 0 | #676 |
-| 16 | `limits` (write) | 0 | 0 | 0 | |
+| 16 | `limits` (write) | 5 | 14 | 0 | |
 | 17 | `host-boundary` | 1 | 14 | 11 | |
 | 18 | `builtins` (write) | 0 | 0 | 0 | |
 | 19 | Group and file defects | | | | |
@@ -271,6 +271,16 @@ Tick a column with `x` when the file meets that check. A file added by a PR gets
 | `errors/invalid-value.md` | 12 | 0 | x | x | x | x |
 | `errors/retry.md` | 7 | 0 | x | x | x | x |
 
+### `limits`
+
+| File | Rules | Uncited | Correct | Consistent | Complete | Cited |
+|------|-------|---------|---------|------------|----------|-------|
+| `limits/call-depth.md` | 3 | 0 | x | x | x | x |
+| `limits/host-timeout.md` | 4 | 0 | x | x | x | x |
+| `limits/nesting-depth.md` | 2 | 0 | x | x | x | x |
+| `limits/slicing-limit.md` | 3 | 0 | x | x | x | x |
+| `limits/value-size.md` | 2 | 0 | x | x | x | x |
+
 ### `host-boundary`
 
 | File | Rules | Uncited | Correct | Consistent | Complete | Cited |
@@ -283,7 +293,6 @@ Each gets a table when its PR splits it into concepts.
 
 | Chapter | Covers |
 |---------|--------|
-| `limits` | Iteration, concurrency, call depth, timeouts |
 | `builtins` | Built-in methods and functions |
 
 ## Backlog
@@ -299,18 +308,8 @@ needed. Strike nothing here; the slice PR deletes the items it settles.
 - `use`: a `guard` around `use<>` catches RILL-R057; `app::fetch()` halts RILL-P012.
 - Hosts cannot add error codes; `toNative` reports the own type; a default in a host signature
   string halts RILL-R091.
-
-### `limits` (write)
-
-- Unstated: the output cap of `take`, `batch`, `window`, `start_when`, and `stop_when`; the
-  `take` and `skip` step walk; call depth (`maxCallDepth`, 1000); calls in flight; the host
-  `timeout` option (RILL-R012); parser nesting (RILL-P015); `.repeat` and `.pad_*` result size;
-  the datetime range; the `use<>` branding cap (RILL-R090).
-- Partial: `timeout` expiry names no error id; the `iterate` step cap is only implied by
-  `iteration.expansion`.
-- Which RILL-R010 sites are catchable, which `halt.non-catchable` leaves unnamed.
-- Host-only, likely Notes: `maxCallStackDepth` trims the trace and never halts; `dispose()`
-  waits 5000 ms.
+- The `use<>` branding cap: a resolver value with more than 10,000 members halts RILL-R090. Moved
+  from `limits`, which precedes `use` in chapter order.
 
 ### `builtins` (write)
 
@@ -359,9 +358,9 @@ at a897cfc3 unless they say otherwise.
 | File | Finding | Outcome |
 |------|---------|---------|
 | `expressions/selection.md`, `builtins` | RILL-R003 catchability differs by site: `list[1] -> .keys` halts RILL-R003 and escapes `guard`; `$l.a` halts RILL-R003 and `guard` catches it | Collected |
-| `limits` | The 2147483647 ms timer ceiling applies to `timeout(...)` only. `range(0, 2) -> debounce(duration(...dict[ms: 2147483648]))` returns; `throttle`, `sample`, and `batch(idle_flush:)` also skip the check | Collected |
-| `limits`, `types/scalars/datetime.md` | The datetime range is checked only on print: `datetime(...dict[unix: 8640000000000001])` builds and returns `.unix`; interpolating it halts `#INVALID_INPUT` | Collected |
-| `limits` | RILL-P015 `MAX_NESTING` is 150, but it fires at 75 nested parentheses or `list[`, and 76 nested blocks | Collected |
+| `limits` | The 2147483647 ms timer ceiling applies to `timeout(...)` only. `range(0, 2) -> debounce(duration(...dict[ms: 2147483648]))` returns; `throttle`, `sample`, and `batch(idle_flush:)` also skip the check. At 93e55c14, the host `timeout` option skips it too: at 2147483648, 0, or -5, `sleep(10)` halts RILL-R012 within 1 ms, and Node.js warns TimeoutOverflowWarning | Collected |
+| `limits/value-size.md`, `types/scalars/datetime.md` | `value-size.datetime`: a unix count outside the range must halt `#INVALID_INPUT`. `datetime(...dict[unix: 8640000000000001])` builds and returns `.unix`; interpolating it halts `#INVALID_INPUT`. At 93e55c14 its `.year` is `NaN` and `.iso` is `+000NaN-NaN-NaNTNaN:NaN:NaNZ`, while components, ISO strings, and `.add` past the bound halt | Collected |
+| `limits/nesting-depth.md`, `error-registry.ts` RILL-P015 | `MAX_NESTING` is 150 and the registry example nests 151 parentheses, but RILL-P015 fires at 75 nested parentheses, `list[`, `dict[a: `, or blocks; 74 parse. Probed at 93e55c14 | Collected |
 | `docs/llm/cheatsheet.txt:55` | Says failures are "uncatchable"; `guard { 1 == "1" }` catches `#TYPE_MISMATCH` (`halt.catchable`) | Collected |
 | `docs/llm/cheatsheet.txt:92`, `anti-patterns.txt:400` | Say a space after `#` is required; `1 #1` and `1 #!x` run as comments (`atom.comment`) | Collected |
 | `docs/llm/errors.txt:141` | Lists `0` and `false` as vacant; `0 ?? 5` is `0` (`vacancy.zero-false`) | Collected |
@@ -404,3 +403,5 @@ at a897cfc3 unless they say otherwise.
 | `control-flow` | Which body `return` ends; `break` inside a called function; a bare `break` with no `$`; a halt in an async `pass` body; an empty `pass` body; `timeout` with no parentheses. Probed at 23491968 | Collected in INCONSISTENCIES.md |
 | `errors/invalid-value.md` | `invalid-value.access`: an operator on an invalid value raises the halt it holds. An invalid value used directly as a bool operand halts RILL-R002 "requires boolean, got dict" instead. With `guard { 1 == "a" } => $r`, `!$r`, `$r && true`, `$r \|\| true`, `$r ? 1 ! 2`, `assert $r`, and `while ($r) do { 1 }` halt RILL-R002, while `$r -> ($ ? 1 ! 2)` and `$r == 1` raise `#TYPE_MISMATCH`. Probed at e7d4d0cd | Collected |
 | `errors` | Text after `assert cond` starts a new statement while `error` rejects it; `.!foo` yields `""`; no rule lists the core error set; trace origin frames have no named vocabulary. Probed at e7d4d0cd | Collected in INCONSISTENCIES.md |
+| `limits/slicing-limit.md`, `values/value.md` | `value.immutable`: a value never changes. A stored `iterate` iterator counts its function calls across reads. `iterate(0, { $ + 1 }) => $it`, then `$it -> take(6000)` twice: the second read halts RILL-R010 "iterate: iteration exceeded 10000 limit", uncatchable. `range(0, 20000) => $it` read the same way yields 6000 both times. Probed at 93e55c14 | Collected |
+| `limits/value-size.md`, `conventions/halt.md` | `halt.error-code`: a runtime halt carries an error code. A string past the maximum length raises a bare "Invalid string length" with no code or id, and `guard` cannot catch it: `"a" -> .repeat(300000000) => $s` then `"{$s}{$s}"` or `list[$s, $s] -> .join("")`, and `"a" -> .pad_start(536870889, "x")` and `.pad_end(536870889, "x")`. `.pad_start(600000000, "x")` halts `#INVALID_INPUT`, catchable, and `.repeat(536870889)` halts `#INVALID_INPUT`. Probed at 93e55c14 | Collected |

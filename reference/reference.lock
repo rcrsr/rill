@@ -103,6 +103,10 @@ break.return-body 23c89e6d85e2 statement.return@231d6a34b48f
 break.return-each 14a36a5597f3
 break.seq e47b3a30461b
 break.unsupported 2ea2eb802674
+call-depth 36f19edba939 call-depth.in-flight@111bca8471d3 call-depth.nesting@b5fdf6565224 code-block.head@50fc507875b8 fan.concurrency@da9c8948cfa0
+call-depth.host-setting 56968a614ca1 call-depth.in-flight@111bca8471d3 call-depth.nesting@b5fdf6565224
+call-depth.in-flight 111bca8471d3
+call-depth.nesting b5fdf6565224
 capture fd042d0ad521 code-block.head@50fc507875b8
 capture.assert a76c0ca450db
 capture.bind 771562a46f74
@@ -446,6 +450,11 @@ halt.non-catchable 8eb8c26644b7
 halt.parse 6d138afba141
 halt.signals 8be052dc02e2
 halt.table f8ef9cf52762
+host-timeout 114beb35e610 construct-options.timeout-total-expiry@591c1e9bdfd7 guard.catch@bf78f704cbc6 host-timeout.expiry@21b410386383
+host-timeout.expiry 21b410386383
+host-timeout.script-function 93b9ca8e330d
+host-timeout.unset f5be937bfafe
+host-timeout.within 3cceb457217f
 identifier 2d8b27bbed3b identifier.ascii@37b68fc5f280 keyword.reserved@572e9a506274 number.malformed@247ef493dd4c variable.name@27ee6f9bc3aa
 identifier.ascii 37b68fc5f280 source-text.charset@3d61ec59b868
 identifier.case 5c7e51dcc247
@@ -622,6 +631,9 @@ map.type-equality c4a36c604073
 map.unspecified 9eff5ecc70ed
 map.value-type 9c23ee639152
 map.values 711b96dda3c6
+nesting-depth 9e9eb102450b nesting-depth.reject@9e74cc8277cf
+nesting-depth.reject 9e74cc8277cf halt.parse@6d138afba141
+nesting-depth.shallow be13e1b15906
 notation.ebnf 19e6596014c2
 notation.excerpt 537334072dca
 notation.informative 32065531531a
@@ -758,6 +770,10 @@ slice.negative 3a009d81e481
 slice.separator a6cbc69b9ff1
 slice.sources 89b31e045c6b
 slice.step-zero 41308f1e5ca4
+slicing-limit 0e95ef92fb54 iteration.expansion@a19b6b147ac0 iteration.limit-first@2a445247e46c slicing-limit.list-source@fcfa671492b1 slicing-limit.output@fb3ea2c818d8 slicing-limit.step-walk@2cffdf54e08a
+slicing-limit.list-source fcfa671492b1 slicing-limit.output@fb3ea2c818d8
+slicing-limit.output fb3ea2c818d8
+slicing-limit.step-walk 2cffdf54e08a
 sort eff553fc6dcd iteration.tuple@d651f9b75b66 pipe.call-operand@3a33d5a45012
 sort.ascending 662284d77870
 sort.comparable 9998bd1e3b2d
@@ -968,6 +984,9 @@ vacancy.fallback a8ddb8c219f9
 vacancy.missing 037dd8f22fe9 selection.default@40b9bbb857e8 selection.default-last-step@bd0009760a8c
 vacancy.vacant 93e05a6e4241
 vacancy.zero-false 62d3ba62eb32
+value-size ca86f352614a value-size.datetime@c459bdc1358c value-size.string@14bc76ba9599
+value-size.datetime c459bdc1358c
+value-size.string 14bc76ba9599
 value.always 04f8d3b96b4e
 value.host-null 2d2c6edb085d
 value.immutable a8e731b73aa7

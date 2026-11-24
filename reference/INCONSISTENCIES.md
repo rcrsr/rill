@@ -48,7 +48,7 @@ filed as a defect.
 
 | Inconsistency | Rule says | Runtime does | Concept |
 |---------------|-----------|--------------|---------|
-| Catchability of the 10,000-step iterator limit | `iteration.expansion` and its Errors row: RILL-R010, not catchable | `range(0, 20000) -> take(10001)` and `skip(10001)` halt RILL-R010 and `guard` catches it. `range(0, 10001) -> seq({ $ })` halts RILL-R010 and escapes `guard` | `iteration` |
+| Catchability of the 10,000-step iterator limit | `iteration.expansion` and its Errors row: RILL-R010, not catchable. `halt.non-catchable`: a fatal limit halt is not catchable, without naming which limits are fatal | `range(0, 20000) -> take(10001)` and `skip(10001)` halt RILL-R010 and `guard` catches it. `range(0, 10001) -> seq({ $ })` halts RILL-R010 and escapes `guard`. At 93e55c14, the `slicing-limit.output` halts are catchable too: `take(10001)`, `batch(1)`, `window(1, 1)`, `start_when({ $ >= 0 })`, and `stop_when({ $ < 0 })` on a 10,001-element list. The call-depth, calls-in-flight, loop, and `iterate` halts escape `guard` | `iteration`, `slicing-limit`, `halt` |
 | Interpolating a datetime | `interpolation.printed`: a value inserts as the string conversion yields it | `"at {$d}"` inserts `2024-01-15T00:00:00.000Z`, while `$d -> string` halts RILL-R036 | `interpolation`, `datetime`, `conversion` |
 | An assertion suffix on a construct body | `code-block.assert`: a construct body asserts on every run | `5 -> pass { "a" }:string` halts `#TYPE_MISMATCH` "expected string, got number", and `0 -> while ($ < 3) do { $ + 1 }:?number` returns `true`: the suffix checks the construct's result | `code-block`, `pass`, `loop` |
 | A non-callable operator argument | `iteration.callable`: halts `#TYPE_MISMATCH` | `start_when(5)`, `stop_when(5)`, and `chain(5)` halt RILL-R040, catchable. `seq(5)` halts `#TYPE_MISMATCH` | `iteration` |
@@ -213,3 +213,12 @@ Probed at e7d4d0cd.
 | A status field no rule names | `5 => $v` then `$v.!foo` yields `""`, and so does `.!foo` on an invalid value. `status-probe` takes any identifier, and `invalid-value.probe` names five fields | `invalid-value` |
 | Which atoms the core error set holds | No rule lists the set. `#R001 -> :?error_code` is `true` and `guard(on: #R001) { 1 }` parses; `guard(on: #RILL_P001)` and `guard(on: #RILL_R999)` are rejected with RILL-P004. `error_code.^type.inner` halts RILL-R003 | `error-code`, `guard` |
 | What a trace frame's origin is called | `guard { 1 / 0 }` starts its trace with `kind: "host"`, `fn: "evaluateArithmetic"`, though no host function ran. `guard { 1 == "a" }` starts with `kind: "type"`. No rule names the origin kinds or fields | `invalid-value` |
+
+## Limits
+
+Probed at 93e55c14.
+
+| Inconsistency | Evidence | Concept |
+|---------------|----------|---------|
+| Which calls the host timeout bounds | With a host timeout of 30 ms, `range(0, 9000) -> fold(0, { $@ + $ })` halts RILL-R012 "Function 'fold' timed out after 30ms", and `seq` and `take` halt the same way. A `while` loop of 9,999 runs, a script function running 154 ms, and `"a" -> .repeat(100000000)` complete. `fold`, `seq`, and `take` are written as operators (`iteration`), while the host timeout is stated for host function calls (`host-timeout.expiry`) | `host-timeout`, `iteration` |
+| Slicing functions that read an iterator in full | `take` and `skip` read an iterator one step at a time (`slicing-limit.step-walk`), so `iterate(0, { $ + 1 }) -> take(5)` returns. `iterate(0, { $ + 1 }) -> stop_when({ $ > 5 })` and `start_when({ $ > 5 }) -> take(2)` halt RILL-R010 "Iterator expansion exceeded 10000 iterations", uncatchable: they read the whole source before testing, so neither can bound an unbounded iterator | `slicing-limit`, `iteration` |

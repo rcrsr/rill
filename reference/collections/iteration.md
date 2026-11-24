@@ -175,7 +175,7 @@ guard { list[...$big, 0] -> fan({ $ }) }
 
 ## Notes
 
-The limit on `fan` calls in flight is a host limit, stated with limits, not here.
+The limit on calls in flight across `fan`, `filter`, and `sort` is `call-depth.in-flight`.
 
 Superseded: `iteration.sources`, now `iteration.source-kinds`, and `iteration.non-source`, now
 `iteration.other-source`. On 0.23.0 a tuple and an ordered halt RILL-R002 as sources.
