@@ -79,7 +79,7 @@ describe('Rill Language: declarations', () => {
       }
     );
 
-    rule('declaration.spacing').it(
+    rule('declaration.spacing', 'use.adjacent').it(
       'keeps use <ext:x> a RILL-P007 error',
       async () => {
         await expectParseError('use <ext:x>', 'RILL-P007');

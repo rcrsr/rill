@@ -48,12 +48,15 @@ describe('Rill Language: use<> Expressions', () => {
 
   describe('Success Cases', () => {
     describe('Static form — single segment', () => {
-      it('AC-1: resolves use<host:fn> via registered resolver', async () => {
-        const result = await run('use<host:fn>', {
-          resolvers: { host: valueResolver('hello') },
-        });
-        expect(result).toBe('hello');
-      });
+      rule('use.value').it(
+        'AC-1: resolves use<host:fn> via registered resolver',
+        async () => {
+          const result = await run('use<host:fn>', {
+            resolvers: { host: valueResolver('hello') },
+          });
+          expect(result).toBe('hello');
+        }
+      );
 
       it('AC-7: 3-scheme config produces correct values for each scheme', async () => {
         const result = await run(
@@ -388,31 +391,34 @@ describe('Rill Language: use<> Expressions', () => {
     });
 
     describe('Pipe target invocation', () => {
-      it('invokes a resolved application callable with the pipe value as its argument', async () => {
-        const result = await run('"hello" -> use<host:fn>', {
-          resolvers: {
-            host: (_resource): ResolverResult => ({
-              kind: 'value',
-              value: {
-                __type: 'callable' as const,
-                kind: 'application' as const,
-                isProperty: false,
-                params: [
-                  {
-                    name: 'text',
-                    type: { kind: 'string' },
-                    defaultValue: undefined,
-                    annotations: {},
-                  },
-                ],
-                fn: (args: Record<string, RillValue>) =>
-                  `invoked:${args['text']}`,
-              } as unknown as RillValue,
-            }),
-          },
-        });
-        expect(result).toBe('invoked:hello');
-      });
+      rule('use.pipe-target').it(
+        'invokes a resolved application callable with the pipe value as its argument',
+        async () => {
+          const result = await run('"hello" -> use<host:fn>', {
+            resolvers: {
+              host: (_resource): ResolverResult => ({
+                kind: 'value',
+                value: {
+                  __type: 'callable' as const,
+                  kind: 'application' as const,
+                  isProperty: false,
+                  params: [
+                    {
+                      name: 'text',
+                      type: { kind: 'string' },
+                      defaultValue: undefined,
+                      annotations: {},
+                    },
+                  ],
+                  fn: (args: Record<string, RillValue>) =>
+                    `invoked:${args['text']}`,
+                } as unknown as RillValue,
+              }),
+            },
+          });
+          expect(result).toBe('invoked:hello');
+        }
+      );
 
       it('returns a source module closure uninvoked when it is a pipe target', async () => {
         const result = await run('"hello" -> use<module:greeter>', {
@@ -424,44 +430,56 @@ describe('Rill Language: use<> Expressions', () => {
         expect(isCallable(result)).toBe(true);
       });
 
-      it('returns the result of a source module expression unchanged', async () => {
-        const result = await run('"hello" -> use<module:upper>', {
-          resolvers: {
-            module: sourceResolver('$ -> .upper'),
-          },
-          parseSource,
-        });
-        expect(result).toBe('HELLO');
-      });
+      rule('use.pipe-target').it(
+        'returns the result of a source module expression unchanged',
+        async () => {
+          const result = await run('"hello" -> use<module:upper>', {
+            resolvers: {
+              module: sourceResolver('$ -> .upper'),
+            },
+            parseSource,
+          });
+          expect(result).toBe('HELLO');
+        }
+      );
 
-      it('halts when a host-resolved string receives a piped value', async () => {
-        await expectHalt(
-          () =>
-            run('"hello" -> use<host:value>', {
-              resolvers: { host: valueResolver('resolved') },
-            }),
-          {
-            code: 'RILL_R002',
-            hostErrorId: 'RILL-R002',
-            messagePattern:
-              /cannot pipe into use<host:value>: it holds a string/,
-          }
-        );
-      });
+      rule('use.pipe-target').it(
+        'halts when a host-resolved string receives a piped value',
+        async () => {
+          await expectHalt(
+            () =>
+              run('"hello" -> use<host:value>', {
+                resolvers: { host: valueResolver('resolved') },
+              }),
+            {
+              code: 'RILL_R002',
+              hostErrorId: 'RILL-R002',
+              messagePattern:
+                /cannot pipe into use<host:value>: it holds a string/,
+            }
+          );
+        }
+      );
 
-      it('selects a host-resolved dict value by key', async () => {
-        const result = await run('"a" -> use<host:value>', {
-          resolvers: { host: valueResolver({ a: 1 }) },
-        });
-        expect(result).toBe(1);
-      });
+      rule('use.pipe-target').it(
+        'selects a host-resolved dict value by key',
+        async () => {
+          const result = await run('"a" -> use<host:value>', {
+            resolvers: { host: valueResolver({ a: 1 }) },
+          });
+          expect(result).toBe(1);
+        }
+      );
 
-      it('selects a host-resolved list element by index', async () => {
-        const result = await run('1 -> use<host:value>', {
-          resolvers: { host: valueResolver(['x', 'y', 'z']) },
-        });
-        expect(result).toBe('y');
-      });
+      rule('use.pipe-target').it(
+        'selects a host-resolved list element by index',
+        async () => {
+          const result = await run('1 -> use<host:value>', {
+            resolvers: { host: valueResolver(['x', 'y', 'z']) },
+          });
+          expect(result).toBe('y');
+        }
+      );
 
       rule('dispatch.fn').it(
         'returns a function held in a host-resolved dict uncalled',
@@ -478,24 +496,30 @@ describe('Rill Language: use<> Expressions', () => {
         }
       );
 
-      it('converts the piped value through a host-resolved type value', async () => {
-        const result = await run('"5" -> use<host:value>', {
-          resolvers: {
-            host: valueResolver(structureToTypeValue({ kind: 'number' })),
-          },
-        });
-        expect(result).toBe(5);
-      });
+      rule('use.pipe-target').it(
+        'converts the piped value through a host-resolved type value',
+        async () => {
+          const result = await run('"5" -> use<host:value>', {
+            resolvers: {
+              host: valueResolver(structureToTypeValue({ kind: 'number' })),
+            },
+          });
+          expect(result).toBe(5);
+        }
+      );
 
-      it('returns the callable uninvoked when use<> is not a pipe target', async () => {
-        const result = await run('use<module:greeter>', {
-          resolvers: {
-            module: sourceResolver('fn { "got:{$}" }'),
-          },
-          parseSource,
-        });
-        expect(isCallable(result)).toBe(true);
-      });
+      rule('use.value').it(
+        'returns the callable uninvoked when use<> is not a pipe target',
+        async () => {
+          const result = await run('use<module:greeter>', {
+            resolvers: {
+              module: sourceResolver('fn { "got:{$}" }'),
+            },
+            parseSource,
+          });
+          expect(isCallable(result)).toBe(true);
+        }
+      );
     });
 
     describe('Source resolver — last expression value', () => {
@@ -537,7 +561,7 @@ describe('Rill Language: use<> Expressions', () => {
 
   describe('Error Cases', () => {
     describe('EC-6 — RILL-R054: scheme not registered', () => {
-      it('throws RILL-R054 for unknown scheme', async () => {
+      rule('use.scheme').it('throws RILL-R054 for unknown scheme', async () => {
         await expect(run('use<db:users>', {})).rejects.toHaveProperty(
           'errorId',
           'RILL-R054'
@@ -552,37 +576,43 @@ describe('Rill Language: use<> Expressions', () => {
     });
 
     describe('EC-7 — RILL-R055: circular resolution', () => {
-      it('throws RILL-R055 when resolver A re-enters module:A', async () => {
-        // module:a resolver returns source that calls use<module:a> again.
-        // The runtime tracks in-flight keys via resolvingSchemes and detects the cycle.
-        const circularModuleResolver: SchemeResolver = () => ({
-          kind: 'source',
-          text: 'use<module:a>',
-        });
+      rule('use.cycle').it(
+        'throws RILL-R055 when resolver A re-enters module:A',
+        async () => {
+          // module:a resolver returns source that calls use<module:a> again.
+          // The runtime tracks in-flight keys via resolvingSchemes and detects the cycle.
+          const circularModuleResolver: SchemeResolver = () => ({
+            kind: 'source',
+            text: 'use<module:a>',
+          });
 
-        await expect(
-          run('use<module:a>', {
-            resolvers: { module: circularModuleResolver },
-            parseSource,
-          })
-        ).rejects.toHaveProperty('errorId', 'RILL-R055');
-      });
+          await expect(
+            run('use<module:a>', {
+              resolvers: { module: circularModuleResolver },
+              parseSource,
+            })
+          ).rejects.toHaveProperty('errorId', 'RILL-R055');
+        }
+      );
 
-      it('RILL-R055 message includes the circular key', async () => {
-        const selfResolver: SchemeResolver = () => ({
-          kind: 'source',
-          text: 'use<mod:items>',
-        });
+      rule('use.cycle').it(
+        'RILL-R055 message includes the circular key',
+        async () => {
+          const selfResolver: SchemeResolver = () => ({
+            kind: 'source',
+            text: 'use<mod:items>',
+          });
 
-        await expect(
-          run('use<mod:items>', {
-            resolvers: { mod: selfResolver },
-            parseSource,
-          })
-        ).rejects.toThrow(
-          'Circular resolution detected: mod:items is already being resolved'
-        );
-      });
+          await expect(
+            run('use<mod:items>', {
+              resolvers: { mod: selfResolver },
+              parseSource,
+            })
+          ).rejects.toThrow(
+            'Circular resolution detected: mod:items is already being resolved'
+          );
+        }
+      );
     });
 
     describe('Real resolver failures surface as RILL-R056', () => {
@@ -674,61 +704,81 @@ describe('Rill Language: use<> Expressions', () => {
     });
 
     describe('EC-8 — RILL-R056: resolver throws', () => {
-      it('wraps resolver exception in RILL-R056', async () => {
-        const resolver: SchemeResolver = () => {
-          throw new Error('connection refused');
-        };
-        await expect(
-          run('use<host:api>', { resolvers: { host: resolver } })
-        ).rejects.toHaveProperty('errorId', 'RILL-R056');
-      });
+      rule('use.resolver-failure').it(
+        'wraps resolver exception in RILL-R056',
+        async () => {
+          const resolver: SchemeResolver = () => {
+            throw new Error('connection refused');
+          };
+          await expect(
+            run('use<host:api>', { resolvers: { host: resolver } })
+          ).rejects.toHaveProperty('errorId', 'RILL-R056');
+        }
+      );
 
-      it('RILL-R056 message includes scheme:resource and original message', async () => {
-        const resolver: SchemeResolver = () => {
-          throw new Error('connection refused');
-        };
-        await expect(
-          run('use<host:api>', { resolvers: { host: resolver } })
-        ).rejects.toThrow("Resolver error for 'host:api': connection refused");
-      });
+      rule('use.resolver-failure').it(
+        'RILL-R056 message includes scheme:resource and original message',
+        async () => {
+          const resolver: SchemeResolver = () => {
+            throw new Error('connection refused');
+          };
+          await expect(
+            run('use<host:api>', { resolvers: { host: resolver } })
+          ).rejects.toThrow(
+            "Resolver error for 'host:api': connection refused"
+          );
+        }
+      );
     });
 
     describe('EC-9 — RILL-R057: non-string from variable form', () => {
-      it('throws RILL-R057 when $var resolves to non-string', async () => {
-        await expect(
-          run('42 => $id\nuse<$id>', {
-            resolvers: { host: valueResolver('x') },
-          })
-        ).rejects.toHaveProperty('errorId', 'RILL-R057');
-      });
+      rule('use.id-kind').it(
+        'throws RILL-R057 when $var resolves to non-string',
+        async () => {
+          await expect(
+            run('42 => $id\nuse<$id>', {
+              resolvers: { host: valueResolver('x') },
+            })
+          ).rejects.toHaveProperty('errorId', 'RILL-R057');
+        }
+      );
 
-      it('RILL-R057 message includes actual type', async () => {
-        await expect(
-          run('42 => $id\nuse<$id>', {
-            resolvers: { host: valueResolver('x') },
-          })
-        ).rejects.toThrow(
-          'use<> identifier must resolve to string, got number'
-        );
-      });
+      rule('use.id-kind').it(
+        'RILL-R057 message includes actual type',
+        async () => {
+          await expect(
+            run('42 => $id\nuse<$id>', {
+              resolvers: { host: valueResolver('x') },
+            })
+          ).rejects.toThrow(
+            'use<> identifier must resolve to string, got number'
+          );
+        }
+      );
     });
 
     describe('EC-10 — RILL-R058: missing colon separator in dynamic form', () => {
-      it('throws RILL-R058 when variable resolves to string without colon', async () => {
-        await expect(
-          run('"nocolon" => $id\nuse<$id>', {
-            resolvers: { host: valueResolver('x') },
-          })
-        ).rejects.toHaveProperty('errorId', 'RILL-R058');
-      });
+      rule('use.id-value').it(
+        'throws RILL-R058 when variable resolves to string without colon',
+        async () => {
+          await expect(
+            run('"nocolon" => $id\nuse<$id>', {
+              resolvers: { host: valueResolver('x') },
+            })
+          ).rejects.toHaveProperty('errorId', 'RILL-R058');
+        }
+      );
 
-      it('throws RILL-R058 when computed form produces string without colon', async () => {
-        await expect(
-          run('use<("nocolon")>', {
-            resolvers: { host: valueResolver('x') },
-          })
-        ).rejects.toHaveProperty('errorId', 'RILL-R058');
-      });
+      rule('use.id-value').it(
+        'throws RILL-R058 when computed form produces string without colon',
+        async () => {
+          await expect(
+            run('use<("nocolon")>', {
+              resolvers: { host: valueResolver('x') },
+            })
+          ).rejects.toHaveProperty('errorId', 'RILL-R058');
+        }
+      );
     });
 
     describe('EC-11 — RILL-P020: missing colon in static form', () => {
@@ -907,17 +957,20 @@ describe('Rill Language: use<> Expressions', () => {
 
   describe('Boundary Cases', () => {
     describe('AC-16: No caching — resolver called twice', () => {
-      it('invokes resolver on each use<> call, not once', async () => {
-        let callCount = 0;
-        const resolver: SchemeResolver = (_resource) => {
-          callCount++;
-          return { kind: 'value', value: callCount };
-        };
-        await run('use<host:fn> => $a\nuse<host:fn> => $b', {
-          resolvers: { host: resolver },
-        });
-        expect(callCount).toBe(2);
-      });
+      rule('use.each-time').it(
+        'invokes resolver on each use<> call, not once',
+        async () => {
+          let callCount = 0;
+          const resolver: SchemeResolver = (_resource) => {
+            callCount++;
+            return { kind: 'value', value: callCount };
+          };
+          await run('use<host:fn> => $a\nuse<host:fn> => $b', {
+            resolvers: { host: resolver },
+          });
+          expect(callCount).toBe(2);
+        }
+      );
     });
 
     describe('AC-17: Completed resolution not tracked as in-flight', () => {
@@ -956,37 +1009,43 @@ describe('Rill Language: use<> Expressions', () => {
         expect(result).toEqual(dictValue);
       });
 
-      it('extResolver-style: member returned for dot path', async () => {
-        const resolver: SchemeResolver = (resource) => {
-          if (resource === 'qdrant.search') {
-            return { kind: 'value', value: 'searchFn' };
-          }
-          return { kind: 'value', value: null };
-        };
-        const result = await run('use<ext:qdrant.search>', {
-          resolvers: { ext: resolver },
-        });
-        expect(result).toBe('searchFn');
-      });
+      rule('use.scheme').it(
+        'extResolver-style: member returned for dot path',
+        async () => {
+          const resolver: SchemeResolver = (resource) => {
+            if (resource === 'qdrant.search') {
+              return { kind: 'value', value: 'searchFn' };
+            }
+            return { kind: 'value', value: null };
+          };
+          const result = await run('use<ext:qdrant.search>', {
+            resolvers: { ext: resolver },
+          });
+          expect(result).toBe('searchFn');
+        }
+      );
     });
 
     describe('AC-19: Closure-time resolution (lazy eval)', () => {
-      it('use<> inside closure resolves at invocation time, not definition time', async () => {
-        let callCount = 0;
-        const resolver: SchemeResolver = () => {
-          callCount++;
-          return { kind: 'value', value: callCount };
-        };
+      rule('use.each-time').it(
+        'use<> inside closure resolves at invocation time, not definition time',
+        async () => {
+          let callCount = 0;
+          const resolver: SchemeResolver = () => {
+            callCount++;
+            return { kind: 'value', value: callCount };
+          };
 
-        // Define a closure that contains use<host:fn> — no invocation yet
-        const result = await run('fn() { use<host:fn> } => $fn\n$fn()', {
-          resolvers: { host: resolver },
-        });
+          // Define a closure that contains use<host:fn> — no invocation yet
+          const result = await run('fn() { use<host:fn> } => $fn\n$fn()', {
+            resolvers: { host: resolver },
+          });
 
-        // Resolver is called when closure body executes, not when closure is defined
-        expect(callCount).toBe(1);
-        expect(result).toBe(1);
-      });
+          // Resolver is called when closure body executes, not when closure is defined
+          expect(callCount).toBe(1);
+          expect(result).toBe(1);
+        }
+      );
     });
 
     describe('AC-20: Empty resolvers → RILL-R054 for all use<>', () => {
@@ -996,6 +1055,97 @@ describe('Rill Language: use<> Expressions', () => {
           'RILL-R054'
         );
       });
+    });
+
+    describe('Resolved value member cap', () => {
+      function dictOf(count: number, member: () => unknown): RillValue {
+        const value: Record<string, unknown> = {};
+        for (let i = 0; i < count; i++) value[`k${i}`] = member();
+        return value as RillValue;
+      }
+
+      rule('use.member-cap').it(
+        'halts RILL-R090 when the value and its dicts number 10,001',
+        async () => {
+          await expectHalt(
+            () =>
+              run('use<host:big>', {
+                resolvers: { host: valueResolver(dictOf(10000, () => ({}))) },
+              }),
+            { code: 'RILL_R090' }
+          );
+        }
+      );
+
+      rule('use.member-cap').it(
+        'resolves a value whose dicts number 10,000 with itself',
+        async () => {
+          const result = await run('use<host:cap> -> .len', {
+            resolvers: { host: valueResolver(dictOf(9999, () => ({}))) },
+          });
+          expect(result).toBe(9999);
+        }
+      );
+
+      rule('use.member-cap').it('counts functions toward the cap', async () => {
+        const fn = toCallable({
+          params: [],
+          returnType: anyTypeValue,
+          fn: () => 'called',
+        });
+        await expectHalt(
+          () =>
+            run('use<host:fns>', {
+              resolvers: { host: valueResolver(dictOf(10001, () => fn)) },
+            }),
+          { code: 'RILL_R090' }
+        );
+      });
+
+      rule('use.member-cap').it('does not count scalar members', async () => {
+        const result = await run('use<host:nums> -> .len', {
+          resolvers: { host: valueResolver(dictOf(20000, () => 1)) },
+        });
+        expect(result).toBe(20000);
+      });
+    });
+
+    describe('Malformed resolver results', () => {
+      rule('use.resolver-failure').it(
+        'halts RILL-R056 for a result with an unknown kind',
+        async () => {
+          await expectHalt(
+            () =>
+              run('use<host:x>', {
+                resolvers: {
+                  host: () => ({ kind: 'weird' }) as unknown as ResolverResult,
+                },
+              }),
+            {
+              code: 'RILL_R056',
+              hostErrorId: 'RILL-R056',
+              messagePattern: /must have kind 'value' or 'source'/,
+            }
+          );
+        }
+      );
+
+      rule('use.resolver-failure').it(
+        'halts RILL-R056 for a value that is not a rill value',
+        async () => {
+          await expectHalt(
+            () =>
+              run('use<host:x>', {
+                resolvers: { host: valueResolver({ a: () => 1 }) },
+              }),
+            {
+              code: 'RILL_R056',
+              hostErrorId: 'RILL-R056',
+              messagePattern: /is not a rill value/,
+            }
+          );
+        }
+      );
     });
 
     describe('AC-21: Computed form equivalence to static', () => {
@@ -1116,7 +1266,7 @@ describe('Rill Language: use<> Expressions', () => {
       expect(result).toBe('recovered');
     });
 
-    rule('use.resolution-catchable').it(
+    rule('use.resolution-catchable', 'use.resolver-failure').it(
       'guard catches RILL-R056 for an unparseable module',
       async () => {
         const result = await run(
