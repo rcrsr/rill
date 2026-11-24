@@ -36,7 +36,8 @@ pre-push:
     typecheck:
       run: pnpm -r run typecheck
     test:
-      run: pnpm -r run test
+      # One package at a time, so *.timing.test.* files run without load.
+      run: pnpm -r --workspace-concurrency=1 run test
     # Reads the tree only (no network). Catches a stale packages/dev/baseline.json
     # after a version bump, which otherwise first fails in CI.
     standards:

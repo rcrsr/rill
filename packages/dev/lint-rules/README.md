@@ -39,12 +39,13 @@ construct `RuntimeError`, which in practice means `rill` alone.
 | `no-new-runtime-error` | `packages/core/src/**/*.ts` | No |
 | `no-spec-id-reference` | `packages/*/src/**/*.{ts,tsx}` | No |
 | `rethrow-control-signal` | `packages/core/src/runtime/**/*.ts` | No |
+| `timing-test-isolation` | `packages/*/{src,tests}/**/*.test.{ts,tsx}` | No |
 | `use-halt-helpers` | `packages/core/tests/runtime/**/*.ts` | No |
 
-`no-spec-id-reference` and `no-banned-syntax` apply to any TypeScript
-repository. The other five encode rill runtime conventions (`RuntimeError`,
-`setDictField`, `ControlSignal`, the halt test helpers) and are specific to
-`rill`.
+`no-spec-id-reference`, `no-banned-syntax` and `timing-test-isolation` apply
+to any TypeScript repository. The other five encode rill runtime conventions
+(`RuntimeError`, `setDictField`, `ControlSignal`, the halt test helpers) and are
+specific to `rill`.
 
 ### `no-banned-syntax`
 
@@ -148,6 +149,47 @@ await expectHalt(() => run('"x" -> number'), { code: 'TYPE_MISMATCH' });
 In rill, the rule runs at `error` with no file exempted, over every `.ts` file
 under `packages/core/tests/runtime/`.
 
+### `timing-test-isolation`
+
+Rejects a wall-clock measurement in a test file not named `*.timing.test.*`.
+Another test file competing for the CPU moves a wall-clock reading, so a
+timing test must run alone, after the unit files. The rule pairs with a vitest
+config that runs `*.timing.test.*` as its own project with
+`fileParallelism: false` and `sequence: { groupOrder: 1 }`; see
+`packages/core/vitest.config.ts`.
+
+Reports `performance.now`, `process.hrtime`, and any import, dynamic import or
+`require` of a module listed in `helpers`. A clock read is also reported
+through `globalThis.`, `global.` or `window.`, with a string-literal computed
+key such as `performance['now']`, and by destructuring such as
+`const { now } = performance`. A specifier is read from a string literal or a
+template literal with no substitutions. Files not named `*.test.*`, such as
+the measurement helpers themselves, are ignored. `Date.now` is not reported,
+because tests read it for timestamps rather than durations.
+
+The rule reads syntax, not values, so an alias it cannot see past still
+escapes it: `const p = performance; p.now()`, or a computed key held in a
+variable.
+
+**Options:** `[{ helpers: ['helpers/scaling', 'percentile'] }]`. An entry
+matches a relative specifier (`./` or `../`) ending in `/<entry>`, with any
+`.js`, `.ts`, `.mjs`, `.cjs`, `.jsx` or `.tsx` extension stripped. A package
+specifier such as `some-pkg/percentile` never matches.
+
+```typescript
+// Bad: latency.test.ts
+const p95 = measureP95(() => runRules(parsed), { samples: 100, warmup: 5 });
+
+// Good: latency.timing.test.ts
+const p95 = measureP95(() => runRules(parsed), { samples: 100, warmup: 5 });
+```
+
+In rill, the rule runs at `error` over every test file under `packages/*/src/`
+and `packages/*/tests/`, with `helpers/scaling`, `helpers/measure` and
+`percentile` listed. A budget that load cannot plausibly breach takes
+`// oxlint-disable-next-line rill/timing-test-isolation` with the reason in a
+comment above it.
+
 ### `no-duplicate-error-id`
 
 Detects when RuntimeError message arguments contain the error ID prefix.
@@ -243,6 +285,11 @@ or `eslint`; oxlint has no built-in `RuleTester`, so it drives the rule
 `.cjs` files directly.
 
 ### `rule-unit-test.cjs`
+
+The runner. Each rule's cases live in `tests/<rule>.cjs`, which exports
+`{ name, run }`, and `tests/harness.cjs` holds the shared fixtures, mock
+context and assertions. The runner lists every case file and fails when a rule
+file in this directory has no case file, so a new rule cannot ship untested.
 
 Unit tests for rule logic: calls `rule.create(mockContext)` and drives the
 returned AST visitors with hand-built ESTree fixture nodes. Covers valid

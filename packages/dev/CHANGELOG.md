@@ -12,12 +12,18 @@ the language version. Language changes are recorded in the
 
 ## Unreleased
 
+### Added
+
+- **`timing-test-isolation` lint rule.** Reports `performance.now`, `process.hrtime`, or an import of a configured timing helper in a test file not named `*.timing.test.*`. Clock reads are caught through `globalThis.`, `global.` or `window.`, a string-literal computed key, and destructuring such as `const { now } = performance`. Helper imports are caught by string or substitution-free template specifier, and match only relative specifiers, so `some-pkg/percentile` is never a helper. A wall-clock budget running beside other test files moves under CPU load, and a vitest project with `fileParallelism: false` only isolates the files it can find by name. Configure the helper modules through `[{ helpers: [...] }]`. See `lint-rules/README.md`.
+
 ### Fixed
 
+- **`rill-check-standards` reads a pnpm flag with an attached value.** A workflow step such as `pnpm -r --workspace-concurrency=1 run check` read as a script named `--workspace-concurrency`, so build, test, lint and typecheck counted as unreached and STD-CHK-1, 2, 3 and 5 failed. Flags now take an optional `=value`.
 - **`rill-check-standards` no longer fails present tokens at random.** STD-CI-4 and STD-REL-1, 3, 4, 5, 6, and 7 could report FAIL for a token the workflow file contains, as in `no tag trigger in .github/workflows/release.yml`. The checker piped into `grep -q`, which exits at the first match; the stage feeding it then died of SIGPIPE, and `set -o pipefail` reported that as no match. A 10.8 KB `release.yml` failed about 1 run in 25 with every core busy and 1 in 170 idle. The final grep now reads its whole input. The five other `grep -q` pipe sites in the script could not lose the race, because their input is a few bytes, but they read to the end as well, and the four `grep -n | head -1` line lookups now use `grep -m 1`. ([#668](https://github.com/rcrsr/rill/pull/668))
 
 ### Changed
 
+- **The rule unit tests are split per rule.** `lint-rules/rule-unit-test.cjs` is now a runner over `lint-rules/tests/<rule>.cjs` case files, with shared fixtures in `lint-rules/tests/harness.cjs`. The runner fails when a rule file has no case file. The single file had reached 940 of its 1,000-line lint cap. `rill-test-rules` runs and reports as before.
 - **The rule files are linted with type-aware rules.** `packages/dev` lints with `oxlint --type-aware` against a new `tsconfig.json`. Each rule file carries JSDoc types derived from oxlint's `RuleTester` in `lint-rules/types.cjs`, so the type-aware rules resolve real types. This is not a type check: `checkJs` stays off and the package has no `typecheck` script. The package stays plain CommonJS with no build step. ([#665](https://github.com/rcrsr/rill/pull/665))
 - **Rules read source through `context.sourceCode`.** `no-duplicate-error-id` and `no-spec-id-reference` drop the `context.getSourceCode()` fallback, matching `rethrow-control-signal`. oxlint provides `context.sourceCode`, so rule behavior is unchanged under oxlint. The plugin's oxlint floor does not move, because `rethrow-control-signal` already required `context.sourceCode`. The rules are tested against oxlint `^1.91.0`. ([#665](https://github.com/rcrsr/rill/pull/665))
 

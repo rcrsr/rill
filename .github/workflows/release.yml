@@ -151,8 +151,10 @@ jobs:
       - name: Build all packages
         run: pnpm -r run build
 
+      # One package at a time, so no other package's tests load the CPU
+      # while a package runs its isolated *.timing.test.* files.
       - name: Run tests
-        run: pnpm -r run test
+        run: pnpm -r --workspace-concurrency=1 run test
 
       - name: Publish packages
         env:

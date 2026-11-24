@@ -16,6 +16,7 @@ import noDuplicateErrorId from './no-duplicate-error-id.cjs';
 import noNewRuntimeError from './no-new-runtime-error.cjs';
 import noSpecIdReference from './no-spec-id-reference.cjs';
 import rethrowControlSignal from './rethrow-control-signal.cjs';
+import timingTestIsolation from './timing-test-isolation.cjs';
 import useHaltHelpers from './use-halt-helpers.cjs';
 
 export default {
@@ -29,6 +30,7 @@ export default {
     'no-new-runtime-error': noNewRuntimeError,
     'no-spec-id-reference': noSpecIdReference,
     'rethrow-control-signal': rethrowControlSignal,
+    'timing-test-isolation': timingTestIsolation,
     'use-halt-helpers': useHaltHelpers,
   },
 };

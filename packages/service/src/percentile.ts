@@ -1,8 +1,8 @@
 /**
  * Shared p95 latency measurement helpers.
  *
- * Extracted from `latency.test.ts` so complexity/latency suites elsewhere
- * (e.g. `rules/nesting-scale.test.ts`) can reuse the exact same percentile
+ * Extracted from `latency.timing.test.ts` so complexity/latency suites elsewhere
+ * (e.g. `rules/nesting-scale.timing.test.ts`) can reuse the exact same percentile
  * computation without importing a `.test.ts` module - importing a test
  * module would re-execute its top-level `describe`/`it` calls as a side
  * effect, duplicating that suite's tests under the importing file.

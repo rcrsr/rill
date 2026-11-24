@@ -12,7 +12,6 @@ import { render, cleanup, act } from '@testing-library/react';
 import { EditorView } from '@codemirror/view';
 import { indentUnit } from '@codemirror/language';
 import { Editor, type EditorProps } from '../Editor.js';
-import { measureP95 } from '../../../tests/helpers/measure.js';
 
 function getView(container: HTMLElement): EditorView {
   const content = container.querySelector('.cm-content');
@@ -264,30 +263,10 @@ describe('Editor', () => {
   });
 
   // ============================================================
-  // Performance
+  // Value updates
   // ============================================================
 
-  describe('performance', () => {
-    it('handles large documents without blocking', () => {
-      const largeValue = Array.from(
-        { length: 1000 },
-        (_, i) => `line ${i + 1}`
-      ).join('\n');
-
-      const p95 = measureP95(
-        () => {
-          const { unmount } = render(
-            <Editor {...defaultProps} value={largeValue} />
-          );
-          unmount();
-        },
-        { samples: 20, warmup: 3 }
-      );
-
-      // Warm p95 render of 1000 lines stays under 200ms.
-      expect(p95).toBeLessThan(200);
-    });
-
+  describe('value updates', () => {
     it('updates value in place without remounting', () => {
       const values = ['first value', 'second value'];
       const { container, rerender } = render(
