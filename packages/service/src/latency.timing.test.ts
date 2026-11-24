@@ -79,7 +79,7 @@ const P95_BUDGET_X_PARSE = 0.5;
 // refactor deleted were nearly free here, and collectFacts adds a second
 // full traversal plus one fact record per node that flat input never
 // amortizes. Deeply nested input pays the opposite way and wins 153x (see
-// rules/nesting-scale.test.ts). Trading a bounded ~20% on shallow scripts
+// rules/nesting-scale.timing.test.ts). Trading a bounded ~20% on shallow scripts
 // for the removal of an unbounded quadratic on nested ones is the intended
 // deal, not an accident.
 //

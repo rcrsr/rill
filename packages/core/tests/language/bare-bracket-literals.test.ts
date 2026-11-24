@@ -187,6 +187,9 @@ describe('Rill Language: Bare Bracket Literals', () => {
     'parses deeply nested spread brackets without exponential cost',
     () => {
       const src = `${'[...'.repeat(40)}$x${']'.repeat(40)}`;
+      // The 1000 ms ceiling separates linear parsing from 2^40 exponential
+      // work, a gap CPU load cannot close, so this test runs with the unit files.
+      // oxlint-disable-next-line rill/timing-test-isolation
       const started = performance.now();
       let err: unknown;
       try {
@@ -194,6 +197,7 @@ describe('Rill Language: Bare Bracket Literals', () => {
       } catch (e) {
         err = e;
       }
+      // oxlint-disable-next-line rill/timing-test-isolation
       expect(performance.now() - started).toBeLessThan(1000);
       if (err !== undefined) {
         expect(err).toBeInstanceOf(ParseError);

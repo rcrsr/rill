@@ -742,11 +742,12 @@ else
     const scan = (scope, text) => {
       // Expands `pnpm [flags] [run] <script>`, with -r or --recursive fanning
       // out to every workspace package and --filter <name> or --filter=<name>
-      // selecting one. Not expanded: pnpm exec and pnpm dlx, which parse as a
-      // script named exec or dlx, and an invocation split across a YAML line
+      // selecting one. Any other flag may carry an attached value, as in
+      // --workspace-concurrency=1. Not expanded: pnpm exec and pnpm dlx, which
+      // parse as a script named exec or dlx, and an invocation split across a YAML line
       // continuation. Both fail in the conservative direction, reading as
       // unreached, so an element FAILs rather than passing on no evidence.
-      const re = /pnpm ((?:--filter[= ]\S+ |--?[\w-]+ )*)(?:run )?([\w:.-]+)/g;
+      const re = /pnpm ((?:--filter[= ]\S+ |--?[\w-]+(?:=\S+)? )*)(?:run )?([\w:.-]+)/g;
       let m;
       while ((m = re.exec(text)) !== null) {
         const flags = m[1] || "";

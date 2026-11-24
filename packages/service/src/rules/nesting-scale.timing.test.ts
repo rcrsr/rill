@@ -56,7 +56,7 @@
  *    p95 ~= 119.21ms, using `measureP95` from `../percentile.ts`
  *    (`PERCENTILE_SAMPLE_COUNT=100` timed samples after
  *    `PERCENTILE_WARMUP_COUNT=5` warmup runs - the same helper
- *    `../latency.test.ts` uses).
+ *    `../latency.timing.test.ts` uses).
  *  - Pre-refactor (`git stash` back to the last commit, before `facts.ts`
  *    existed and before rules read precomputed facts - each of
  *    `LOOP_OUTER_CAPTURE`/`PREFER_MAP`/`CLOSURE_LATE_BINDING`/
@@ -123,7 +123,7 @@ const CAPTURE_LEVELS = 5;
 // between the two and pushed the linear ratio past 8 under a parallel run.
 const REFERENCE_DEPTH = NESTING_DEPTH / 4;
 const MAX_DEPTH_SCALING_RATIO = 8;
-// Mirrors latency.test.ts: SAMPLE_COUNT + WARMUP_COUNT runs of a fixture
+// Mirrors latency.timing.test.ts: SAMPLE_COUNT + WARMUP_COUNT runs of a fixture
 // this deep can take a while on a slow/contended runner. The budget
 // assertion above is the actual latency guard; this timeout only prevents
 // a slow runner from being reported as a hang instead of a budget breach.

@@ -9,9 +9,8 @@
 // Timing tests (`*.timing.test.ts`) assert size ratios on wall-clock time, so
 // another test file competing for the CPU moves the ratio. They run as their
 // own project in a later group: vitest finishes every `unit` file, then runs
-// the timing files one at a time on an otherwise idle process.
-// tests/runtime/timing-isolation.test.ts fails a timing test that is not named
-// this way.
+// the timing files one at a time on an otherwise idle process. The
+// `rill/timing-test-isolation` lint rule fails a timing test not named this way.
 import { configDefaults, defineConfig, mergeConfig } from 'vitest/config';
 import rootConfig from '../../vitest.config';
 

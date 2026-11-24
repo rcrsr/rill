@@ -14,7 +14,7 @@ e9429ce7f9f6b86135dbf7db16a8a3d3f05c85eb7b2841d1cdd72d57e20e8de5  packages/core/
 ecea73e15feb08db45c0ea75a9c8d0a9c62ea2f30480c8d80c065b532cae451d  packages/core/tests/language/assert.test.ts
 f7b7b352c7c644cb3d19e463e5dd2eb7b63579eb4604ff3a67d6319e174efcad  packages/core/tests/language/atom-comment-spelling.test.ts
 1c4c2ce2372e08c5bf45af3b698a9cd38ef4eb924499e63b408745d96a811fc7  packages/core/tests/language/atoms.test.ts
-ec4a0cc0ceb4657ac431d41685f9dd5b88cbbd468232f2fc17832ee489ddbf5c  packages/core/tests/language/bare-bracket-literals.test.ts
+4908a9efcef1a33f376ad98cbd720ced22a885e7ece92b91b37bbefde303a32e  packages/core/tests/language/bare-bracket-literals.test.ts
 3494dea880680a2b9d530a743db1a33bc28b08522b60d8546a50187bf3582754  packages/core/tests/language/bare-syntax.test.ts
 6f11dda7ebb7cd7f2eb7d67528e1dc5985a1fbcb699a36a66181926804f78fae  packages/core/tests/language/block-argument.test.ts
 2e4a6b21b8b2becb3eb3e84762c734eb7e5d0c5ad54927282fb3984ad2a60947  packages/core/tests/language/block-scoping.test.ts
