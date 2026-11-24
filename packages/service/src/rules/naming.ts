@@ -18,7 +18,7 @@ import type {
   Rule,
   RuleContext,
 } from './types.js';
-import type { ReferenceEntry } from './facts.js';
+import type { ReferenceEntry, ScriptFacts } from './facts.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
 
@@ -100,6 +100,52 @@ function referenceSpan(entry: ReferenceEntry): SourceSpan {
 }
 
 // ============================================================
+// PER-RUN NAME INDEX
+// ============================================================
+
+/**
+ * The capture and reference logs grouped by name. `buildFix` asks the same
+ * by-name questions once per violation, so scanning both logs per call costs
+ * violations x script size. The index is built once per `ScriptFacts`, which
+ * `collectFacts` creates fresh for every run.
+ */
+interface NameIndex {
+  /** Number of captures binding each name. */
+  readonly captureCounts: ReadonlyMap<string, number>;
+  /** Every reference entry for each name, in log order. */
+  readonly referencesByName: ReadonlyMap<string, readonly ReferenceEntry[]>;
+  /** Names referenced inside a nested closure or collection-op body. */
+  readonly nestedReferenceNames: ReadonlySet<string>;
+}
+
+const nameIndexCache = new WeakMap<ScriptFacts, NameIndex>();
+
+function nameIndexFor(script: ScriptFacts): NameIndex {
+  const cached = nameIndexCache.get(script);
+  if (cached) return cached;
+  const captureCounts = new Map<string, number>();
+  for (const entry of script.captureLog) {
+    const name = entry.node.name;
+    captureCounts.set(name, (captureCounts.get(name) ?? 0) + 1);
+  }
+  const referencesByName = new Map<string, ReferenceEntry[]>();
+  const nestedReferenceNames = new Set<string>();
+  for (const entry of script.referenceLog) {
+    const list = referencesByName.get(entry.name);
+    if (list) list.push(entry);
+    else referencesByName.set(entry.name, [entry]);
+    if (entry.closureOrOpDepth > 0) nestedReferenceNames.add(entry.name);
+  }
+  const index: NameIndex = {
+    captureCounts,
+    referencesByName,
+    nestedReferenceNames,
+  };
+  nameIndexCache.set(script, index);
+  return index;
+}
+
+// ============================================================
 // DIAGNOSTIC CONSTRUCTION
 // ============================================================
 
@@ -172,13 +218,8 @@ function buildFix(
   }
 
   const snakeCaseName = toSnakeCase(name);
-  const {
-    captureLog,
-    referenceLog,
-    hasDynamicFieldAccess,
-    paramNames,
-    literalFieldAccessNames,
-  } = context.facts.script;
+  const { hasDynamicFieldAccess, paramNames, literalFieldAccessNames } =
+    context.facts.script;
 
   if (kind === 'dictKey') {
     if (hasDynamicFieldAccess || literalFieldAccessNames.has(name)) {
@@ -187,18 +228,13 @@ function buildFix(
   } else {
     // capture / param: withhold if the snake_case target already names a
     // captured variable (would merge two bindings).
-    const collides = captureLog.some(
-      (entry) => entry.node.name === snakeCaseName
-    );
-    if (collides) {
+    const index = nameIndexFor(context.facts.script);
+    if (index.captureCounts.has(snakeCaseName)) {
       return null;
     }
 
     if (kind === 'capture') {
-      const bindingCount = captureLog.filter(
-        (entry) => entry.node.name === name
-      ).length;
-      if (bindingCount > 1) {
+      if ((index.captureCounts.get(name) ?? 0) > 1) {
         return null;
       }
 
@@ -206,10 +242,7 @@ function buildFix(
         return null;
       }
 
-      const referencedInNestedScope = referenceLog.some(
-        (entry) => entry.name === name && entry.closureOrOpDepth > 0
-      );
-      if (referencedInNestedScope) {
+      if (index.nestedReferenceNames.has(name)) {
         return null;
       }
     }
@@ -223,8 +256,9 @@ function buildFix(
   let additionalEdits: readonly DiagnosticEdit[] | undefined;
   if (kind === 'capture') {
     const edits: DiagnosticEdit[] = [];
-    for (const entry of referenceLog) {
-      if (entry.name !== name) continue;
+    const references =
+      nameIndexFor(context.facts.script).referencesByName.get(name) ?? [];
+    for (const entry of references) {
       const span = referenceSpan(entry);
       edits.push({
         range: span,

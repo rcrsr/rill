@@ -24,7 +24,7 @@ import {
   getHover,
   resolveScopeAt,
 } from './scope/index.js';
-import { createDefaultConfig, runRules } from './rules/index.js';
+import { createDefaultConfig, runRules, RULES } from './rules/index.js';
 import {
   measureInterleavedRatioMedian,
   measureP95,
@@ -68,44 +68,47 @@ import {
 // semanticTokens is the binding constraint at 0.217 loaded, so 0.5 is ~2.3x
 // headroom over it. Everything else sits below 0.082 and has far more.
 const P95_BUDGET_X_PARSE = 0.5;
-// runRules aggregates every bundled rule (~47) over the script, so it does
-// proportionately more work than the single-pass providers.
+// runRules is budgeted in two parts, because its cost is a fixed traversal
+// plus a term that grows with the number of registered rules:
 //
-// This fixture is FLAT (no deeply nested collection-op bodies), and on flat
-// input the two-pass rules engine is measurably slower than the sub-walk
-// engine it replaced. Local p95 on this fixture: 34.62ms before the
-// facts-pass refactor, 41.64ms after, a ~20% regression. The cause is not a
-// surprise: a shallow subtree is cheap to re-walk, so the sub-walks the
-// refactor deleted were nearly free here, and collectFacts adds a second
-// full traversal plus one fact record per node that flat input never
-// amortizes. Deeply nested input pays the opposite way and wins 153x (see
-// rules/nesting-scale.timing.test.ts). Trading a bounded ~20% on shallow scripts
-// for the removal of an unbounded quadratic on nested ones is the intended
-// deal, not an accident.
+//   runRules(all rules) ~= base + perRule x enabledRuleCount
 //
-// Calibrated against injected regressions rather than guessed. Running the
-// rules engine 2x and 3x per sample measures 1.905x and 2.728x, against an
-// observed correct envelope of 1.008-1.136x. 1.5 sits between the two: ~32%
-// clear of the worst correct reading, and decisively under a doubling, so
-// it catches anything at or above ~1.5x.
+// Measured under vitest on the fixture below, with the first k registered
+// rules enabled (k = 0, 16, 33, 49, 65), the ratio to parse rose linearly from
+// 0.55 to 1.05. A single whole-engine ceiling therefore erodes with every
+// rule added: the 1.5 ceiling this replaces was calibrated at 0.70-0.88 on
+// 2026-11-03 and was breached on CI three weeks later by rule growth alone,
+// with no defect in any one change.
 //
-// That threshold is deliberately above 1.2x. The facts-pass regression
-// described above was an accepted trade, and a budget that trips on a
-// change the maintainers chose is a budget that gets raised again. Re-run
-// that change today and it lands at ~1.22x, under the ceiling.
+// - BASE: runRules with an empty rule list, i.e. the traversal, the facts
+//   pass, and scope bookkeeping every rule shares. It does not move when a
+//   rule is added, so it keeps a fixed ceiling.
+// - PER RULE: (all-rules ratio - base ratio) / enabled rule count, the mean
+//   marginal cost of one rule. Adding rules of typical cost leaves it flat.
+//   One expensive rule raises it: before it was fixed, NAMING_SNAKE_CASE
+//   rescanned the whole capture and reference logs per violation, a
+//   violations x script-size cost that took 23% of runRules on this fixture.
 //
-// The budget now applies to the median of per-round paired ratios, not to
-// p95(runRules) / p95(parse). Dividing two independently sorted tails let a
-// single preemption in one series push a correct run to 1.553x on CI. A
-// paired median discards the rounds a preemption hit. Measured locally
-// (3 runs each, median / p95): correct 0.70-0.88 / 0.77-0.85, injected 2x
-// 1.39-1.41 / 1.45-1.64, injected 3x 2.02-2.54 / 2.40-2.78.
+// Readings (local, 3 runs each, median of paired ratios):
 //
-// The 350ms ceiling this replaces allowed 8.1x over the local p95 of the
-// day. If this one breaches, the fix is to find out which of the two
-// happened - the numbers above are here so that is answerable - not to
-// raise the constant.
-const RUN_RULES_P95_BUDGET_X_PARSE = 1.5;
+//                            base         per rule
+//   correct                  0.51-0.53    0.0079-0.0084
+//   NAMING_SNAKE_CASE before
+//   its fix                  0.48-0.52    0.0100-0.0135
+//   runRules run 2x          0.91-0.93    0.0154-0.0160
+//
+// The ratio does not fully cancel across machines: CI read 1.16-1.63x the
+// local value for the same code. Scaled by that factor, a correct CI reading
+// tops out at base 0.86 and per rule 0.0137, and a doubled one starts at
+// base 1.06 and per rule 0.0179. Each ceiling sits between the two, about
+// 10% clear of the correct end, so CI catches a 2x regression in either
+// part. Locally a doubling can read under a ceiling; CI is the gate.
+//
+// If either breaches, find out which of the two happened, a regression or a
+// machine reading outside the envelope above. Do not raise a constant
+// without new readings, and recalibrate under vitest, never plain node.
+const RUN_RULES_BASE_BUDGET_X_PARSE = 0.95;
+const RUN_RULES_PER_RULE_BUDGET_X_PARSE = 0.015;
 const TARGET_LINE_COUNT = 2000;
 // Each case below runs its provider SAMPLE_COUNT + WARMUP_COUNT times, so
 // wall-clock is roughly 105x the provider's own latency: on the CI runner
@@ -261,23 +264,38 @@ describe('provider latency on a 2,000-line script', () => {
   );
 
   it(
-    'runRules stays at or under the median paired-ratio budget',
+    'runRules stays within its base and per-rule paired-ratio budgets',
     () => {
       // Sampled interleaved with the parse reference rather than against
-      // parseRefP95: this budget sits closest to its correct reading, and a
-      // reference measured at the start of the suite let load that rose
+      // parseRefP95: these budgets sit closest to their correct readings,
+      // and a reference measured at the start of the suite let load that rose
       // during a parallel run push a correct runRules to 1.526x. Each round
       // yields one paired ratio, and the median of those absorbs a tail
       // spike that lands in only one of the two series.
-      const xParse = measureInterleavedRatioMedian(
-        () => {
-          runRules(parsed, source, config);
-        },
-        () => {
-          parseWithRecovery(source);
-        }
+      const parse = (): void => {
+        parseWithRecovery(source);
+      };
+      const enabledRules = RULES.filter(
+        (rule) => (config.rules[rule.code] ?? 'on') !== 'off'
       );
-      expect(xParse).toBeLessThanOrEqual(RUN_RULES_P95_BUDGET_X_PARSE);
+      const baseXParse = measureInterleavedRatioMedian(() => {
+        runRules(parsed, source, config, []);
+      }, parse);
+      const allXParse = measureInterleavedRatioMedian(() => {
+        runRules(parsed, source, config, enabledRules);
+      }, parse);
+      const perRuleXParse = (allXParse - baseXParse) / enabledRules.length;
+
+      expect(enabledRules.length).toBeGreaterThan(0);
+      expect(
+        baseXParse,
+        `runRules base ${baseXParse.toFixed(3)}x parse`
+      ).toBeLessThanOrEqual(RUN_RULES_BASE_BUDGET_X_PARSE);
+      expect(
+        perRuleXParse,
+        `runRules per rule ${perRuleXParse.toFixed(4)}x parse ` +
+          `(all ${allXParse.toFixed(3)}x, ${enabledRules.length} rules)`
+      ).toBeLessThanOrEqual(RUN_RULES_PER_RULE_BUDGET_X_PARSE);
     },
     LATENCY_TEST_TIMEOUT_MS
   );
