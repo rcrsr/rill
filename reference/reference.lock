@@ -191,6 +191,11 @@ construct-options.timeout-limits 48fae22e61a1
 construct-options.timeout-total-expiry 591c1e9bdfd7
 construct-options.values 6ebb8d66f635
 conversion 3be39372db13 number.from-string-fail@56311bb2eeec
+conversion-probe 90a00533dbf0 halt.probe-rule@aae761a1ca84
+conversion-probe.form 7b1a6353dfd2
+conversion-probe.no-halt 71e10ad6021d
+conversion-probe.result 72f5f09acc5d
+conversion-probe.type-form 387ea218ddca
 conversion.any d639008176d6
 conversion.deep f7f36025251e
 conversion.dict-ordered b07caa56f8ab
@@ -548,11 +553,15 @@ halt.catchable 929ad6135c87
 halt.definition 02f1b5ef3578
 halt.error-code 158a35c5d679
 halt.error-id ae7ce30f5675
+halt.host-contract 846d25cdec92
+halt.limit-fatal 7048cdcc2cca
 halt.no-exceptions d77835f93c91
 halt.non-catchable 8eb8c26644b7
 halt.parse 6d138afba141
+halt.probe-rule aae761a1ca84
 halt.signals 8be052dc02e2
 halt.table f8ef9cf52762
+halt.world-failure 9a17efa3732a
 host-timeout 114beb35e610 construct-options.timeout-total-expiry@591c1e9bdfd7 guard.catch@bf78f704cbc6 host-timeout.expiry@21b410386383
 host-timeout.expiry 21b410386383
 host-timeout.script-function 93b9ca8e330d
