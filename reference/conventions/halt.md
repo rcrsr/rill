@@ -3,6 +3,7 @@ id: halt
 title: Halts
 status: normative
 since: 0.24.0
+issues: [681]
 depends: [notation]
 tests: [error.test.ts, guard-retry.test.ts, access-halt.test.ts, halt-catchability.test.ts]
 ---
@@ -41,6 +42,24 @@ These halts MUST be non-catchable: a halt raised by `error`, a failed `assert`, 
 mismatch at a call, a call whose argument count does not match (RILL-R044 for a missing
 argument, RILL-R045 for an excess one), a call made after the runtime is disposed, and a fatal
 limit halt.
+
+r[halt.probe-rule] A halt a probe could have ruled out is not catchable {pending #681}
+A halt MUST be non-catchable when a probe, a comparison, or the source text could have ruled it
+out before the operation ran. This covers a type error, an undefined name, a method the receiver's
+kind lacks, a binding or arity error, a broken type lock, a missing field or index, and a
+malformed type form.
+
+r[halt.limit-fatal] A step, depth, or in-flight limit halt is not catchable {pending #681}
+A RILL-R010 halt MUST be non-catchable under every operator, function, and construct.
+
+r[halt.host-contract] A host contract violation is not catchable {pending #681}
+A halt that reports a host breaking its contract MUST be non-catchable: RILL-R074, RILL-R084, and
+RILL-R085.
+
+r[halt.world-failure] Recovery catches what no probe rules out {pending #681}
+Every other halt MUST be catchable: an invalid value a host function returns, a resolver that is
+missing or fails, a time bound, a value past its range, and a content failure that no probe can
+test.
 
 r[halt.parse] Parse errors precede evaluation
 A lexer or parser error MUST be reported before any statement of the script evaluates. It is
