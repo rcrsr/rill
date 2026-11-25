@@ -39,11 +39,23 @@ share a concept. When a row is added, decided, or removed, update the rows that 
 
 1. Bring the question to the owner with the rules involved, the evidence, and a proposed amendment.
 2. File the issue that records the decision.
-3. Write the decided behavior as a `{pending #N}` rule in the owning concept.
+3. Write the decided behavior as a `{pending #N}` rule in the owning concept, and add the issue to
+   "Issues filed".
 4. Remove the row. Remove the heading when no row remains under it.
 
 A defect, where the runtime breaks a rule nobody disputes, is not a row here. While the audit is
 open it goes in the [AUDIT.md](AUDIT.md) Findings table; otherwise file it as an issue.
+
+## Issues filed
+
+Every issue filed from a row here or from an [AUDIT.md](AUDIT.md) finding. Add a line when an issue
+is filed, and keep it after the row is removed, so the link from a decision to its issue survives.
+
+| Issue | Records | Rows and findings |
+|-------|---------|-------------------|
+| [#683](https://github.com/rcrsr/rill/issues/683) | The order of every decision and defect below; update its checklists as rows are decided | All |
+| [#681](https://github.com/rcrsr/rill/issues/681) | A halt is catchable only when no probe could have ruled it out; step, depth, and in-flight limits and host contract violations always escape `guard` | Decides I-98, I-97, I-07. Sets the direction of D-01, D-05, D-16, D-22, D-28, D-37, D-38, and of every row whose `Affects` says `After: I-98` |
+| [#682](https://github.com/rcrsr/rill/issues/682) | A conversion probe, `=?type` | Decides the conversion part of I-99. The regex and `json` probes in I-99 are not filed |
 
 ## Host property functions and `self`
 
