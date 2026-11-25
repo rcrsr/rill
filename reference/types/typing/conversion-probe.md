@@ -23,6 +23,10 @@ r[conversion-probe.form] A probe is `=?` and a type {pending #682}
 conversion-probe = "=" , "?" , type-target ;
 ```
 
+r[conversion-probe.position] A probe follows an expression {pending #682}
+`=?T` MUST be accepted after a primary or any postfix operator, as `:?T` is (`assertion.position`),
+and the postfix form MUST test the value it follows.
+
 ## Evaluation
 
 r[conversion-probe.result] A probe yields whether the conversion would succeed {pending #682}
@@ -54,4 +58,9 @@ A conversion failure this probe can test falls under `halt.probe-rule`.
 ```rill pending=682
 list["1", "x"] -> =?list(number)
 # Result: false
+```
+
+```rill pending=682
+list["1", "x"] -> filter({ $=?number })
+# Result: list["1"]
 ```
